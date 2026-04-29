@@ -92,6 +92,11 @@ def create_app(*, db_path: Path) -> FastAPI:
                 yield event_to_sse(ev)
         return StreamingResponse(gen(), media_type="text/event-stream")
 
+    # Mount the web UI (Jinja + HTMX + SSE).
+    from pqcscan.ui.routes import mount_static, router as ui_router
+    mount_static(app)
+    app.include_router(ui_router)
+
     return app
 
 

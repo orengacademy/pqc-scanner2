@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block body %}
+<h1 style="font-size:20px;font-weight:600;margin-bottom:16px">Scans</h1>
+<table style="width:100%;font-size:14px;border-collapse:collapse">
+  <thead>
+    <tr style="text-align:left;color:#888;border-bottom:1px solid #232333">
+      <th style="padding:8px 4px">ID</th>
+      <th>Started</th>
+      <th>Status</th>
+      <th>Mode</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in scans %}
+      <tr style="border-bottom:1px solid #161620">
+        <td style="padding:8px 4px">{{ s.id }}</td>
+        <td>{{ s.started_at }}</td>
+        <td>{{ s.status }}</td>
+        <td>{{ s.mode }}</td>
+        <td><a href="/scans/{{ s.id }}" style="color:#3b82f6">view</a></td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

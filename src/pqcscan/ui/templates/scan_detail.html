@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block body %}
+<h1 style="font-size:20px;font-weight:600;margin-bottom:8px">Scan #{{ scan.id }}</h1>
+<p style="color:#888;font-size:13px;margin-bottom:16px">
+  Status: {{ scan.status }} &mdash; mode: {{ scan.mode }} &mdash; started: {{ scan.started_at }}
+</p>
+
+<div id="findings" hx-ext="sse" sse-connect="/api/scans/{{ scan.id }}/events"
+     sse-swap="finding" hx-swap="afterbegin">
+  {% for f in findings %}
+    <div style="border:1px solid #232333;border-radius:6px;padding:8px 12px;margin-bottom:8px;font-size:13px">
+      <span style="background:#161620;border-radius:4px;padding:2px 6px;text-transform:uppercase;font-size:10px">{{ f.severity }}</span>
+      <span style="color:#a8b;margin-left:8px">{{ f.algorithm }}</span>
+      <span style="margin-left:8px">{{ f.title }}</span>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

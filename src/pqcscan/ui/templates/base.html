@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>pqcscan</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/tailwind.min.css">
+  <script src="/static/htmx-1.9.10.min.js"></script>
+</head>
+<body>
+  <header style="padding:12px 24px;border-bottom:1px solid #232333;display:flex;justify-content:space-between;align-items:center">
+    <a href="/" style="font-size:18px;font-weight:600;color:#fff;text-decoration:none">pqcscan</a>
+    <nav>
+      <a href="/" style="color:#aab;text-decoration:none;margin-right:16px">Dashboard</a>
+      <a href="/scans" style="color:#aab;text-decoration:none">Scans</a>
+    </nav>
+  </header>
+  <main style="padding:24px">
+    {% block body %}{% endblock %}
+  </main>
+</body>
+</html>
