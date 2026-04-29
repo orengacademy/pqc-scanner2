@@ -1,0 +1,95 @@
+from __future__ import annotations
+
+import asyncio
+import platform
+from collections import defaultdict
+
+from loguru import logger
+
+from pqcscan.core.types import Capability, Classification, Finding, Severity
+from pqcscan.probes._base import Probe, ScanContext
+from pqcscan.probes._registry import Registry
+from pqcscan.runner.event_bus import (
+    EventBus,
+    FindingDiscovered,
+    ScanCompleted,
+    StageCompleted,
+    StageStarted,
+)
+from pqcscan.store.repo import Repo
+
+
+class ProbeRunner:
+    def __init__(
+        self,
+        *,
+        registry: Registry,
+        repo: Repo,
+        bus: EventBus,
+        per_probe_timeout_s: float = 30.0,
+    ) -> None:
+        self.registry = registry
+        self.repo = repo
+        self.bus = bus
+        self.timeout = per_probe_timeout_s
+
+    async def run(
+        self, *, mode: str, available_capabilities: set[Capability]
+    ) -> int:
+        probe_versions = {p.id: p.version for p in self.registry.all()}
+        scan_id = self.repo.create_scan(
+            mode=mode,
+            probe_versions=probe_versions,
+            tool_versions={"python": platform.python_version()},
+        )
+        ctx = ScanContext(
+            scan_id=scan_id,
+            mode=mode,
+            available_capabilities=available_capabilities,
+        )
+
+        by_family: dict[str, list[Probe]] = defaultdict(list)
+        for p in self.registry.all():
+            by_family[p.family.value].append(p)
+
+        for family_name, probes in by_family.items():
+            await self.bus.publish(StageStarted(stage=family_name))
+            await asyncio.gather(*(self._run_one(p, ctx) for p in probes))
+            await self.bus.publish(StageCompleted(stage=family_name))
+
+        self.repo.finish_scan(scan_id, status="done")
+        await self.bus.publish(ScanCompleted(scan_id=scan_id))
+        return scan_id
+
+    async def _run_one(self, probe: Probe, ctx: ScanContext) -> None:
+        if not probe.requires.issubset(ctx.available_capabilities):
+            self.repo.record_finding(ctx.scan_id, Finding(
+                probe_id=probe.id,
+                algorithm="N/A",
+                classification=Classification.INFO,
+                severity=Severity.INFO,
+                title=f"skipped: probe requires {sorted(c.value for c in probe.requires)}",
+                evidence={"reason": "skipped_privilege"},
+            ))
+            return
+        if not await probe.applies(ctx):
+            return
+
+        def emit(f: Finding) -> None:
+            self.repo.record_finding(ctx.scan_id, f)
+            asyncio.create_task(self.bus.publish(FindingDiscovered(
+                probe_id=f.probe_id, title=f.title, algorithm=f.algorithm,
+                classification=f.classification.value, severity=f.severity.value,
+            )))
+
+        try:
+            await asyncio.wait_for(probe.run(ctx, emit), timeout=self.timeout)
+        except asyncio.TimeoutError:
+            self.repo.record_probe_error(
+                ctx.scan_id, probe_id=probe.id, message="timeout"
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.exception("probe {} crashed", probe.id)
+            self.repo.record_probe_error(
+                ctx.scan_id, probe_id=probe.id, message=str(e)
+            )
