@@ -13,7 +13,14 @@ from pqcscan.store.schema import FindingRow, Scan
 
 class Repo:
     def __init__(self, db_path: Path | str):
-        self.engine = create_engine(f"sqlite:///{db_path}", future=True)
+        # check_same_thread=False so a background-thread scanner can write
+        # while the FastAPI request loop reads. SQLite handles concurrent
+        # access via its built-in locking.
+        self.engine = create_engine(
+            f"sqlite:///{db_path}",
+            future=True,
+            connect_args={"check_same_thread": False},
+        )
 
     def init_schema(self) -> None:
         migrations.apply(self.engine)
