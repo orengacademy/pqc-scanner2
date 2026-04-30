@@ -31,7 +31,7 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — Plan A (7) + Plan B batches 1-5 (25) = 32 probes."""
+    """Built-in probe set — Plan A (7) + Plan B batches 1-6 (30) = 37 probes."""
     from pqcscan.probes.aux_clock_cert_validity import AuxClockCertValidity
     from pqcscan.probes.code_ts_python import CodeTsPython
     from pqcscan.probes.fs_cert_privkey import FsCertPrivkey
@@ -46,6 +46,11 @@ def default_registry() -> Registry:
     from pqcscan.probes.host_openssl_engines import HostOpenSSLEngines
     from pqcscan.probes.host_ssh_client_config import HostSshClientConfig
     from pqcscan.probes.host_ssh_server_config import HostSshServerConfig
+    from pqcscan.probes.net_db_mongo_tls import NetDbMongoTls
+    from pqcscan.probes.net_db_mysql_tls import NetDbMysqlTls
+    from pqcscan.probes.net_db_postgres_tls import NetDbPostgresTls
+    from pqcscan.probes.net_db_redis_tls import NetDbRedisTls
+    from pqcscan.probes.net_ports_tcp import NetPortsTcp
     from pqcscan.probes.net_starttls_ftp import NetStarttlsFtp
     from pqcscan.probes.net_starttls_imap import NetStarttlsImap
     from pqcscan.probes.net_starttls_ldap import NetStarttlsLdap
@@ -105,4 +110,10 @@ def default_registry() -> Registry:
     reg.register(SbomLangPip())
     reg.register(SbomLangNpm())
     reg.register(SbomLangGomod())
+    # Plan B batch 6 — port discovery + database TLS.
+    reg.register(NetPortsTcp())
+    reg.register(NetDbPostgresTls())
+    reg.register(NetDbMongoTls())
+    reg.register(NetDbRedisTls())
+    reg.register(NetDbMysqlTls())
     return reg
