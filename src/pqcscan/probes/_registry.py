@@ -31,7 +31,7 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — Plan A (7) + Plan B batches 1-7 (33) = 40 probes."""
+    """Built-in probe set — Plan A (7) + Plan B batches 1-8 (38) = 45 probes."""
     from pqcscan.probes.aux_clock_cert_validity import AuxClockCertValidity
     from pqcscan.probes.code_ts_python import CodeTsPython
     from pqcscan.probes.fs_cert_privkey import FsCertPrivkey
@@ -69,6 +69,11 @@ def default_registry() -> Registry:
     from pqcscan.probes.sbom_os_apk import SbomOsApk
     from pqcscan.probes.sbom_os_dpkg import SbomOsDpkg
     from pqcscan.probes.sbom_os_rpm import SbomOsRpm
+    from pqcscan.probes.storage_bitlocker import StorageBitlocker
+    from pqcscan.probes.storage_dmcrypt import StorageDmcrypt
+    from pqcscan.probes.storage_fscrypt import StorageFscrypt
+    from pqcscan.probes.storage_luks_headers import StorageLuksHeaders
+    from pqcscan.probes.storage_zfs_encryption import StorageZfsEncryption
     from pqcscan.probes.vpn_openvpn_config import VpnOpenvpnConfig
     from pqcscan.probes.vpn_tailscale_state import VpnTailscaleState
     from pqcscan.probes.vpn_wireguard import VpnWireguard
@@ -123,4 +128,10 @@ def default_registry() -> Registry:
     reg.register(VpnWireguard())
     reg.register(VpnOpenvpnConfig())
     reg.register(VpnTailscaleState())
+    # Plan B batch 8 — storage at-rest.
+    reg.register(StorageLuksHeaders())
+    reg.register(StorageBitlocker())
+    reg.register(StorageZfsEncryption())
+    reg.register(StorageDmcrypt())
+    reg.register(StorageFscrypt())
     return reg
