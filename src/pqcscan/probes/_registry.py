@@ -31,9 +31,15 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — Plan A (7) + Plan B batches 1-8 (38) = 45 probes."""
+    """Built-in probe set — Plan A (7) + Plan B batches 1-9 (44) = 51 probes."""
     from pqcscan.probes.aux_clock_cert_validity import AuxClockCertValidity
     from pqcscan.probes.code_ts_python import CodeTsPython
+    from pqcscan.probes.container_image_sbom import ContainerImageSbom
+    from pqcscan.probes.container_runtime_detect import ContainerRuntimeDetect
+    from pqcscan.probes.k8s_helm_releases import K8sHelmReleases
+    from pqcscan.probes.k8s_ingress_tls import K8sIngressTls
+    from pqcscan.probes.k8s_mesh_mtls import K8sMeshMtls
+    from pqcscan.probes.k8s_secrets_types import K8sSecretsTypes
     from pqcscan.probes.fs_cert_privkey import FsCertPrivkey
     from pqcscan.probes.fs_cert_x509 import FsCertX509
     from pqcscan.probes.fs_conf_apache import FsConfApache
@@ -134,4 +140,11 @@ def default_registry() -> Registry:
     reg.register(StorageZfsEncryption())
     reg.register(StorageDmcrypt())
     reg.register(StorageFscrypt())
+    # Plan B batch 9 — container + Kubernetes coverage.
+    reg.register(ContainerRuntimeDetect())
+    reg.register(ContainerImageSbom())
+    reg.register(K8sIngressTls())
+    reg.register(K8sSecretsTypes())
+    reg.register(K8sHelmReleases())
+    reg.register(K8sMeshMtls())
     return reg
