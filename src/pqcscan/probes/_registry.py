@@ -31,7 +31,7 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — Plan A (7) + Plan B batches 1-4 (20) = 27 probes."""
+    """Built-in probe set — Plan A (7) + Plan B batches 1-5 (25) = 32 probes."""
     from pqcscan.probes.aux_clock_cert_validity import AuxClockCertValidity
     from pqcscan.probes.code_ts_python import CodeTsPython
     from pqcscan.probes.fs_cert_privkey import FsCertPrivkey
@@ -58,7 +58,12 @@ def default_registry() -> Registry:
     from pqcscan.probes.net_tls_pop3s import NetTlsPop3s
     from pqcscan.probes.net_tls_smtps import NetTlsSmtps
     from pqcscan.probes.pqc_alg_normaliser import PqcAlgNormaliser
+    from pqcscan.probes.sbom_lang_gomod import SbomLangGomod
+    from pqcscan.probes.sbom_lang_npm import SbomLangNpm
+    from pqcscan.probes.sbom_lang_pip import SbomLangPip
+    from pqcscan.probes.sbom_os_apk import SbomOsApk
     from pqcscan.probes.sbom_os_dpkg import SbomOsDpkg
+    from pqcscan.probes.sbom_os_rpm import SbomOsRpm
 
     reg = Registry()
     # Plan A — MVP foundation (one probe per family).
@@ -94,4 +99,10 @@ def default_registry() -> Registry:
     reg.register(NetStarttlsPop3())
     reg.register(NetStarttlsFtp())
     reg.register(NetStarttlsLdap())
+    # Plan B batch 5 — SBOM expansion (RHEL/Alpine OS + Python/JS/Go langs).
+    reg.register(SbomOsRpm())
+    reg.register(SbomOsApk())
+    reg.register(SbomLangPip())
+    reg.register(SbomLangNpm())
+    reg.register(SbomLangGomod())
     return reg
