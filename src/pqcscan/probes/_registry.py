@@ -31,7 +31,7 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — Plan A (7) + Plan B batches 1+2+3 (15) = 22 probes."""
+    """Built-in probe set — Plan A (7) + Plan B batches 1-4 (20) = 27 probes."""
     from pqcscan.probes.aux_clock_cert_validity import AuxClockCertValidity
     from pqcscan.probes.code_ts_python import CodeTsPython
     from pqcscan.probes.fs_cert_privkey import FsCertPrivkey
@@ -46,6 +46,11 @@ def default_registry() -> Registry:
     from pqcscan.probes.host_openssl_engines import HostOpenSSLEngines
     from pqcscan.probes.host_ssh_client_config import HostSshClientConfig
     from pqcscan.probes.host_ssh_server_config import HostSshServerConfig
+    from pqcscan.probes.net_starttls_ftp import NetStarttlsFtp
+    from pqcscan.probes.net_starttls_imap import NetStarttlsImap
+    from pqcscan.probes.net_starttls_ldap import NetStarttlsLdap
+    from pqcscan.probes.net_starttls_pop3 import NetStarttlsPop3
+    from pqcscan.probes.net_starttls_smtp import NetStarttlsSmtp
     from pqcscan.probes.net_tls_https import NetTlsHttps
     from pqcscan.probes.net_tls_imaps import NetTlsImaps
     from pqcscan.probes.net_tls_ldaps import NetTlsLdaps
@@ -83,4 +88,10 @@ def default_registry() -> Registry:
     reg.register(NetTlsSmtps())
     reg.register(NetTlsLdaps())
     reg.register(NetTlsMqtts())
+    # Plan B batch 4 — STARTTLS family (text protocols + LDAP stub).
+    reg.register(NetStarttlsSmtp())
+    reg.register(NetStarttlsImap())
+    reg.register(NetStarttlsPop3())
+    reg.register(NetStarttlsFtp())
+    reg.register(NetStarttlsLdap())
     return reg
