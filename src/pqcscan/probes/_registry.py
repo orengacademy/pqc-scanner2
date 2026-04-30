@@ -31,15 +31,20 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — Plan A MVP (7) + Plan B batch 1 (5) = 12 probes."""
+    """Built-in probe set — Plan A (7) + Plan B batches 1+2 (10) = 17 probes."""
     from pqcscan.probes.aux_clock_cert_validity import AuxClockCertValidity
     from pqcscan.probes.code_ts_python import CodeTsPython
     from pqcscan.probes.fs_cert_privkey import FsCertPrivkey
     from pqcscan.probes.fs_cert_x509 import FsCertX509
     from pqcscan.probes.fs_conf_apache import FsConfApache
     from pqcscan.probes.fs_conf_nginx import FsConfNginx
+    from pqcscan.probes.fs_conf_openssl_cnf import FsConfOpensslCnf
+    from pqcscan.probes.fs_conf_sshd import FsConfSshd
     from pqcscan.probes.host_gnupg_config import HostGnupgConfig
+    from pqcscan.probes.host_openssl_ciphers import HostOpenSSLCiphers
     from pqcscan.probes.host_openssl_config import HostOpenSSLConfig
+    from pqcscan.probes.host_openssl_engines import HostOpenSSLEngines
+    from pqcscan.probes.host_ssh_client_config import HostSshClientConfig
     from pqcscan.probes.host_ssh_server_config import HostSshServerConfig
     from pqcscan.probes.net_tls_https import NetTlsHttps
     from pqcscan.probes.pqc_alg_normaliser import PqcAlgNormaliser
@@ -60,4 +65,11 @@ def default_registry() -> Registry:
     reg.register(FsCertPrivkey())
     reg.register(FsConfNginx())
     reg.register(FsConfApache())
+    # Plan B batch 2 — SSH client config, OpenSSL CLI introspection,
+    # filesystem mirrors of sshd_config / openssl.cnf.
+    reg.register(HostSshClientConfig())
+    reg.register(HostOpenSSLCiphers())
+    reg.register(HostOpenSSLEngines())
+    reg.register(FsConfSshd())
+    reg.register(FsConfOpensslCnf())
     return reg
