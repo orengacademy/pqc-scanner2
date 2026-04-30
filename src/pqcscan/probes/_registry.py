@@ -31,7 +31,7 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — Plan A (7) + Plan B batches 1-6 (30) = 37 probes."""
+    """Built-in probe set — Plan A (7) + Plan B batches 1-7 (33) = 40 probes."""
     from pqcscan.probes.aux_clock_cert_validity import AuxClockCertValidity
     from pqcscan.probes.code_ts_python import CodeTsPython
     from pqcscan.probes.fs_cert_privkey import FsCertPrivkey
@@ -69,6 +69,9 @@ def default_registry() -> Registry:
     from pqcscan.probes.sbom_os_apk import SbomOsApk
     from pqcscan.probes.sbom_os_dpkg import SbomOsDpkg
     from pqcscan.probes.sbom_os_rpm import SbomOsRpm
+    from pqcscan.probes.vpn_openvpn_config import VpnOpenvpnConfig
+    from pqcscan.probes.vpn_tailscale_state import VpnTailscaleState
+    from pqcscan.probes.vpn_wireguard import VpnWireguard
 
     reg = Registry()
     # Plan A — MVP foundation (one probe per family).
@@ -116,4 +119,8 @@ def default_registry() -> Registry:
     reg.register(NetDbMongoTls())
     reg.register(NetDbRedisTls())
     reg.register(NetDbMysqlTls())
+    # Plan B batch 7 — VPN beyond IKE.
+    reg.register(VpnWireguard())
+    reg.register(VpnOpenvpnConfig())
+    reg.register(VpnTailscaleState())
     return reg
