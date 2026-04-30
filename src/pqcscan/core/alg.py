@@ -59,7 +59,13 @@ def classify(alg: str) -> Classification:
     if any(a.startswith(p.upper()) for p in pqc_ready_prefixes):
         return Classification.PQC_READY
 
-    if a in {"MD5", "SHA-1", "RC4", "DES", "3DES", "TRIPLEDES", "DSA"}:
+    if a in {
+        "MD5", "MD4", "MD2",
+        "SHA-1", "SHA1",
+        "RC4", "RC2",
+        "DES", "3DES", "TRIPLEDES", "TDES",
+        "DSA",
+    }:
         return Classification.SANGAT_TINGGI
 
     if m := _RSA_RE.match(a):
