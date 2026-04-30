@@ -31,7 +31,7 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — Plan A (7) + Plan B batches 1+2 (10) = 17 probes."""
+    """Built-in probe set — Plan A (7) + Plan B batches 1+2+3 (15) = 22 probes."""
     from pqcscan.probes.aux_clock_cert_validity import AuxClockCertValidity
     from pqcscan.probes.code_ts_python import CodeTsPython
     from pqcscan.probes.fs_cert_privkey import FsCertPrivkey
@@ -47,6 +47,11 @@ def default_registry() -> Registry:
     from pqcscan.probes.host_ssh_client_config import HostSshClientConfig
     from pqcscan.probes.host_ssh_server_config import HostSshServerConfig
     from pqcscan.probes.net_tls_https import NetTlsHttps
+    from pqcscan.probes.net_tls_imaps import NetTlsImaps
+    from pqcscan.probes.net_tls_ldaps import NetTlsLdaps
+    from pqcscan.probes.net_tls_mqtts import NetTlsMqtts
+    from pqcscan.probes.net_tls_pop3s import NetTlsPop3s
+    from pqcscan.probes.net_tls_smtps import NetTlsSmtps
     from pqcscan.probes.pqc_alg_normaliser import PqcAlgNormaliser
     from pqcscan.probes.sbom_os_dpkg import SbomOsDpkg
 
@@ -72,4 +77,10 @@ def default_registry() -> Registry:
     reg.register(HostOpenSSLEngines())
     reg.register(FsConfSshd())
     reg.register(FsConfOpensslCnf())
+    # Plan B batch 3 — TLS variants on alternative ports (mail, LDAP, MQTT).
+    reg.register(NetTlsImaps())
+    reg.register(NetTlsPop3s())
+    reg.register(NetTlsSmtps())
+    reg.register(NetTlsLdaps())
+    reg.register(NetTlsMqtts())
     return reg

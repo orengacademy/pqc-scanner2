@@ -5,15 +5,15 @@ from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._tls_probe import run_tls_probe
 
 
-class NetTlsHttps(Probe):
-    id = "net.tls.https"
+class NetTlsSmtps(Probe):
+    id = "net.tls.smtps"
     family = ProbeFamily.NETWORK
     framework_tags = (
         "nist-ir-8547:tls", "cnsa2:tls", "bukukerja:tls", "mykripto:tls",
     )
 
     def __init__(
-        self, host: str = "127.0.0.1", port: int = 443, verify: bool = False
+        self, host: str = "127.0.0.1", port: int = 465, verify: bool = False
     ):
         self.host = host
         self.port = port
