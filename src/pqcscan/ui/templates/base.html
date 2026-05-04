@@ -16,6 +16,7 @@
       <a href="/frameworks" style="color:#aab;text-decoration:none">{{ t('nav.frameworks') if t else 'Frameworks' }}</a>
       <a href="/baselines" style="color:#aab;text-decoration:none">{{ t('nav.baselines') if t else 'Baselines' }}</a>
       <a href="/probes" style="color:#aab;text-decoration:none">{{ t('nav.probes') if t else 'Probes' }}</a>
+      <a href="/settings" style="color:#aab;text-decoration:none">{{ t('nav.settings') if t else 'Settings' }}</a>
       <span style="color:#444;margin:0 4px">|</span>
       <form action="/i18n/en" method="post" style="display:inline">
         <button type="submit" style="background:none;border:0;cursor:pointer;font:inherit;padding:0;color:{{ '#fff' if (locale or 'en') == 'en' else '#aab' }};font-weight:{{ '600' if (locale or 'en') == 'en' else '400' }}">EN</button>

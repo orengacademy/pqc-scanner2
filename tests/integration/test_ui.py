@@ -131,3 +131,66 @@ def test_set_locale_endpoint_sets_cookie(client):
 def test_set_locale_rejects_unknown(client):
     r = client.post("/i18n/fr", follow_redirects=False)
     assert r.status_code == 400
+
+
+def test_settings_page(client):
+    r = client.get("/settings")
+    assert r.status_code == 200
+    assert "Settings" in r.text
+    # Version, python, platform, mode, db, capabilities, probes, frameworks
+    # rows must render with their labels.
+    for label in ("Version", "Python", "Platform", "Privilege mode",
+                  "Database", "Capabilities", "Probes registered",
+                  "Frameworks bundled"):
+        assert label in r.text
+    assert "0.1.0" in r.text       # __version__
+    assert "sqlite" in r.text       # db_url
+
+
+def test_settings_page_in_bahasa(client):
+    r = client.get("/settings", cookies={"pqcscan_locale": "ms"})
+    assert r.status_code == 200
+    assert "Tetapan" in r.text       # MS title
+    assert "Pangkalan data" in r.text  # MS db label
+
+
+def test_create_baseline_form_redirects(client):
+    sid = client.post("/api/scans").json()["id"]
+    import time
+    for _ in range(600):
+        if client.get(f"/api/scans/{sid}").json()["status"] == "done":
+            break
+        time.sleep(0.1)
+    r = client.post(
+        "/baselines/create",
+        data={"scan_id": str(sid), "label": "form-baseline"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert r.headers["location"] == "/baselines"
+    # The baseline is queryable on the API.
+    rows = client.get("/api/baselines").json()
+    assert any(b["label"] == "form-baseline" for b in rows)
+
+
+def test_create_baseline_form_404_for_missing_scan(client):
+    r = client.post(
+        "/baselines/create",
+        data={"scan_id": "999", "label": "x"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 404
+
+
+def test_scan_detail_shows_mark_baseline_form(client):
+    sid = client.post("/api/scans").json()["id"]
+    import time
+    for _ in range(600):
+        if client.get(f"/api/scans/{sid}").json()["status"] == "done":
+            break
+        time.sleep(0.1)
+    r = client.get(f"/scans/{sid}")
+    assert r.status_code == 200
+    assert "/baselines/create" in r.text
+    assert 'name="scan_id"' in r.text
+    assert 'value="{}"'.format(sid) in r.text

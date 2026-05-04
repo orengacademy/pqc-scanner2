@@ -1,16 +1,19 @@
 from __future__ import annotations
 
+import sys
 from collections import OrderedDict
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import yaml
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from pqcscan import __version__ as _pqc_version
 from pqcscan.probes._registry import default_registry
+from pqcscan.runner.capabilities import current_mode, detect_capabilities
 from pqcscan.ui.i18n import (
     LOCALE_COOKIE,
     SUPPORTED_LOCALES,
@@ -148,6 +151,26 @@ async def probes_list(request: Request) -> HTMLResponse:
     )
 
 
+@router.post("/baselines/create")
+async def create_baseline_form(
+    request: Request,
+    scan_id: int = Form(...),
+    label: str = Form(...),
+    notes: str | None = Form(None),
+) -> RedirectResponse:
+    repo = request.app.state.repo
+    if not label.strip():
+        raise HTTPException(400, "label is required")
+    try:
+        repo.create_baseline(
+            scan_id=scan_id, label=label.strip(),
+            notes=(notes.strip() if notes else None),
+        )
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+    return RedirectResponse("/baselines", status_code=303)
+
+
 @router.get("/baselines", response_class=HTMLResponse)
 async def baselines_list(request: Request) -> HTMLResponse:
     repo = request.app.state.repo
@@ -155,6 +178,24 @@ async def baselines_list(request: Request) -> HTMLResponse:
         request, "baselines.html",
         {"baselines": repo.list_baselines(), "scans": repo.list_scans()},
     )
+
+
+@router.get("/settings", response_class=HTMLResponse)
+async def settings_page(request: Request) -> HTMLResponse:
+    repo = request.app.state.repo
+    reg = default_registry()
+    caps = sorted(c.value for c in detect_capabilities())
+    info = {
+        "version": _pqc_version,
+        "python_version": sys.version.split()[0],
+        "platform": sys.platform,
+        "mode": current_mode(),
+        "db_url": str(repo.engine.url),
+        "capabilities": caps,
+        "probe_count": len(reg.ids()),
+        "framework_count": len(list(_FRAMEWORKS_DIR.glob("*.yaml"))),
+    }
+    return _render(request, "settings.html", {"info": info})
 
 
 @router.get("/baselines/diff", response_class=HTMLResponse)

@@ -5,6 +5,25 @@
   Status: {{ scan.status }} &mdash; mode: {{ scan.mode }} &mdash; started: {{ scan.started_at }}
 </p>
 
+{% if scan.status == 'done' %}
+<details style="margin-bottom:16px">
+  <summary style="cursor:pointer;color:#aab;font-size:13px">{{ t('scan.mark_baseline.heading') }}</summary>
+  <form action="/baselines/create" method="post"
+        style="display:flex;gap:8px;align-items:flex-end;margin-top:12px;flex-wrap:wrap">
+    <input type="hidden" name="scan_id" value="{{ scan.id }}">
+    <label style="font-size:13px;color:#aab">
+      {{ t('scan.mark_baseline.label') }}
+      <input type="text" name="label" required
+             style="display:block;background:#1a1a26;color:#fff;border:1px solid #232333;padding:6px;border-radius:4px;min-width:240px">
+    </label>
+    <button type="submit"
+            style="background:#3b82f6;color:#fff;border:0;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:500">
+      {{ t('scan.mark_baseline.button') }}
+    </button>
+  </form>
+</details>
+{% endif %}
+
 <div id="findings" hx-ext="sse" sse-connect="/api/scans/{{ scan.id }}/events"
      sse-swap="finding" hx-swap="afterbegin">
   {% for f in findings %}

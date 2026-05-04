@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block body %}
+<h1 style="font-size:20px;font-weight:600;margin-bottom:16px">{{ t('settings.title') }}</h1>
+<p style="color:#888;font-size:13px;margin-bottom:24px">{{ t('settings.help') }}</p>
+
+<table style="width:100%;border-collapse:collapse;font-size:13px;max-width:720px">
+  <tbody>
+    <tr style="border-bottom:1px solid #1a1a26">
+      <td style="padding:8px 12px;color:#888;width:200px">{{ t('settings.field.version') }}</td>
+      <td style="padding:8px 12px;font-family:ui-monospace,Menlo,monospace">{{ info.version }}</td>
+    </tr>
+    <tr style="border-bottom:1px solid #1a1a26">
+      <td style="padding:8px 12px;color:#888">{{ t('settings.field.python') }}</td>
+      <td style="padding:8px 12px;font-family:ui-monospace,Menlo,monospace">{{ info.python_version }}</td>
+    </tr>
+    <tr style="border-bottom:1px solid #1a1a26">
+      <td style="padding:8px 12px;color:#888">{{ t('settings.field.platform') }}</td>
+      <td style="padding:8px 12px;font-family:ui-monospace,Menlo,monospace">{{ info.platform }}</td>
+    </tr>
+    <tr style="border-bottom:1px solid #1a1a26">
+      <td style="padding:8px 12px;color:#888">{{ t('settings.field.mode') }}</td>
+      <td style="padding:8px 12px;font-family:ui-monospace,Menlo,monospace">{{ info.mode }}</td>
+    </tr>
+    <tr style="border-bottom:1px solid #1a1a26">
+      <td style="padding:8px 12px;color:#888">{{ t('settings.field.db') }}</td>
+      <td style="padding:8px 12px;font-family:ui-monospace,Menlo,monospace;word-break:break-all">{{ info.db_url }}</td>
+    </tr>
+    <tr style="border-bottom:1px solid #1a1a26">
+      <td style="padding:8px 12px;color:#888">{{ t('settings.field.caps') }}</td>
+      <td style="padding:8px 12px;font-family:ui-monospace,Menlo,monospace">
+        {% if info.capabilities %}
+          {{ ', '.join(info.capabilities) }}
+        {% else %}
+          <span style="color:#888">{{ t('settings.caps.none') }}</span>
+        {% endif %}
+      </td>
+    </tr>
+    <tr style="border-bottom:1px solid #1a1a26">
+      <td style="padding:8px 12px;color:#888">{{ t('settings.field.probes') }}</td>
+      <td style="padding:8px 12px">{{ info.probe_count }}</td>
+    </tr>
+    <tr style="border-bottom:1px solid #1a1a26">
+      <td style="padding:8px 12px;color:#888">{{ t('settings.field.frameworks') }}</td>
+      <td style="padding:8px 12px">{{ info.framework_count }}</td>
+    </tr>
+  </tbody>
+</table>
+{% endblock %}
