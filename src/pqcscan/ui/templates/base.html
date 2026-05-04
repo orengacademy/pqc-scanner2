@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ locale or 'en' }}">
 <head>
   <meta charset="utf-8">
   <title>pqcscan</title>
@@ -10,12 +10,19 @@
 <body>
   <header style="padding:12px 24px;border-bottom:1px solid #232333;display:flex;justify-content:space-between;align-items:center">
     <a href="/" style="font-size:18px;font-weight:600;color:#fff;text-decoration:none">pqcscan</a>
-    <nav>
-      <a href="/" style="color:#aab;text-decoration:none;margin-right:16px">Dashboard</a>
-      <a href="/scans" style="color:#aab;text-decoration:none;margin-right:16px">Scans</a>
-      <a href="/frameworks" style="color:#aab;text-decoration:none;margin-right:16px">Frameworks</a>
-      <a href="/baselines" style="color:#aab;text-decoration:none;margin-right:16px">Baselines</a>
-      <a href="/probes" style="color:#aab;text-decoration:none">Probes</a>
+    <nav style="display:flex;align-items:center;gap:16px">
+      <a href="/" style="color:#aab;text-decoration:none">{{ t('nav.dashboard') if t else 'Dashboard' }}</a>
+      <a href="/scans" style="color:#aab;text-decoration:none">{{ t('nav.scans') if t else 'Scans' }}</a>
+      <a href="/frameworks" style="color:#aab;text-decoration:none">{{ t('nav.frameworks') if t else 'Frameworks' }}</a>
+      <a href="/baselines" style="color:#aab;text-decoration:none">{{ t('nav.baselines') if t else 'Baselines' }}</a>
+      <a href="/probes" style="color:#aab;text-decoration:none">{{ t('nav.probes') if t else 'Probes' }}</a>
+      <span style="color:#444;margin:0 4px">|</span>
+      <form action="/i18n/en" method="post" style="display:inline">
+        <button type="submit" style="background:none;border:0;cursor:pointer;font:inherit;padding:0;color:{{ '#fff' if (locale or 'en') == 'en' else '#aab' }};font-weight:{{ '600' if (locale or 'en') == 'en' else '400' }}">EN</button>
+      </form>
+      <form action="/i18n/ms" method="post" style="display:inline">
+        <button type="submit" style="background:none;border:0;cursor:pointer;font:inherit;padding:0;color:{{ '#fff' if locale == 'ms' else '#aab' }};font-weight:{{ '600' if locale == 'ms' else '400' }}">MS</button>
+      </form>
     </nav>
   </header>
   <main style="padding:24px">

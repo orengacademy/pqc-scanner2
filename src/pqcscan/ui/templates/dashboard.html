@@ -1,19 +1,19 @@
 {% extends "base.html" %}
 {% block body %}
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
-  <h1 style="font-size:20px;font-weight:600">Dashboard</h1>
+  <h1 style="font-size:20px;font-weight:600">{{ t('dashboard.title') }}</h1>
   <button hx-post="/api/scans" hx-swap="none"
           style="background:#3b82f6;color:#fff;border:0;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:500">
-    Scan now
+    {{ t('dashboard.scan_now') }}
   </button>
 </div>
 {% if last_scan %}
   <p style="color:#888;font-size:13px">
-    Last scan #{{ last_scan.id }} &mdash; {{ last_scan.status }}
+    {{ t('dashboard.last_scan') }} #{{ last_scan.id }} &mdash; {{ last_scan.status }}
     ({{ last_scan.started_at }}, mode={{ last_scan.mode }}).
     <a href="/scans/{{ last_scan.id }}" style="color:#3b82f6">view</a>
   </p>
 {% else %}
-  <p style="color:#888;font-size:13px">No scans yet. Click &ldquo;Scan now&rdquo;.</p>
+  <p style="color:#888;font-size:13px">{{ t('dashboard.no_scans') }}</p>
 {% endif %}
 {% endblock %}

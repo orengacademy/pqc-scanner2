@@ -102,3 +102,32 @@ def test_baselines_diff_page_after_creating_baseline(client):
     assert r.status_code == 200
     assert "Diff:" in r.text
     assert "0 added" in r.text and "0 removed" in r.text
+
+
+def test_default_locale_renders_english(client):
+    r = client.get("/baselines")
+    assert r.status_code == 200
+    assert "Baselines" in r.text
+    assert 'lang="en"' in r.text
+
+
+def test_locale_cookie_renders_bahasa(client):
+    r = client.get("/baselines", cookies={"pqcscan_locale": "ms"})
+    assert r.status_code == 200
+    assert "Garis Dasar" in r.text          # MS title
+    assert "Baselines" not in r.text         # EN title gone
+    assert 'lang="ms"' in r.text
+
+
+def test_set_locale_endpoint_sets_cookie(client):
+    r = client.post("/i18n/ms", follow_redirects=False)
+    assert r.status_code == 303
+    assert r.cookies.get("pqcscan_locale") == "ms"
+    # Subsequent request without explicit cookie picks up the set one.
+    r2 = client.get("/")
+    assert "Papan Pemuka" in r2.text
+
+
+def test_set_locale_rejects_unknown(client):
+    r = client.post("/i18n/fr", follow_redirects=False)
+    assert r.status_code == 400

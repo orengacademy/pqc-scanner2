@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% block body %}
-<h1 style="font-size:20px;font-weight:600;margin-bottom:8px">Probes</h1>
+<h1 style="font-size:20px;font-weight:600;margin-bottom:8px">{{ t('probes.title') }}</h1>
 <p style="color:#888;font-size:13px;margin-bottom:24px">
-  {{ total }} probes registered, grouped by family.
+  {{ total }} {{ t('probes.registered') }}
 </p>
 
 {% for family, probes in groups.items() %}
@@ -12,8 +12,8 @@
   <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:8px">
     <thead>
       <tr style="text-align:left;color:#888;border-bottom:1px solid #232333">
-        <th style="padding:6px 12px">Probe ID</th>
-        <th style="padding:6px 12px">Framework tags</th>
+        <th style="padding:6px 12px">{{ t('probes.col.id') }}</th>
+        <th style="padding:6px 12px">{{ t('probes.col.tags') }}</th>
       </tr>
     </thead>
     <tbody>

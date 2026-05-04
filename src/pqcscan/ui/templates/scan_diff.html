@@ -7,14 +7,14 @@
   Diff: scan #{{ current_scan_id }} vs baseline scan #{{ baseline_scan_id }}
 </h1>
 <p style="color:#aab;font-size:13px;margin-bottom:24px">
-  <span style="color:#22c55e">+ {{ added|length }} added</span>
+  <span style="color:#22c55e">+ {{ added|length }} {{ t('diff.added') }}</span>
   &nbsp;&middot;&nbsp;
-  <span style="color:#ef4444">&minus; {{ removed|length }} removed</span>
+  <span style="color:#ef4444">&minus; {{ removed|length }} {{ t('diff.removed') }}</span>
   &nbsp;&middot;&nbsp;
-  <span style="color:#888">{{ common }} unchanged</span>
+  <span style="color:#888">{{ common }} {{ t('diff.common') }}</span>
 </p>
 
-<h2 style="font-size:15px;font-weight:600;color:#22c55e;margin:16px 0 8px">Added ({{ added|length }})</h2>
+<h2 style="font-size:15px;font-weight:600;color:#22c55e;margin:16px 0 8px">{{ t('diff.added')|capitalize }} ({{ added|length }})</h2>
 {% if added %}
 <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px">
   <thead><tr style="text-align:left;color:#888;border-bottom:1px solid #232333">
@@ -33,10 +33,10 @@
   </tbody>
 </table>
 {% else %}
-<p style="color:#888;font-size:13px;margin-bottom:24px">No new findings introduced since the baseline.</p>
+<p style="color:#888;font-size:13px;margin-bottom:24px">{{ t('diff.no_added') }}</p>
 {% endif %}
 
-<h2 style="font-size:15px;font-weight:600;color:#ef4444;margin:16px 0 8px">Removed ({{ removed|length }})</h2>
+<h2 style="font-size:15px;font-weight:600;color:#ef4444;margin:16px 0 8px">{{ t('diff.removed')|capitalize }} ({{ removed|length }})</h2>
 {% if removed %}
 <table style="width:100%;border-collapse:collapse;font-size:13px">
   <thead><tr style="text-align:left;color:#888;border-bottom:1px solid #232333">
@@ -55,6 +55,6 @@
   </tbody>
 </table>
 {% else %}
-<p style="color:#888;font-size:13px">No findings disappeared since the baseline.</p>
+<p style="color:#888;font-size:13px">{{ t('diff.no_removed') }}</p>
 {% endif %}
 {% endblock %}

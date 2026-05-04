@@ -6,11 +6,17 @@ from typing import TYPE_CHECKING
 
 import yaml
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from pqcscan.probes._registry import default_registry
+from pqcscan.ui.i18n import (
+    LOCALE_COOKIE,
+    SUPPORTED_LOCALES,
+    get_locale,
+    t,
+)
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -29,12 +35,37 @@ def mount_static(app: "FastAPI") -> None:
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
 
+def _render(
+    request: Request, template: str, context: dict | None = None,
+) -> HTMLResponse:
+    """Render a template with i18n helpers (locale + t) injected."""
+    locale = get_locale(request)
+    ctx: dict = {"locale": locale, "t": lambda k: t(k, locale)}
+    if context:
+        ctx.update(context)
+    return templates.TemplateResponse(request, template, ctx)
+
+
+@router.post("/i18n/{locale}")
+async def set_locale(request: Request, locale: str) -> RedirectResponse:
+    """Set the locale cookie and redirect to the referer (or '/')."""
+    if locale not in SUPPORTED_LOCALES:
+        raise HTTPException(400, "unsupported locale")
+    target = request.headers.get("referer") or "/"
+    resp = RedirectResponse(target, status_code=303)
+    resp.set_cookie(
+        LOCALE_COOKIE, locale,
+        max_age=31_536_000, path="/", samesite="lax",
+    )
+    return resp
+
+
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request) -> HTMLResponse:
     repo = request.app.state.repo
     scans = repo.list_scans()
     last_scan = scans[0] if scans else None
-    return templates.TemplateResponse(
+    return _render(
         request, "dashboard.html", {"last_scan": last_scan},
     )
 
@@ -43,7 +74,7 @@ async def dashboard(request: Request) -> HTMLResponse:
 async def scans_list(request: Request) -> HTMLResponse:
     repo = request.app.state.repo
     scans = repo.list_scans()
-    return templates.TemplateResponse(
+    return _render(
         request, "scans_list.html", {"scans": scans},
     )
 
@@ -55,7 +86,7 @@ async def scan_detail(request: Request, scan_id: int) -> HTMLResponse:
     if scan is None:
         raise HTTPException(404, "scan not found")
     findings = repo.list_findings(scan_id)
-    return templates.TemplateResponse(
+    return _render(
         request, "scan_detail.html", {"scan": scan, "findings": findings},
     )
 
@@ -77,7 +108,7 @@ async def frameworks_list(request: Request) -> HTMLResponse:
                 "rule_count": len(doc.get("rules") or []),
                 "path": str(path),
             })
-    return templates.TemplateResponse(
+    return _render(
         request, "frameworks.html", {"frameworks": rows},
     )
 
@@ -100,7 +131,7 @@ async def framework_detail(request: Request, name: str) -> HTMLResponse:
         "title": doc.get("title", ""),
         "rules": doc.get("rules") or [],
     }
-    return templates.TemplateResponse(
+    return _render(
         request, "framework_detail.html", {"framework": fw},
     )
 
@@ -111,7 +142,7 @@ async def probes_list(request: Request) -> HTMLResponse:
     groups: "OrderedDict[str, list]" = OrderedDict()
     for probe in sorted(reg.all(), key=lambda p: (p.family.name, p.id)):
         groups.setdefault(probe.family.name, []).append(probe)
-    return templates.TemplateResponse(
+    return _render(
         request, "probes.html",
         {"groups": groups, "total": len(reg.ids())},
     )
@@ -120,7 +151,7 @@ async def probes_list(request: Request) -> HTMLResponse:
 @router.get("/baselines", response_class=HTMLResponse)
 async def baselines_list(request: Request) -> HTMLResponse:
     repo = request.app.state.repo
-    return templates.TemplateResponse(
+    return _render(
         request, "baselines.html",
         {"baselines": repo.list_baselines(), "scans": repo.list_scans()},
     )
@@ -136,7 +167,7 @@ async def scan_diff(
     diff = repo.diff_findings(
         current_scan_id=scan, baseline_scan_id=baseline_scan,
     )
-    return templates.TemplateResponse(
+    return _render(
         request, "scan_diff.html",
         {
             "current_scan_id": scan,
