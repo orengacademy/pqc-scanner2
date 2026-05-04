@@ -2,7 +2,7 @@
 
 Post-Quantum Cryptography (PQC) readiness scanner. Single Python process. Bundled web UI + headless CLI. Runs locally on Linux, Windows, macOS.
 
-> **MVP foundation status (Plan A complete).** This release ships the foundation and 7 representative probes (one per family). The full ~95-probe inventory, the 8-framework compliance engine, the PDF/XLSX renderers, baselines/diff, the i18n EN/MS toggle, and PyInstaller cross-OS packaging are tracked in subsequent plans (B–F).
+> **MVP foundation status (Plan A complete; Plan B at 51 / 102 probes — see [docs/STATUS.md](docs/STATUS.md)).** This release ships the foundation and 7 representative probes (one per family). The full ~95-probe inventory, the 8-framework compliance engine, the PDF/XLSX renderers, baselines/diff, the i18n EN/MS toggle, and PyInstaller cross-OS packaging are tracked in subsequent plans (B–F).
 > See `docs/superpowers/specs/2026-04-29-pqcscan-v2-design.md` for the full design and `docs/superpowers/plans/2026-04-29-pqcscan-v2-mvp-implementation.md` for the MVP plan.
 
 ## Install (development)
