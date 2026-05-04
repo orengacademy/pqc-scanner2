@@ -6,6 +6,7 @@ from collections import defaultdict
 
 from loguru import logger
 
+from pqcscan.compliance.engine import ComplianceEngine
 from pqcscan.core.types import Capability, Classification, Finding, Severity
 from pqcscan.probes._base import Probe, ScanContext
 from pqcscan.probes._registry import Registry
@@ -27,11 +28,14 @@ class ProbeRunner:
         repo: Repo,
         bus: EventBus,
         per_probe_timeout_s: float = 30.0,
+        compliance: ComplianceEngine | None = None,
     ) -> None:
         self.registry = registry
         self.repo = repo
         self.bus = bus
         self.timeout = per_probe_timeout_s
+        # Default: load every YAML in pqcscan/compliance/frameworks/.
+        self.compliance = compliance if compliance is not None else ComplianceEngine()
 
     async def run(
         self, *, mode: str, available_capabilities: set[Capability]
@@ -76,7 +80,15 @@ class ProbeRunner:
             return
 
         def emit(f: Finding) -> None:
-            self.repo.record_finding(ctx.scan_id, f)
+            finding_id = self.repo.record_finding(ctx.scan_id, f)
+            for verdict in self.compliance.evaluate(f):
+                self.repo.record_framework_view(
+                    finding_id,
+                    framework=verdict.framework,
+                    clause=verdict.clause,
+                    verdict=verdict.verdict,
+                    deadline=verdict.deadline,
+                )
             asyncio.create_task(self.bus.publish(FindingDiscovered(
                 probe_id=f.probe_id, title=f.title, algorithm=f.algorithm,
                 classification=f.classification.value, severity=f.severity.value,

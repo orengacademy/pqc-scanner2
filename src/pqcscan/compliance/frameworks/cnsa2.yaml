@@ -1,0 +1,41 @@
+framework: cnsa2
+title: CNSA 2.0 — Commercial National Security Algorithm Suite (NSA)
+# CNSA 2.0 deadlines (per CNSSP 15 / NSA CSI Sept 2022): software/firmware
+# signing must use ML-DSA by 2025; key-establishment must use ML-KEM by 2030
+# for new gear, and all NSS by 2033.
+rules:
+  - match: { algorithm: RSA, key_size_lt: 3072 }
+    clause: CNSA2:RSA-deprecated
+    verdict: non-compliant
+    deadline: 2030-12-31
+    note: "RSA <3072 deprecated for NSS; transition by 2030."
+  - match: { algorithm: RSA }
+    clause: CNSA2:RSA-transition
+    verdict: at-risk
+    deadline: 2033-12-31
+    note: "RSA must be replaced by ML-KEM/ML-DSA in NSS by 2033."
+  - match: { algorithm: ECDSA }
+    clause: CNSA2:ECDSA-transition
+    verdict: at-risk
+    deadline: 2033-12-31
+    note: "ECDSA must be replaced by ML-DSA in NSS by 2033."
+  - match: { algorithm: ML-KEM-768 }
+    clause: CNSA2:KEM-approved
+    verdict: compliant
+    note: "ML-KEM-768 is the CNSA 2.0 KEM."
+  - match: { algorithm: ML-KEM-1024 }
+    clause: CNSA2:KEM-approved
+    verdict: compliant
+  - match: { algorithm: ML-DSA-65 }
+    clause: CNSA2:DSA-approved
+    verdict: compliant
+  - match: { algorithm: ML-DSA-87 }
+    clause: CNSA2:DSA-approved
+    verdict: compliant
+  - match: { algorithm: SHA-1 }
+    clause: CNSA2:SHA1-disallowed
+    verdict: non-compliant
+  - match: { algorithm: AES-128 }
+    clause: CNSA2:AES-128-deprecated
+    verdict: non-compliant
+    note: "CNSA 2.0 mandates AES-256 for symmetric encryption."

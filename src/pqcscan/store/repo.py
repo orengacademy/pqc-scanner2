@@ -6,9 +6,11 @@ from pathlib import Path
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
+from datetime import date
+
 from pqcscan.core.types import Finding
 from pqcscan.store import migrations
-from pqcscan.store.schema import FindingRow, Scan
+from pqcscan.store.schema import FindingRow, FrameworkView, Scan
 
 
 class Repo:
@@ -107,3 +109,37 @@ class Repo:
     def get_scan(self, scan_id: int) -> Scan | None:
         with Session(self.engine) as s:
             return s.get(Scan, scan_id)
+
+    def record_framework_view(
+        self,
+        finding_id: int,
+        *,
+        framework: str,
+        clause: str,
+        verdict: str,
+        deadline: date | None = None,
+    ) -> int:
+        with Session(self.engine) as s:
+            row = FrameworkView(
+                finding_id=finding_id,
+                framework=framework,
+                clause=clause,
+                verdict=verdict,
+                deadline=deadline,
+            )
+            s.add(row)
+            s.commit()
+            return row.id
+
+    def list_framework_views(
+        self, scan_id: int, *, framework: str | None = None
+    ) -> list[FrameworkView]:
+        with Session(self.engine) as s:
+            stmt = (
+                select(FrameworkView)
+                .join(FindingRow, FrameworkView.finding_id == FindingRow.id)
+                .where(FindingRow.scan_id == scan_id)
+            )
+            if framework is not None:
+                stmt = stmt.where(FrameworkView.framework == framework)
+            return list(s.execute(stmt).scalars())

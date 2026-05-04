@@ -1,0 +1,23 @@
+framework: bukukerja
+title: BUKUKERJA MIGRASI PQC 2025 (Malaysia)
+# Maps pqcscan classifications to the workbook's risk register categories.
+rules:
+  - match: { classification: sangat-tinggi }
+    clause: BUKUKERJA:risk-register/sangat-tinggi
+    verdict: non-compliant
+    note: "Algoritma terdedah secara klasik atau oleh Shor/Grover."
+  - match: { classification: tinggi }
+    clause: BUKUKERJA:risk-register/tinggi
+    verdict: at-risk
+    note: "Terdedah kepada Shor pada CRQC; perancangan migrasi PQC diperlukan."
+  - match: { classification: sederhana }
+    clause: BUKUKERJA:risk-register/sederhana
+    verdict: advisory
+    note: "Grover memendekkan kekuatan separuh; pertimbangkan saiz kunci dua kali ganda."
+  - match: { classification: rendah }
+    clause: BUKUKERJA:risk-register/rendah
+    verdict: compliant
+  - match: { classification: pqc-ready }
+    clause: BUKUKERJA:risk-register/pqc-ready
+    verdict: compliant
+    note: "Algoritma piawai NIST FIPS 203/204/205."
