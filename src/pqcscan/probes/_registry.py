@@ -31,7 +31,7 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — 106 probes (Plan B 1-15 + FOSS-tools + Plan G batches 1-2: DB-TDE + MQ brokers)."""
+    """Built-in probe set — 109 probes (Plan B 1-15 + FOSS-tools + Plan G 1-3: DB-TDE + MQ + HW crypto)."""
     from pqcscan.probes.app_dotenv_secrets import AppDotenvSecrets
     from pqcscan.probes.app_jwt_env_alg import AppJwtEnvAlg
     from pqcscan.probes.app_nginx_jwt_validation import AppNginxJwtValidation
@@ -79,6 +79,9 @@ def default_registry() -> Registry:
     from pqcscan.probes.host_openssl_engines import HostOpenSSLEngines
     from pqcscan.probes.host_ssh_client_config import HostSshClientConfig
     from pqcscan.probes.host_ssh_server_config import HostSshServerConfig
+    from pqcscan.probes.hw_pkcs11_modules import HwPkcs11Modules
+    from pqcscan.probes.hw_smartcard_readers import HwSmartcardReaders
+    from pqcscan.probes.hw_tpm_algorithms import HwTpmAlgorithms
     from pqcscan.probes.mq_kafka_tls import MqKafkaTls
     from pqcscan.probes.mq_mqtt_broker import MqMqttBroker
     from pqcscan.probes.mq_nats_tls import MqNatsTls
@@ -268,4 +271,8 @@ def default_registry() -> Registry:
     reg.register(MqRabbitmqTls())
     reg.register(MqNatsTls())
     reg.register(MqMqttBroker())
+    # Plan G batch 3 — hardware crypto (deferred per spec §13.1).
+    reg.register(HwTpmAlgorithms())
+    reg.register(HwPkcs11Modules())
+    reg.register(HwSmartcardReaders())
     return reg
