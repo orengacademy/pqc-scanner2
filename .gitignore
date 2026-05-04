@@ -7,6 +7,7 @@ __pycache__/
 build/*
 !build/pyinstaller.spec
 dist/
+tools/
 .venv/
 venv/
 .env

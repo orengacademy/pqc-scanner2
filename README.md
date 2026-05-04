@@ -77,12 +77,15 @@ pytest -q --cov=pqcscan --cov-report=term-missing
 PyInstaller produces a self-contained `pqcscan` binary that embeds Python, dependencies, web UI templates, framework YAMLs, and the probe registry — no Python install required on the target host.
 
 ```bash
-pip install -e ".[build]"   # installs pyinstaller>=6
+pip install -e ".[build]"           # installs pyinstaller>=6
+bash scripts/fetch-offline-tools.sh # optional: bundle syft + grype too
 bash scripts/build-binary.sh
 ./dist/pqcscan --help
 ```
 
 Output: `dist/pqcscan` (Linux/macOS) or `dist/pqcscan.exe` (Windows). Build artifacts live under `build/pqcscan-work/` and are gitignored. The spec file at [`build/pyinstaller.spec`](build/pyinstaller.spec) is committed and stays in sync with the registry — new probes get picked up automatically via globbing.
+
+**Offline pack.** If `tools/` exists at build time (populated by `scripts/fetch-offline-tools.sh`), the resulting binary bundles Syft and Grype so FOSS-tool probes work on hosts without internet. At runtime, `pqcscan.util.offline_pack.resolve_tool()` searches in order: the `PQCSCAN_OFFLINE_PACK` env var → PyInstaller's bundled `tools/` → system `$PATH`. Without the offline pack, probes auto-skip when their tools aren't installed.
 
 Cross-OS release artifacts (Linux x86_64 + macOS arm64 + Windows x86_64) are produced automatically by [`.github/workflows/release.yml`](.github/workflows/release.yml) on any `v*` tag push. Each binary is uploaded as a GitHub Release asset alongside auto-generated release notes.
 

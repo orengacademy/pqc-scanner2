@@ -25,6 +25,15 @@ DATAS = [
      "pqcscan/probes/_semgrep_rules"),
 ]
 
+# Optional offline pack: scripts/fetch-offline-tools.sh stages syft +
+# grype binaries under ./tools. If present at build time, bundle them
+# so pqcscan.util.offline_pack.resolve_tool() finds them at runtime
+# under sys._MEIPASS / 'tools'. Skip silently if absent — the binary
+# still works, probes just fall back to system PATH.
+_TOOLS_DIR = _REPO_ROOT / "tools"
+if _TOOLS_DIR.is_dir() and any(_TOOLS_DIR.iterdir()):
+    DATAS.append((str(_TOOLS_DIR), "tools"))
+
 # Probe modules are imported dynamically by default_registry(), so
 # PyInstaller can't see them via static analysis. Glob the source tree
 # so this stays in sync as new probes land.

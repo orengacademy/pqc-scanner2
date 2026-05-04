@@ -1,6 +1,7 @@
 """sbom.syft — alternate SBOM generator via Anchore Syft (Apache-2.0).
 
-Detects the `syft` binary on PATH; when present, runs:
+Detects the `syft` binary via the offline-pack resolver (env override →
+PyInstaller MEIPASS bundle → system PATH). When present, runs:
     syft <target> -o cyclonedx-json
 parses the package list, and emits one INFO finding per component.
 
@@ -11,11 +12,12 @@ from __future__ import annotations
 
 import asyncio
 import json
-import shutil
+import os
 from pathlib import Path
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.util.offline_pack import resolve_tool
 
 
 class SbomSyft(Probe):
@@ -29,13 +31,25 @@ class SbomSyft(Probe):
         self.syft_bin = syft_bin
         self.timeout_s = timeout_s
 
+    def _resolve(self):
+        if self.syft_bin:
+            # An explicit path must exist and be executable — matches
+            # the original shutil.which("/no/such/path") -> None semantics.
+            p = Path(self.syft_bin)
+            if p.is_file() and os.access(p, os.X_OK):
+                return p
+            return None
+        return resolve_tool("syft")
+
     async def applies(self, ctx: ScanContext) -> bool:
-        return shutil.which(self.syft_bin or "syft") is not None
+        return self._resolve() is not None
 
     async def run(self, ctx: ScanContext, emit: Emitter) -> None:
-        bin_path = self.syft_bin or "syft"
+        bin_path = self._resolve()
+        if bin_path is None:
+            return
         proc = await asyncio.create_subprocess_exec(
-            bin_path, self.target, "-o", "cyclonedx-json", "--quiet",
+            str(bin_path), self.target, "-o", "cyclonedx-json", "--quiet",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
