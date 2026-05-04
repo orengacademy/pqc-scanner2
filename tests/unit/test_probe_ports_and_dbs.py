@@ -68,10 +68,12 @@ async def test_db_probe_connection_failure_emits_info(cls):
 
 
 @pytest.mark.asyncio
-async def test_mysql_emits_deferral_notice():
+async def test_mysql_connection_failure_is_info():
+    """MySQL TLS probe is now a real CLIENT_SSL handshake parser (B15).
+    With no server listening, only INFO connection-failure findings are
+    emitted and the probe must not raise."""
     found: list = []
-    probe = NetDbMysqlTls()
+    probe = NetDbMysqlTls(host="127.0.0.1", port=1, timeout_s=1.0)
     ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
     await probe.run(ctx, emit=lambda f: found.append(f))
-    assert len(found) == 1
-    assert "not yet implemented" in found[0].title.lower()
+    assert all(f.classification is Classification.INFO for f in found)

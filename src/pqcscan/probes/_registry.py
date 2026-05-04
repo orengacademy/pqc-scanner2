@@ -31,7 +31,7 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — 92 probes (Plan B batches 1-14 + FOSS-tools add-on)."""
+    """Built-in probe set — 98 probes (Plan B batches 1-15 + FOSS-tools add-on)."""
     from pqcscan.probes.app_dotenv_secrets import AppDotenvSecrets
     from pqcscan.probes.app_jwt_env_alg import AppJwtEnvAlg
     from pqcscan.probes.app_nginx_jwt_validation import AppNginxJwtValidation
@@ -79,7 +79,13 @@ def default_registry() -> Registry:
     from pqcscan.probes.net_db_mysql_tls import NetDbMysqlTls
     from pqcscan.probes.net_db_postgres_tls import NetDbPostgresTls
     from pqcscan.probes.net_db_redis_tls import NetDbRedisTls
+    from pqcscan.probes.net_ike_v1v2 import NetIkeV1V2
+    from pqcscan.probes.net_kerberos_asreq import NetKerberosAsreq
     from pqcscan.probes.net_ports_tcp import NetPortsTcp
+    from pqcscan.probes.net_rdp_negotiation import NetRdpNegotiation
+    from pqcscan.probes.net_smb_dialect import NetSmbDialect
+    from pqcscan.probes.net_snmp_version import NetSnmpVersion
+    from pqcscan.probes.net_ssh_handshake import NetSshHandshake
     from pqcscan.probes.net_starttls_ftp import NetStarttlsFtp
     from pqcscan.probes.net_starttls_imap import NetStarttlsImap
     from pqcscan.probes.net_starttls_ldap import NetStarttlsLdap
@@ -237,4 +243,11 @@ def default_registry() -> Registry:
     reg.register(CodeTsJava())
     reg.register(CodeTsPhp())
     reg.register(CodeTsRust())
+    # Plan B batch 15 — binary-protocol probes (live network handshakes).
+    reg.register(NetSshHandshake())
+    reg.register(NetIkeV1V2())
+    reg.register(NetRdpNegotiation())
+    reg.register(NetSmbDialect())
+    reg.register(NetSnmpVersion())
+    reg.register(NetKerberosAsreq())
     return reg

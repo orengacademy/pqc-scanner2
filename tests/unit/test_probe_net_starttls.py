@@ -44,13 +44,11 @@ async def test_text_starttls_connection_failure_emits_info(cls):
 
 
 @pytest.mark.asyncio
-async def test_ldap_emits_deferral_notice():
-    """LDAP STARTTLS is a v0.2.0+ probe; v0.1.0 emits an INFO-level deferral."""
+async def test_ldap_starttls_connection_failure_is_info():
+    """LDAP STARTTLS is now a real ASN.1 probe (B15). With no LDAP server
+    listening, the probe must emit only INFO findings and not raise."""
     found: list = []
-    p = NetStarttlsLdap()
+    p = NetStarttlsLdap(host="127.0.0.1", port=1, timeout_s=1.0)
     ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
     await p.run(ctx, emit=lambda f: found.append(f))
-    assert len(found) == 1
-    assert found[0].classification is Classification.INFO
-    assert "not yet implemented" in found[0].title.lower() or \
-           "deferred" in (found[0].evidence.get("deferred_to") or "").lower()
+    assert all(f.classification is Classification.INFO for f in found)
