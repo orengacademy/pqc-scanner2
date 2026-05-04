@@ -1,0 +1,28 @@
+framework: anssi-pqc
+title: ANSSI PQC Roadmap (France)
+# ANSSI's phased recommendation: Phase 1 (now) — defence-in-depth via
+# hybrid PQC for sensitive systems; Phase 2 (~2025-2030) — broader PQC
+# adoption; Phase 3 (post-2030) — pure-PQC for highest sensitivity.
+rules:
+  - match: { algorithm: RSA, key_size_lt: 3072 }
+    clause: ANSSI-PQC:RSA-deprecated
+    verdict: non-compliant
+    note: "ANSSI: RSA <3072 obsolète."
+  - match: { algorithm: RSA }
+    clause: ANSSI-PQC:RSA-hybrid-required
+    verdict: at-risk
+    deadline: 2030-12-31
+    note: "Construction hybride PQC requise pour les systèmes sensibles."
+  - match: { algorithm: ECDSA }
+    clause: ANSSI-PQC:ECDSA-hybrid-required
+    verdict: at-risk
+    deadline: 2030-12-31
+  - match: { algorithm: AES-128 }
+    clause: ANSSI-PQC:AES-128-acceptable
+    verdict: advisory
+  - match: { algorithm: ML-KEM-768 }
+    clause: ANSSI-PQC:KEM-approved
+    verdict: compliant
+  - match: { algorithm: ML-DSA-65 }
+    clause: ANSSI-PQC:DSA-approved
+    verdict: compliant

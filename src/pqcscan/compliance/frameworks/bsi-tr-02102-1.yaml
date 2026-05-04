@@ -1,0 +1,30 @@
+framework: bsi-tr-02102-1
+title: BSI TR-02102-1 — Cryptographic Mechanisms (Germany)
+# BSI updates this TR annually; classical-only crypto remains usable for
+# legacy systems but new deployments must include hybrid PQC. AES-128
+# considered acceptable until 2030.
+rules:
+  - match: { algorithm: RSA, key_size_lt: 3000 }
+    clause: BSI-TR-02102-1:RSA-deprecated
+    verdict: non-compliant
+    note: "BSI: RSA mit weniger als 3000 Bit ist nicht mehr empfohlen."
+  - match: { algorithm: ECDSA }
+    clause: BSI-TR-02102-1:ECDSA-monitor
+    verdict: at-risk
+    note: "Hybride PQC-Verfahren werden empfohlen."
+  - match: { algorithm: AES-128 }
+    clause: BSI-TR-02102-1:AES-128-acceptable
+    verdict: advisory
+    note: "AES-128 zulässig bis ca. 2030; AES-256 für neue Systeme empfohlen."
+  - match: { algorithm: AES-256 }
+    clause: BSI-TR-02102-1:AES-256-recommended
+    verdict: compliant
+  - match: { algorithm: SHA-1 }
+    clause: BSI-TR-02102-1:SHA-1-disallowed
+    verdict: non-compliant
+  - match: { algorithm: ML-KEM }
+    clause: BSI-TR-02102-1:ML-KEM-approved
+    verdict: compliant
+  - match: { algorithm: ML-DSA }
+    clause: BSI-TR-02102-1:ML-DSA-approved
+    verdict: compliant

@@ -1,0 +1,29 @@
+framework: nist-sp-800-227
+title: NIST SP 800-227 — Recommendations for Key-Establishment Using PQC
+# Companion to NIST IR 8547; focuses specifically on key-establishment
+# (the most widely deployed quantum-vulnerable primitive).
+rules:
+  - match: { algorithm: RSA, key_size_lt: 2048 }
+    clause: NIST-SP-800-227:RSA-KE-disallowed
+    verdict: non-compliant
+    note: "RSA <2048 not approved for key transport."
+  - match: { algorithm: RSA }
+    clause: NIST-SP-800-227:RSA-KE-deprecated
+    verdict: at-risk
+    deadline: 2030-12-31
+    note: "Use ML-KEM (FIPS 203) or hybrid for new key-establishment by 2030."
+  - match: { algorithm: ECDH }
+    clause: NIST-SP-800-227:ECDH-deprecated
+    verdict: at-risk
+    deadline: 2030-12-31
+    note: "ECDH alone is Shor-vulnerable; pair with ML-KEM in a hybrid construction."
+  - match: { algorithm: DH, key_size_lt: 3072 }
+    clause: NIST-SP-800-227:DH-disallowed
+    verdict: non-compliant
+  - match: { algorithm: ML-KEM }
+    clause: NIST-SP-800-227:KEM-approved
+    verdict: compliant
+  - match: { algorithm: X25519MLKEM768 }
+    clause: NIST-SP-800-227:hybrid-approved
+    verdict: compliant
+    note: "Hybrid X25519 + ML-KEM-768 is the recommended interim construction."

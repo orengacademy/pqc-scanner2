@@ -1,0 +1,32 @@
+framework: mas-notice-655
+title: MAS Notice 655 — Cyber Hygiene (Singapore)
+# Monetary Authority of Singapore — applies to financial institutions.
+# Doesn't mandate PQC explicitly yet but requires "industry-accepted
+# cryptography" which we interpret as: at-risk for classical-only
+# constructions, compliant for AES-256 / SHA-256+ / PQC.
+rules:
+  - match: { algorithm: SHA-1 }
+    clause: MAS-655:hash-disallowed
+    verdict: non-compliant
+  - match: { algorithm: MD5 }
+    clause: MAS-655:hash-disallowed
+    verdict: non-compliant
+  - match: { algorithm: RC4 }
+    clause: MAS-655:cipher-disallowed
+    verdict: non-compliant
+  - match: { algorithm: DES }
+    clause: MAS-655:cipher-disallowed
+    verdict: non-compliant
+  - match: { algorithm: 3DES }
+    clause: MAS-655:cipher-disallowed
+    verdict: non-compliant
+  - match: { algorithm: RSA, key_size_lt: 2048 }
+    clause: MAS-655:RSA-disallowed
+    verdict: non-compliant
+  - match: { classification: tinggi }
+    clause: MAS-655:industry-cryptography-monitor
+    verdict: at-risk
+    note: "Document a PQC migration plan to maintain 'industry-accepted cryptography'."
+  - match: { classification: pqc-ready }
+    clause: MAS-655:industry-cryptography-aligned
+    verdict: compliant

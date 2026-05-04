@@ -1,0 +1,30 @@
+framework: enisa-pqc
+title: ENISA Post-Quantum Cryptography Report (EU)
+# ENISA recommends inventory + risk assessment + hybrid migration with
+# EU eIDAS-aligned algorithm selection.
+rules:
+  - match: { algorithm: RSA, key_size_lt: 3072 }
+    clause: ENISA-PQC:RSA-deprecated
+    verdict: non-compliant
+  - match: { algorithm: ECDSA }
+    clause: ENISA-PQC:ECDSA-monitor
+    verdict: at-risk
+    deadline: 2030-12-31
+  - match: { algorithm: SHA-1 }
+    clause: ENISA-PQC:SHA-1-disallowed
+    verdict: non-compliant
+  - match: { algorithm: AES-128 }
+    clause: ENISA-PQC:AES-128-acceptable
+    verdict: advisory
+  - match: { algorithm: AES-256 }
+    clause: ENISA-PQC:AES-256-recommended
+    verdict: compliant
+  - match: { algorithm: ML-KEM }
+    clause: ENISA-PQC:KEM-approved
+    verdict: compliant
+  - match: { algorithm: ML-DSA }
+    clause: ENISA-PQC:DSA-approved
+    verdict: compliant
+  - match: { algorithm: SLH-DSA }
+    clause: ENISA-PQC:SLH-DSA-approved
+    verdict: compliant

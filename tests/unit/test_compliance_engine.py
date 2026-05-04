@@ -24,9 +24,37 @@ def _f(alg: str, classification: Classification = Classification.TINGGI,
     )
 
 
-def test_engine_loads_three_frameworks(engine):
+def test_engine_loads_all_ten_frameworks(engine):
     names = {fw.framework for fw in engine.frameworks}
-    assert {"bukukerja", "nist-ir-8547", "cnsa2"}.issubset(names)
+    expected = {
+        "bukukerja", "nist-ir-8547", "nist-sp-800-227", "cnsa2",
+        "bsi-tr-02102-1", "anssi-pqc", "mas-notice-655", "enisa-pqc",
+        "mykripto", "nacsa-arahan-ke-9",
+    }
+    assert expected.issubset(names)
+
+
+def test_mykripto_phase_clauses_fire_on_classification(engine):
+    f = _f("RSA-2048", classification=Classification.TINGGI, severity=Severity.HIGH)
+    verdicts = list(engine.evaluate(f))
+    mykripto = [v for v in verdicts if v.framework == "mykripto"]
+    assert any(v.clause == "MYKRIPTO:phase-2/migrate-by-2030" for v in mykripto)
+
+
+def test_anssi_2030_deadline_attached_to_rsa(engine):
+    f = _f("RSA-3072", classification=Classification.TINGGI, severity=Severity.HIGH)
+    verdicts = list(engine.evaluate(f))
+    anssi = [v for v in verdicts if v.framework == "anssi-pqc"
+             and v.clause == "ANSSI-PQC:RSA-hybrid-required"]
+    assert anssi and anssi[0].deadline == date(2030, 12, 31)
+
+
+def test_mas_655_disallows_legacy_ciphers(engine):
+    f = _f("3DES", classification=Classification.SANGAT_TINGGI, severity=Severity.CRIT)
+    verdicts = list(engine.evaluate(f))
+    mas = [v for v in verdicts if v.framework == "mas-notice-655"]
+    assert any(v.clause == "MAS-655:cipher-disallowed" and v.verdict == "non-compliant"
+               for v in mas)
 
 
 def test_bukukerja_maps_classifications(engine):

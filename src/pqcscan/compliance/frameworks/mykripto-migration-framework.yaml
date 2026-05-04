@@ -1,0 +1,24 @@
+framework: mykripto
+title: CyberSecurity Malaysia (MyKripto) PQC Migration Framework
+# Source: https://mykripto.cybersecurity.my/index.php/files/109/Post-Quantum/
+#         18/Post-quantum-Cryptography-Migration-Framework.pdf
+# Aligns with BUKUKERJA risk-classification but uses MyKripto's clause
+# numbering for cross-referencing CSM advisories.
+rules:
+  - match: { classification: sangat-tinggi }
+    clause: MYKRIPTO:phase-1/immediate-action
+    verdict: non-compliant
+    note: "Phase 1 — immediate replacement; algoritma sudah lemah secara klasik."
+  - match: { classification: tinggi }
+    clause: MYKRIPTO:phase-2/migrate-by-2030
+    verdict: at-risk
+    deadline: 2030-12-31
+    note: "Phase 2 — rancang migrasi hibrid PQC menjelang 2030."
+  - match: { classification: sederhana }
+    clause: MYKRIPTO:phase-3/strengthen-key-size
+    verdict: advisory
+    note: "Phase 3 — kuatkan saiz kunci untuk mengimbangi Grover."
+  - match: { classification: pqc-ready }
+    clause: MYKRIPTO:phase-4/pqc-aligned
+    verdict: compliant
+    note: "Phase 4 — selari dengan FIPS 203/204/205."

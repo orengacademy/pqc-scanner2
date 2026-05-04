@@ -1,0 +1,27 @@
+framework: nacsa-arahan-ke-9
+title: NACSA Arahan KE No. 9 — Cyber Security Directive (Malaysia)
+# Source: https://www.nacsa.gov.my/doc/Arahan%20KE%20NACSA%20No.%209.pdf
+# Government-mandated baseline for federal/CNII systems. Treats classical
+# pre-quantum primitives as deprecated and requires PQC migration plans.
+rules:
+  - match: { classification: sangat-tinggi }
+    clause: NACSA-9:non-compliant
+    verdict: non-compliant
+    note: "Pelanggaran Arahan KE No. 9 — wajib gantikan."
+  - match: { classification: tinggi }
+    clause: NACSA-9:migrate-required
+    verdict: at-risk
+    deadline: 2030-12-31
+    note: "Pelan migrasi PQC mesti didokumenkan dan dilaksanakan menjelang 2030."
+  - match: { algorithm: SHA-1 }
+    clause: NACSA-9:hash-disallowed
+    verdict: non-compliant
+  - match: { algorithm: MD5 }
+    clause: NACSA-9:hash-disallowed
+    verdict: non-compliant
+  - match: { algorithm: ML-KEM }
+    clause: NACSA-9:pqc-aligned
+    verdict: compliant
+  - match: { algorithm: ML-DSA }
+    clause: NACSA-9:pqc-aligned
+    verdict: compliant
