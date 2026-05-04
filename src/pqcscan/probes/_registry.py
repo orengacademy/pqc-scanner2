@@ -31,7 +31,7 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — 76 probes (incl. Plan B batches 10-11 app + sign families)."""
+    """Built-in probe set — 81 probes (incl. Plan B batches 10-12 app + sign + dns_email)."""
     from pqcscan.probes.app_dotenv_secrets import AppDotenvSecrets
     from pqcscan.probes.app_jwt_env_alg import AppJwtEnvAlg
     from pqcscan.probes.app_nginx_jwt_validation import AppNginxJwtValidation
@@ -49,6 +49,9 @@ def default_registry() -> Registry:
     from pqcscan.probes.cve_osv_offline import CveOsvOffline
     from pqcscan.probes.cve_pip_audit import CvePipAudit
     from pqcscan.probes.cve_trivy_fs import CveTrivyFs
+    from pqcscan.probes.dns_dnssec_zones import DnsDnssecZones
+    from pqcscan.probes.email_dkim_selectors import EmailDkimSelectors
+    from pqcscan.probes.email_smime_certs import EmailSmimeCerts
     from pqcscan.probes.container_runtime_detect import ContainerRuntimeDetect
     from pqcscan.probes.k8s_helm_releases import K8sHelmReleases
     from pqcscan.probes.k8s_ingress_tls import K8sIngressTls
@@ -92,6 +95,8 @@ def default_registry() -> Registry:
     from pqcscan.probes.sign_gpg_keyrings import SignGpgKeyrings
     from pqcscan.probes.sign_image_cosign import SignImageCosign
     from pqcscan.probes.sign_repo_aptdnf_keys import SignRepoAptdnfKeys
+    from pqcscan.probes.trust_system_roots import TrustSystemRoots
+    from pqcscan.probes.web_webauthn_config import WebWebauthnConfig
     from pqcscan.probes.pqc_alg_normaliser import PqcAlgNormaliser
     from pqcscan.probes.sbom_lang_gomod import SbomLangGomod
     from pqcscan.probes.sbom_lang_npm import SbomLangNpm
@@ -202,4 +207,10 @@ def default_registry() -> Registry:
     reg.register(SignCodeAuthenticode())
     reg.register(SignGitSigningKeys())
     reg.register(SignImageCosign())
+    # Plan B batch 12 — DNS, email, web auth.
+    reg.register(DnsDnssecZones())
+    reg.register(EmailDkimSelectors())
+    reg.register(EmailSmimeCerts())
+    reg.register(WebWebauthnConfig())
+    reg.register(TrustSystemRoots())
     return reg
