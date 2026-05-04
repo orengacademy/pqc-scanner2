@@ -2,8 +2,8 @@
 
 Post-Quantum Cryptography (PQC) readiness scanner. Single Python process. Bundled web UI + headless CLI. Runs locally on Linux, Windows, macOS.
 
-> **MVP foundation status (Plan A complete; Plan B at 51 / 102 probes — see [docs/STATUS.md](docs/STATUS.md)).** This release ships the foundation and 7 representative probes (one per family). The full ~95-probe inventory, the 8-framework compliance engine, the PDF/XLSX renderers, baselines/diff, the i18n EN/MS toggle, and PyInstaller cross-OS packaging are tracked in subsequent plans (B–F).
-> See `docs/superpowers/specs/2026-04-29-pqcscan-v2-design.md` for the full design and `docs/superpowers/plans/2026-04-29-pqcscan-v2-mvp-implementation.md` for the MVP plan.
+> **Status: 109 / 102 probes shipped — see [docs/STATUS.md](docs/STATUS.md).** Plans A+B+C+D+E+G are all done: asyncio runner, FastAPI daemon + SSE, click CLI, 9-page Jinja+HTMX web UI with EN/MS toggle, SQLite store with baselines + scan diff, CycloneDX 1.6 CBOM, PDF (technical + executive) + XLSX (BUKUKERJA template + generic) renderers, and a 10-framework YAML-driven compliance engine. Only Plan F (PyInstaller packaging) and a real `cve.osv_offline` snapshot remain.
+> See `docs/superpowers/specs/2026-04-29-pqcscan-v2-design.md` for the full design.
 
 ## Install (development)
 
@@ -52,19 +52,19 @@ Exit codes:
 - `2` — scan failed.
 - `3` — invalid arguments.
 
-## Probes shipping in MVP (7 of 102)
+## Probe coverage
 
-| Probe ID | Family | What it does |
-|---|---|---|
-| `host.openssl.config` | host | Detects activated OpenSSL legacy provider |
-| `sbom.os.dpkg` | sbom | Reads `/var/lib/dpkg/status`; emits PURL per package |
-| `net.tls.https` | network | Connects to host:port, parses cipher suite + cert key type |
-| `fs.cert.x509` | filesystem | Recursive X.509 cert scan; classifies by key alg |
-| `code.ts.python` | code | Regex (placeholder for tree-sitter); flags MD5/SHA1 in `.py` |
-| `pqc.alg.normaliser` | pqc-meta | Meta-probe placeholder (logic in `core.alg`) |
-| `aux.clock.cert_validity` | aux | Records UTC clock at scan time |
+109 probes registered across all families (host crypto, filesystem, network/TLS/STARTTLS/binary protocols, SBOM, source code, VPN, storage at-rest, container/k8s, app config, signing, DNS/email/web auth, DB-TDE, message-queue brokers, hardware crypto, plus 15 FOSS-tool/VA wrappers around Syft, Grype, testssl, sslyze, nmap, pip-audit, npm-audit, govulncheck, cargo-audit, trivy, lynis, bandit, gitleaks, semgrep, OSV-stub).
 
-The remaining 95 probes are implemented incrementally in Plan B.
+```bash
+PYTHONPATH=src python3.11 -c \
+  "from pqcscan.probes._registry import default_registry; \
+   reg = default_registry(); \
+   print(f'{len(reg.ids())} probes:'); \
+   [print(f'  {p.id} ({p.family.name})') for p in reg.all()]"
+```
+
+Family-by-family breakdown is in [`docs/STATUS.md` §2](docs/STATUS.md#2-whats-shipped).
 
 ## Tests
 
