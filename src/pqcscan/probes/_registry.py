@@ -31,7 +31,7 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — 87 probes (Plan B batches 1-13 + FOSS-tools add-on)."""
+    """Built-in probe set — 92 probes (Plan B batches 1-14 + FOSS-tools add-on)."""
     from pqcscan.probes.app_dotenv_secrets import AppDotenvSecrets
     from pqcscan.probes.app_jwt_env_alg import AppJwtEnvAlg
     from pqcscan.probes.app_nginx_jwt_validation import AppNginxJwtValidation
@@ -40,7 +40,12 @@ def default_registry() -> Registry:
     from pqcscan.probes.aux_clock_cert_validity import AuxClockCertValidity
     from pqcscan.probes.code_bandit import CodeBandit
     from pqcscan.probes.code_semgrep_pqc import CodeSemgrepPqc
+    from pqcscan.probes.code_ts_go import CodeTsGo
+    from pqcscan.probes.code_ts_java import CodeTsJava
+    from pqcscan.probes.code_ts_javascript import CodeTsJavascript
+    from pqcscan.probes.code_ts_php import CodeTsPhp
     from pqcscan.probes.code_ts_python import CodeTsPython
+    from pqcscan.probes.code_ts_rust import CodeTsRust
     from pqcscan.probes.container_image_sbom import ContainerImageSbom
     from pqcscan.probes.cve_cargo_audit import CveCargoAudit
     from pqcscan.probes.cve_govulncheck import CveGovulncheck
@@ -226,4 +231,10 @@ def default_registry() -> Registry:
     reg.register(SbomLangCargo())
     reg.register(SbomLangMaven())
     reg.register(SbomLangComposer())
+    # Plan B batch 14 — source-code probes for JS/Go/Java/PHP/Rust.
+    reg.register(CodeTsJavascript())
+    reg.register(CodeTsGo())
+    reg.register(CodeTsJava())
+    reg.register(CodeTsPhp())
+    reg.register(CodeTsRust())
     return reg
