@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>pqcscan — Scan #{{ scan.id }}</title>
+  <style>
+    @page { size: A4; margin: 22mm 18mm; @bottom-right {
+      content: "Page " counter(page) " of " counter(pages);
+      font: 9pt sans-serif; color: #888;
+    } }
+    body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+           font-size: 10pt; color: #1a1a1a; line-height: 1.4; }
+    h1 { font-size: 22pt; margin: 0 0 8pt; color: #0f172a; }
+    h2 { font-size: 14pt; margin: 18pt 0 6pt; color: #0f172a;
+         border-bottom: 1pt solid #cbd5e1; padding-bottom: 2pt; }
+    h3 { font-size: 11pt; margin: 12pt 0 4pt; color: #334155; }
+    .meta { color: #64748b; font-size: 9pt; }
+    table { width: 100%; border-collapse: collapse; margin: 6pt 0; font-size: 9.5pt; }
+    th { text-align: left; background: #f1f5f9; padding: 4pt 6pt;
+         border-bottom: 1pt solid #cbd5e1; font-weight: 600; }
+    td { padding: 4pt 6pt; border-bottom: 1pt solid #e2e8f0;
+         vertical-align: top; word-break: break-word; }
+    .summary-grid { display: flex; gap: 8pt; margin: 8pt 0; }
+    .stat { flex: 1; border: 1pt solid #cbd5e1; border-radius: 4pt;
+            padding: 6pt 8pt; }
+    .stat .label { color: #64748b; font-size: 8pt; text-transform: uppercase;
+                   letter-spacing: 0.5pt; }
+    .stat .num { font-size: 20pt; font-weight: 700; color: #0f172a; }
+    .pill { display: inline-block; padding: 1pt 5pt; border-radius: 8pt;
+            font-size: 8pt; font-weight: 600; margin-right: 3pt; }
+    .pill.crit { background: #fee2e2; color: #991b1b; }
+    .pill.high { background: #fed7aa; color: #9a3412; }
+    .pill.med  { background: #fef3c7; color: #854d0e; }
+    .pill.low  { background: #dcfce7; color: #166534; }
+    .pill.info { background: #e0e7ff; color: #3730a3; }
+    .pill.compliant     { background: #dcfce7; color: #166534; }
+    .pill.non-compliant { background: #fee2e2; color: #991b1b; }
+    .pill.at-risk       { background: #fed7aa; color: #9a3412; }
+    .pill.advisory      { background: #e0e7ff; color: #3730a3; }
+    .finding { page-break-inside: avoid; margin-bottom: 10pt;
+               border: 1pt solid #e2e8f0; border-radius: 3pt; padding: 6pt 8pt; }
+    .finding h3 { margin-top: 0; }
+    .finding .where { color: #64748b; font-size: 8pt; }
+    .ev { background: #f8fafc; font-family: "SF Mono", monospace;
+          font-size: 8pt; padding: 4pt 6pt; border-radius: 2pt;
+          white-space: pre-wrap; word-break: break-all; }
+    footer { margin-top: 16pt; color: #64748b; font-size: 8pt;
+             border-top: 1pt solid #cbd5e1; padding-top: 6pt; }
+  </style>
+</head>
+<body>
+  <h1>pqcscan — Technical Scan Report</h1>
+  <p class="meta">
+    Scan #{{ scan.id }} · started {{ scan.started_at }}
+    {% if scan.finished_at %} · finished {{ scan.finished_at }}{% endif %}
+    · mode <strong>{{ scan.mode }}</strong>
+    · status <strong>{{ scan.status }}</strong>
+    {% if scan.host_fingerprint %} · host {{ scan.host_fingerprint }}{% endif %}
+    · pqcscan {{ version }}
+  </p>
+
+  <h2>1. Headline numbers</h2>
+  <div class="summary-grid">
+    <div class="stat">
+      <div class="label">Total findings</div>
+      <div class="num">{{ total_findings }}</div>
+    </div>
+    <div class="stat">
+      <div class="label">Sangat Tinggi</div>
+      <div class="num" style="color:#dc2626">{{ class_counts.get('sangat-tinggi', 0) }}</div>
+    </div>
+    <div class="stat">
+      <div class="label">Tinggi</div>
+      <div class="num" style="color:#ea580c">{{ class_counts.get('tinggi', 0) }}</div>
+    </div>
+    <div class="stat">
+      <div class="label">PQC-Ready</div>
+      <div class="num" style="color:#16a34a">{{ class_counts.get('pqc-ready', 0) }}</div>
+    </div>
+  </div>
+
+  <h2>2. Compliance verdicts by framework</h2>
+  {% if fw_summary %}
+  <table>
+    <thead><tr>
+      <th>Framework</th><th>Compliant</th><th>At-risk</th>
+      <th>Non-compliant</th><th>Advisory</th><th>Other</th>
+    </tr></thead>
+    <tbody>
+      {% for fw, counts in fw_summary.items()|sort %}
+      <tr>
+        <td><strong>{{ fw }}</strong></td>
+        <td>{{ counts.get('compliant', 0) }}</td>
+        <td>{{ counts.get('at-risk', 0) }}</td>
+        <td>{{ counts.get('non-compliant', 0) }}</td>
+        <td>{{ counts.get('advisory', 0) }}</td>
+        <td>{{ counts.values()|sum
+              - counts.get('compliant', 0) - counts.get('at-risk', 0)
+              - counts.get('non-compliant', 0) - counts.get('advisory', 0) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="meta">No framework verdicts produced for this scan.</p>
+  {% endif %}
+
+  <h2>3. Findings ({{ total_findings }})</h2>
+  {% for f in findings %}
+  <div class="finding">
+    <h3>
+      <span class="pill {{ f.severity }}">{{ f.severity|upper }}</span>
+      <span class="pill {{ f.classification }}">{{ f.classification }}</span>
+      {{ f.algorithm }} — {{ f.title }}
+    </h3>
+    <div class="where">probe: <code>{{ f.probe_id }}</code> · created {{ f.created_at }}</div>
+    {% if f.evidence %}
+    <div style="margin-top:4pt"><strong>Evidence</strong></div>
+    <pre class="ev">{{ f.evidence|tojson(indent=2) }}</pre>
+    {% endif %}
+    {% if f.remediation %}
+    <div style="margin-top:4pt"><strong>Remediation</strong></div>
+    <pre class="ev">{{ f.remediation|tojson(indent=2) }}</pre>
+    {% endif %}
+    {% set verdicts = verdicts_by_finding.get(f.id, []) %}
+    {% if verdicts %}
+    <div style="margin-top:4pt"><strong>Framework verdicts</strong></div>
+    <table>
+      <thead><tr>
+        <th>Framework</th><th>Clause</th><th>Verdict</th><th>Deadline</th>
+      </tr></thead>
+      <tbody>
+        {% for v in verdicts %}
+        <tr>
+          <td>{{ v.framework }}</td>
+          <td><code>{{ v.clause }}</code></td>
+          <td><span class="pill {{ v.verdict }}">{{ v.verdict }}</span></td>
+          <td>{% if v.deadline %}{{ v.deadline }}{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="meta">No findings recorded for this scan.</p>
+  {% endfor %}
+
+  <footer>
+    Generated by pqcscan v{{ version }}.
+    Scan ID {{ scan.id }} · {{ total_findings }} findings ·
+    {{ total_framework_views }} framework verdicts.
+  </footer>
+</body>
+</html>
