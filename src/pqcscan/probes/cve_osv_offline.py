@@ -36,6 +36,17 @@ _REQ_LINE_RE = re.compile(
     r"([A-Za-z0-9._-]+)",
     re.MULTILINE,
 )
+# Cargo.lock blocks: [[package]] / name = "..." / version = "..."
+_CARGO_PACKAGE_RE = re.compile(
+    r'\[\[package\]\]\s*\n\s*name\s*=\s*"([^"]+)"\s*\n\s*'
+    r'version\s*=\s*"([^"]+)"',
+    re.MULTILINE,
+)
+# go.sum: "<module> <version>[/go.mod] h1:<hash>"
+_GO_SUM_LINE_RE = re.compile(
+    r"^(\S+)\s+(v\S+?)(?:/go\.mod)?\s+h1:",
+    re.MULTILINE,
+)
 _EXCLUDE_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__",
                  "vendor"}
 
@@ -111,6 +122,15 @@ class CveOsvOffline(Probe):
                 if any(part in _EXCLUDE_DIRS for part in lock.parts):
                     continue
                 self._scan_npm_lockfile(lock, index, emit)
+            for cargo in (root.rglob("Cargo.lock") if root.is_dir()
+                          else []):
+                if any(part in _EXCLUDE_DIRS for part in cargo.parts):
+                    continue
+                self._scan_cargo_lock(cargo, index, emit)
+            for gosum in (root.rglob("go.sum") if root.is_dir() else []):
+                if any(part in _EXCLUDE_DIRS for part in gosum.parts):
+                    continue
+                self._scan_go_sum(gosum, index, emit)
 
     def _scan_requirements(
         self, path: Path, index: dict, emit: Emitter,
@@ -167,6 +187,66 @@ class CveOsvOffline(Probe):
                         "summary": (adv.get("summary") or "")[:200],
                         "path": str(path),
                         "ecosystem": "npm",
+                    },
+                ))
+
+    def _scan_cargo_lock(
+        self, path: Path, index: dict, emit: Emitter,
+    ) -> None:
+        try:
+            text = path.read_text(errors="replace")
+        except OSError:
+            return
+        for m in _CARGO_PACKAGE_RE.finditer(text):
+            name, version = m.group(1), m.group(2)
+            key = ("crates.io", name.lower())
+            for adv in index.get(key, []):
+                emit(Finding(
+                    probe_id=self.id,
+                    algorithm=adv.get("id", "N/A"),
+                    classification=Classification.TINGGI,
+                    severity=Severity.HIGH,
+                    title=(f"{adv.get('id', '?')} affects {name} {version} "
+                           f"in {path.name}"),
+                    evidence={
+                        "advisory_id": adv.get("id", ""),
+                        "package": name, "version": version,
+                        "summary": (adv.get("summary") or "")[:200],
+                        "path": str(path),
+                        "ecosystem": "crates.io",
+                    },
+                ))
+
+    def _scan_go_sum(
+        self, path: Path, index: dict, emit: Emitter,
+    ) -> None:
+        try:
+            text = path.read_text(errors="replace")
+        except OSError:
+            return
+        # go.sum lists each module twice (one for the module, one for its
+        # go.mod). De-duplicate by (module, version).
+        seen: set = set()
+        for m in _GO_SUM_LINE_RE.finditer(text):
+            module, version = m.group(1), m.group(2)
+            if (module, version) in seen:
+                continue
+            seen.add((module, version))
+            key = ("go", module.lower())
+            for adv in index.get(key, []):
+                emit(Finding(
+                    probe_id=self.id,
+                    algorithm=adv.get("id", "N/A"),
+                    classification=Classification.TINGGI,
+                    severity=Severity.HIGH,
+                    title=(f"{adv.get('id', '?')} affects {module} {version} "
+                           f"in {path.name}"),
+                    evidence={
+                        "advisory_id": adv.get("id", ""),
+                        "package": module, "version": version,
+                        "summary": (adv.get("summary") or "")[:200],
+                        "path": str(path),
+                        "ecosystem": "Go",
                     },
                 ))
 
