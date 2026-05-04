@@ -3,11 +3,11 @@
 | | |
 |---|---|
 | **Date** | 2026-05-04 |
-| **Branch / commit** | `main @ 656d7af` |
+| **Branch / commit** | `main @ ce8f584` (Plan B batch 15) + Plan E batch 1 (in-flight) |
 | **Version** | `0.1.0` |
-| **Tests** | 139 passed, 0 failed (Python 3.11) |
-| **Probes** | 51 / 102 registered (50 %) |
-| **Status** | Paused mid-Plan-B (batch 9 of ~17) |
+| **Tests** | 264 passed, 1 skipped (Python 3.11) |
+| **Probes** | 98 / 102 registered (96 %) |
+| **Status** | Plans A+B+C+D shipped + FOSS-tools and FOSS-VA add-ons; Plan E batch 1 (Frameworks + Probes UI pages) landed |
 
 ## 1. TL;DR
 

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block body %}
+<h1 style="font-size:20px;font-weight:600;margin-bottom:8px">Probes</h1>
+<p style="color:#888;font-size:13px;margin-bottom:24px">
+  {{ total }} probes registered, grouped by family.
+</p>
+
+{% for family, probes in groups.items() %}
+  <h2 style="font-size:14px;font-weight:600;color:#aab;margin:20px 0 8px">
+    {{ family }} <span style="color:#666;font-weight:400">({{ probes|length }})</span>
+  </h2>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:8px">
+    <thead>
+      <tr style="text-align:left;color:#888;border-bottom:1px solid #232333">
+        <th style="padding:6px 12px">Probe ID</th>
+        <th style="padding:6px 12px">Framework tags</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for p in probes %}
+      <tr style="border-bottom:1px solid #1a1a26">
+        <td style="padding:6px 12px;font-family:ui-monospace,Menlo,monospace">{{ p.id }}</td>
+        <td style="padding:6px 12px;color:#aab;font-family:ui-monospace,Menlo,monospace">
+          {{ ', '.join(p.framework_tags) }}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{% endfor %}
+{% endblock %}

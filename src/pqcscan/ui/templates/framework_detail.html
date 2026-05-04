@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block body %}
+<p style="font-size:12px;color:#888;margin-bottom:8px">
+  <a href="/frameworks" style="color:#3b82f6;text-decoration:none">&larr; Frameworks</a>
+</p>
+<h1 style="font-size:20px;font-weight:600;margin-bottom:8px">{{ framework.name }}</h1>
+<p style="color:#aab;font-size:14px;margin-bottom:24px">{{ framework.title }}</p>
+
+<h2 style="font-size:15px;font-weight:600;margin:16px 0 8px">Rules ({{ framework.rules|length }})</h2>
+<table style="width:100%;border-collapse:collapse;font-size:13px">
+  <thead>
+    <tr style="text-align:left;color:#888;border-bottom:1px solid #232333">
+      <th style="padding:8px 12px">Clause</th>
+      <th style="padding:8px 12px">Match</th>
+      <th style="padding:8px 12px">Verdict</th>
+      <th style="padding:8px 12px">Note</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for rule in framework.rules %}
+    <tr style="border-bottom:1px solid #1a1a26;vertical-align:top">
+      <td style="padding:8px 12px;font-family:ui-monospace,Menlo,monospace">{{ rule.clause }}</td>
+      <td style="padding:8px 12px;font-family:ui-monospace,Menlo,monospace;color:#aab">
+        {% for k, v in (rule.match or {}).items() %}{{ k }}={{ v }}{% if not loop.last %}, {% endif %}{% endfor %}
+      </td>
+      <td style="padding:8px 12px">
+        {% set v = rule.verdict %}
+        {% if v == 'compliant' %}<span style="color:#22c55e">{{ v }}</span>
+        {% elif v == 'at-risk' %}<span style="color:#facc15">{{ v }}</span>
+        {% elif v == 'non-compliant' %}<span style="color:#ef4444">{{ v }}</span>
+        {% else %}<span style="color:#888">{{ v }}</span>{% endif %}
+      </td>
+      <td style="padding:8px 12px;color:#aab">{{ rule.note or '' }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block body %}
+<h1 style="font-size:20px;font-weight:600;margin-bottom:16px">Compliance frameworks</h1>
+<p style="color:#888;font-size:13px;margin-bottom:24px">
+  {{ frameworks|length }} framework{{ 's' if frameworks|length != 1 }} bundled.
+  Each rule maps a probe finding's classification (or other field) to a
+  framework-specific verdict (compliant / at-risk / non-compliant).
+</p>
+<table style="width:100%;border-collapse:collapse;font-size:13px">
+  <thead>
+    <tr style="text-align:left;color:#888;border-bottom:1px solid #232333">
+      <th style="padding:8px 12px">Framework</th>
+      <th style="padding:8px 12px">Title</th>
+      <th style="padding:8px 12px;text-align:right">Rules</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for fw in frameworks %}
+    <tr style="border-bottom:1px solid #1a1a26">
+      <td style="padding:8px 12px">
+        <a href="/frameworks/{{ fw.name }}" style="color:#3b82f6;text-decoration:none">{{ fw.name }}</a>
+      </td>
+      <td style="padding:8px 12px">{{ fw.title }}</td>
+      <td style="padding:8px 12px;text-align:right">{{ fw.rule_count }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
