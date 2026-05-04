@@ -1,0 +1,96 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag name (e.g. v0.1.0) — only used for manual dispatch."
+        required: false
+        type: string
+
+permissions:
+  contents: write   # needed to attach binaries to the GitHub Release
+
+jobs:
+  build:
+    name: build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset_suffix: linux-x86_64
+            bin_name: pqcscan
+            shell: bash
+          - os: macos-latest
+            asset_suffix: macos-arm64
+            bin_name: pqcscan
+            shell: bash
+          - os: windows-latest
+            asset_suffix: windows-x86_64.exe
+            bin_name: pqcscan.exe
+            shell: pwsh
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build deps
+        run: pip install -e ".[build]"
+
+      - name: Build (Unix)
+        if: matrix.shell == 'bash'
+        run: bash scripts/build-binary.sh
+
+      - name: Build (Windows)
+        if: matrix.shell == 'pwsh'
+        run: |
+          pyinstaller --clean --noconfirm `
+            --workpath build/pqcscan-work `
+            build/pyinstaller.spec
+          if (-not (Test-Path "dist/${{ matrix.bin_name }}")) {
+            throw "build did not produce dist/${{ matrix.bin_name }}"
+          }
+          & "dist/${{ matrix.bin_name }}" --help | Out-Null
+
+      - name: Rename for upload
+        shell: bash
+        run: |
+          mv "dist/${{ matrix.bin_name }}" "dist/pqcscan-${{ matrix.asset_suffix }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pqcscan-${{ matrix.asset_suffix }}
+          path: dist/pqcscan-${{ matrix.asset_suffix }}
+          retention-days: 14
+
+  release:
+    name: publish release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Flatten layout
+        run: |
+          mkdir -p release-assets
+          find artifacts -type f -exec cp {} release-assets/ \;
+          ls -lah release-assets/
+
+      - name: Create / update release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true
