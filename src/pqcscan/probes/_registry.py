@@ -31,7 +31,7 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — 71 probes (incl. Plan B batch 10 app-config family)."""
+    """Built-in probe set — 76 probes (incl. Plan B batches 10-11 app + sign families)."""
     from pqcscan.probes.app_dotenv_secrets import AppDotenvSecrets
     from pqcscan.probes.app_jwt_env_alg import AppJwtEnvAlg
     from pqcscan.probes.app_nginx_jwt_validation import AppNginxJwtValidation
@@ -87,6 +87,11 @@ def default_registry() -> Registry:
     from pqcscan.probes.net_tls_sslyze import NetTlsSslyze
     from pqcscan.probes.net_tls_testssl import NetTlsTestssl
     from pqcscan.probes.secrets_gitleaks import SecretsGitleaks
+    from pqcscan.probes.sign_code_authenticode import SignCodeAuthenticode
+    from pqcscan.probes.sign_git_signing_keys import SignGitSigningKeys
+    from pqcscan.probes.sign_gpg_keyrings import SignGpgKeyrings
+    from pqcscan.probes.sign_image_cosign import SignImageCosign
+    from pqcscan.probes.sign_repo_aptdnf_keys import SignRepoAptdnfKeys
     from pqcscan.probes.pqc_alg_normaliser import PqcAlgNormaliser
     from pqcscan.probes.sbom_lang_gomod import SbomLangGomod
     from pqcscan.probes.sbom_lang_npm import SbomLangNpm
@@ -191,4 +196,10 @@ def default_registry() -> Registry:
     reg.register(AppDotenvSecrets())
     reg.register(AppSpringProperties())
     reg.register(AppNginxJwtValidation())
+    # Plan B batch 11 — signing & integrity.
+    reg.register(SignGpgKeyrings())
+    reg.register(SignRepoAptdnfKeys())
+    reg.register(SignCodeAuthenticode())
+    reg.register(SignGitSigningKeys())
+    reg.register(SignImageCosign())
     return reg
