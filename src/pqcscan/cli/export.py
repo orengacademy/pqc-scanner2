@@ -14,7 +14,10 @@ from pqcscan.util.paths import default_db_path
 @click.option("--scan", "scan_id", type=int, required=True)
 @click.option(
     "--format", "fmt", required=True,
-    type=click.Choice(["cbom", "pdf-tech"], case_sensitive=False),
+    type=click.Choice(
+        ["cbom", "pdf-tech", "pdf-exec", "xlsx-bukukerja", "xlsx-generic"],
+        case_sensitive=False,
+    ),
 )
 @click.option("-o", "--out", type=click.Path(path_type=Path), required=True)
 @click.option("--db", type=click.Path(path_type=Path), default=None)
@@ -26,14 +29,27 @@ def export_cmd(scan_id: int, fmt: str, out: Path, db: Path | None) -> None:
         click.echo(f"scan {scan_id} not found", err=True)
         sys.exit(3)
 
-    if fmt.lower() == "cbom":
+    f = fmt.lower()
+    if f == "cbom":
         # Lazy imports keep CLI startup snappy and let optional deps stay
         # optional even if a renderer's transitive deps fail to import.
         from pqcscan.cbom.builder import build_cbom
         doc = build_cbom(repo, scan_id)
         out.write_text(json.dumps(doc, indent=2))
         click.echo(f"wrote CycloneDX 1.6 CBOM -> {out}")
-    elif fmt.lower() == "pdf-tech":
+    elif f == "pdf-tech":
         from pqcscan.renderers.pdf_technical import render_pdf_technical
         render_pdf_technical(repo, scan_id, out)
         click.echo(f"wrote technical PDF -> {out}")
+    elif f == "pdf-exec":
+        from pqcscan.renderers.pdf_executive import render_pdf_executive
+        render_pdf_executive(repo, scan_id, out)
+        click.echo(f"wrote executive PDF -> {out}")
+    elif f == "xlsx-bukukerja":
+        from pqcscan.renderers.xlsx_bukukerja import render_xlsx_bukukerja
+        render_xlsx_bukukerja(repo, scan_id, out)
+        click.echo(f"wrote BUKUKERJA XLSX -> {out}")
+    elif f == "xlsx-generic":
+        from pqcscan.renderers.xlsx_generic import render_xlsx_generic
+        render_xlsx_generic(repo, scan_id, out)
+        click.echo(f"wrote generic XLSX -> {out}")
