@@ -42,6 +42,8 @@ _CARGO_PACKAGE_RE = re.compile(
     r'version\s*=\s*"([^"]+)"',
     re.MULTILINE,
 )
+# poetry.lock uses the same [[package]] TOML shape as Cargo.lock.
+_POETRY_PACKAGE_RE = _CARGO_PACKAGE_RE
 # go.sum: "<module> <version>[/go.mod] h1:<hash>"
 _GO_SUM_LINE_RE = re.compile(
     r"^(\S+)\s+(v\S+?)(?:/go\.mod)?\s+h1:",
@@ -131,6 +133,15 @@ class CveOsvOffline(Probe):
                 if any(part in _EXCLUDE_DIRS for part in gosum.parts):
                     continue
                 self._scan_go_sum(gosum, index, emit)
+            for pipf in (root.rglob("Pipfile.lock") if root.is_dir() else []):
+                if any(part in _EXCLUDE_DIRS for part in pipf.parts):
+                    continue
+                self._scan_pipfile_lock(pipf, index, emit)
+            for poetry in (root.rglob("poetry.lock") if root.is_dir()
+                           else []):
+                if any(part in _EXCLUDE_DIRS for part in poetry.parts):
+                    continue
+                self._scan_poetry_lock(poetry, index, emit)
 
     def _scan_requirements(
         self, path: Path, index: dict, emit: Emitter,
@@ -249,6 +260,61 @@ class CveOsvOffline(Probe):
                         "ecosystem": "Go",
                     },
                 ))
+
+    def _scan_pipfile_lock(
+        self, path: Path, index: dict, emit: Emitter,
+    ) -> None:
+        """Pipfile.lock — JSON, exact pins under default/ + develop/."""
+        try:
+            doc = json.loads(path.read_text(errors="replace"))
+        except (OSError, json.JSONDecodeError):
+            return
+        for section in ("default", "develop"):
+            for name, info in (doc.get(section) or {}).items():
+                if not isinstance(info, dict):
+                    continue
+                version = info.get("version") or ""
+                # Pipenv writes pinned versions as "==1.2.3"; tolerate
+                # bare versions just in case.
+                if version.startswith("=="):
+                    version = version[2:]
+                if not version:
+                    continue
+                self._emit_pypi_match(name, version, path, index, emit)
+
+    def _scan_poetry_lock(
+        self, path: Path, index: dict, emit: Emitter,
+    ) -> None:
+        """poetry.lock — TOML, [[package]] / name / version blocks."""
+        try:
+            text = path.read_text(errors="replace")
+        except OSError:
+            return
+        for m in _POETRY_PACKAGE_RE.finditer(text):
+            self._emit_pypi_match(m.group(1), m.group(2), path, index, emit)
+
+    def _emit_pypi_match(
+        self, name: str, version: str, path: Path,
+        index: dict, emit: Emitter,
+    ) -> None:
+        """Shared PyPI-match-and-emit helper for the lockfile parsers."""
+        key = ("pypi", name.lower())
+        for adv in index.get(key, []):
+            emit(Finding(
+                probe_id=self.id,
+                algorithm=adv.get("id", "N/A"),
+                classification=Classification.TINGGI,
+                severity=Severity.HIGH,
+                title=(f"{adv.get('id', '?')} affects {name}=={version} "
+                       f"in {path.name}"),
+                evidence={
+                    "advisory_id": adv.get("id", ""),
+                    "package": name, "version": version,
+                    "summary": (adv.get("summary") or "")[:200],
+                    "path": str(path),
+                    "ecosystem": "PyPI",
+                },
+            ))
 
 
 def _iter_npm_packages(doc: dict):
