@@ -42,13 +42,92 @@ async def test_grype_skips_when_binary_absent():
 
 
 @pytest.mark.asyncio
-async def test_osv_emits_deferral_notice():
-    p = CveOsvOffline()
+async def test_osv_emits_deferral_notice(tmp_path: Path, monkeypatch):
+    """When no snapshot is configured, the probe emits a deferral notice."""
+    monkeypatch.delenv("PQCSCAN_OSV_SNAPSHOT", raising=False)
+    p = CveOsvOffline(snapshot_path=tmp_path / "no-snap.jsonl",
+                      roots=[tmp_path / "no-such-root"])
     ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
     found: list = []
     await p.run(ctx, emit=lambda f: found.append(f))
     assert len(found) == 1
     assert "not yet implemented" in found[0].title.lower()
+
+
+import json as _json
+
+
+@pytest.mark.asyncio
+async def test_osv_loads_snapshot_and_matches_requirement(
+    tmp_path: Path, monkeypatch,
+):
+    monkeypatch.delenv("PQCSCAN_OSV_SNAPSHOT", raising=False)
+    snap = tmp_path / "snap.jsonl"
+    snap.write_text(
+        _json.dumps({
+            "id": "PQC-TEST-1",
+            "summary": "Synthetic test advisory affecting requests",
+            "affected": [{"package": {"ecosystem": "PyPI", "name": "requests"}}],
+        }) + "\n" +
+        _json.dumps({
+            "id": "PQC-TEST-2",
+            "summary": "Synthetic flask advisory",
+            "affected": [{"package": {"ecosystem": "PyPI", "name": "flask"}}],
+        }) + "\n"
+    )
+    app = tmp_path / "app"
+    app.mkdir()
+    (app / "requirements.txt").write_text(
+        "requests==2.20.0\n"
+        "flask>=1.0,<2.0\n"   # range — won't match (only "==" pins)
+        "# comment\n"
+    )
+    p = CveOsvOffline(snapshot_path=snap, roots=[app])
+    ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
+    found: list = []
+    await p.run(ctx, emit=lambda f: found.append(f))
+    advisory_hits = [f for f in found if f.algorithm == "PQC-TEST-1"]
+    assert advisory_hits, "expected PQC-TEST-1 to match requests==2.20.0"
+    assert advisory_hits[0].classification is Classification.TINGGI
+    # flask is range-pinned, so we should NOT report PQC-TEST-2.
+    assert not any(f.algorithm == "PQC-TEST-2" for f in found)
+
+
+@pytest.mark.asyncio
+async def test_osv_handles_json_array_format(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("PQCSCAN_OSV_SNAPSHOT", raising=False)
+    snap = tmp_path / "snap.json"
+    snap.write_text(_json.dumps([
+        {"id": "ARRAY-1", "summary": "in array",
+         "affected": [{"package": {"ecosystem": "PyPI", "name": "django"}}]},
+    ]))
+    app = tmp_path / "app"
+    app.mkdir()
+    (app / "requirements.txt").write_text("django==3.0.0\n")
+    p = CveOsvOffline(snapshot_path=snap, roots=[app])
+    ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
+    found: list = []
+    await p.run(ctx, emit=lambda f: found.append(f))
+    assert any(f.algorithm == "ARRAY-1" for f in found)
+
+
+@pytest.mark.asyncio
+async def test_osv_no_match_when_package_absent(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("PQCSCAN_OSV_SNAPSHOT", raising=False)
+    snap = tmp_path / "snap.jsonl"
+    snap.write_text(_json.dumps({
+        "id": "NOT-USED",
+        "affected": [{"package": {"ecosystem": "PyPI", "name": "requests"}}],
+    }) + "\n")
+    app = tmp_path / "app"
+    app.mkdir()
+    (app / "requirements.txt").write_text("django==3.0.0\n")
+    p = CveOsvOffline(snapshot_path=snap, roots=[app])
+    ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
+    found: list = []
+    await p.run(ctx, emit=lambda f: found.append(f))
+    # Snapshot-loaded INFO finding may appear, but no advisory match.
+    assert not any(f.algorithm == "NOT-USED" for f in found)
 
 
 @pytest.mark.asyncio
