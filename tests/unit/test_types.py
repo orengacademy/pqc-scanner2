@@ -22,7 +22,7 @@ def test_probe_family_includes_v1_families():
     expected = {
         "host", "sbom", "network", "filesystem", "code",
         "vpn", "storage", "container", "app", "sign",
-        "dns_email", "pqc_meta", "aux",
+        "dns_email", "pqc_meta", "aux", "secrets",
     }
     actual = {f.value for f in ProbeFamily}
     assert actual == expected

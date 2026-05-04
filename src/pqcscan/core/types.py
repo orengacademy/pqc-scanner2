@@ -28,6 +28,7 @@ class ProbeFamily(str, Enum):
     DNS_EMAIL = "dns_email"
     PQC_META = "pqc_meta"
     AUX = "aux"
+    SECRETS = "secrets"
 
 
 class Classification(str, Enum):

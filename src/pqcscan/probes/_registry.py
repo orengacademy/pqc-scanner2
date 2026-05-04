@@ -31,13 +31,19 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — Plan A + B batches 1-9 + FOSS-tools add-on = 55 probes."""
+    """Built-in probe set — 66 probes (Plan A + B batches 1-9 + 2 FOSS-tool add-on batches)."""
     from pqcscan.probes.aux_clock_cert_validity import AuxClockCertValidity
+    from pqcscan.probes.code_bandit import CodeBandit
     from pqcscan.probes.code_semgrep_pqc import CodeSemgrepPqc
     from pqcscan.probes.code_ts_python import CodeTsPython
     from pqcscan.probes.container_image_sbom import ContainerImageSbom
+    from pqcscan.probes.cve_cargo_audit import CveCargoAudit
+    from pqcscan.probes.cve_govulncheck import CveGovulncheck
     from pqcscan.probes.cve_grype import CveGrype
+    from pqcscan.probes.cve_npm_audit import CveNpmAudit
     from pqcscan.probes.cve_osv_offline import CveOsvOffline
+    from pqcscan.probes.cve_pip_audit import CvePipAudit
+    from pqcscan.probes.cve_trivy_fs import CveTrivyFs
     from pqcscan.probes.container_runtime_detect import ContainerRuntimeDetect
     from pqcscan.probes.k8s_helm_releases import K8sHelmReleases
     from pqcscan.probes.k8s_ingress_tls import K8sIngressTls
@@ -50,6 +56,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.fs_conf_openssl_cnf import FsConfOpensslCnf
     from pqcscan.probes.fs_conf_sshd import FsConfSshd
     from pqcscan.probes.host_gnupg_config import HostGnupgConfig
+    from pqcscan.probes.host_lynis import HostLynis
     from pqcscan.probes.host_openssl_ciphers import HostOpenSSLCiphers
     from pqcscan.probes.host_openssl_config import HostOpenSSLConfig
     from pqcscan.probes.host_openssl_engines import HostOpenSSLEngines
@@ -69,8 +76,12 @@ def default_registry() -> Registry:
     from pqcscan.probes.net_tls_imaps import NetTlsImaps
     from pqcscan.probes.net_tls_ldaps import NetTlsLdaps
     from pqcscan.probes.net_tls_mqtts import NetTlsMqtts
+    from pqcscan.probes.net_tls_nmap_ssl import NetTlsNmapSsl
     from pqcscan.probes.net_tls_pop3s import NetTlsPop3s
     from pqcscan.probes.net_tls_smtps import NetTlsSmtps
+    from pqcscan.probes.net_tls_sslyze import NetTlsSslyze
+    from pqcscan.probes.net_tls_testssl import NetTlsTestssl
+    from pqcscan.probes.secrets_gitleaks import SecretsGitleaks
     from pqcscan.probes.pqc_alg_normaliser import PqcAlgNormaliser
     from pqcscan.probes.sbom_lang_gomod import SbomLangGomod
     from pqcscan.probes.sbom_lang_npm import SbomLangNpm
@@ -156,4 +167,17 @@ def default_registry() -> Registry:
     reg.register(CveGrype())
     reg.register(CveOsvOffline())
     reg.register(CodeSemgrepPqc())
+    # FOSS VA suite — TLS-specialised + per-language VA + system audit
+    # + Python SAST + secrets. Each auto-skips when its tool isn't on PATH.
+    reg.register(NetTlsTestssl())
+    reg.register(NetTlsSslyze())
+    reg.register(NetTlsNmapSsl())
+    reg.register(CvePipAudit())
+    reg.register(CveNpmAudit())
+    reg.register(CveGovulncheck())
+    reg.register(CveCargoAudit())
+    reg.register(CveTrivyFs())
+    reg.register(HostLynis())
+    reg.register(CodeBandit())
+    reg.register(SecretsGitleaks())
     return reg
