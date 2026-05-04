@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Body, FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 
 from pqcscan import __version__
@@ -91,6 +91,50 @@ def create_app(*, db_path: Path) -> FastAPI:
             async for ev in bus.subscribe():
                 yield event_to_sse(ev)
         return StreamingResponse(gen(), media_type="text/event-stream")
+
+    @app.post("/api/baselines", status_code=201)
+    async def post_baseline(body: dict = Body(...)) -> dict:
+        scan_id = body.get("scan_id")
+        label = body.get("label")
+        notes = body.get("notes")
+        if not isinstance(scan_id, int) or not isinstance(label, str) or not label:
+            raise HTTPException(400, "scan_id (int) and label (str) are required")
+        try:
+            bid = repo.create_baseline(
+                scan_id=scan_id, label=label, notes=notes,
+            )
+        except ValueError as e:
+            raise HTTPException(404, str(e)) from e
+        return {"id": bid}
+
+    @app.get("/api/baselines")
+    async def list_baselines() -> list[dict]:
+        return [
+            {
+                "id": b.id, "scan_id": b.scan_id, "label": b.label,
+                "notes": b.notes, "created_at": b.created_at.isoformat(),
+            }
+            for b in repo.list_baselines()
+        ]
+
+    @app.get("/api/scans/{scan_id}/diff")
+    async def diff_scan(scan_id: int, baseline_scan: int) -> dict:
+        if repo.get_scan(scan_id) is None or repo.get_scan(baseline_scan) is None:
+            raise HTTPException(404, "scan or baseline not found")
+        diff = repo.diff_findings(
+            current_scan_id=scan_id, baseline_scan_id=baseline_scan,
+        )
+        def _row(f):
+            return {
+                "id": f.id, "probe_id": f.probe_id, "algorithm": f.algorithm,
+                "classification": f.classification, "severity": f.severity,
+                "title": f.title,
+            }
+        return {
+            "added": [_row(f) for f in diff["added"]],
+            "removed": [_row(f) for f in diff["removed"]],
+            "common": diff["common"],
+        }
 
     # Mount the web UI (Jinja + HTMX + SSE).
     from pqcscan.ui.routes import mount_static, router as ui_router

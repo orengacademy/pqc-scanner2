@@ -10,7 +10,7 @@ from datetime import date
 
 from pqcscan.core.types import Finding
 from pqcscan.store import migrations
-from pqcscan.store.schema import FindingRow, FrameworkView, Scan
+from pqcscan.store.schema import Baseline, FindingRow, FrameworkView, Scan
 
 
 class Repo:
@@ -143,3 +143,50 @@ class Repo:
             if framework is not None:
                 stmt = stmt.where(FrameworkView.framework == framework)
             return list(s.execute(stmt).scalars())
+
+    def create_baseline(
+        self, *, scan_id: int, label: str, notes: str | None = None
+    ) -> int:
+        with Session(self.engine) as s:
+            if s.get(Scan, scan_id) is None:
+                raise ValueError(f"scan {scan_id} not found")
+            row = Baseline(scan_id=scan_id, label=label, notes=notes)
+            s.add(row)
+            s.commit()
+            return row.id
+
+    def list_baselines(self) -> list[Baseline]:
+        with Session(self.engine) as s:
+            return list(
+                s.execute(
+                    select(Baseline).order_by(Baseline.created_at.desc())
+                ).scalars()
+            )
+
+    def get_baseline(self, baseline_id: int) -> Baseline | None:
+        with Session(self.engine) as s:
+            return s.get(Baseline, baseline_id)
+
+    def diff_findings(
+        self, *, current_scan_id: int, baseline_scan_id: int
+    ) -> dict:
+        """Set-diff of findings between two scans by (probe_id, algorithm, title).
+
+        Evidence dicts often carry timestamps and absolute paths that drift
+        across scans, so identity uses the stable triple. Returns:
+          {"added":   [FindingRow, ...]  # in current, not in baseline
+           "removed": [FindingRow, ...]  # in baseline, not in current
+           "common":  int}               # count of unchanged findings
+        """
+        current = self.list_findings(current_scan_id)
+        baseline = self.list_findings(baseline_scan_id)
+
+        def key(f: FindingRow) -> tuple[str, str, str]:
+            return (f.probe_id, f.algorithm, f.title)
+
+        baseline_keys = {key(f) for f in baseline}
+        current_keys = {key(f) for f in current}
+        added = [f for f in current if key(f) not in baseline_keys]
+        removed = [f for f in baseline if key(f) not in current_keys]
+        common = len(current_keys & baseline_keys)
+        return {"added": added, "removed": removed, "common": common}

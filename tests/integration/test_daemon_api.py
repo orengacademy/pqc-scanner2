@@ -62,3 +62,49 @@ def test_scan_findings(client):
     assert r.status_code == 200
     findings = r.json()
     assert len(findings) >= 1
+
+
+def _wait_for_done(client, scan_id):
+    for _ in range(600):
+        if client.get(f"/api/scans/{scan_id}").json()["status"] == "done":
+            return
+        time.sleep(0.1)
+    raise AssertionError(f"scan {scan_id} did not finish")
+
+
+def test_post_baseline_creates_row(client):
+    sid = client.post("/api/scans").json()["id"]
+    _wait_for_done(client, sid)
+    r = client.post(
+        "/api/baselines",
+        json={"scan_id": sid, "label": "Q2 baseline", "notes": "audit"},
+    )
+    assert r.status_code == 201
+    bid = r.json()["id"]
+    assert isinstance(bid, int) and bid > 0
+
+    rows = client.get("/api/baselines").json()
+    assert any(b["id"] == bid and b["label"] == "Q2 baseline" for b in rows)
+
+
+def test_post_baseline_400_for_invalid(client):
+    r = client.post("/api/baselines", json={"label": "missing scan_id"})
+    assert r.status_code == 400
+    r = client.post("/api/baselines", json={"scan_id": 1, "label": ""})
+    assert r.status_code == 400
+
+
+def test_diff_endpoint(client):
+    sid = client.post("/api/scans").json()["id"]
+    _wait_for_done(client, sid)
+    # Diffing a scan against itself should yield zero changes and many common.
+    r = client.get(f"/api/scans/{sid}/diff", params={"baseline_scan": sid})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["added"] == [] and body["removed"] == []
+    assert body["common"] >= 1
+
+
+def test_diff_404_for_missing_scan(client):
+    r = client.get("/api/scans/9999/diff", params={"baseline_scan": 1})
+    assert r.status_code == 404

@@ -68,4 +68,37 @@ def test_probes_list_page(client):
 def test_nav_includes_new_pages(client):
     r = client.get("/")
     assert 'href="/frameworks"' in r.text
+    assert 'href="/baselines"' in r.text
     assert 'href="/probes"' in r.text
+
+
+def test_baselines_page_empty(client):
+    r = client.get("/baselines")
+    assert r.status_code == 200
+    assert "Baselines" in r.text
+    assert "No baselines yet" in r.text
+
+
+def test_baselines_diff_page_404_for_missing(client):
+    r = client.get("/baselines/diff", params={"scan": 1, "baseline_scan": 2})
+    assert r.status_code == 404
+
+
+def test_baselines_diff_page_after_creating_baseline(client):
+    sid = client.post("/api/scans").json()["id"]
+    # Wait for scan to finish so findings exist.
+    import time
+    for _ in range(600):
+        if client.get(f"/api/scans/{sid}").json()["status"] == "done":
+            break
+        time.sleep(0.1)
+    bid = client.post(
+        "/api/baselines", json={"scan_id": sid, "label": "test"},
+    ).json()["id"]
+    assert bid > 0
+    r = client.get(
+        "/baselines/diff", params={"scan": sid, "baseline_scan": sid},
+    )
+    assert r.status_code == 200
+    assert "Diff:" in r.text
+    assert "0 added" in r.text and "0 removed" in r.text

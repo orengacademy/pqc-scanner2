@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block body %}
+<h1 style="font-size:20px;font-weight:600;margin-bottom:16px">Baselines</h1>
+
+<p style="color:#888;font-size:13px;margin-bottom:24px">
+  A baseline freezes a scan as a reference point. Compare any later scan
+  against a baseline to see what changed (added / removed findings).
+</p>
+
+<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px">
+  <thead>
+    <tr style="text-align:left;color:#888;border-bottom:1px solid #232333">
+      <th style="padding:8px 12px">Label</th>
+      <th style="padding:8px 12px">Scan</th>
+      <th style="padding:8px 12px">Created</th>
+      <th style="padding:8px 12px">Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for b in baselines %}
+    <tr style="border-bottom:1px solid #1a1a26">
+      <td style="padding:8px 12px">{{ b.label }}</td>
+      <td style="padding:8px 12px">
+        <a href="/scans/{{ b.scan_id }}" style="color:#3b82f6;text-decoration:none">#{{ b.scan_id }}</a>
+      </td>
+      <td style="padding:8px 12px;color:#aab">{{ b.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td style="padding:8px 12px;color:#aab">{{ b.notes or '' }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="4" style="padding:12px;color:#888;font-size:13px">No baselines yet — mark a scan as baseline from the scan detail page.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% if scans and baselines %}
+<h2 style="font-size:15px;font-weight:600;margin:16px 0 8px">Diff against baseline</h2>
+<form action="/baselines/diff" method="get" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+  <label style="font-size:13px;color:#aab">
+    Current scan
+    <select name="scan" style="display:block;background:#1a1a26;color:#fff;border:1px solid #232333;padding:6px;border-radius:4px;min-width:180px">
+      {% for s in scans %}
+        <option value="{{ s.id }}">#{{ s.id }} &mdash; {{ s.started_at.strftime('%Y-%m-%d %H:%M') }} ({{ s.status }})</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label style="font-size:13px;color:#aab">
+    Baseline
+    <select name="baseline_scan" style="display:block;background:#1a1a26;color:#fff;border:1px solid #232333;padding:6px;border-radius:4px;min-width:180px">
+      {% for b in baselines %}
+        <option value="{{ b.scan_id }}">{{ b.label }} (scan #{{ b.scan_id }})</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button type="submit" style="background:#3b82f6;color:#fff;border:0;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:500">Diff</button>
+</form>
+{% endif %}
+{% endblock %}

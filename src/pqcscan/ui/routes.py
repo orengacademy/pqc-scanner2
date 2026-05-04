@@ -115,3 +115,34 @@ async def probes_list(request: Request) -> HTMLResponse:
         request, "probes.html",
         {"groups": groups, "total": len(reg.ids())},
     )
+
+
+@router.get("/baselines", response_class=HTMLResponse)
+async def baselines_list(request: Request) -> HTMLResponse:
+    repo = request.app.state.repo
+    return templates.TemplateResponse(
+        request, "baselines.html",
+        {"baselines": repo.list_baselines(), "scans": repo.list_scans()},
+    )
+
+
+@router.get("/baselines/diff", response_class=HTMLResponse)
+async def scan_diff(
+    request: Request, scan: int, baseline_scan: int,
+) -> HTMLResponse:
+    repo = request.app.state.repo
+    if repo.get_scan(scan) is None or repo.get_scan(baseline_scan) is None:
+        raise HTTPException(404, "scan or baseline not found")
+    diff = repo.diff_findings(
+        current_scan_id=scan, baseline_scan_id=baseline_scan,
+    )
+    return templates.TemplateResponse(
+        request, "scan_diff.html",
+        {
+            "current_scan_id": scan,
+            "baseline_scan_id": baseline_scan,
+            "added": diff["added"],
+            "removed": diff["removed"],
+            "common": diff["common"],
+        },
+    )
