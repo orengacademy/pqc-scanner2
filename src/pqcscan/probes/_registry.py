@@ -31,7 +31,7 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — 98 probes (Plan B batches 1-15 + FOSS-tools add-on)."""
+    """Built-in probe set — 102 probes (Plan B batches 1-15 + FOSS-tools + Plan G batch 1 DB-TDE)."""
     from pqcscan.probes.app_dotenv_secrets import AppDotenvSecrets
     from pqcscan.probes.app_jwt_env_alg import AppJwtEnvAlg
     from pqcscan.probes.app_nginx_jwt_validation import AppNginxJwtValidation
@@ -54,6 +54,10 @@ def default_registry() -> Registry:
     from pqcscan.probes.cve_osv_offline import CveOsvOffline
     from pqcscan.probes.cve_pip_audit import CvePipAudit
     from pqcscan.probes.cve_trivy_fs import CveTrivyFs
+    from pqcscan.probes.db_mongo_encrypted_storage import DbMongoEncryptedStorage
+    from pqcscan.probes.db_mssql_tde import DbMssqlTde
+    from pqcscan.probes.db_mysql_keyring import DbMysqlKeyring
+    from pqcscan.probes.db_pg_pgcrypto import DbPgPgcrypto
     from pqcscan.probes.dns_dnssec_zones import DnsDnssecZones
     from pqcscan.probes.email_dkim_selectors import EmailDkimSelectors
     from pqcscan.probes.email_smime_certs import EmailSmimeCerts
@@ -250,4 +254,9 @@ def default_registry() -> Registry:
     reg.register(NetSmbDialect())
     reg.register(NetSnmpVersion())
     reg.register(NetKerberosAsreq())
+    # Plan G batch 1 — DB at-rest TDE config (deferred per spec §13.1).
+    reg.register(DbPgPgcrypto())
+    reg.register(DbMysqlKeyring())
+    reg.register(DbMssqlTde())
+    reg.register(DbMongoEncryptedStorage())
     return reg
