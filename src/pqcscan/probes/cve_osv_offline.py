@@ -106,6 +106,11 @@ class CveOsvOffline(Probe):
                 if any(part in _EXCLUDE_DIRS for part in req.parts):
                     continue
                 self._scan_requirements(req, index, emit)
+            for lock in (root.rglob("package-lock.json") if root.is_dir()
+                         else []):
+                if any(part in _EXCLUDE_DIRS for part in lock.parts):
+                    continue
+                self._scan_npm_lockfile(lock, index, emit)
 
     def _scan_requirements(
         self, path: Path, index: dict, emit: Emitter,
@@ -138,6 +143,76 @@ class CveOsvOffline(Probe):
                         "ecosystem": "PyPI",
                     },
                 ))
+
+    def _scan_npm_lockfile(
+        self, path: Path, index: dict, emit: Emitter,
+    ) -> None:
+        try:
+            doc = json.loads(path.read_text(errors="replace"))
+        except (OSError, json.JSONDecodeError):
+            return
+        for name, version in _iter_npm_packages(doc):
+            key = ("npm", name.lower())
+            for adv in index.get(key, []):
+                emit(Finding(
+                    probe_id=self.id,
+                    algorithm=adv.get("id", "N/A"),
+                    classification=Classification.TINGGI,
+                    severity=Severity.HIGH,
+                    title=(f"{adv.get('id', '?')} affects {name}@{version} "
+                           f"in {path.name}"),
+                    evidence={
+                        "advisory_id": adv.get("id", ""),
+                        "package": name, "version": version,
+                        "summary": (adv.get("summary") or "")[:200],
+                        "path": str(path),
+                        "ecosystem": "npm",
+                    },
+                ))
+
+
+def _iter_npm_packages(doc: dict):
+    """Yield (name, version) for every package in a package-lock.json doc.
+
+    Handles both npm v7+ (``packages`` dict keyed by node_modules path)
+    and npm v6 (``dependencies`` dict keyed by name, recursive).
+    """
+    packages = doc.get("packages")
+    if isinstance(packages, dict):
+        # npm v7+
+        for path_key, pkg in packages.items():
+            if not path_key:  # skip the "" root entry
+                continue
+            if not isinstance(pkg, dict):
+                continue
+            version = pkg.get("version")
+            if not version:
+                continue
+            # path_key is like "node_modules/lodash" or
+            # "node_modules/@types/node". Strip the leading
+            # "node_modules/" segments and keep what's left, which is
+            # the package name (preserving any "@scope/" prefix).
+            parts = path_key.split("node_modules/")
+            name = parts[-1]
+            if name:
+                yield name, version
+        return
+    # npm v6 — recursive "dependencies" tree.
+    deps = doc.get("dependencies")
+    if isinstance(deps, dict):
+        yield from _walk_npm_v6(deps)
+
+
+def _walk_npm_v6(deps: dict):
+    for name, info in deps.items():
+        if not isinstance(info, dict):
+            continue
+        version = info.get("version")
+        if version:
+            yield name, version
+        nested = info.get("dependencies")
+        if isinstance(nested, dict):
+            yield from _walk_npm_v6(nested)
 
 
 def _load_snapshot_index(path: Path) -> dict:

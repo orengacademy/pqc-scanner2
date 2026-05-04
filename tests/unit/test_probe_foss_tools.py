@@ -131,6 +131,71 @@ async def test_osv_no_match_when_package_absent(tmp_path: Path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_osv_matches_npm_v7_lockfile(tmp_path: Path, monkeypatch):
+    """npm v7+ lockfileVersion uses a flat 'packages' dict."""
+    monkeypatch.delenv("PQCSCAN_OSV_SNAPSHOT", raising=False)
+    snap = tmp_path / "snap.jsonl"
+    snap.write_text(_json.dumps({
+        "id": "NPM-LODASH-1",
+        "summary": "Synthetic lodash advisory",
+        "affected": [{"package": {"ecosystem": "npm", "name": "lodash"}}],
+    }) + "\n")
+    app = tmp_path / "app"
+    app.mkdir()
+    (app / "package-lock.json").write_text(_json.dumps({
+        "name": "myapp",
+        "version": "1.0.0",
+        "lockfileVersion": 3,
+        "packages": {
+            "": {"name": "myapp", "version": "1.0.0"},
+            "node_modules/lodash": {"version": "4.17.20"},
+            "node_modules/express": {"version": "4.18.2"},
+        },
+    }))
+    p = CveOsvOffline(snapshot_path=snap, roots=[app])
+    ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
+    found: list = []
+    await p.run(ctx, emit=lambda f: found.append(f))
+    hits = [f for f in found if f.algorithm == "NPM-LODASH-1"]
+    assert hits, "expected NPM-LODASH-1 to match lodash@4.17.20"
+    assert hits[0].evidence["ecosystem"] == "npm"
+    assert hits[0].evidence["package"] == "lodash"
+
+
+@pytest.mark.asyncio
+async def test_osv_matches_npm_v6_lockfile(tmp_path: Path, monkeypatch):
+    """npm v6 lockfileVersion uses a nested 'dependencies' tree."""
+    monkeypatch.delenv("PQCSCAN_OSV_SNAPSHOT", raising=False)
+    snap = tmp_path / "snap.jsonl"
+    snap.write_text(_json.dumps({
+        "id": "NPM-EXPRESS-1",
+        "affected": [{"package": {"ecosystem": "npm", "name": "express"}}],
+    }) + "\n")
+    app = tmp_path / "app"
+    app.mkdir()
+    (app / "package-lock.json").write_text(_json.dumps({
+        "name": "myapp",
+        "version": "1.0.0",
+        "lockfileVersion": 1,
+        "dependencies": {
+            "express": {
+                "version": "4.18.2",
+                "dependencies": {
+                    "qs": {"version": "6.11.0"},
+                },
+            },
+            "lodash": {"version": "4.17.20"},
+        },
+    }))
+    p = CveOsvOffline(snapshot_path=snap, roots=[app])
+    ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
+    found: list = []
+    await p.run(ctx, emit=lambda f: found.append(f))
+    hits = [f for f in found if f.algorithm == "NPM-EXPRESS-1"]
+    assert hits, "expected NPM-EXPRESS-1 to match express@4.18.2"
+
+
+@pytest.mark.asyncio
 async def test_semgrep_skips_when_binary_absent(tmp_path: Path):
     p = CodeSemgrepPqc(roots=[tmp_path], semgrep_bin="/no/such/semgrep")
     ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
