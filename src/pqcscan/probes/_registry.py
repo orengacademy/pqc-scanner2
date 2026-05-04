@@ -31,10 +31,13 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — Plan A (7) + Plan B batches 1-9 (44) = 51 probes."""
+    """Built-in probe set — Plan A + B batches 1-9 + FOSS-tools add-on = 55 probes."""
     from pqcscan.probes.aux_clock_cert_validity import AuxClockCertValidity
+    from pqcscan.probes.code_semgrep_pqc import CodeSemgrepPqc
     from pqcscan.probes.code_ts_python import CodeTsPython
     from pqcscan.probes.container_image_sbom import ContainerImageSbom
+    from pqcscan.probes.cve_grype import CveGrype
+    from pqcscan.probes.cve_osv_offline import CveOsvOffline
     from pqcscan.probes.container_runtime_detect import ContainerRuntimeDetect
     from pqcscan.probes.k8s_helm_releases import K8sHelmReleases
     from pqcscan.probes.k8s_ingress_tls import K8sIngressTls
@@ -75,6 +78,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.sbom_os_apk import SbomOsApk
     from pqcscan.probes.sbom_os_dpkg import SbomOsDpkg
     from pqcscan.probes.sbom_os_rpm import SbomOsRpm
+    from pqcscan.probes.sbom_syft import SbomSyft
     from pqcscan.probes.storage_bitlocker import StorageBitlocker
     from pqcscan.probes.storage_dmcrypt import StorageDmcrypt
     from pqcscan.probes.storage_fscrypt import StorageFscrypt
@@ -147,4 +151,9 @@ def default_registry() -> Registry:
     reg.register(K8sSecretsTypes())
     reg.register(K8sHelmReleases())
     reg.register(K8sMeshMtls())
+    # FOSS-tools add-on — Syft + Grype + Semgrep + OSV stub.
+    reg.register(SbomSyft())
+    reg.register(CveGrype())
+    reg.register(CveOsvOffline())
+    reg.register(CodeSemgrepPqc())
     return reg

@@ -1,0 +1,112 @@
+rules:
+  - id: pqcscan.python.weak-hash-md5
+    languages: [python]
+    severity: ERROR
+    pattern-either:
+      - pattern: hashlib.md5(...)
+      - pattern: |
+          import hashlib
+          ...
+          hashlib.new("md5", ...)
+    message: MD5 hash usage — broken; use SHA-256 or SHA-3.
+    metadata:
+      pqcscan_classification: sangat-tinggi
+      pqcscan_algorithm: MD5
+      framework_tags: [bukukerja, mykripto, nist-ir-8547]
+
+  - id: pqcscan.python.weak-hash-sha1
+    languages: [python]
+    severity: ERROR
+    pattern-either:
+      - pattern: hashlib.sha1(...)
+      - pattern: |
+          import hashlib
+          ...
+          hashlib.new("sha1", ...)
+    message: SHA-1 hash usage — disallowed for digital signatures.
+    metadata:
+      pqcscan_classification: sangat-tinggi
+      pqcscan_algorithm: SHA-1
+      framework_tags: [bukukerja, mykripto, nist-ir-8547]
+
+  - id: pqcscan.python.rsa-generate-weak
+    languages: [python]
+    severity: WARNING
+    pattern-either:
+      - pattern: rsa.generate_private_key(public_exponent=$E, key_size=$BITS, ...)
+      - pattern: RSA.generate($BITS, ...)
+    message: RSA key generation — verify key_size >= 3072 (Sangat Tinggi if <3072).
+    metadata:
+      pqcscan_classification: tinggi
+      pqcscan_algorithm: RSA
+      framework_tags: [bukukerja, mykripto, nist-ir-8547, cnsa2]
+
+  - id: pqcscan.python.dsa-generate
+    languages: [python]
+    severity: ERROR
+    pattern-either:
+      - pattern: DSA.generate(...)
+      - pattern: dsa.generate_private_key(...)
+    message: DSA key generation — DSA is broken classically; replace with ML-DSA (FIPS 204).
+    metadata:
+      pqcscan_classification: sangat-tinggi
+      pqcscan_algorithm: DSA
+      framework_tags: [bukukerja, mykripto, nist-ir-8547, cnsa2]
+
+  - id: pqcscan.python.des-cipher
+    languages: [python]
+    severity: ERROR
+    pattern-either:
+      - pattern: DES.new(...)
+      - pattern: |
+          from Crypto.Cipher import DES
+    message: DES cipher usage — broken; use AES-256-GCM or ChaCha20-Poly1305.
+    metadata:
+      pqcscan_classification: sangat-tinggi
+      pqcscan_algorithm: DES
+      framework_tags: [bukukerja, mykripto, nist-ir-8547]
+
+  - id: pqcscan.python.aes-128-direct
+    languages: [python]
+    severity: WARNING
+    pattern-either:
+      - pattern: AES.new($KEY, AES.MODE_CBC, ...)
+    message: AES-CBC mode — prefer AES-GCM. Verify key length is 256 bits for CNSA 2.0.
+    metadata:
+      pqcscan_classification: tinggi
+      pqcscan_algorithm: AES-128-CBC
+      framework_tags: [bukukerja, mykripto, cnsa2]
+
+  - id: pqcscan.javascript.weak-hash
+    languages: [javascript, typescript]
+    severity: ERROR
+    pattern-either:
+      - pattern: crypto.createHash("md5")
+      - pattern: crypto.createHash("sha1")
+    message: Weak hash (MD5 / SHA-1) — disallowed.
+    metadata:
+      pqcscan_classification: sangat-tinggi
+      framework_tags: [bukukerja, mykripto, nist-ir-8547]
+
+  - id: pqcscan.javascript.jwt-hs256
+    languages: [javascript, typescript]
+    severity: WARNING
+    pattern-either:
+      - pattern: jwt.sign($P, $K, { algorithm: "HS256", ... })
+      - pattern: jwt.sign($P, $K)
+    message: JWT signing — verify the algorithm field; HS256 secret entropy and
+             RS256/ES256 key strength matter for the PQC migration plan.
+    metadata:
+      pqcscan_classification: tinggi
+      framework_tags: [bukukerja, mykripto, nist-ir-8547]
+
+  - id: pqcscan.go.weak-hash
+    languages: [go]
+    severity: ERROR
+    pattern-either:
+      - pattern: md5.New()
+      - pattern: sha1.New()
+    message: Go md5/sha1 usage — disallowed.
+    metadata:
+      pqcscan_classification: sangat-tinggi
+      framework_tags: [bukukerja, mykripto, nist-ir-8547]
