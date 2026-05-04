@@ -31,7 +31,12 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — 66 probes (Plan A + B batches 1-9 + 2 FOSS-tool add-on batches)."""
+    """Built-in probe set — 71 probes (incl. Plan B batch 10 app-config family)."""
+    from pqcscan.probes.app_dotenv_secrets import AppDotenvSecrets
+    from pqcscan.probes.app_jwt_env_alg import AppJwtEnvAlg
+    from pqcscan.probes.app_nginx_jwt_validation import AppNginxJwtValidation
+    from pqcscan.probes.app_oauth_jwks import AppOauthJwks
+    from pqcscan.probes.app_spring_properties import AppSpringProperties
     from pqcscan.probes.aux_clock_cert_validity import AuxClockCertValidity
     from pqcscan.probes.code_bandit import CodeBandit
     from pqcscan.probes.code_semgrep_pqc import CodeSemgrepPqc
@@ -180,4 +185,10 @@ def default_registry() -> Registry:
     reg.register(HostLynis())
     reg.register(CodeBandit())
     reg.register(SecretsGitleaks())
+    # Plan B batch 10 — app-config crypto.
+    reg.register(AppJwtEnvAlg())
+    reg.register(AppOauthJwks())
+    reg.register(AppDotenvSecrets())
+    reg.register(AppSpringProperties())
+    reg.register(AppNginxJwtValidation())
     return reg
