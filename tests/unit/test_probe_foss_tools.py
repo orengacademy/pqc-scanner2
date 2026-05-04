@@ -319,6 +319,78 @@ async def test_osv_matches_poetry_lock(tmp_path: Path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_osv_matches_composer_lock(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("PQCSCAN_OSV_SNAPSHOT", raising=False)
+    snap = tmp_path / "snap.jsonl"
+    snap.write_text(_json.dumps({
+        "id": "COMPOSER-SYMFONY-1",
+        "affected": [{"package": {"ecosystem": "Packagist",
+                                  "name": "symfony/console"}}],
+    }) + "\n")
+    app = tmp_path / "app"
+    app.mkdir()
+    (app / "composer.lock").write_text(_json.dumps({
+        "_readme": ["This file locks the dependencies of your project"],
+        "packages": [
+            {"name": "symfony/console", "version": "v6.4.0",
+             "type": "library"},
+            {"name": "monolog/monolog", "version": "3.5.0"},
+        ],
+        "packages-dev": [
+            {"name": "phpunit/phpunit", "version": "10.5.0"},
+        ],
+    }))
+    p = CveOsvOffline(snapshot_path=snap, roots=[app])
+    ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
+    found: list = []
+    await p.run(ctx, emit=lambda f: found.append(f))
+    hits = [f for f in found if f.algorithm == "COMPOSER-SYMFONY-1"]
+    assert hits, "expected COMPOSER-SYMFONY-1 to match symfony/console 6.4.0"
+    # Composer "v6.4.0" prefix should be stripped.
+    assert hits[0].evidence["version"] == "6.4.0"
+    assert hits[0].evidence["ecosystem"] == "Packagist"
+
+
+@pytest.mark.asyncio
+async def test_osv_matches_gemfile_lock(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("PQCSCAN_OSV_SNAPSHOT", raising=False)
+    snap = tmp_path / "snap.jsonl"
+    snap.write_text(_json.dumps({
+        "id": "GEM-RAILS-1",
+        "affected": [{"package": {"ecosystem": "RubyGems", "name": "rails"}}],
+    }) + "\n")
+    app = tmp_path / "app"
+    app.mkdir()
+    (app / "Gemfile.lock").write_text(
+        "GEM\n"
+        "  remote: https://rubygems.org/\n"
+        "  specs:\n"
+        "    rails (7.0.4)\n"
+        "      actionpack (= 7.0.4)\n"
+        "    nokogiri (1.13.10)\n"
+        "\n"
+        "PLATFORMS\n"
+        "  ruby\n"
+        "\n"
+        "DEPENDENCIES\n"
+        "  rails (~> 7.0)\n"   # range — must not be matched as exact pin
+        "\n"
+        "BUNDLED WITH\n"
+        "   2.4.10\n"
+    )
+    p = CveOsvOffline(snapshot_path=snap, roots=[app])
+    ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
+    found: list = []
+    await p.run(ctx, emit=lambda f: found.append(f))
+    hits = [f for f in found if f.algorithm == "GEM-RAILS-1"]
+    assert hits, "expected GEM-RAILS-1 to match rails 7.0.4"
+    # Exactly one hit — DEPENDENCIES section's "rails (~> 7.0)" must
+    # not produce a second finding.
+    assert len(hits) == 1
+    assert hits[0].evidence["version"] == "7.0.4"
+
+
+@pytest.mark.asyncio
 async def test_semgrep_skips_when_binary_absent(tmp_path: Path):
     p = CodeSemgrepPqc(roots=[tmp_path], semgrep_bin="/no/such/semgrep")
     ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())

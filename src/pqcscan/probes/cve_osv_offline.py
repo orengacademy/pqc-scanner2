@@ -49,6 +49,11 @@ _GO_SUM_LINE_RE = re.compile(
     r"^(\S+)\s+(v\S+?)(?:/go\.mod)?\s+h1:",
     re.MULTILINE,
 )
+# Gemfile.lock specs: "    <name> (<version>)"
+_GEMFILE_SPEC_RE = re.compile(
+    r"^[ \t]+([A-Za-z0-9][A-Za-z0-9._-]*)\s+\(([^)]+)\)\s*$",
+    re.MULTILINE,
+)
 _EXCLUDE_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__",
                  "vendor"}
 
@@ -142,6 +147,16 @@ class CveOsvOffline(Probe):
                 if any(part in _EXCLUDE_DIRS for part in poetry.parts):
                     continue
                 self._scan_poetry_lock(poetry, index, emit)
+            for composer in (root.rglob("composer.lock") if root.is_dir()
+                             else []):
+                if any(part in _EXCLUDE_DIRS for part in composer.parts):
+                    continue
+                self._scan_composer_lock(composer, index, emit)
+            for gemfile in (root.rglob("Gemfile.lock") if root.is_dir()
+                            else []):
+                if any(part in _EXCLUDE_DIRS for part in gemfile.parts):
+                    continue
+                self._scan_gemfile_lock(gemfile, index, emit)
 
     def _scan_requirements(
         self, path: Path, index: dict, emit: Emitter,
@@ -315,6 +330,109 @@ class CveOsvOffline(Probe):
                     "ecosystem": "PyPI",
                 },
             ))
+
+    def _scan_composer_lock(
+        self, path: Path, index: dict, emit: Emitter,
+    ) -> None:
+        """composer.lock — JSON; iterate packages + packages-dev."""
+        try:
+            doc = json.loads(path.read_text(errors="replace"))
+        except (OSError, json.JSONDecodeError):
+            return
+        for section in ("packages", "packages-dev"):
+            for pkg in (doc.get(section) or []):
+                if not isinstance(pkg, dict):
+                    continue
+                name = pkg.get("name") or ""
+                version = pkg.get("version") or ""
+                # Composer pins like "v6.4.0" — strip the optional "v".
+                if version.startswith("v"):
+                    version = version[1:]
+                if not name or not version:
+                    continue
+                self._emit_simple_match(
+                    "packagist", name, version, path, index, emit,
+                    ecosystem_label="Packagist",
+                )
+
+    def _scan_gemfile_lock(
+        self, path: Path, index: dict, emit: Emitter,
+    ) -> None:
+        """Gemfile.lock — '    name (version)' lines under GEM/specs:."""
+        try:
+            text = path.read_text(errors="replace")
+        except OSError:
+            return
+        # Restrict to the GEM section to skip GIT/PATH/DEPENDENCIES blocks.
+        gem_block = _extract_gemfile_gem_section(text)
+        if gem_block is None:
+            return
+        seen: set = set()
+        for m in _GEMFILE_SPEC_RE.finditer(gem_block):
+            name, version = m.group(1), m.group(2)
+            if (name, version) in seen:
+                continue
+            seen.add((name, version))
+            self._emit_simple_match(
+                "rubygems", name, version, path, index, emit,
+                ecosystem_label="RubyGems",
+            )
+
+    def _emit_simple_match(
+        self, ecosystem_key: str, name: str, version: str,
+        path: Path, index: dict, emit: Emitter,
+        *, ecosystem_label: str,
+    ) -> None:
+        """Generic match-and-emit, parameterised on the OSV ecosystem key."""
+        key = (ecosystem_key, name.lower())
+        for adv in index.get(key, []):
+            emit(Finding(
+                probe_id=self.id,
+                algorithm=adv.get("id", "N/A"),
+                classification=Classification.TINGGI,
+                severity=Severity.HIGH,
+                title=(f"{adv.get('id', '?')} affects {name} {version} "
+                       f"in {path.name}"),
+                evidence={
+                    "advisory_id": adv.get("id", ""),
+                    "package": name, "version": version,
+                    "summary": (adv.get("summary") or "")[:200],
+                    "path": str(path),
+                    "ecosystem": ecosystem_label,
+                },
+            ))
+
+
+def _extract_gemfile_gem_section(text: str) -> str | None:
+    """Return only the body of the 'GEM ... specs:' block, or None.
+
+    Gemfile.lock has multiple top-level sections (GEM, GIT, PATH, PLATFORMS,
+    DEPENDENCIES, RUBY VERSION, BUNDLED WITH). We only want gem versions
+    from the GEM section's specs: list — DEPENDENCIES lists requirement
+    ranges that we'd misread as exact versions.
+    """
+    lines = text.splitlines()
+    in_gem = False
+    in_specs = False
+    out: list[str] = []
+    for line in lines:
+        # Top-level section headers are unindented.
+        if line and not line[0].isspace():
+            if line.strip() == "GEM":
+                in_gem = True
+                in_specs = False
+                continue
+            in_gem = False
+            in_specs = False
+            continue
+        if not in_gem:
+            continue
+        if line.strip() == "specs:":
+            in_specs = True
+            continue
+        if in_specs:
+            out.append(line)
+    return "\n".join(out) if out else None
 
 
 def _iter_npm_packages(doc: dict):
