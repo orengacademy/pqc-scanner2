@@ -71,3 +71,26 @@ def resolve_tool(name: str) -> Path | None:
         return Path(which)
 
     return None
+
+
+def resolve_or_none(explicit: str | None, default_name: str) -> Path | None:
+    """Validate an explicit binary path, or fall back to resolve_tool().
+
+    Probes accept an optional ``<tool>_bin`` constructor argument that
+    overrides auto-detection. This helper centralises the validation:
+
+    - If ``explicit`` is set: return it as a Path iff it exists and is
+      executable, else None (NOT a fallthrough — the caller asked for
+      that specific binary).
+    - If ``explicit`` is None: delegate to ``resolve_tool(default_name)``.
+
+    Matches the original ``shutil.which("/no/such/path") -> None``
+    semantics so a missing explicit path doesn't silently use a
+    different binary from PATH.
+    """
+    if explicit:
+        p = Path(explicit)
+        if p.is_file() and os.access(p, os.X_OK):
+            return p
+        return None
+    return resolve_tool(default_name)

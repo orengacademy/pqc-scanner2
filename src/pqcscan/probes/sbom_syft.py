@@ -12,12 +12,10 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
-from pathlib import Path
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
-from pqcscan.util.offline_pack import resolve_tool
+from pqcscan.util.offline_pack import resolve_or_none
 
 
 class SbomSyft(Probe):
@@ -32,14 +30,7 @@ class SbomSyft(Probe):
         self.timeout_s = timeout_s
 
     def _resolve(self):
-        if self.syft_bin:
-            # An explicit path must exist and be executable — matches
-            # the original shutil.which("/no/such/path") -> None semantics.
-            p = Path(self.syft_bin)
-            if p.is_file() and os.access(p, os.X_OK):
-                return p
-            return None
-        return resolve_tool("syft")
+        return resolve_or_none(self.syft_bin, "syft")
 
     async def applies(self, ctx: ScanContext) -> bool:
         return self._resolve() is not None

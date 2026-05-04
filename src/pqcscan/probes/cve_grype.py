@@ -7,10 +7,10 @@ from __future__ import annotations
 
 import asyncio
 import json
-import shutil
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.util.offline_pack import resolve_or_none
 
 
 _GRYPE_TO_SEV = {
@@ -44,12 +44,14 @@ class CveGrype(Probe):
         self.timeout_s = timeout_s
 
     async def applies(self, ctx: ScanContext) -> bool:
-        return shutil.which(self.grype_bin or "grype") is not None
+        return resolve_or_none(self.grype_bin, "grype") is not None
 
     async def run(self, ctx: ScanContext, emit: Emitter) -> None:
-        bin_path = self.grype_bin or "grype"
+        bin_path = resolve_or_none(self.grype_bin, "grype")
+        if bin_path is None:
+            return
         proc = await asyncio.create_subprocess_exec(
-            bin_path, self.target, "-o", "json", "--quiet",
+            str(bin_path), self.target, "-o", "json", "--quiet",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
