@@ -391,6 +391,72 @@ async def test_osv_matches_gemfile_lock(tmp_path: Path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_osv_matches_nuget_lock(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("PQCSCAN_OSV_SNAPSHOT", raising=False)
+    snap = tmp_path / "snap.jsonl"
+    snap.write_text(_json.dumps({
+        "id": "NUGET-NEWTONSOFT-1",
+        "affected": [{"package": {"ecosystem": "NuGet",
+                                  "name": "Newtonsoft.Json"}}],
+    }) + "\n")
+    app = tmp_path / "app"
+    app.mkdir()
+    (app / "packages.lock.json").write_text(_json.dumps({
+        "version": 1,
+        "dependencies": {
+            "net6.0": {
+                "Newtonsoft.Json": {
+                    "type": "Direct",
+                    "requested": "[13.0.1, )",
+                    "resolved": "13.0.1",
+                    "contentHash": "fake-hash",
+                },
+                "Serilog": {
+                    "type": "Direct",
+                    "resolved": "3.0.1",
+                },
+            },
+        },
+    }))
+    p = CveOsvOffline(snapshot_path=snap, roots=[app])
+    ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
+    found: list = []
+    await p.run(ctx, emit=lambda f: found.append(f))
+    hits = [f for f in found if f.algorithm == "NUGET-NEWTONSOFT-1"]
+    assert hits, "expected NUGET-NEWTONSOFT-1 to match Newtonsoft.Json 13.0.1"
+    assert hits[0].evidence["version"] == "13.0.1"
+    assert hits[0].evidence["ecosystem"] == "NuGet"
+
+
+@pytest.mark.asyncio
+async def test_osv_matches_mix_lock(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("PQCSCAN_OSV_SNAPSHOT", raising=False)
+    snap = tmp_path / "snap.jsonl"
+    snap.write_text(_json.dumps({
+        "id": "HEX-PHOENIX-1",
+        "affected": [{"package": {"ecosystem": "Hex", "name": "phoenix"}}],
+    }) + "\n")
+    app = tmp_path / "app"
+    app.mkdir()
+    (app / "mix.lock").write_text(
+        '%{\n'
+        '  "phoenix": {:hex, :phoenix, "1.7.0", "abcdef", '
+        '[:mix], [], "hexpm"},\n'
+        '  "ecto": {:hex, :ecto, "3.10.0", "fedcba", '
+        '[:mix], [], "hexpm"},\n'
+        '}\n'
+    )
+    p = CveOsvOffline(snapshot_path=snap, roots=[app])
+    ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
+    found: list = []
+    await p.run(ctx, emit=lambda f: found.append(f))
+    hits = [f for f in found if f.algorithm == "HEX-PHOENIX-1"]
+    assert hits, "expected HEX-PHOENIX-1 to match phoenix 1.7.0"
+    assert hits[0].evidence["version"] == "1.7.0"
+    assert hits[0].evidence["ecosystem"] == "Hex"
+
+
+@pytest.mark.asyncio
 async def test_semgrep_skips_when_binary_absent(tmp_path: Path):
     p = CodeSemgrepPqc(roots=[tmp_path], semgrep_bin="/no/such/semgrep")
     ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())

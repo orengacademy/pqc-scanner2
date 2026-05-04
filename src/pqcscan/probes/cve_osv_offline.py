@@ -54,6 +54,11 @@ _GEMFILE_SPEC_RE = re.compile(
     r"^[ \t]+([A-Za-z0-9][A-Za-z0-9._-]*)\s+\(([^)]+)\)\s*$",
     re.MULTILINE,
 )
+# mix.lock entries: "<name>": {:hex, :<name>, "<version>",
+_MIX_LOCK_RE = re.compile(
+    r'"([A-Za-z0-9_][A-Za-z0-9._-]*)":\s*\{:hex,\s*:[A-Za-z0-9_]+,\s*'
+    r'"([^"]+)"',
+)
 _EXCLUDE_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__",
                  "vendor"}
 
@@ -157,6 +162,15 @@ class CveOsvOffline(Probe):
                 if any(part in _EXCLUDE_DIRS for part in gemfile.parts):
                     continue
                 self._scan_gemfile_lock(gemfile, index, emit)
+            for nuget in (root.rglob("packages.lock.json") if root.is_dir()
+                          else []):
+                if any(part in _EXCLUDE_DIRS for part in nuget.parts):
+                    continue
+                self._scan_nuget_lock(nuget, index, emit)
+            for mix in (root.rglob("mix.lock") if root.is_dir() else []):
+                if any(part in _EXCLUDE_DIRS for part in mix.parts):
+                    continue
+                self._scan_mix_lock(mix, index, emit)
 
     def _scan_requirements(
         self, path: Path, index: dict, emit: Emitter,
@@ -354,6 +368,47 @@ class CveOsvOffline(Probe):
                     "packagist", name, version, path, index, emit,
                     ecosystem_label="Packagist",
                 )
+
+    def _scan_nuget_lock(
+        self, path: Path, index: dict, emit: Emitter,
+    ) -> None:
+        """packages.lock.json — NuGet; iterate every framework's deps."""
+        try:
+            doc = json.loads(path.read_text(errors="replace"))
+        except (OSError, json.JSONDecodeError):
+            return
+        seen: set = set()
+        for _framework, deps in (doc.get("dependencies") or {}).items():
+            if not isinstance(deps, dict):
+                continue
+            for name, info in deps.items():
+                if not isinstance(info, dict):
+                    continue
+                version = info.get("resolved") or ""
+                if not name or not version:
+                    continue
+                if (name.lower(), version) in seen:
+                    continue
+                seen.add((name.lower(), version))
+                self._emit_simple_match(
+                    "nuget", name, version, path, index, emit,
+                    ecosystem_label="NuGet",
+                )
+
+    def _scan_mix_lock(
+        self, path: Path, index: dict, emit: Emitter,
+    ) -> None:
+        """mix.lock — Elixir/Hex; '"name": {:hex, :name, "version",' lines."""
+        try:
+            text = path.read_text(errors="replace")
+        except OSError:
+            return
+        for m in _MIX_LOCK_RE.finditer(text):
+            name, version = m.group(1), m.group(2)
+            self._emit_simple_match(
+                "hex", name, version, path, index, emit,
+                ecosystem_label="Hex",
+            )
 
     def _scan_gemfile_lock(
         self, path: Path, index: dict, emit: Emitter,
