@@ -31,7 +31,7 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — 81 probes (incl. Plan B batches 10-12 app + sign + dns_email)."""
+    """Built-in probe set — 87 probes (Plan B batches 1-13 + FOSS-tools add-on)."""
     from pqcscan.probes.app_dotenv_secrets import AppDotenvSecrets
     from pqcscan.probes.app_jwt_env_alg import AppJwtEnvAlg
     from pqcscan.probes.app_nginx_jwt_validation import AppNginxJwtValidation
@@ -98,12 +98,18 @@ def default_registry() -> Registry:
     from pqcscan.probes.trust_system_roots import TrustSystemRoots
     from pqcscan.probes.web_webauthn_config import WebWebauthnConfig
     from pqcscan.probes.pqc_alg_normaliser import PqcAlgNormaliser
+    from pqcscan.probes.sbom_lang_cargo import SbomLangCargo
+    from pqcscan.probes.sbom_lang_composer import SbomLangComposer
     from pqcscan.probes.sbom_lang_gomod import SbomLangGomod
+    from pqcscan.probes.sbom_lang_maven import SbomLangMaven
     from pqcscan.probes.sbom_lang_npm import SbomLangNpm
     from pqcscan.probes.sbom_lang_pip import SbomLangPip
     from pqcscan.probes.sbom_os_apk import SbomOsApk
+    from pqcscan.probes.sbom_os_brew import SbomOsBrew
     from pqcscan.probes.sbom_os_dpkg import SbomOsDpkg
+    from pqcscan.probes.sbom_os_pacman import SbomOsPacman
     from pqcscan.probes.sbom_os_rpm import SbomOsRpm
+    from pqcscan.probes.sbom_os_windows import SbomOsWindows
     from pqcscan.probes.sbom_syft import SbomSyft
     from pqcscan.probes.storage_bitlocker import StorageBitlocker
     from pqcscan.probes.storage_dmcrypt import StorageDmcrypt
@@ -213,4 +219,11 @@ def default_registry() -> Registry:
     reg.register(EmailSmimeCerts())
     reg.register(WebWebauthnConfig())
     reg.register(TrustSystemRoots())
+    # Plan B batch 13 — language SBOM expansion.
+    reg.register(SbomOsPacman())
+    reg.register(SbomOsBrew())
+    reg.register(SbomOsWindows())
+    reg.register(SbomLangCargo())
+    reg.register(SbomLangMaven())
+    reg.register(SbomLangComposer())
     return reg
