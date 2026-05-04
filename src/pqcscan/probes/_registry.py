@@ -31,7 +31,7 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — 102 probes (Plan B batches 1-15 + FOSS-tools + Plan G batch 1 DB-TDE)."""
+    """Built-in probe set — 106 probes (Plan B 1-15 + FOSS-tools + Plan G batches 1-2: DB-TDE + MQ brokers)."""
     from pqcscan.probes.app_dotenv_secrets import AppDotenvSecrets
     from pqcscan.probes.app_jwt_env_alg import AppJwtEnvAlg
     from pqcscan.probes.app_nginx_jwt_validation import AppNginxJwtValidation
@@ -79,6 +79,10 @@ def default_registry() -> Registry:
     from pqcscan.probes.host_openssl_engines import HostOpenSSLEngines
     from pqcscan.probes.host_ssh_client_config import HostSshClientConfig
     from pqcscan.probes.host_ssh_server_config import HostSshServerConfig
+    from pqcscan.probes.mq_kafka_tls import MqKafkaTls
+    from pqcscan.probes.mq_mqtt_broker import MqMqttBroker
+    from pqcscan.probes.mq_nats_tls import MqNatsTls
+    from pqcscan.probes.mq_rabbitmq_tls import MqRabbitmqTls
     from pqcscan.probes.net_db_mongo_tls import NetDbMongoTls
     from pqcscan.probes.net_db_mysql_tls import NetDbMysqlTls
     from pqcscan.probes.net_db_postgres_tls import NetDbPostgresTls
@@ -259,4 +263,9 @@ def default_registry() -> Registry:
     reg.register(DbMysqlKeyring())
     reg.register(DbMssqlTde())
     reg.register(DbMongoEncryptedStorage())
+    # Plan G batch 2 — message-queue brokers (deferred per spec §13.1).
+    reg.register(MqKafkaTls())
+    reg.register(MqRabbitmqTls())
+    reg.register(MqNatsTls())
+    reg.register(MqMqttBroker())
     return reg
