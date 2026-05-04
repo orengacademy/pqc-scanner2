@@ -72,6 +72,20 @@ Family-by-family breakdown is in [`docs/STATUS.md` §2](docs/STATUS.md#2-whats-s
 pytest -q --cov=pqcscan --cov-report=term-missing
 ```
 
+## Build a single-file binary
+
+PyInstaller produces a self-contained `pqcscan` binary that embeds Python, dependencies, web UI templates, framework YAMLs, and the probe registry — no Python install required on the target host.
+
+```bash
+pip install -e ".[build]"   # installs pyinstaller>=6
+bash scripts/build-binary.sh
+./dist/pqcscan --help
+```
+
+Output: `dist/pqcscan` (Linux/macOS) or `dist/pqcscan.exe` (Windows). Build artifacts live under `build/pqcscan-work/` and are gitignored. The spec file at [`build/pyinstaller.spec`](build/pyinstaller.spec) is committed and stays in sync with the registry — new probes get picked up automatically via globbing.
+
+Cross-OS CI matrix builds (release artifacts for Linux + macOS + Windows) are tracked separately in Plan F batch 2.
+
 ## Tech stack
 
 Python 3.11, FastAPI 0.136, uvicorn, SQLAlchemy 2.0, Jinja2 + HTMX 1.9 (vendored), click, pydantic v2, loguru, cryptography 47, cyclonedx-python-lib 7.6+. All FOSS.

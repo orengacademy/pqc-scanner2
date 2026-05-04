@@ -4,7 +4,8 @@ __pycache__/
 *$py.class
 *.egg-info/
 .eggs/
-build/
+build/*
+!build/pyinstaller.spec
 dist/
 .venv/
 venv/
@@ -25,8 +26,7 @@ Thumbs.db
 # Brainstorming workspace (visual companion mockups, etc.)
 .superpowers/
 
-# Build output
-*.spec
+# Build output (PyInstaller binary lives here; spec lives at build/pyinstaller.spec)
 *.egg
 *.dist-info/
 pyinstaller/
