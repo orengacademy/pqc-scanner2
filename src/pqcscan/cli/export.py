@@ -21,7 +21,16 @@ from pqcscan.util.paths import default_db_path
 )
 @click.option("-o", "--out", type=click.Path(path_type=Path), required=True)
 @click.option("--db", type=click.Path(path_type=Path), default=None)
-def export_cmd(scan_id: int, fmt: str, out: Path, db: Path | None) -> None:
+@click.option(
+    "--lang",
+    type=click.Choice(["ms", "en"], case_sensitive=False),
+    default="ms",
+    show_default=True,
+    help="Output language (currently honoured by xlsx-bukukerja).",
+)
+def export_cmd(
+    scan_id: int, fmt: str, out: Path, db: Path | None, lang: str,
+) -> None:
     """Export a scan in the chosen format."""
     repo = Repo(db or default_db_path())
     repo.init_schema()
@@ -47,8 +56,8 @@ def export_cmd(scan_id: int, fmt: str, out: Path, db: Path | None) -> None:
         click.echo(f"wrote executive PDF -> {out}")
     elif f == "xlsx-bukukerja":
         from pqcscan.renderers.xlsx_bukukerja import render_xlsx_bukukerja
-        render_xlsx_bukukerja(repo, scan_id, out)
-        click.echo(f"wrote BUKUKERJA XLSX -> {out}")
+        render_xlsx_bukukerja(repo, scan_id, out, locale=lang.lower())
+        click.echo(f"wrote BUKUKERJA XLSX ({lang}) -> {out}")
     elif f == "xlsx-generic":
         from pqcscan.renderers.xlsx_generic import render_xlsx_generic
         render_xlsx_generic(repo, scan_id, out)
