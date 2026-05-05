@@ -23,6 +23,8 @@ import os
 import re
 from pathlib import Path
 
+import yaml
+
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 
@@ -58,6 +60,11 @@ _GEMFILE_SPEC_RE = re.compile(
 _MIX_LOCK_RE = re.compile(
     r'"([A-Za-z0-9_][A-Za-z0-9._-]*)":\s*\{:hex,\s*:[A-Za-z0-9_]+,\s*'
     r'"([^"]+)"',
+)
+# gradle.lockfile lines: "group:artifact:version=configs"
+_GRADLE_LOCK_LINE_RE = re.compile(
+    r"^([A-Za-z0-9._-]+):([A-Za-z0-9._-]+):([A-Za-z0-9._+-]+)=",
+    re.MULTILINE,
 )
 _EXCLUDE_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__",
                  "vendor"}
@@ -171,6 +178,15 @@ class CveOsvOffline(Probe):
                 if any(part in _EXCLUDE_DIRS for part in mix.parts):
                     continue
                 self._scan_mix_lock(mix, index, emit)
+            for pub in (root.rglob("pubspec.lock") if root.is_dir() else []):
+                if any(part in _EXCLUDE_DIRS for part in pub.parts):
+                    continue
+                self._scan_pub_lock(pub, index, emit)
+            for gradle in (root.rglob("gradle.lockfile") if root.is_dir()
+                           else []):
+                if any(part in _EXCLUDE_DIRS for part in gradle.parts):
+                    continue
+                self._scan_gradle_lockfile(gradle, index, emit)
 
     def _scan_requirements(
         self, path: Path, index: dict, emit: Emitter,
@@ -408,6 +424,43 @@ class CveOsvOffline(Probe):
             self._emit_simple_match(
                 "hex", name, version, path, index, emit,
                 ecosystem_label="Hex",
+            )
+
+    def _scan_pub_lock(
+        self, path: Path, index: dict, emit: Emitter,
+    ) -> None:
+        """pubspec.lock — Dart/Flutter; YAML 'packages.<name>.version'."""
+        try:
+            doc = yaml.safe_load(path.read_text(errors="replace"))
+        except (OSError, yaml.YAMLError):
+            return
+        if not isinstance(doc, dict):
+            return
+        for name, info in (doc.get("packages") or {}).items():
+            if not isinstance(info, dict):
+                continue
+            version = info.get("version")
+            if not isinstance(version, str) or not version:
+                continue
+            self._emit_simple_match(
+                "pub", name, version, path, index, emit,
+                ecosystem_label="Pub",
+            )
+
+    def _scan_gradle_lockfile(
+        self, path: Path, index: dict, emit: Emitter,
+    ) -> None:
+        """gradle.lockfile — JVM; '<group>:<artifact>:<version>=<configs>'."""
+        try:
+            text = path.read_text(errors="replace")
+        except OSError:
+            return
+        for m in _GRADLE_LOCK_LINE_RE.finditer(text):
+            group, artifact, version = m.group(1), m.group(2), m.group(3)
+            full_name = f"{group}:{artifact}"
+            self._emit_simple_match(
+                "maven", full_name, version, path, index, emit,
+                ecosystem_label="Maven",
             )
 
     def _scan_gemfile_lock(

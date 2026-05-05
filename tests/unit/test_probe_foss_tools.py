@@ -457,6 +457,74 @@ async def test_osv_matches_mix_lock(tmp_path: Path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_osv_matches_pub_lock(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("PQCSCAN_OSV_SNAPSHOT", raising=False)
+    snap = tmp_path / "snap.jsonl"
+    snap.write_text(_json.dumps({
+        "id": "PUB-HTTP-1",
+        "affected": [{"package": {"ecosystem": "Pub", "name": "http"}}],
+    }) + "\n")
+    app = tmp_path / "app"
+    app.mkdir()
+    (app / "pubspec.lock").write_text(
+        "packages:\n"
+        "  http:\n"
+        "    dependency: \"direct main\"\n"
+        "    description:\n"
+        "      name: http\n"
+        "      url: \"https://pub.dev\"\n"
+        "    source: hosted\n"
+        "    version: \"1.1.0\"\n"
+        "  meta:\n"
+        "    dependency: transitive\n"
+        "    version: \"1.10.0\"\n"
+        "sdks:\n"
+        "  dart: \">=3.0.0 <4.0.0\"\n"
+    )
+    p = CveOsvOffline(snapshot_path=snap, roots=[app])
+    ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
+    found: list = []
+    await p.run(ctx, emit=lambda f: found.append(f))
+    hits = [f for f in found if f.algorithm == "PUB-HTTP-1"]
+    assert hits, "expected PUB-HTTP-1 to match http 1.1.0"
+    assert hits[0].evidence["version"] == "1.1.0"
+    assert hits[0].evidence["ecosystem"] == "Pub"
+
+
+@pytest.mark.asyncio
+async def test_osv_matches_gradle_lockfile(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("PQCSCAN_OSV_SNAPSHOT", raising=False)
+    snap = tmp_path / "snap.jsonl"
+    snap.write_text(_json.dumps({
+        "id": "MAVEN-JACKSON-1",
+        "affected": [{"package": {
+            "ecosystem": "Maven",
+            "name": "com.fasterxml.jackson.core:jackson-databind",
+        }}],
+    }) + "\n")
+    app = tmp_path / "app"
+    app.mkdir()
+    (app / "gradle.lockfile").write_text(
+        "# This is a Gradle generated file for dependency locking.\n"
+        "# Manual edits can break the build and are not advised.\n"
+        "# This file is expected to be part of source control.\n"
+        "com.fasterxml.jackson.core:jackson-databind:2.13.0=compileClasspath,runtimeClasspath\n"
+        "org.springframework:spring-core:5.3.20=compileClasspath\n"
+        "empty=annotationProcessor\n"
+    )
+    p = CveOsvOffline(snapshot_path=snap, roots=[app])
+    ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
+    found: list = []
+    await p.run(ctx, emit=lambda f: found.append(f))
+    hits = [f for f in found if f.algorithm == "MAVEN-JACKSON-1"]
+    assert hits, "expected MAVEN-JACKSON-1 to match jackson-databind 2.13.0"
+    assert hits[0].evidence["version"] == "2.13.0"
+    assert hits[0].evidence["package"] == \
+        "com.fasterxml.jackson.core:jackson-databind"
+    assert hits[0].evidence["ecosystem"] == "Maven"
+
+
+@pytest.mark.asyncio
 async def test_semgrep_skips_when_binary_absent(tmp_path: Path):
     p = CodeSemgrepPqc(roots=[tmp_path], semgrep_bin="/no/such/semgrep")
     ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
