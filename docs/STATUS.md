@@ -3,11 +3,11 @@
 | | |
 |---|---|
 | **Date** | 2026-05-05 |
-| **Branch / commit** | `main @ cd51b70` (Plan F + B17 expansion) |
+| **Branch / commit** | `main @ c92956e` (post Plan F migrations + B17 range-aware + OSV fetch script) |
 | **Version** | `0.1.0` |
 | **Probes** | 109 / 102 registered (target hit + spec §13.1 deferral fully closed) |
-| **Tests** | ~340+ passed across unit + integration suites (Python 3.11) |
-| **Status** | All design-doc plans shipped (A+B+C+D+E+G + Plan F batches 1–3); B17 OSV matcher real across 10 ecosystems / 12 lockfile formats; only Plan F batch 4 (Grype-DB snapshot bundling) + 11 mechanical FOSS-tool probe migrations remain |
+| **Tests** | ~365+ passed across unit + integration suites (Python 3.11) |
+| **Status** | All design-doc plans shipped (A+B+C+D+E+F+G); B17 OSV matcher real across 10 ecosystems / 12 lockfile formats with range-aware PyPI; all 14 FOSS-tool probes use the offline-pack resolver; only Plan F batch 4 (multi-GB Grype-DB snapshot bundling — release-pipeline decision) remains |
 
 ## 1. TL;DR
 
@@ -74,7 +74,7 @@ EN/MS i18n toggle in nav writes a 1-year cookie; `_render()` injects `t()` calla
 |---|---|---|
 | **Plan F batch 4 — Grype-DB snapshot bundling** | Not started | Multi-GB Grype-DB snapshot is a release-pipeline / artifact-storage decision rather than code. Without it, bundled `grype` falls back to its online DB sync on first run. |
 | **FOSS-tool probe migrations** | ✅ Done | All 14 FOSS-tool probes (`sbom_syft`, `cve_grype`, `cve_trivy_fs`, `host_lynis`, `secrets_gitleaks`, `cve_pip_audit`, `cve_npm_audit`, `code_semgrep_pqc`, `net_tls_testssl`, `net_tls_sslyze`, `cve_govulncheck`, `cve_cargo_audit`, `code_bandit`, `net_tls_nmap_ssl`) now resolve via `resolve_or_none()` and honour `$PQCSCAN_OFFLINE_PACK` + PyInstaller's bundled `tools/`. |
-| **Range-aware PyPI matching** in `cve.osv_offline` | Conservative | Only `==` exact pins in `requirements.txt` are matched; `>=`/`~=`/range constraints would need a PEP 440 evaluator (e.g. the `packaging` lib). Lockfile-driven Python projects (Pipfile.lock, poetry.lock) get full pinned coverage already. |
+| **Range-aware PyPI matching** in `cve.osv_offline` | ✅ Done | `requirements.txt` `>=`/`~=`/`<` / multi-clause specifiers are overlap-checked against OSV `affected[].versions` and `affected[].ranges[].events[]` via the `packaging` library. Range-overlap hits are classified Sederhana ("potentially affected"); exact `==` pin hits remain Tinggi ("definitely affected"). |
 
 **Spec §13.1 deferral is fully closed.** Plan F (batches 1–3) and B17 (across 10 ecosystems) are shipped.
 
