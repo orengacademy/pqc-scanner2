@@ -4,13 +4,12 @@ from __future__ import annotations
 from pathlib import Path
 
 from cryptography import x509
-from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed25519, ed448, rsa
+from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, rsa
 
 from pqcscan.core.alg import classify
-from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
+from pqcscan.core.types import Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._severity import sev_for
-
 
 _EXTS = (".p7s", ".p7m", ".smime")
 
@@ -39,7 +38,7 @@ class EmailSmimeCerts(Probe):
                 try:
                     data = path.read_bytes()
                     cert = x509.load_pem_x509_certificate(data)
-                except Exception:  # noqa: BLE001
+                except Exception:
                     continue
                 pk = cert.public_key()
                 if isinstance(pk, rsa.RSAPublicKey):

@@ -45,7 +45,7 @@ class SecretsGitleaks(Probe):
             )
             try:
                 stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=self.timeout_s)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 proc.kill()
                 continue
             try:

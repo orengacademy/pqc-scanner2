@@ -13,7 +13,6 @@ from collections.abc import Iterable
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 
-
 _DEFAULT_PORTS: tuple[int, ...] = (
     21,    # FTP
     22,    # SSH
@@ -90,10 +89,10 @@ class NetPortsTcp(Probe):
                     w.close()
                     try:
                         await w.wait_closed()
-                    except Exception:  # noqa: BLE001
+                    except Exception:
                         pass
                     return port, True
-                except (OSError, asyncio.TimeoutError):
+                except (TimeoutError, OSError):
                     return port, False
 
         results = await asyncio.gather(*(check(p) for p in self.ports))

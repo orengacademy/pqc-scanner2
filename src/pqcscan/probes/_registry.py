@@ -47,6 +47,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.code_ts_python import CodeTsPython
     from pqcscan.probes.code_ts_rust import CodeTsRust
     from pqcscan.probes.container_image_sbom import ContainerImageSbom
+    from pqcscan.probes.container_runtime_detect import ContainerRuntimeDetect
     from pqcscan.probes.cve_cargo_audit import CveCargoAudit
     from pqcscan.probes.cve_govulncheck import CveGovulncheck
     from pqcscan.probes.cve_grype import CveGrype
@@ -61,11 +62,6 @@ def default_registry() -> Registry:
     from pqcscan.probes.dns_dnssec_zones import DnsDnssecZones
     from pqcscan.probes.email_dkim_selectors import EmailDkimSelectors
     from pqcscan.probes.email_smime_certs import EmailSmimeCerts
-    from pqcscan.probes.container_runtime_detect import ContainerRuntimeDetect
-    from pqcscan.probes.k8s_helm_releases import K8sHelmReleases
-    from pqcscan.probes.k8s_ingress_tls import K8sIngressTls
-    from pqcscan.probes.k8s_mesh_mtls import K8sMeshMtls
-    from pqcscan.probes.k8s_secrets_types import K8sSecretsTypes
     from pqcscan.probes.fs_cert_privkey import FsCertPrivkey
     from pqcscan.probes.fs_cert_x509 import FsCertX509
     from pqcscan.probes.fs_conf_apache import FsConfApache
@@ -82,6 +78,10 @@ def default_registry() -> Registry:
     from pqcscan.probes.hw_pkcs11_modules import HwPkcs11Modules
     from pqcscan.probes.hw_smartcard_readers import HwSmartcardReaders
     from pqcscan.probes.hw_tpm_algorithms import HwTpmAlgorithms
+    from pqcscan.probes.k8s_helm_releases import K8sHelmReleases
+    from pqcscan.probes.k8s_ingress_tls import K8sIngressTls
+    from pqcscan.probes.k8s_mesh_mtls import K8sMeshMtls
+    from pqcscan.probes.k8s_secrets_types import K8sSecretsTypes
     from pqcscan.probes.mq_kafka_tls import MqKafkaTls
     from pqcscan.probes.mq_mqtt_broker import MqMqttBroker
     from pqcscan.probes.mq_nats_tls import MqNatsTls
@@ -111,14 +111,6 @@ def default_registry() -> Registry:
     from pqcscan.probes.net_tls_smtps import NetTlsSmtps
     from pqcscan.probes.net_tls_sslyze import NetTlsSslyze
     from pqcscan.probes.net_tls_testssl import NetTlsTestssl
-    from pqcscan.probes.secrets_gitleaks import SecretsGitleaks
-    from pqcscan.probes.sign_code_authenticode import SignCodeAuthenticode
-    from pqcscan.probes.sign_git_signing_keys import SignGitSigningKeys
-    from pqcscan.probes.sign_gpg_keyrings import SignGpgKeyrings
-    from pqcscan.probes.sign_image_cosign import SignImageCosign
-    from pqcscan.probes.sign_repo_aptdnf_keys import SignRepoAptdnfKeys
-    from pqcscan.probes.trust_system_roots import TrustSystemRoots
-    from pqcscan.probes.web_webauthn_config import WebWebauthnConfig
     from pqcscan.probes.pqc_alg_normaliser import PqcAlgNormaliser
     from pqcscan.probes.sbom_lang_cargo import SbomLangCargo
     from pqcscan.probes.sbom_lang_composer import SbomLangComposer
@@ -133,14 +125,22 @@ def default_registry() -> Registry:
     from pqcscan.probes.sbom_os_rpm import SbomOsRpm
     from pqcscan.probes.sbom_os_windows import SbomOsWindows
     from pqcscan.probes.sbom_syft import SbomSyft
+    from pqcscan.probes.secrets_gitleaks import SecretsGitleaks
+    from pqcscan.probes.sign_code_authenticode import SignCodeAuthenticode
+    from pqcscan.probes.sign_git_signing_keys import SignGitSigningKeys
+    from pqcscan.probes.sign_gpg_keyrings import SignGpgKeyrings
+    from pqcscan.probes.sign_image_cosign import SignImageCosign
+    from pqcscan.probes.sign_repo_aptdnf_keys import SignRepoAptdnfKeys
     from pqcscan.probes.storage_bitlocker import StorageBitlocker
     from pqcscan.probes.storage_dmcrypt import StorageDmcrypt
     from pqcscan.probes.storage_fscrypt import StorageFscrypt
     from pqcscan.probes.storage_luks_headers import StorageLuksHeaders
     from pqcscan.probes.storage_zfs_encryption import StorageZfsEncryption
+    from pqcscan.probes.trust_system_roots import TrustSystemRoots
     from pqcscan.probes.vpn_openvpn_config import VpnOpenvpnConfig
     from pqcscan.probes.vpn_tailscale_state import VpnTailscaleState
     from pqcscan.probes.vpn_wireguard import VpnWireguard
+    from pqcscan.probes.web_webauthn_config import WebWebauthnConfig
 
     reg = Registry()
     # Plan A — MVP foundation (one probe per family).

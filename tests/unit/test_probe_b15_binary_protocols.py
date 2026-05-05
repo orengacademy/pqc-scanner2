@@ -16,7 +16,6 @@ from pqcscan.probes.net_smb_dialect import NetSmbDialect
 from pqcscan.probes.net_snmp_version import NetSnmpVersion
 from pqcscan.probes.net_ssh_handshake import NetSshHandshake
 
-
 # Port 1 is reserved/closed on virtually every host, so TCP/UDP
 # attempts to it fail fast — perfect for connection-failure smoke
 # tests without standing up real servers.

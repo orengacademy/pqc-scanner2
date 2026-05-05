@@ -3,7 +3,7 @@ from datetime import date
 
 import pytest
 
-from pqcscan.compliance.engine import ComplianceEngine, FrameworkRules, _Rule
+from pqcscan.compliance.engine import ComplianceEngine, _Rule
 from pqcscan.core.types import Classification, Finding, Severity
 
 
@@ -103,7 +103,8 @@ def test_ml_kem_768_compliant_in_all_frameworks(engine):
 def test_runner_writes_framework_view_rows(tmp_db_path):
     """End-to-end: ProbeRunner persists framework_views rows when a Finding fires a rule."""
     import asyncio
-    from pqcscan.core.types import Capability, ProbeFamily
+
+    from pqcscan.core.types import ProbeFamily
     from pqcscan.probes._base import Probe
     from pqcscan.probes._registry import Registry
     from pqcscan.runner.event_bus import EventBus

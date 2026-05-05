@@ -42,7 +42,6 @@ import yaml
 
 from pqcscan.core.types import Finding
 
-
 _KEY_SIZE_RE = re.compile(r"(\d+)")
 
 

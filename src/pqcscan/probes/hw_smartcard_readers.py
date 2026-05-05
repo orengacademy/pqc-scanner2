@@ -11,7 +11,6 @@ from pathlib import Path
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 
-
 _KEYLEN_RE = re.compile(
     r"\bdefault_key_length\s*=\s*(\d+)",
     re.IGNORECASE,

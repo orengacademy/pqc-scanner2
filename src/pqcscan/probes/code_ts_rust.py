@@ -8,7 +8,6 @@ from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._code_walker import walk_source
 
-
 _USE_WEAK_RE = re.compile(r"\buse\s+(md5|sha1|md4|md2)\b")
 _WEAK_FUNC_RE = re.compile(r"\b(md5|sha1)\s*::\s*Md5|::Sha1|::compute|::digest", re.IGNORECASE)
 _DES_RE = re.compile(r"\b(Des|TripleDes|Des3)::new\b")

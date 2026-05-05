@@ -20,8 +20,6 @@ from pathlib import Path
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
-from pqcscan.probes._severity import sev_for
-
 
 _DEPRECATED = {1, 3, 5, 6, 7}
 _RSA = {8, 10}
@@ -79,9 +77,7 @@ class DnsDnssecZones(Probe):
                     alg = int(m.group(1))
                     if alg in _DEPRECATED:
                         cls, sev = Classification.SANGAT_TINGGI, Severity.CRIT
-                    elif alg in _RSA:
-                        cls, sev = Classification.TINGGI, Severity.HIGH
-                    elif alg in _ECDSA or alg in _EDDSA:
+                    elif alg in _RSA or alg in _ECDSA or alg in _EDDSA:
                         cls, sev = Classification.TINGGI, Severity.HIGH
                     else:
                         cls, sev = Classification.INFO, Severity.INFO

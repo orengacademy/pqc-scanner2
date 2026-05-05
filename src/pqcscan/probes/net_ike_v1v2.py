@@ -51,14 +51,14 @@ class NetIkeV1V2(Probe):
             try:
                 data = await asyncio.wait_for(loop.sock_recv(sock, 4096),
                                                timeout=self.timeout_s)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 emit(Finding(
                     probe_id=self.id, algorithm="N/A",
                     classification=Classification.INFO, severity=Severity.INFO,
                     title=f"IKE UDP {self.host}:{self.port} silent (no response)",
                 ))
                 return
-        except (OSError, asyncio.TimeoutError) as e:
+        except (TimeoutError, OSError) as e:
             emit(Finding(
                 probe_id=self.id, algorithm="N/A",
                 classification=Classification.INFO, severity=Severity.INFO,

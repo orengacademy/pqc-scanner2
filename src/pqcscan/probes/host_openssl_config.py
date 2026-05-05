@@ -6,7 +6,6 @@ from pathlib import Path
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 
-
 _DEFAULT_PATHS = [
     Path("/etc/ssl/openssl.cnf"),
     Path("/etc/pki/tls/openssl.cnf"),

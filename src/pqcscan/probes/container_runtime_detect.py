@@ -6,7 +6,6 @@ import shutil
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 
-
 _RUNTIMES = ("docker", "podman", "containerd", "nerdctl", "crictl")
 
 

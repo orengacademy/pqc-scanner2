@@ -8,7 +8,6 @@ from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._code_walker import walk_source
 
-
 _WEAK_HASH_RE = re.compile(r"\b(md5|sha1)\.(?:New|Sum)\b")
 _WEAK_CIPHER_RE = re.compile(r"\b(des|rc4)\.NewCipher\b")
 _RSA_GEN_RE = re.compile(r"\brsa\.GenerateKey\s*\([^,]+,\s*(\d+)\s*\)")

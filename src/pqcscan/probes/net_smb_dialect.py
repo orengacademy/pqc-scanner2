@@ -61,7 +61,7 @@ class NetSmbDialect(Probe):
                 asyncio.open_connection(self.host, self.port),
                 timeout=self.timeout_s,
             )
-        except (OSError, asyncio.TimeoutError) as e:
+        except (TimeoutError, OSError) as e:
             emit(Finding(
                 probe_id=self.id, algorithm="N/A",
                 classification=Classification.INFO, severity=Severity.INFO,
@@ -72,13 +72,13 @@ class NetSmbDialect(Probe):
             writer.write(_smb2_negotiate()); await writer.drain()
             try:
                 resp = await asyncio.wait_for(reader.read(1024), timeout=self.timeout_s)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 return
         finally:
             writer.close()
             try:
                 await writer.wait_closed()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
         if len(resp) < 80 or resp[4:8] != b"\xfeSMB":
             # Not an SMB2 response — could be SMB1 server.

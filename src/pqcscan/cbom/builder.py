@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -40,7 +40,7 @@ def build_cbom(repo: Repo, scan_id: int) -> dict[str, Any]:
         "serialNumber": f"urn:uuid:{uuid4()}",
         "version": 1,
         "metadata": {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "tools": [
                 {"vendor": "pqcscan", "name": "pqcscan", "version": __version__}
             ],

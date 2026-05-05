@@ -5,10 +5,9 @@ import asyncio
 import shutil
 
 from pqcscan.core.alg import classify
-from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
+from pqcscan.core.types import Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._severity import sev_for
-
 
 # GPG colon-format pubkey-algorithm IDs (RFC 4880 + 6637 + 9580 draft):
 #   1  = RSA (encrypt + sign)
@@ -50,7 +49,7 @@ class SignGpgKeyrings(Probe):
         )
         try:
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=self.timeout_s)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             return
         for line in stdout.decode("utf-8", errors="replace").splitlines():

@@ -31,7 +31,7 @@ class SignCodeAuthenticode(Probe):
         )
         try:
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=60.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             return
         text = stdout.decode("utf-8", errors="replace")

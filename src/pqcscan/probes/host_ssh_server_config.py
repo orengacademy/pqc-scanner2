@@ -7,7 +7,6 @@ from pqcscan.core.alg import classify, normalise
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 
-
 _DEFAULT_PATHS = [Path("/etc/ssh/sshd_config")]
 
 _SSH_ALG_ALIASES: dict[str, str] = {

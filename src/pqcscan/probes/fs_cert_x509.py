@@ -3,12 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from cryptography import x509
-from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed25519, ed448, rsa
+from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, rsa
 
 from pqcscan.core.alg import classify
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
-
 
 _EXTS = (".pem", ".crt", ".cer", ".der")
 

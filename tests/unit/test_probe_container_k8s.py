@@ -3,7 +3,7 @@ import shutil
 
 import pytest
 
-from pqcscan.core.types import Capability, ProbeFamily
+from pqcscan.core.types import ProbeFamily
 from pqcscan.probes._base import ScanContext
 from pqcscan.probes.container_image_sbom import ContainerImageSbom
 from pqcscan.probes.container_runtime_detect import ContainerRuntimeDetect

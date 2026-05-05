@@ -20,7 +20,6 @@ from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._severity import sev_for
 
-
 _ALG_RE = re.compile(
     r"""(?ix)
         \b(jwt[._-]?alg(?:orithm)?|JWS_?ALG)\b

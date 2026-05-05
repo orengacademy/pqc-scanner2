@@ -24,7 +24,6 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from pqcscan import __version__
 from pqcscan.store.repo import Repo
 
-
 _HEADER_FILL = PatternFill("solid", fgColor="14532D")  # dark green
 _HEADER_FONT = Font(bold=True, color="FFFFFF")
 

@@ -7,7 +7,6 @@ import struct
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 
-
 _CLIENT_SSL_FLAG = 0x00000800  # CLIENT_SSL bit in MySQL capability flags
 
 
@@ -29,7 +28,7 @@ class NetDbMysqlTls(Probe):
                 asyncio.open_connection(self.host, self.port),
                 timeout=self.timeout_s,
             )
-        except (OSError, asyncio.TimeoutError) as e:
+        except (TimeoutError, OSError) as e:
             emit(Finding(
                 probe_id=self.id, algorithm="N/A",
                 classification=Classification.INFO, severity=Severity.INFO,
@@ -39,20 +38,20 @@ class NetDbMysqlTls(Probe):
         try:
             try:
                 hdr = await asyncio.wait_for(reader.readexactly(4), timeout=self.timeout_s)
-            except (asyncio.IncompleteReadError, asyncio.TimeoutError):
+            except (TimeoutError, asyncio.IncompleteReadError):
                 return
             pkt_len = hdr[0] | (hdr[1] << 8) | (hdr[2] << 16)
             try:
                 payload = await asyncio.wait_for(
                     reader.readexactly(pkt_len), timeout=self.timeout_s,
                 )
-            except (asyncio.IncompleteReadError, asyncio.TimeoutError):
+            except (TimeoutError, asyncio.IncompleteReadError):
                 return
         finally:
             writer.close()
             try:
                 await writer.wait_closed()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
         if len(payload) < 36 or payload[0] not in (10, 9):
             return

@@ -24,7 +24,7 @@ class K8sHelmReleases(Probe):
         )
         try:
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=15.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             return
         try:

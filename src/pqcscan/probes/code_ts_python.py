@@ -22,7 +22,6 @@ from pathlib import Path
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 
-
 _EXCLUDE_DIRS = {
     ".git", "node_modules", ".venv", "__pycache__",
     "vendor", "dist", "build", "target",

@@ -7,7 +7,6 @@ from pathlib import Path
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 
-
 _DKIM_TXT_RE = re.compile(
     r"v=DKIM1\s*;.*?p=([A-Za-z0-9+/=]+)", re.DOTALL,
 )
@@ -44,8 +43,8 @@ class EmailDkimSelectors(Probe):
 
     def _check_private_key(self, path: Path, emit: Emitter) -> None:
         try:
-            from cryptography.hazmat.primitives.serialization import load_pem_private_key
             from cryptography.hazmat.primitives.asymmetric import rsa
+            from cryptography.hazmat.primitives.serialization import load_pem_private_key
             data = path.read_bytes()
             key = load_pem_private_key(data, password=None)
             if isinstance(key, rsa.RSAPrivateKey):
@@ -60,7 +59,7 @@ class EmailDkimSelectors(Probe):
                     title=f"DKIM private key {path.name} = RSA-{bits}",
                     evidence={"path": str(path), "bits": bits},
                 ))
-        except Exception:  # noqa: BLE001
+        except Exception:
             return
 
     def _check_txt(self, path: Path, emit: Emitter) -> None:

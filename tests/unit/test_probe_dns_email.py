@@ -95,7 +95,8 @@ async def test_webauthn_config_flags_rs256_algs(tmp_path: Path):
 @pytest.mark.asyncio
 async def test_trust_system_roots_uses_bundle_path(tmp_path: Path):
     # Generate an RSA-2048 self-signed cert acting as a "root" for the test.
-    import shutil, subprocess
+    import shutil
+    import subprocess
     if shutil.which("openssl") is None:
         pytest.skip("openssl binary not available")
     key = tmp_path / "k.pem"

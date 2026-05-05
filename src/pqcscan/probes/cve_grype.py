@@ -12,7 +12,6 @@ from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.util.offline_pack import resolve_or_none
 
-
 _GRYPE_TO_SEV = {
     "Critical": Severity.CRIT,
     "High":     Severity.HIGH,
@@ -59,7 +58,7 @@ class CveGrype(Probe):
             stdout, _ = await asyncio.wait_for(
                 proc.communicate(), timeout=self.timeout_s,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             return
         try:

@@ -8,7 +8,6 @@ from pqcscan.core.types import ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._sbom_helper import emit_package
 
-
 _MODULE_RE = re.compile(r"^module\s+(\S+)", re.MULTILINE)
 _REQUIRE_RE = re.compile(
     r"^\s*(\S+)\s+(v\d[\w.\-+/]*)\s*(?://.*)?$", re.MULTILINE,

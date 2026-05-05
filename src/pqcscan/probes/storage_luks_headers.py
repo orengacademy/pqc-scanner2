@@ -9,7 +9,6 @@ from pqcscan.core.alg import classify, normalise
 from pqcscan.core.types import Capability, Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 
-
 _LUKS_CIPHER_RE = re.compile(r"^\s*Cipher\s*name:\s*(\S+)", re.MULTILINE | re.IGNORECASE)
 _LUKS_KEYBITS_RE = re.compile(r"^\s*MK\s*bits:\s*(\d+)", re.MULTILINE | re.IGNORECASE)
 
@@ -40,7 +39,7 @@ class StorageLuksHeaders(Probe):
         )
         try:
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=10.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             return
 
@@ -60,7 +59,7 @@ class StorageLuksHeaders(Probe):
         )
         try:
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=10.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             return
         text = stdout.decode("utf-8", errors="replace")

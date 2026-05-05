@@ -4,7 +4,6 @@ from __future__ import annotations
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 
-
 _EXCLUDE_DIRS = {
     ".git", "node_modules", ".venv", "venv", "__pycache__",
     "vendor", "dist", "build", "target", ".gradle", ".m2",

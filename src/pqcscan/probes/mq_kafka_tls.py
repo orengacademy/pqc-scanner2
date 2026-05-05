@@ -11,7 +11,6 @@ from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._severity import classify_cipher_token, sev_for
 
-
 _PROTO_RE = re.compile(
     r"^\s*ssl\.enabled\.protocols\s*=\s*([^\n#]+)",
     re.IGNORECASE | re.MULTILINE,

@@ -1,13 +1,10 @@
 """sign.repo.aptdnf_keys — inspect apt/dnf repository signing keys."""
 from __future__ import annotations
 
-import asyncio
-import shutil
 from pathlib import Path
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
-
 
 _APT_DIRS = (
     Path("/etc/apt/trusted.gpg.d"),

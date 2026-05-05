@@ -28,7 +28,7 @@ class StorageZfsEncryption(Probe):
         )
         try:
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=10.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             return
         # Each line: "<dataset>\t<property>\t<value>"

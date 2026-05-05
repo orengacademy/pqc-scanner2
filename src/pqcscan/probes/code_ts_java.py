@@ -8,7 +8,6 @@ from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._code_walker import walk_source
 
-
 _WEAK_DIGEST_RE = re.compile(
     r"""MessageDigest\.getInstance\s*\(\s*["'](MD5|SHA-?1)["']""",
     re.IGNORECASE,
@@ -62,9 +61,7 @@ class CodeTsJava(Probe):
             spec = m.group(1)
             up = spec.upper()
             line_no = text[: m.start()].count("\n") + 1
-            if "DES" in up and "DESEDE" not in up and "AES" not in up:
-                cls, sev = Classification.SANGAT_TINGGI, Severity.CRIT
-            elif "DESEDE" in up or "3DES" in up or "RC4" in up or "RC2" in up:
+            if ("DES" in up and "DESEDE" not in up and "AES" not in up) or "DESEDE" in up or "3DES" in up or "RC4" in up or "RC2" in up:
                 cls, sev = Classification.SANGAT_TINGGI, Severity.CRIT
             elif "/CBC/" in up:
                 cls, sev = Classification.TINGGI, Severity.HIGH

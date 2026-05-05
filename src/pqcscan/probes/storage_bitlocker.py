@@ -27,7 +27,7 @@ class StorageBitlocker(Probe):
         )
         try:
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=10.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             return
         text = stdout.decode("utf-8", errors="replace")

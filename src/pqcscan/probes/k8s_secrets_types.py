@@ -28,7 +28,7 @@ class K8sSecretsTypes(Probe):
         )
         try:
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=20.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             return
         try:

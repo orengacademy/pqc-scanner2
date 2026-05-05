@@ -34,7 +34,7 @@ templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 router = APIRouter()
 
 
-def mount_static(app: "FastAPI") -> None:
+def mount_static(app: FastAPI) -> None:
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
 
@@ -142,7 +142,7 @@ async def framework_detail(request: Request, name: str) -> HTMLResponse:
 @router.get("/probes", response_class=HTMLResponse)
 async def probes_list(request: Request) -> HTMLResponse:
     reg = default_registry()
-    groups: "OrderedDict[str, list]" = OrderedDict()
+    groups: OrderedDict[str, list] = OrderedDict()
     for probe in sorted(reg.all(), key=lambda p: (p.family.name, p.id)):
         groups.setdefault(probe.family.name, []).append(probe)
     return _render(

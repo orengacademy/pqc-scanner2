@@ -21,7 +21,6 @@ from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.util.offline_pack import resolve_or_none
 
-
 _BUNDLED_RULES = Path(__file__).parent / "_semgrep_rules" / "pqc-readiness.yaml"
 
 _SEMGREP_TO_SEV = {
@@ -70,7 +69,7 @@ class CodeSemgrepPqc(Probe):
                 stdout, _ = await asyncio.wait_for(
                     proc.communicate(), timeout=self.timeout_s,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 proc.kill()
                 continue
             try:

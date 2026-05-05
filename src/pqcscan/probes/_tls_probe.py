@@ -6,7 +6,7 @@ import ssl
 from collections.abc import Callable
 
 from cryptography import x509
-from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed25519, ed448, rsa
+from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, rsa
 
 from pqcscan.core.alg import classify, normalise
 from pqcscan.core.types import Classification, Finding, Severity
@@ -38,7 +38,7 @@ async def run_tls_probe(
             ),
             timeout=connect_timeout_s,
         )
-    except (OSError, asyncio.TimeoutError) as e:
+    except (TimeoutError, OSError) as e:
         emit(Finding(
             probe_id=probe_id,
             algorithm="N/A",
@@ -56,7 +56,7 @@ async def run_tls_probe(
         writer.close()
         try:
             await writer.wait_closed()
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
 
     if cipher:

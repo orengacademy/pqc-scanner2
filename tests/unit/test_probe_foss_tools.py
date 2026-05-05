@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from pqcscan.core.types import Capability, Classification, ProbeFamily
+from pqcscan.core.types import Classification, ProbeFamily
 from pqcscan.probes._base import ScanContext
 from pqcscan.probes.code_semgrep_pqc import CodeSemgrepPqc
 from pqcscan.probes.cve_grype import CveGrype

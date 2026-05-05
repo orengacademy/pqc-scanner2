@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
-
-from datetime import date
 
 from pqcscan.core.types import Finding
 from pqcscan.store import migrations

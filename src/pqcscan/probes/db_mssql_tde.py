@@ -14,7 +14,6 @@ from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._severity import sev_for
 
-
 _TLS_PROTO_RE = re.compile(
     r"^\s*(tlsprotocols)\s*=\s*([^#\n]+)",
     re.IGNORECASE | re.MULTILINE,

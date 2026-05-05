@@ -7,7 +7,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from cryptography import x509
-from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed25519, ed448, rsa
+from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, rsa
 
 from pqcscan.core.alg import classify, normalise
 from pqcscan.core.types import Classification, Finding, Severity
@@ -70,7 +70,7 @@ async def run_starttls_probe(
         reader, writer = await asyncio.wait_for(
             asyncio.open_connection(host, port), timeout=connect_timeout_s,
         )
-    except (OSError, asyncio.TimeoutError) as e:
+    except (TimeoutError, OSError) as e:
         emit(Finding(
             probe_id=probe_id,
             algorithm="N/A",
@@ -85,7 +85,7 @@ async def run_starttls_probe(
         for _ in range(protocol.greeting_lines):
             try:
                 await asyncio.wait_for(reader.readline(), timeout=5.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 break
 
         # Send pre-STARTTLS lines (e.g. SMTP EHLO).
@@ -97,7 +97,7 @@ async def run_starttls_probe(
             for _ in range(20):
                 try:
                     raw = await asyncio.wait_for(reader.readline(), timeout=2.0)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     break
                 if not raw:
                     break
@@ -110,7 +110,7 @@ async def run_starttls_probe(
         await writer.drain()
         try:
             response_raw = await asyncio.wait_for(reader.readline(), timeout=5.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             response_raw = b""
         response = response_raw.decode("ascii", errors="replace").strip().lower()
 
@@ -140,7 +140,7 @@ async def run_starttls_probe(
                 ),
                 timeout=connect_timeout_s,
             )
-        except (OSError, asyncio.TimeoutError, ssl.SSLError) as e:
+        except (TimeoutError, OSError, ssl.SSLError) as e:
             emit(Finding(
                 probe_id=probe_id,
                 algorithm="N/A",
@@ -158,7 +158,7 @@ async def run_starttls_probe(
         try:
             writer.close()
             await writer.wait_closed()
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
 
     if cipher:

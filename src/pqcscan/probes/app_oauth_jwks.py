@@ -4,11 +4,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from pqcscan.core.alg import classify
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._severity import sev_for
-
 
 _GLOBS = ("**/jwks.json", "**/.well-known/jwks.json", "**/*jwks*.json")
 

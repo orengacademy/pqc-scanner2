@@ -31,7 +31,7 @@ class NetKerberosAsreq(Probe):
                 asyncio.open_connection(self.host, self.port),
                 timeout=self.timeout_s,
             )
-        except (OSError, asyncio.TimeoutError) as e:
+        except (TimeoutError, OSError) as e:
             emit(Finding(
                 probe_id=self.id, algorithm="N/A",
                 classification=Classification.INFO, severity=Severity.INFO,
@@ -43,12 +43,12 @@ class NetKerberosAsreq(Probe):
         writer.write(b"\x00\x00\x00\x00"); await writer.drain()
         try:
             resp = await asyncio.wait_for(reader.read(64), timeout=self.timeout_s)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             resp = b""
         writer.close()
         try:
             await writer.wait_closed()
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
         emit(Finding(
             probe_id=self.id,

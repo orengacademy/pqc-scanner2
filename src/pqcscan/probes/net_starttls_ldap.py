@@ -5,13 +5,12 @@ import asyncio
 import ssl
 
 from cryptography import x509
-from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed25519, ed448, rsa
+from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, rsa
 
 from pqcscan.core.alg import classify, normalise
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._severity import sev_for
-
 
 # LDAPv3 ExtendedRequest with OID 1.3.6.1.4.1.1466.20037 (StartTLS).
 # Hand-built DER:
@@ -48,7 +47,7 @@ class NetStarttlsLdap(Probe):
                 asyncio.open_connection(self.host, self.port),
                 timeout=self.timeout_s,
             )
-        except (OSError, asyncio.TimeoutError) as e:
+        except (TimeoutError, OSError) as e:
             emit(Finding(
                 probe_id=self.id, algorithm="N/A",
                 classification=Classification.INFO, severity=Severity.INFO,
@@ -59,7 +58,7 @@ class NetStarttlsLdap(Probe):
             writer.write(_STARTTLS_REQ); await writer.drain()
             try:
                 resp = await asyncio.wait_for(reader.read(256), timeout=self.timeout_s)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 return
             # ExtendedResponse begins with 0x30 (SEQUENCE) tag; success = result code 0.
             # Parse minimally: look for BER-encoded INTEGER 0 (resultCode success).
@@ -85,7 +84,7 @@ class NetStarttlsLdap(Probe):
                     ),
                     timeout=self.timeout_s,
                 )
-            except (OSError, asyncio.TimeoutError, ssl.SSLError) as e:
+            except (TimeoutError, OSError, ssl.SSLError) as e:
                 emit(Finding(
                     probe_id=self.id, algorithm="N/A",
                     classification=Classification.INFO, severity=Severity.INFO,
@@ -100,7 +99,7 @@ class NetStarttlsLdap(Probe):
             writer.close()
             try:
                 await writer.wait_closed()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
         if cipher:
             cname, tlsver, _ = cipher

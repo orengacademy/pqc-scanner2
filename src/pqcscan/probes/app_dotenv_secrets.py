@@ -7,7 +7,6 @@ from pathlib import Path
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 
-
 _KEY_RE = re.compile(
     r"""(?ix)
         \b(SECRET_KEY|API_KEY|API_SECRET|AWS_SECRET_ACCESS_KEY|

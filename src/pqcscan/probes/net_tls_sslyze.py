@@ -35,7 +35,7 @@ class NetTlsSslyze(Probe):
             stdout, _ = await asyncio.wait_for(
                 proc.communicate(), timeout=self.timeout_s,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             return
         try:

@@ -4,12 +4,9 @@ from __future__ import annotations
 import asyncio
 import re
 
-from pqcscan.core.alg import classify
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
-from pqcscan.probes._severity import sev_for
 from pqcscan.util.offline_pack import resolve_or_none
-
 
 _LETTER_TO_CLASS = {
     "F": (Classification.SANGAT_TINGGI, Severity.CRIT),
@@ -48,7 +45,7 @@ class NetTlsNmapSsl(Probe):
             stdout, _ = await asyncio.wait_for(
                 proc.communicate(), timeout=self.timeout_s,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             return
         text = stdout.decode("utf-8", errors="replace")

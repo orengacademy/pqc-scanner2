@@ -7,7 +7,6 @@ import struct
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 
-
 # X.224 Connection Request with RDP Negotiation Request (request all protocols).
 _CR = bytes.fromhex(
     "03 00 00 13"  # TPKT header (length 19)
@@ -36,7 +35,7 @@ class NetRdpNegotiation(Probe):
                 asyncio.open_connection(self.host, self.port),
                 timeout=self.timeout_s,
             )
-        except (OSError, asyncio.TimeoutError) as e:
+        except (TimeoutError, OSError) as e:
             emit(Finding(
                 probe_id=self.id, algorithm="N/A",
                 classification=Classification.INFO, severity=Severity.INFO,
@@ -47,13 +46,13 @@ class NetRdpNegotiation(Probe):
             writer.write(_CR); await writer.drain()
             try:
                 resp = await asyncio.wait_for(reader.read(64), timeout=self.timeout_s)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 return
         finally:
             writer.close()
             try:
                 await writer.wait_closed()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
         if len(resp) < 19:
             return

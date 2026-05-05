@@ -12,7 +12,6 @@ from pathlib import Path
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 
-
 _KEYFILE_RE = re.compile(
     r"^\s*encryptionKeyFile\s*:\s*['\"]?([^'\"\n#]+)",
     re.IGNORECASE | re.MULTILINE,

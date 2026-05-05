@@ -7,7 +7,6 @@ from pqcscan.core.types import ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._sbom_helper import emit_package
 
-
 _REG_KEYS = (
     r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
     r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",

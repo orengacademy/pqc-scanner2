@@ -8,7 +8,6 @@ from pqcscan.core.types import ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._sbom_helper import emit_package
 
-
 # Cargo.lock entries are TOML stanzas:
 #   [[package]]
 #   name = "serde"

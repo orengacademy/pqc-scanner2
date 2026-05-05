@@ -4,7 +4,6 @@ import re
 
 from pqcscan.core.types import Classification
 
-
 _OID_MAP: dict[str, str] = {
     "1.2.840.113549.1.1.5": "RSA-SHA1",
     "1.2.840.113549.1.1.11": "RSA-SHA256",

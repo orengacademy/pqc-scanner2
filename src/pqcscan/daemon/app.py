@@ -137,7 +137,8 @@ def create_app(*, db_path: Path) -> FastAPI:
         }
 
     # Mount the web UI (Jinja + HTMX + SSE).
-    from pqcscan.ui.routes import mount_static, router as ui_router
+    from pqcscan.ui.routes import mount_static
+    from pqcscan.ui.routes import router as ui_router
     mount_static(app)
     app.include_router(ui_router)
 

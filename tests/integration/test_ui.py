@@ -193,4 +193,4 @@ def test_scan_detail_shows_mark_baseline_form(client):
     assert r.status_code == 200
     assert "/baselines/create" in r.text
     assert 'name="scan_id"' in r.text
-    assert 'value="{}"'.format(sid) in r.text
+    assert f'value="{sid}"' in r.text

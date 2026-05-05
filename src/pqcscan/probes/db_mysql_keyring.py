@@ -11,7 +11,6 @@ from pathlib import Path
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 
-
 _PLUGIN_LOAD_RE = re.compile(
     r"^\s*(early-plugin-load|plugin-load-add|plugin-load)\s*=\s*([^\s#]+)",
     re.IGNORECASE | re.MULTILINE,

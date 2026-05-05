@@ -1,5 +1,4 @@
 """Tests for B13 lang SBOM expansion."""
-import shutil
 import sys
 from pathlib import Path
 

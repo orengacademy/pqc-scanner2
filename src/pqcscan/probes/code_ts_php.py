@@ -8,7 +8,6 @@ from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._code_walker import walk_source
 
-
 # PHP built-in md5() / sha1() / hash('md5'|'sha1', ...).
 _WEAK_HASH_RE = re.compile(r"\b(md5|sha1)\s*\(", re.IGNORECASE)
 _HASH_FUNC_RE = re.compile(

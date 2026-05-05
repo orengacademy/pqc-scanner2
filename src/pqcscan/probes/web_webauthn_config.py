@@ -7,7 +7,6 @@ from pathlib import Path
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 
-
 _WEBAUTHN_RE = re.compile(
     r"""(?ix)
         \b(rp_?id|relying_?party_?id|webauthn_?rp|fido2_?rp|webauthn[._-]?origins?)\b

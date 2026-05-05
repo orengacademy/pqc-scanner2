@@ -25,7 +25,7 @@ class SignImageCosign(Probe):
         )
         try:
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=5.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             return
         text = stdout.decode("utf-8", errors="replace")

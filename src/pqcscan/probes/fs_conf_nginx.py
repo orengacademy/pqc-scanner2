@@ -7,7 +7,6 @@ from pqcscan.core.alg import classify, normalise
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 
-
 _PROTOCOL_RE = re.compile(r"^\s*ssl_protocols\s+(.+);", re.IGNORECASE | re.MULTILINE)
 _CIPHERS_RE = re.compile(r"^\s*ssl_ciphers\s+(.+);", re.IGNORECASE | re.MULTILINE)
 

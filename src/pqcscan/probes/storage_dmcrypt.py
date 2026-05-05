@@ -30,7 +30,7 @@ class StorageDmcrypt(Probe):
         )
         try:
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=10.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             return
         # Each line: "<name>: <start> <len> crypt <cipher> <key> <iv> <device> <off>"

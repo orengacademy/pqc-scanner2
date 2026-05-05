@@ -8,7 +8,6 @@ from pqcscan.core.alg import classify, normalise
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 
-
 # OpenVPN directives we care about. Each maps to "is this token a single
 # algorithm name we should classify directly?".
 _DIRECTIVES = {

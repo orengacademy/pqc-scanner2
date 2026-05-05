@@ -9,7 +9,6 @@ from pqcscan.core.types import Capability, Classification, Finding, ProbeFamily,
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.util.offline_pack import resolve_or_none
 
-
 _REPORT_PATH = Path("/var/log/lynis-report.dat")
 _WARN_RE = re.compile(r"^warning\[\]=(.+)$", re.MULTILINE)
 _SUGG_RE = re.compile(r"^suggestion\[\]=(.+)$", re.MULTILINE)
@@ -41,7 +40,7 @@ class HostLynis(Probe):
         )
         try:
             await asyncio.wait_for(proc.wait(), timeout=self.timeout_s)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             return
         if not _REPORT_PATH.exists():

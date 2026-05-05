@@ -96,11 +96,11 @@ class ProbeRunner:
 
         try:
             await asyncio.wait_for(probe.run(ctx, emit), timeout=self.timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self.repo.record_probe_error(
                 ctx.scan_id, probe_id=probe.id, message="timeout"
             )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.exception("probe {} crashed", probe.id)
             self.repo.record_probe_error(
                 ctx.scan_id, probe_id=probe.id, message=str(e)

@@ -8,7 +8,6 @@ from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._code_walker import walk_source
 
-
 _WEAK_HASH_RE = re.compile(
     r"""crypto\.createHash\s*\(\s*['"](md5|sha1)['"]""",
     re.IGNORECASE,

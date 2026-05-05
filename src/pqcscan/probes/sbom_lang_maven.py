@@ -8,7 +8,6 @@ from pqcscan.core.types import ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._sbom_helper import emit_package
 
-
 _DEP_RE = re.compile(
     r"<dependency>\s*"
     r"<groupId>([^<]+)</groupId>\s*"

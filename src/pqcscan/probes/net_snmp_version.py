@@ -7,7 +7,6 @@ import socket
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 
-
 # Minimal SNMPv2c GetRequest for sysDescr.0 with community "public".
 # ASN.1 BER hand-encoded.
 _SNMPV2C_PROBE = bytes.fromhex(
@@ -40,7 +39,7 @@ class NetSnmpVersion(Probe):
                 data = await asyncio.wait_for(
                     loop.sock_recv(sock, 4096), timeout=self.timeout_s,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 return
         except OSError as e:
             emit(Finding(

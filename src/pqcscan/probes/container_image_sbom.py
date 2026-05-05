@@ -29,7 +29,7 @@ class ContainerImageSbom(Probe):
         )
         try:
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=15.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             return
         for line in stdout.decode("utf-8", errors="replace").splitlines():

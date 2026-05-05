@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed25519, ed448, rsa
+from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, rsa
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
 from pqcscan.core.alg import classify
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
-
 
 _EXTS = (".key", ".pem", ".priv")
 

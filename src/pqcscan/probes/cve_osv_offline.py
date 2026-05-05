@@ -30,7 +30,6 @@ from packaging.version import InvalidVersion, Version
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 
-
 _DEFAULT_SNAPSHOT = Path("/var/lib/pqcscan/osv-snapshot.jsonl")
 _ENV_SNAPSHOT = "PQCSCAN_OSV_SNAPSHOT"
 

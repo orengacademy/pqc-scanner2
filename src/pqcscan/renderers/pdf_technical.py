@@ -5,7 +5,6 @@ Reads from the SQLite store (Repo). Renders Jinja2 → HTML → WeasyPrint → P
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +12,6 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from pqcscan import __version__
 from pqcscan.store.repo import Repo
-
 
 _TEMPLATE_DIR = Path(__file__).parent / "templates"
 

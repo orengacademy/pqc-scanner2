@@ -8,7 +8,6 @@ from pathlib import Path
 from pqcscan.core.alg import classify, normalise
 from pqcscan.core.types import Classification, Finding, Severity
 
-
 SSH_ALG_ALIASES: dict[str, str] = {
     "diffie-hellman-group1-sha1": "DH-1024",
     "diffie-hellman-group14-sha1": "DH-2048",

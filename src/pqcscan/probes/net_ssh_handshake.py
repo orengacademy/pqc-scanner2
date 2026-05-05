@@ -15,7 +15,6 @@ from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._severity import sev_for
 from pqcscan.probes._ssh_parser import SSH_ALG_ALIASES
 
-
 _BANNER = b"SSH-2.0-pqcscan_1.0\r\n"
 
 
@@ -37,7 +36,7 @@ class NetSshHandshake(Probe):
                 asyncio.open_connection(self.host, self.port),
                 timeout=self.timeout_s,
             )
-        except (OSError, asyncio.TimeoutError) as e:
+        except (TimeoutError, OSError) as e:
             emit(Finding(
                 probe_id=self.id, algorithm="N/A",
                 classification=Classification.INFO, severity=Severity.INFO,
@@ -48,7 +47,7 @@ class NetSshHandshake(Probe):
             # 1. Read peer banner ("SSH-2.0-OpenSSH_x.y\r\n").
             try:
                 banner = await asyncio.wait_for(reader.readuntil(b"\n"), timeout=5.0)
-            except (asyncio.IncompleteReadError, asyncio.TimeoutError):
+            except (TimeoutError, asyncio.IncompleteReadError):
                 return
             # 2. Send our banner.
             writer.write(_BANNER); await writer.drain()
@@ -61,7 +60,7 @@ class NetSshHandshake(Probe):
             writer.close()
             try:
                 await writer.wait_closed()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
 
     async def _read_until_kexinit(self, reader: asyncio.StreamReader,
@@ -69,7 +68,7 @@ class NetSshHandshake(Probe):
         for _ in range(max_packets):
             try:
                 hdr = await asyncio.wait_for(reader.readexactly(5), timeout=5.0)
-            except (asyncio.IncompleteReadError, asyncio.TimeoutError):
+            except (TimeoutError, asyncio.IncompleteReadError):
                 return None
             pkt_len = struct.unpack(">I", hdr[:4])[0]
             pad_len = hdr[4]
@@ -77,7 +76,7 @@ class NetSshHandshake(Probe):
                 rest = await asyncio.wait_for(
                     reader.readexactly(pkt_len - 1), timeout=5.0,
                 )
-            except (asyncio.IncompleteReadError, asyncio.TimeoutError):
+            except (TimeoutError, asyncio.IncompleteReadError):
                 return None
             payload = rest[: pkt_len - 1 - pad_len]
             if not payload:

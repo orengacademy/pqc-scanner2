@@ -4,9 +4,9 @@ from __future__ import annotations
 import asyncio
 import shutil
 
+from pqcscan.core.types import ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._sbom_helper import emit_package
-from pqcscan.core.types import ProbeFamily
 
 
 class SbomOsRpm(Probe):
@@ -28,7 +28,7 @@ class SbomOsRpm(Probe):
         )
         try:
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=20.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             return
         text = stdout.decode("utf-8", errors="replace")
