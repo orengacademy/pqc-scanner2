@@ -138,7 +138,7 @@ def create_app(*, db_path: Path, registry: Registry | None = None) -> FastAPI:
         }
 
     @app.get("/api/scans/{scan_id}/export/{fmt}")
-    async def export_scan(scan_id: int, fmt: str) -> Response:
+    async def export_scan(scan_id: int, fmt: str, lang: str = "ms") -> Response:
         """Render a scan to one of 5 formats and return as a binary download.
 
         Mirrors the CLI surface (`pqcscan export --format <fmt>`) but pipes the
@@ -193,7 +193,7 @@ def create_app(*, db_path: Path, registry: Registry | None = None) -> FastAPI:
                 render_pdf_executive(repo, scan_id, tmp_path)
             elif fmt == "xlsx-bukukerja":
                 from pqcscan.renderers.xlsx_bukukerja import render_xlsx_bukukerja
-                render_xlsx_bukukerja(repo, scan_id, tmp_path)
+                render_xlsx_bukukerja(repo, scan_id, tmp_path, locale=lang)
             elif fmt == "xlsx-generic":
                 from pqcscan.renderers.xlsx_generic import render_xlsx_generic
                 render_xlsx_generic(repo, scan_id, tmp_path)
@@ -201,7 +201,8 @@ def create_app(*, db_path: Path, registry: Registry | None = None) -> FastAPI:
         finally:
             tmp_path.unlink(missing_ok=True)
 
-        filename = f"pqcscan-scan{scan_id}-{name}{suffix}"
+        lang_tag = "-en" if (fmt == "xlsx-bukukerja" and lang == "en") else ""
+        filename = f"pqcscan-scan{scan_id}-{name}{lang_tag}{suffix}"
         return Response(
             content=data,
             media_type=content_type,

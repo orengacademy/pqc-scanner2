@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block body %}
+
+<nav class="mb-4">
+  <a href="/scans/{{ scan.id }}"
+     class="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors font-mono">
+    <svg class="w-3 h-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd"/>
+    </svg>
+    scan #{{ scan.id }}
+  </a>
+</nav>
+
+<section class="mb-6 flex items-end justify-between gap-4 flex-wrap">
+  <div>
+    <p class="section-eyebrow mb-2">
+      buku kerja &middot; lampiran a &middot; item b &middot; penilaian risiko dan kebergantungan
+    </p>
+    <h1 class="section-heading">Risk Assessment</h1>
+    <p class="mt-2 font-mono text-sm text-zinc-400">
+      {{ total_unique }} unique risks
+      {% if total_findings != total_unique %}
+        ({{ total_findings }} findings, deduplicated)
+      {% endif %}
+      &middot; scan #{{ scan.id }} &middot; {{ scan.status }}
+    </p>
+  </div>
+  <div class="flex items-center gap-2">
+    <a href="/api/scans/{{ scan.id }}/export/xlsx-bukukerja?lang=ms" class="btn-secondary">
+      Export BUKUKERJA (BM)
+    </a>
+    <a href="/api/scans/{{ scan.id }}/export/xlsx-bukukerja?lang=en" class="btn-secondary">
+      Export BUKUKERJA (EN)
+    </a>
+  </div>
+</section>
+
+{% if level_counts %}
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-8">
+  {% for level, klass in [
+    ('Risiko Sangat Tinggi', 'red'),
+    ('Risiko Tinggi',        'red'),
+    ('Risiko Sederhana',     'yellow'),
+    ('Risiko Rendah',        'green'),
+    ('Risiko Sangat Rendah', 'green'),
+    ('Very High Risk',       'red'),
+    ('High Risk',            'red'),
+    ('Medium Risk',          'yellow'),
+    ('Low Risk',             'green'),
+    ('Very Low Risk',        'green'),
+  ] %}
+    {% if level_counts.get(level, 0) > 0 %}
+      <div class="band-tile" data-band="{{ klass }}">
+        <div class="band-num">{{ level_counts[level] }}</div>
+        <div class="band-label">{{ level }}</div>
+      </div>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+<section class="mb-10">
+  <div class="flex items-end justify-between mb-3">
+    <h2 class="font-mono text-amber-400 font-semibold">Jadual 3 &mdash; Risk Register</h2>
+    <span class="section-eyebrow">{{ register_rows|length }} entries</span>
+  </div>
+  <div class="card overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="text-[11px] uppercase tracking-wider text-zinc-500">
+        <tr class="border-b border-zinc-800/80">
+          <th class="text-left font-medium py-2.5 px-4">#</th>
+          <th class="text-left font-medium py-2.5 px-4">Nama Sistem</th>
+          <th class="text-left font-medium py-2.5 px-4">Jenis Aset</th>
+          <th class="text-left font-medium py-2.5 px-4">Algoritma</th>
+          <th class="text-left font-medium py-2.5 px-4">Kegunaan</th>
+          <th class="text-left font-medium py-2.5 px-4">Tahap</th>
+          <th class="text-left font-medium py-2.5 px-4">Risiko</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-zinc-800/60">
+        {% for r in register_rows %}
+          <tr class="row-hover align-top">
+            <td class="py-2 px-4 font-mono text-zinc-500">{{ r.idx }}</td>
+            <td class="py-2 px-4 font-mono text-xs text-zinc-100 break-all">{{ r.asset }}</td>
+            <td class="py-2 px-4 text-xs text-zinc-300">{{ r.jenis_aset }}</td>
+            <td class="py-2 px-4 font-mono text-xs text-amber-300">{{ r.algorithm }}</td>
+            <td class="py-2 px-4 text-xs text-zinc-300">{{ r.kegunaan }}</td>
+            <td class="py-2 px-4">
+              <span class="font-mono text-[10px] uppercase tracking-wider
+                           {% if r.classification == 'sangat-tinggi' %}text-red-400
+                           {% elif r.classification == 'tinggi' %}text-orange-300
+                           {% else %}text-amber-300{% endif %}">
+                {{ r.classification }}
+              </span>
+            </td>
+            <td class="py-2 px-4 text-xs text-zinc-200">
+              {{ r.title }}
+              {% if r.count > 1 %}
+                <span class="ml-1 inline-block px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-500 font-mono text-[9px]">
+                  x{{ r.count }}
+                </span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="flex items-end justify-between mb-3">
+    <h2 class="font-mono text-amber-400 font-semibold">Jadual 4 &mdash; Risk &amp; Dependency Assessment</h2>
+    <span class="section-eyebrow">{{ assessment_rows|length }} entries &middot; impact x likelihood = score</span>
+  </div>
+  <div class="card overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="text-[11px] uppercase tracking-wider text-zinc-500">
+        <tr class="border-b border-zinc-800/80">
+          <th class="text-left font-medium py-2.5 px-3">#</th>
+          <th class="text-left font-medium py-2.5 px-3">Nama Sistem</th>
+          <th class="text-left font-medium py-2.5 px-3">Algoritma</th>
+          <th class="text-left font-medium py-2.5 px-3">Punca Risiko</th>
+          <th class="text-center font-medium py-2.5 px-3">Impak</th>
+          <th class="text-center font-medium py-2.5 px-3">Likelihood</th>
+          <th class="text-center font-medium py-2.5 px-3">Skor</th>
+          <th class="text-left font-medium py-2.5 px-3">Risk Level</th>
+          <th class="text-left font-medium py-2.5 px-3">Pelan Mitigasi</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-zinc-800/60">
+        {% for r in assessment_rows %}
+          {% set level_color =
+              'red' if 'Sangat Tinggi' in r.level or 'Very High' in r.level else
+              ('orange' if 'Tinggi' in r.level or 'High Risk' in r.level else
+              ('amber' if 'Sederhana' in r.level or 'Medium' in r.level else
+              ('green' if 'Rendah' in r.level or 'Low' in r.level else 'zinc')))
+          %}
+          <tr class="row-hover align-top">
+            <td class="py-2 px-3 font-mono text-zinc-500">{{ r.idx }}</td>
+            <td class="py-2 px-3 font-mono text-xs text-zinc-100 max-w-[14ch] truncate" title="{{ r.asset }}">{{ r.asset }}</td>
+            <td class="py-2 px-3 font-mono text-xs text-amber-300">{{ r.algorithm }}</td>
+            <td class="py-2 px-3 text-xs text-zinc-300 max-w-[28ch]">{{ r.punca }}</td>
+            <td class="py-2 px-3 text-center font-mono text-xs text-zinc-200">{{ r.impact }}</td>
+            <td class="py-2 px-3 text-center font-mono text-xs text-zinc-200">{{ r.likelihood }}</td>
+            <td class="py-2 px-3 text-center font-mono text-sm font-semibold text-{{ level_color }}-300">{{ r.score }}</td>
+            <td class="py-2 px-3 text-xs text-{{ level_color }}-300 font-mono">{{ r.level }}</td>
+            <td class="py-2 px-3 text-xs text-zinc-300 max-w-[36ch]">{{ r.mitigasi }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% endblock %}

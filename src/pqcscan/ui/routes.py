@@ -162,6 +162,84 @@ async def scans_list(request: Request) -> HTMLResponse:
     )
 
 
+@router.get("/scans/{scan_id}/risk", response_class=HTMLResponse)
+async def risk_assessment(request: Request, scan_id: int) -> HTMLResponse:
+    """Web view of BUKUKERJA Lampiran A Item B (Penilaian Risiko dan
+    Kebergantungan) — Jadual 3 (Risk Register) + Jadual 4 (Risk &
+    Dependency Assessment), rendered with the same dedup + locale-aware
+    helpers as the xlsx export so the UI and the workbook match
+    row-for-row."""
+    repo = request.app.state.repo
+    scan = repo.get_scan(scan_id)
+    if scan is None:
+        raise HTTPException(404, "scan not found")
+    findings = repo.list_findings(scan_id)
+
+    from pqcscan.renderers.xlsx_bukukerja import (
+        _IMPACT_BY_CLASSIFICATION,
+        _asset_name_for,
+        _dedupe_risk,
+        _jenis_aset,
+        _kawalan_sedia_ada,
+        _kegunaan_kripto,
+        _likelihood_for,
+        _pelan_mitigasi,
+        _punca_risiko,
+        _risk_level_label,
+    )
+    locale = get_locale(request)
+    risk_findings = [
+        f for f in findings
+        if str(f.classification) in ("sangat-tinggi", "tinggi", "sederhana")
+    ]
+    risk_grouped = _dedupe_risk(risk_findings)
+
+    register_rows = []
+    assessment_rows = []
+    level_counts: dict[str, int] = {}
+    for idx, (f, count) in enumerate(risk_grouped, start=1):
+        impact = _IMPACT_BY_CLASSIFICATION.get(str(f.classification), 1)
+        likelihood = _likelihood_for(f.probe_id)
+        score = impact * likelihood
+        level = _risk_level_label(score, locale)
+        level_counts[level] = level_counts.get(level, 0) + 1
+        common = {
+            "idx": idx,
+            "asset": str(_asset_name_for(f))[:120],
+            "algorithm": f.algorithm,
+            "title": f.title,
+            "classification": str(f.classification),
+            "count": count,
+        }
+        register_rows.append({
+            **common,
+            "jenis_aset": _jenis_aset(f.probe_id, locale),
+            "kegunaan": _kegunaan_kripto(f.probe_id, f.algorithm, locale),
+        })
+        assessment_rows.append({
+            **common,
+            "impact": impact,
+            "likelihood": likelihood,
+            "score": score,
+            "level": level,
+            "punca": _punca_risiko(f.probe_id, f.algorithm, locale),
+            "kawalan": _kawalan_sedia_ada(f, locale),
+            "mitigasi": _pelan_mitigasi(f.algorithm, locale),
+        })
+
+    return _render(
+        request, "risk_assessment.html",
+        {
+            "scan": scan,
+            "register_rows": register_rows,
+            "assessment_rows": assessment_rows,
+            "level_counts": level_counts,
+            "total_unique": len(risk_grouped),
+            "total_findings": len(risk_findings),
+        },
+    )
+
+
 @router.get("/scans/{scan_id}", response_class=HTMLResponse)
 async def scan_detail(request: Request, scan_id: int) -> HTMLResponse:
     repo = request.app.state.repo

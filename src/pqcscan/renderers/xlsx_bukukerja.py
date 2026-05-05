@@ -16,6 +16,11 @@ intact so the workbook is a drop-in submission for NACSA Arahan KE No. 9
 Borang Pelaksanaan Migrasi PQC. Headers in the template start at row 4;
 data fills row 5+. We delete the example "Contoh:" rows shipped with the
 template before populating.
+
+Locale support: `locale="ms"` (default) emits Bahasa Malaysia per the
+official template. `locale="en"` swaps every dynamic string + the BM
+headers on sheets 3 / 4 to English equivalents so the same workbook is
+usable by an English-speaking auditor without translating in-place.
 """
 from __future__ import annotations
 
@@ -41,23 +46,12 @@ _IMPACT_BY_CLASSIFICATION: dict[str, int] = {
     "pqc-ready": 1,
 }
 
-# Probe family → Likelihood (1-5). Heuristic: live network/runtime crypto
-# is more imminently exploitable than dormant code or SBOM listings.
+# Probe family → Likelihood (1-5).
 _LIKELIHOOD_BY_FAMILY_PREFIX: dict[str, int] = {
-    "net.": 5,        # network — live exploitable
-    "host.": 4,       # host config — high likelihood
-    "vpn.": 4,
-    "app.": 4,
-    "storage.": 3,
-    "fs.": 3,
-    "container.": 3,
-    "code.": 3,       # source code — exploitable when deployed
-    "sign.": 3,
-    "dns_email.": 3,
-    "sbom.": 2,       # SBOM listing — depends on actual usage
-    "secrets.": 4,
-    "aux.": 1,
-    "pqc_meta.": 1,
+    "net.": 5, "host.": 4, "vpn.": 4, "app.": 4,
+    "storage.": 3, "fs.": 3, "container.": 3,
+    "code.": 3, "sign.": 3, "dns_email.": 3,
+    "sbom.": 2, "secrets.": 4, "aux.": 1, "pqc_meta.": 1,
 }
 
 
@@ -69,257 +63,299 @@ def _likelihood_for(probe_id: str) -> int:
     return 3
 
 
-# ───── Bahasa Malaysia helpers for BUKUKERJA Jadual 3 & 4 ─────
+# ───── Bilingual label tables (ms / en) ─────
+# Each tuple is (Bahasa Malaysia, English) — picked by `_pick(t, locale)`.
 
-# Probe family → Jenis Aset (BM) per BUKUKERJA Jadual 3 column 3.
-_JENIS_ASET_BY_FAMILY: dict[str, str] = {
-    "net.": "Perkhidmatan Rangkaian",
-    "host.": "Sistem Pengendalian / Konfigurasi Hos",
-    "vpn.": "Perisian VPN",
-    "storage.": "Storan",
-    "fs.": "Sistem Fail / Sijil",
-    "code.": "Kod Sumber",
-    "sbom.": "Pakej Perisian",
-    "container.": "Kontena / Imej Kontena",
-    "app.": "Aplikasi",
-    "sign.": "Sijil / Tandatangan Digital",
-    "dns_email.": "DNS / E-mel",
-    "secrets.": "Rahsia",
-    "aux.": "Tambahan",
-    "pqc_meta.": "Metadata PQC",
-    "trust.": "Stor Sijil Akar Sistem",
+def _pick(t: tuple[str, str], locale: str) -> str:
+    return t[1] if locale == "en" else t[0]
+
+
+_JENIS_ASET: dict[str, tuple[str, str]] = {
+    "net.":     ("Perkhidmatan Rangkaian",                 "Network Service"),
+    "host.":    ("Sistem Pengendalian / Konfigurasi Hos",  "Operating System / Host Configuration"),
+    "vpn.":     ("Perisian VPN",                           "VPN Software"),
+    "storage.": ("Storan",                                 "Storage"),
+    "fs.":      ("Sistem Fail / Sijil",                    "File System / Certificates"),
+    "code.":    ("Kod Sumber",                             "Source Code"),
+    "sbom.":    ("Pakej Perisian",                         "Software Package"),
+    "container.": ("Kontena / Imej Kontena",               "Container / Container Image"),
+    "app.":     ("Aplikasi",                               "Application"),
+    "sign.":    ("Sijil / Tandatangan Digital",            "Certificate / Digital Signature"),
+    "dns_email.": ("DNS / E-mel",                          "DNS / Email"),
+    "secrets.": ("Rahsia",                                 "Secrets"),
+    "aux.":     ("Tambahan",                               "Auxiliary"),
+    "pqc_meta.": ("Metadata PQC",                          "PQC Metadata"),
+    "trust.":   ("Stor Sijil Akar Sistem",                 "System Trust Root Store"),
+}
+_JENIS_ASET_DEFAULT: tuple[str, str] = ("Aset Lain", "Other Asset")
+
+
+def _jenis_aset(probe_id: str, locale: str = "ms") -> str:
+    pid = (probe_id or "").lower()
+    for prefix, pair in _JENIS_ASET.items():
+        if pid.startswith(prefix):
+            return _pick(pair, locale)
+    return _pick(_JENIS_ASET_DEFAULT, locale)
+
+
+_KEGUNAAN: dict[str, tuple[str, str]] = {
+    "tls":      ("Pertukaran Kunci & Pengesahan TLS",  "TLS Key Exchange & Authentication"),
+    "ssh":      ("Pertukaran Kunci & Pengesahan SSH",  "SSH Key Exchange & Authentication"),
+    "vpn":      ("Pertukaran Kunci VPN",               "VPN Key Exchange"),
+    "cert":     ("Sijil & Tandatangan Digital",        "Certificates & Digital Signatures"),
+    "sign":     ("Tandatangan Kod / Imej",             "Code / Image Signing"),
+    "atrest":   ("Penyulitan At-Rest",                 "At-Rest Encryption"),
+    "dnssec":   ("DNSSEC / DKIM",                      "DNSSEC / DKIM"),
+    "lib":      ("Pelbagai (libraries)",               "Various (libraries)"),
+    "kerberos": ("Pengesahan Kerberos",                "Kerberos Authentication"),
+    "ldap":     ("Pengesahan LDAP",                    "LDAP Authentication"),
+    "sig":      ("Tandatangan Digital",                "Digital Signature"),
+    "kex":      ("Pertukaran Kunci",                   "Key Exchange"),
+    "sym":      ("Penyulitan Simetri",                 "Symmetric Encryption"),
+    "hash":     ("Hash / MAC",                         "Hash / MAC"),
+    "any":      ("Pelbagai",                           "Various"),
 }
 
 
-def _jenis_aset(probe_id: str) -> str:
-    """Return BUKUKERJA Jenis Aset label (BM) for a probe family."""
-    pid = (probe_id or "").lower()
-    for prefix, label in _JENIS_ASET_BY_FAMILY.items():
-        if pid.startswith(prefix):
-            return label
-    return "Aset Lain"
-
-
-def _kegunaan_kripto(probe_id: str, algorithm: str) -> str:
-    """Map (probe, algorithm) to a Bahasa Malaysia crypto-function label
-    for Jadual 3 column 5 (Kegunaan Algoritma Kriptografi)."""
+def _kegunaan_kripto(probe_id: str, algorithm: str, locale: str = "ms") -> str:
     pid = (probe_id or "").lower()
     algo = (algorithm or "").upper()
+
+    def t(key: str) -> str:
+        return _pick(_KEGUNAAN[key], locale)
 
     if "tls" in pid or "starttls" in pid or "https" in pid:
-        return "Pertukaran Kunci & Pengesahan TLS"
+        return t("tls")
     if pid.startswith("net.ssh") or ".ssh." in pid:
-        return "Pertukaran Kunci & Pengesahan SSH"
+        return t("ssh")
     if pid.startswith("vpn.") or "wireguard" in pid or "openvpn" in pid:
-        return "Pertukaran Kunci VPN"
+        return t("vpn")
     if "cert" in pid or "x509" in pid or "trust" in pid:
-        return "Sijil & Tandatangan Digital"
+        return t("cert")
     if pid.startswith("sign."):
-        return "Tandatangan Kod / Imej"
+        return t("sign")
     if pid.startswith(("storage.", "fs.fscrypt")):
-        return "Penyulitan At-Rest"
+        return t("atrest")
     if pid.startswith("dns_email."):
-        return "DNSSEC / DKIM"
+        return t("dnssec")
     if pid.startswith(("code.", "sbom.")):
-        return "Pelbagai (libraries)"
+        return t("lib")
     if "kerberos" in pid:
-        return "Pengesahan Kerberos"
+        return t("kerberos")
     if "ldap" in pid:
-        return "Pengesahan LDAP"
+        return t("ldap")
     if any(x in algo for x in ("RSA", "DSA", "ECDSA", "ED25519", "ED448")):
-        return "Tandatangan Digital"
+        return t("sig")
     if any(x in algo for x in ("DH", "ECDH", "X25519", "X448", "ML-KEM", "KYBER")):
-        return "Pertukaran Kunci"
+        return t("kex")
     if any(x in algo for x in ("AES", "CHACHA", "3DES", "DES", "RC4")):
-        return "Penyulitan Simetri"
+        return t("sym")
     if any(x in algo for x in ("SHA", "MD5", "BLAKE", "SHA3")):
-        return "Hash / MAC"
-    return "Pelbagai"
+        return t("hash")
+    return t("any")
 
 
-# Algorithm fragment → PQC migration recommendation (Pelan Mitigasi).
-_PELAN_MITIGASI_RULES: list[tuple[tuple[str, ...], str]] = [
+# Mitigation / migration plan, indexed by algorithm fragment match.
+_PELAN_MITIGASI_RULES: list[tuple[tuple[str, ...], tuple[str, str]]] = [
     (("ML-KEM", "MLKEM", "KYBER"),
-     "Sudah selari PQC (ML-KEM, FIPS 203). Pemantauan berterusan."),
+     ("Sudah selari PQC (ML-KEM, FIPS 203). Pemantauan berterusan.",
+      "Already PQC-aligned (ML-KEM, FIPS 203). Continuous monitoring.")),
     (("ML-DSA", "MLDSA", "DILITHIUM"),
-     "Sudah selari PQC (ML-DSA, FIPS 204). Pemantauan berterusan."),
+     ("Sudah selari PQC (ML-DSA, FIPS 204). Pemantauan berterusan.",
+      "Already PQC-aligned (ML-DSA, FIPS 204). Continuous monitoring.")),
     (("SLH-DSA", "SPHINCS"),
-     "Sudah selari PQC (SLH-DSA, FIPS 205). Pemantauan berterusan."),
+     ("Sudah selari PQC (SLH-DSA, FIPS 205). Pemantauan berterusan.",
+      "Already PQC-aligned (SLH-DSA, FIPS 205). Continuous monitoring.")),
     (("RSA",),
-     "Migrasi kepada ML-KEM-768 (KEM, FIPS 203) atau ML-DSA-65 "
-     "(signature, FIPS 204). Pertimbangkan hybrid X25519MLKEM768 "
-     "untuk fasa peralihan."),
+     ("Migrasi kepada ML-KEM-768 (KEM, FIPS 203) atau ML-DSA-65 "
+      "(signature, FIPS 204). Pertimbangkan hybrid X25519MLKEM768 "
+      "untuk fasa peralihan.",
+      "Migrate to ML-KEM-768 (KEM, FIPS 203) or ML-DSA-65 (signature, "
+      "FIPS 204). Consider hybrid X25519MLKEM768 during transition.")),
     (("ECDSA", "ED25519", "ED448"),
-     "Migrasi kepada ML-DSA-65 (FIPS 204) atau SLH-DSA-128s "
-     "(FIPS 205). Pertimbangkan hybrid signature untuk peralihan."),
+     ("Migrasi kepada ML-DSA-65 (FIPS 204) atau SLH-DSA-128s "
+      "(FIPS 205). Pertimbangkan hybrid signature untuk peralihan.",
+      "Migrate to ML-DSA-65 (FIPS 204) or SLH-DSA-128s (FIPS 205). "
+      "Consider hybrid signatures during transition.")),
     (("ECDH", "X25519", "X448"),
-     "Migrasi kepada ML-KEM-768 (FIPS 203) atau hybrid "
-     "X25519MLKEM768 / P256MLKEM768."),
+     ("Migrasi kepada ML-KEM-768 (FIPS 203) atau hybrid "
+      "X25519MLKEM768 / P256MLKEM768.",
+      "Migrate to ML-KEM-768 (FIPS 203) or hybrid X25519MLKEM768 / "
+      "P256MLKEM768.")),
     (("DH-",),
-     "Migrasi kepada ML-KEM-768 (FIPS 203). DH klasik dimansuhkan."),
+     ("Migrasi kepada ML-KEM-768 (FIPS 203). DH klasik dimansuhkan.",
+      "Migrate to ML-KEM-768 (FIPS 203). Classical DH is deprecated.")),
     (("AES-128", "AES128"),
-     "Naik taraf ke AES-256-GCM untuk hadapi serangan Grover "
-     "(saiz kunci dua kali ganda)."),
+     ("Naik taraf ke AES-256-GCM untuk hadapi serangan Grover "
+      "(saiz kunci dua kali ganda).",
+      "Upgrade to AES-256-GCM to withstand Grover (double the key size).")),
     (("3DES", "DES-", "RC4", "BLOWFISH"),
-     "Wajib gantikan dengan AES-256-GCM. Algoritma sudah dimansuhkan."),
+     ("Wajib gantikan dengan AES-256-GCM. Algoritma sudah dimansuhkan.",
+      "Must replace with AES-256-GCM. Algorithm is deprecated.")),
     (("SHA-1", "SHA1"),
-     "Migrasi ke SHA-256 atau SHA-3 (FIPS 180-4 / FIPS 202). "
-     "SHA-1 sudah dimansuhkan."),
+     ("Migrasi ke SHA-256 atau SHA-3 (FIPS 180-4 / FIPS 202). "
+      "SHA-1 sudah dimansuhkan.",
+      "Migrate to SHA-256 or SHA-3 (FIPS 180-4 / 202). SHA-1 is deprecated.")),
     (("MD5",),
-     "Migrasi ke SHA-256 atau SHA-3. MD5 dilarang sepenuhnya."),
+     ("Migrasi ke SHA-256 atau SHA-3. MD5 dilarang sepenuhnya.",
+      "Migrate to SHA-256 or SHA-3. MD5 is fully prohibited.")),
 ]
+_PELAN_DEFAULT: tuple[str, str] = (
+    "Rujuk Jadual 6 (Protocol Crypto Map) untuk algoritma pengganti PQC yang dicadangkan.",
+    "Refer to Table 6 (Protocol Crypto Map) for the recommended PQC replacement algorithm.",
+)
+_PELAN_NO_ALGO: tuple[str, str] = (
+    "Daftar aset dalam Borang Pelaksanaan Migrasi PQC (Lampiran A, Jadual 0).",
+    "Register the asset in the PQC Migration Implementation Form (Appendix A, Table 0).",
+)
 
 
-def _pelan_mitigasi(algorithm: str) -> str:
-    """Return BUKUKERJA Pelan Mitigasi suggestion for Jadual 4 column 11."""
+def _pelan_mitigasi(algorithm: str, locale: str = "ms") -> str:
     algo = (algorithm or "").upper()
     if not algo or algo == "N/A":
-        return "Daftar aset dalam Borang Pelaksanaan Migrasi PQC (Lampiran A, Jadual 0)."
+        return _pick(_PELAN_NO_ALGO, locale)
     for fragments, plan in _PELAN_MITIGASI_RULES:
         if any(f in algo for f in fragments):
-            return plan
-    return "Rujuk Jadual 6 (Protocol Crypto Map) untuk algoritma pengganti PQC yang dicadangkan."
+            return _pick(plan, locale)
+    return _pick(_PELAN_DEFAULT, locale)
 
 
-def _punca_risiko(probe_id: str, algorithm: str) -> str:
-    """Map a finding to its Bahasa Malaysia root-cause label (Jadual 4 col 5)."""
+_PUNCA_RISIKO: dict[str, tuple[str, str]] = {
+    "pqc":     ("Tiada — algoritma sudah selari PQC.",
+                "None — algorithm is already PQC-aligned."),
+    "shor":    ("Algoritma asimetri klasik — terdedah kepada serangan Shor pada CRQC.",
+                "Classical asymmetric algorithm — vulnerable to Shor's attack on a CRQC."),
+    "grover":  ("Algoritma simetri lemah — dimansuhkan atau dilemahkan oleh Grover.",
+                "Weak symmetric algorithm — deprecated or weakened by Grover."),
+    "hash":    ("Algoritma cincang dimansuhkan — risiko pelanggaran/pra-imej.",
+                "Deprecated hash algorithm — collision/pre-image risk."),
+    "sbom":    ("Algoritma dikunci dalam pakej perisian — keperluan kemaskini vendor.",
+                "Algorithm is locked in a software package — vendor update required."),
+    "code":    ("Algoritma terkunci dalam kod sumber — keperluan refactoring.",
+                "Algorithm is locked in source code — refactoring required."),
+    "cert":    ("Sijil X.509 menggunakan kunci klasik — keperluan rotasi sijil PQC.",
+                "X.509 certificate uses classical keys — PQC certificate rotation required."),
+    "default": ("Sistem/aplikasi sedia ada tidak menyokong algoritma PQC.",
+                "Existing system/application does not support PQC algorithms."),
+}
+
+
+def _punca_risiko(probe_id: str, algorithm: str, locale: str = "ms") -> str:
     algo = (algorithm or "").upper()
     pid = (probe_id or "").lower()
 
     if any(x in algo for x in ("ML-KEM", "ML-DSA", "SLH-DSA", "MLKEM", "MLDSA")):
-        return "Tiada — algoritma sudah selari PQC."
+        return _pick(_PUNCA_RISIKO["pqc"], locale)
     if any(x in algo for x in ("RSA", "DSA", "ECDSA", "ECDH", "DH-", "X25519", "X448", "ED25519", "ED448")):
-        return "Algoritma asimetri klasik — terdedah kepada serangan Shor pada CRQC."
+        return _pick(_PUNCA_RISIKO["shor"], locale)
     if any(x in algo for x in ("AES-128", "AES128", "3DES", "DES-", "RC4", "BLOWFISH")):
-        return "Algoritma simetri lemah — dimansuhkan atau dilemahkan oleh Grover."
+        return _pick(_PUNCA_RISIKO["grover"], locale)
     if any(x in algo for x in ("SHA-1", "SHA1", "MD5", "MD4")):
-        return "Algoritma cincang dimansuhkan — risiko pelanggaran/pra-imej."
+        return _pick(_PUNCA_RISIKO["hash"], locale)
     if pid.startswith("sbom."):
-        return "Algoritma dikunci dalam pakej perisian — keperluan kemaskini vendor."
+        return _pick(_PUNCA_RISIKO["sbom"], locale)
     if pid.startswith("code."):
-        return "Algoritma terkunci dalam kod sumber — keperluan refactoring."
+        return _pick(_PUNCA_RISIKO["code"], locale)
     if "cert" in pid or "x509" in pid or "trust" in pid:
-        return "Sijil X.509 menggunakan kunci klasik — keperluan rotasi sijil PQC."
-    return "Sistem/aplikasi sedia ada tidak menyokong algoritma PQC."
+        return _pick(_PUNCA_RISIKO["cert"], locale)
+    return _pick(_PUNCA_RISIKO["default"], locale)
 
 
-def _dedupe_risk(findings: list[FindingRow]) -> list[tuple[FindingRow, int]]:
-    """Collapse near-identical risk-register rows.
-
-    Real scans emit one finding per cipher/cert/etc., so a host with 50
-    AES-128 ciphers produces 50 identical "Penyulitan Simetri / AES-128"
-    rows. The auditor sees noise. We group by the natural identity tuple
-    `(asset_name, jenis_aset, algorithm)` and return one representative
-    finding per group along with the occurrence count, choosing the
-    highest-impact instance as the representative so Tahap Kritikal
-    reflects the worst case in the group.
-    """
-    groups: dict[tuple[str, str, str], list[FindingRow]] = defaultdict(list)
-    for f in findings:
-        key = (
-            str(_asset_name_for(f)),
-            _jenis_aset(f.probe_id),
-            (f.algorithm or "").strip(),
-        )
-        groups[key].append(f)
-
-    deduped: list[tuple[FindingRow, int]] = []
-    for fs in groups.values():
-        rep = max(
-            fs,
-            key=lambda f: _IMPACT_BY_CLASSIFICATION.get(str(f.classification), 0),
-        )
-        deduped.append((rep, len(fs)))
-    deduped.sort(
-        key=lambda pair: (
-            -_IMPACT_BY_CLASSIFICATION.get(str(pair[0].classification), 0),
-            -pair[1],
-            str(_asset_name_for(pair[0])),
-        )
-    )
-    return deduped
+_KAWALAN: dict[str, tuple[str, str]] = {
+    "hybrid":   ("Hybrid PQC kex dikesan",      "Hybrid PQC kex detected"),
+    "fips140":  ("Modul FIPS 140",              "FIPS 140 module"),
+    "airgap":   ("Rangkaian terasing",          "Air-gapped network"),
+}
 
 
-def _kawalan_sedia_ada(finding) -> str:
-    """Detect compensating controls from a finding's evidence
-    (Jadual 4 col 10 — Kawalan Sedia Ada)."""
+def _kawalan_sedia_ada(finding: FindingRow, locale: str = "ms") -> str:
     ev = finding.evidence or {}
     controls: list[str] = []
-    # Probe might tag hybrid PQC kex if detected.
-    if any(
-        "MLKEM" in str(v).upper() or "KYBER" in str(v).upper() or "PQC" in str(v).upper()
-        for v in ev.values()
-    ):
-        controls.append("Hybrid PQC kex dikesan")
-    # FIPS validation tag.
+    if any("MLKEM" in str(v).upper() or "KYBER" in str(v).upper() or "PQC" in str(v).upper()
+           for v in ev.values()):
+        controls.append(_pick(_KAWALAN["hybrid"], locale))
     if any("FIPS" in str(v).upper() for v in ev.values()):
-        controls.append("Modul FIPS 140")
-    # Air-gapped / isolated network signal (heuristic).
+        controls.append(_pick(_KAWALAN["fips140"], locale))
     if ev.get("network") == "isolated" or ev.get("airgap"):
-        controls.append("Rangkaian terasing")
-    # Default: blank for the user to fill in.
+        controls.append(_pick(_KAWALAN["airgap"], locale))
     return "; ".join(controls)
 
 
-def _risk_level_label(score: int) -> str:
-    """BUKUKERJA Risk Matrix interpretation (per Table 5)."""
-    if score >= 20:
-        return "Risiko Sangat Tinggi"
-    if score >= 15:
-        return "Risiko Tinggi"
-    if score >= 10:
-        return "Risiko Sederhana"
-    if score >= 5:
-        return "Risiko Rendah"
-    return "Risiko Sangat Rendah"
+_RISK_LEVELS: list[tuple[int, tuple[str, str]]] = [
+    (20, ("Risiko Sangat Tinggi", "Very High Risk")),
+    (15, ("Risiko Tinggi",        "High Risk")),
+    (10, ("Risiko Sederhana",     "Medium Risk")),
+    (5,  ("Risiko Rendah",        "Low Risk")),
+    (0,  ("Risiko Sangat Rendah", "Very Low Risk")),
+]
 
 
-def _migration_readiness(classification: str) -> str:
-    """Map our classification to BUKUKERJA's Migration Readiness Level."""
-    if classification == "pqc-ready":
-        return "Tinggi"
-    if classification == "rendah":
-        return "Sederhana"
-    if classification == "sederhana":
-        return "Rendah"
-    if classification in ("tinggi", "sangat-tinggi"):
-        return "Sangat Rendah"
-    return "Tidak Diketahui"
+def _risk_level_label(score: int, locale: str = "ms") -> str:
+    for threshold, pair in _RISK_LEVELS:
+        if score >= threshold:
+            return _pick(pair, locale)
+    return _pick(_RISK_LEVELS[-1][1], locale)
+
+
+_MIGRATION_READINESS: dict[str, tuple[str, str]] = {
+    "pqc-ready":     ("Tinggi",         "High"),
+    "rendah":        ("Sederhana",      "Medium"),
+    "sederhana":     ("Rendah",         "Low"),
+    "tinggi":        ("Sangat Rendah",  "Very Low"),
+    "sangat-tinggi": ("Sangat Rendah",  "Very Low"),
+}
+_READINESS_UNKNOWN: tuple[str, str] = ("Tidak Diketahui", "Unknown")
+
+
+def _migration_readiness(classification: str, locale: str = "ms") -> str:
+    pair = _MIGRATION_READINESS.get(classification)
+    return _pick(pair if pair else _READINESS_UNKNOWN, locale)
 
 
 def _asset_type_for(probe_id: str) -> str:
-    """First segment of probe.id — e.g. 'net' / 'host' / 'sbom'."""
     return (probe_id or "").split(".", 1)[0].upper() or "UNKNOWN"
 
 
-def _asset_name_for(finding) -> str:
-    """Best-guess identifier for an asset, drawn from the finding's evidence."""
+def _asset_name_for(finding: FindingRow) -> str:
     ev = finding.evidence or {}
     name = (
-        ev.get("name")
-        or ev.get("endpoint")
-        or ev.get("host")
-        or ev.get("path")
-        or ev.get("dataset")
-        or ev.get("device")
+        ev.get("name") or ev.get("endpoint") or ev.get("host")
+        or ev.get("path") or ev.get("dataset") or ev.get("device")
         or finding.probe_id
     )
     return str(name)
 
 
-def _location_owner(finding) -> str:
+def _location_owner(finding: FindingRow) -> str:
     ev = finding.evidence or {}
     return (
-        ev.get("location")
-        or ev.get("owner")
-        or ev.get("path")
-        or ev.get("endpoint")
-        or ""
+        ev.get("location") or ev.get("owner") or ev.get("path")
+        or ev.get("endpoint") or ""
     )
 
 
+def _dedupe_risk(findings: list[FindingRow]) -> list[tuple[FindingRow, int]]:
+    """Collapse near-identical risk-register rows."""
+    groups: dict[tuple[str, str, str], list[FindingRow]] = defaultdict(list)
+    for f in findings:
+        key = (
+            str(_asset_name_for(f)),
+            _jenis_aset(f.probe_id),  # canonical BM key for grouping
+            (f.algorithm or "").strip(),
+        )
+        groups[key].append(f)
+    deduped: list[tuple[FindingRow, int]] = []
+    for fs in groups.values():
+        rep = max(fs, key=lambda f: _IMPACT_BY_CLASSIFICATION.get(str(f.classification), 0))
+        deduped.append((rep, len(fs)))
+    deduped.sort(key=lambda pair: (
+        -_IMPACT_BY_CLASSIFICATION.get(str(pair[0].classification), 0),
+        -pair[1], str(_asset_name_for(pair[0])),
+    ))
+    return deduped
+
+
 def _delete_example_rows(ws, header_row: int = 4) -> None:
-    """Strip the 'Contoh:' placeholder rows shipped with the template."""
     while ws.max_row > header_row:
         ws.delete_rows(header_row + 1, ws.max_row - header_row)
 
@@ -329,7 +365,49 @@ def _wrap(cells) -> None:
         c.alignment = Alignment(wrap_text=True, vertical="top")
 
 
-def render_xlsx_bukukerja(repo: Repo, scan_id: int, output_path: Path) -> Path:
+# Headers for sheets 3 and 4 — overridden when locale=en since the official
+# template ships them in Bahasa Malaysia. Sheets 0/1/2 already have English
+# headers in the template so they pass through unchanged.
+_HEADERS_EN: dict[str, list[str]] = {
+    "3_RiskRegister": [
+        "#", "System / Hardware / Software Name",
+        "Asset Type (Application/Hardware/Software)",
+        "Cryptographic Algorithm", "Algorithm Usage",
+        "Critical Level", "Risk", "Risk Owner",
+    ],
+    "4_RiskAssessment": [
+        "#", "System / Hardware / Software Name",
+        "Cryptographic Algorithm", "Risk", "Root Cause",
+        "Impact", "Likelihood", "Risk Score", "Risk Level",
+        "Existing Controls", "Mitigation Plan",
+    ],
+}
+
+
+def _override_headers_en(ws, sheet_name: str) -> None:
+    headers = _HEADERS_EN.get(sheet_name)
+    if not headers:
+        return
+    for col_idx, label in enumerate(headers, start=1):
+        if col_idx > ws.max_column:
+            break
+        ws.cell(row=4, column=col_idx).value = label
+
+
+def render_xlsx_bukukerja(
+    repo: Repo,
+    scan_id: int,
+    output_path: Path,
+    *,
+    locale: str = "ms",
+) -> Path:
+    """Render the BUKUKERJA workbook for `scan_id`.
+
+    locale: "ms" (default, Bahasa Malaysia) or "en". When "en" is used,
+    every dynamic string and the Bahasa headers on sheets 3/4 are
+    swapped to English equivalents.
+    """
+    locale = "en" if locale == "en" else "ms"
     scan = repo.get_scan(scan_id)
     if scan is None:
         raise ValueError(f"scan {scan_id} not found")
@@ -345,21 +423,13 @@ def render_xlsx_bukukerja(repo: Repo, scan_id: int, output_path: Path) -> Path:
     # ───────────  0_Inventory  ───────────
     inv = wb["0_Inventory"]
     _delete_example_rows(inv)
-    # Group findings by (asset_type, asset_name) so the inventory is
-    # asset-level rather than one-row-per-finding.
-    grouped: dict[tuple[str, str], list] = defaultdict(list)
+    grouped: dict[tuple[str, str], list[FindingRow]] = defaultdict(list)
     for f in findings:
         grouped[(_asset_type_for(f.probe_id), str(_asset_name_for(f)))].append(f)
-    for idx, ((asset_type, asset_name), fs) in enumerate(
-        sorted(grouped.items()), start=1
-    ):
-        algos = sorted({
-            f.algorithm for f in fs
-            if f.algorithm and f.algorithm != "N/A"
-        })
-        sbom_present = (
-            "Ya" if any(f.probe_id.startswith("sbom.") for f in fs) else "Tidak"
-        )
+    for idx, ((asset_type, asset_name), fs) in enumerate(sorted(grouped.items()), start=1):
+        algos = sorted({f.algorithm for f in fs if f.algorithm and f.algorithm != "N/A"})
+        sbom_present_pair = (("Ya", "Yes") if any(f.probe_id.startswith("sbom.") for f in fs)
+                             else ("Tidak", "No"))
         worst = max(
             (str(f.classification) for f in fs),
             key=lambda c: _IMPACT_BY_CLASSIFICATION.get(c, 0),
@@ -371,10 +441,10 @@ def render_xlsx_bukukerja(repo: Repo, scan_id: int, output_path: Path) -> Path:
             asset_type,
             asset_name[:120],
             _location_owner(fs[0])[:120],
-            "Ya" if algos else "Tidak",
+            (("Ya", "Yes") if algos else ("Tidak", "No"))[1 if locale == "en" else 0],
             ", ".join(algos)[:200],
-            sbom_present,
-            _migration_readiness(worst),
+            sbom_present_pair[1 if locale == "en" else 0],
+            _migration_readiness(worst, locale),
             notes,
         ])
         _wrap(inv[inv.max_row])
@@ -389,23 +459,10 @@ def render_xlsx_bukukerja(repo: Repo, scan_id: int, output_path: Path) -> Path:
         if ev.get("version"):
             component = f"{component} {ev['version']}".strip()
         sbom_ws.append([
-            idx,
-            str(_asset_name_for(f))[:120],     # System/Application
-            ev.get("manager", ""),              # Purpose/Usage (manager as proxy)
-            ev.get("url", ""),                  # URL
-            "",                                 # Services Mode (manual)
-            "",                                 # Target Customer (manual)
-            component[:120],                    # Software Component
-            "",                                 # Third-party Modules (manual)
-            "",                                 # External APIs (manual)
-            str(f.classification),              # Critical Level
-            "",                                 # Data Category (manual)
-            "",                                 # Currently in use? (manual)
-            "",                                 # Developer (manual)
-            ev.get("vendor", ""),               # Vendor's Name
-            "",                                 # Has expertise? (manual)
-            "",                                 # Has special budget? (manual)
-            "",                                 # Link to CBOM (manual)
+            idx, str(_asset_name_for(f))[:120],
+            ev.get("manager", ""), ev.get("url", ""),
+            "", "", component[:120], "", "", str(f.classification),
+            "", "", "", ev.get("vendor", ""), "", "", "",
         ])
         _wrap(sbom_ws[sbom_ws.max_row])
 
@@ -420,15 +477,17 @@ def render_xlsx_bukukerja(repo: Repo, scan_id: int, output_path: Path) -> Path:
     ]
     for idx, f in enumerate(cbom_findings, start=1):
         ev = f.evidence or {}
+        crypto_agility = ((("Ya", "Tidak Diketahui"), ("Yes", "Unknown"))[1 if locale == "en" else 0]
+                          [0 if ev.get("crypto_agility") else 1])
         cbom_ws.append([
-            f"CBOM #{idx}",                                              # # (CBOM)
-            str(_asset_name_for(f))[:120],                               # System/Application
-            f.probe_id.split(".", 2)[-1].replace("_", " ").title(),      # Cryptographic Function
-            f.algorithm,                                                 # Algorithm Used
-            ev.get("library", "") or ev.get("provider", ""),             # Library/Module
-            ev.get("key_size") or ev.get("key_length", ""),              # Key Length
-            f.title[:200],                                               # Purpose/Usage
-            "Ya" if ev.get("crypto_agility") else "Tidak Diketahui",     # Crypto-Agility
+            f"CBOM #{idx}",
+            str(_asset_name_for(f))[:120],
+            f.probe_id.split(".", 2)[-1].replace("_", " ").title(),
+            f.algorithm,
+            ev.get("library", "") or ev.get("provider", ""),
+            ev.get("key_size") or ev.get("key_length", ""),
+            f.title[:200],
+            crypto_agility,
         ])
         _wrap(cbom_ws[cbom_ws.max_row])
 
@@ -437,54 +496,53 @@ def render_xlsx_bukukerja(repo: Repo, scan_id: int, output_path: Path) -> Path:
         f for f in findings
         if str(f.classification) in ("sangat-tinggi", "tinggi", "sederhana")
     ]
-    # Collapse near-identical (asset, jenis_aset, algorithm) rows so
-    # the auditor sees one row per unique risk instead of 50 rows for
-    # 50 AES-128 cipher detections on the same host.
     risk_grouped = _dedupe_risk(risk_findings)
 
+    kejadian_word = "occurrences" if locale == "en" else "kejadian"
+
     def _suffix_count(text: str, count: int) -> str:
-        """Append "(x N kejadian)" if more than one finding collapsed."""
         if count <= 1:
             return text
-        suffix = f"  (x{count} kejadian)"
-        # Reserve ~25 chars for the suffix; trim base accordingly.
+        suffix = f"  (x{count} {kejadian_word})"
         return f"{text[:200 - len(suffix)]}{suffix}"
 
     # ───────────  3_RiskRegister  ───────────
     risk_ws = wb["3_RiskRegister"]
     _delete_example_rows(risk_ws)
+    if locale == "en":
+        _override_headers_en(risk_ws, "3_RiskRegister")
     for idx, (f, count) in enumerate(risk_grouped, start=1):
         risk_ws.append([
-            idx,                                                        # #
-            str(_asset_name_for(f))[:120],                              # Nama Sistem
-            _jenis_aset(f.probe_id),                                    # Jenis Aset (BM)
-            f.algorithm,                                                # Algoritma Kriptografi
-            _kegunaan_kripto(f.probe_id, f.algorithm),                  # Kegunaan (BM)
-            str(f.classification),                                      # Tahap Kritikal
-            _suffix_count(f.title, count),                              # Risiko + occurrence
-            "",                                                         # Pemilik Risiko (manual)
+            idx,
+            str(_asset_name_for(f))[:120],
+            _jenis_aset(f.probe_id, locale),
+            f.algorithm,
+            _kegunaan_kripto(f.probe_id, f.algorithm, locale),
+            str(f.classification),
+            _suffix_count(f.title, count),
+            "",
         ])
         _wrap(risk_ws[risk_ws.max_row])
 
     # ───────────  4_RiskAssessment  ───────────
     assess_ws = wb["4_RiskAssessment"]
     _delete_example_rows(assess_ws)
+    if locale == "en":
+        _override_headers_en(assess_ws, "4_RiskAssessment")
     for idx, (f, count) in enumerate(risk_grouped, start=1):
         impact = _IMPACT_BY_CLASSIFICATION.get(str(f.classification), 1)
         likelihood = _likelihood_for(f.probe_id)
         score = impact * likelihood
         assess_ws.append([
-            idx,                                                        # #
-            str(_asset_name_for(f))[:120],                              # Nama Sistem
-            f.algorithm,                                                # Algoritma Kriptografi
-            _suffix_count(f.title, count),                              # Risiko + occurrence
-            _punca_risiko(f.probe_id, f.algorithm),                     # Punca Risiko (BM, dynamic)
-            impact,                                                     # Impak (1-5)
-            likelihood,                                                 # Kemungkinan (1-5)
-            score,                                                      # Skor Risiko
-            _risk_level_label(score),                                   # Risk Level
-            _kawalan_sedia_ada(f),                                      # Kawalan Sedia Ada (auto-detected)
-            _pelan_mitigasi(f.algorithm),                               # Mitigation Plan (algorithm-aware)
+            idx,
+            str(_asset_name_for(f))[:120],
+            f.algorithm,
+            _suffix_count(f.title, count),
+            _punca_risiko(f.probe_id, f.algorithm, locale),
+            impact, likelihood, score,
+            _risk_level_label(score, locale),
+            _kawalan_sedia_ada(f, locale),
+            _pelan_mitigasi(f.algorithm, locale),
         ])
         _wrap(assess_ws[assess_ws.max_row])
 

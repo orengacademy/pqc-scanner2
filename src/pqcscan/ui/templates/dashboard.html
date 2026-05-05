@@ -114,13 +114,14 @@
       {{ t('dashboard.scan_now') }}
     </button>
     {% if last_scan and last_scan.status == 'done' %}
-      <a href="/scans/{{ last_scan.id }}#export" class="btn-secondary">
+      <a href="/api/scans/{{ last_scan.id }}/export/pdf-tech" class="btn-secondary">
         <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
           <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/>
           <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/>
         </svg>
-        Generate PDF report
+        Download PDF report
       </a>
+      <a href="/scans/{{ last_scan.id }}/risk" class="btn-secondary">Risk Assessment</a>
       <a href="/scans/{{ last_scan.id }}" class="btn-secondary">View scan</a>
     {% endif %}
     <span class="text-[11px] text-zinc-500 font-mono ml-auto">manual rescans rate-limited to 1 / 10 min</span>
@@ -201,10 +202,17 @@
       Submission via <span class="text-amber-300">Borang Pelaksanaan Migrasi PQC (Lampiran A)</span>
       &mdash; coordinated by PTPKM under NACSA. 3-month window from CE NACSA notice.
       {% if last_scan and last_scan.status == 'done' %}
-        <a href="/api/scans/{{ last_scan.id }}/export/xlsx-bukukerja"
-           class="text-amber-400 hover:text-amber-300 transition-colors ml-2">
-          Download BUKUKERJA xlsx &rarr;
-        </a>
+        <span class="ml-2 inline-flex items-center gap-2">
+          <a href="/api/scans/{{ last_scan.id }}/export/xlsx-bukukerja?lang=ms"
+             class="text-amber-400 hover:text-amber-300 transition-colors">
+            Download BUKUKERJA (BM) &rarr;
+          </a>
+          <span class="text-zinc-700">|</span>
+          <a href="/api/scans/{{ last_scan.id }}/export/xlsx-bukukerja?lang=en"
+             class="text-amber-400 hover:text-amber-300 transition-colors">
+            Download BUKUKERJA (EN) &rarr;
+          </a>
+        </span>
       {% endif %}
     </p>
   </div>
