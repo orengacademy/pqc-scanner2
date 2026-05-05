@@ -1,0 +1,122 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Notes
+First release candidate. The design-spec target (109 probes, 10 compliance
+frameworks, 9 web UI pages, cross-OS binary build) is fully met.
+
+## [0.1.0] — 2026-05-05 (pending tag)
+
+### Added — foundation (Plan A)
+
+- `pqcscan.core` — Capability/ProbeFamily/Classification/Severity enums;
+  Finding/Component dataclasses; OID/friendly-name normalisation; classify()
+  routing per spec Appendix B.
+- `pqcscan.store` — SQLite store with 6 tables (scans, components, findings,
+  graph_edges, framework_views, baselines), `check_same_thread=False` for
+  cross-thread daemon use.
+- `pqcscan.runner` — async runner with per-probe timeout, `asyncio.gather`
+  per family, in-memory event bus (Stage/Finding/ScanCompleted events).
+- `pqcscan.probes._base` + `_registry` — Probe ABC with id/family/requires/
+  framework_tags metadata; `default_registry()` seeds the built-in probes.
+- `pqcscan.daemon` — FastAPI daemon + SSE; routes for health/version/scans/
+  findings/events/baselines/diff.
+- `pqcscan.cli` — click CLI with `version, scan, scans, status, daemon,
+  export` subcommands; exit codes 0/1/2/3.
+- `pqcscan.ui` — Jinja+HTMX 9-page web UI with EN/MS i18n toggle.
+- `pqcscan.cbom` — CycloneDX 1.6 CBOM exporter with crypto-asset components
+  and `nistQuantumSecurityLevel` mapping.
+
+### Added — probes (Plan B batches 1–15, Plan G batches 1–3, FOSS-VA suite)
+
+- 109 probes across 14 families: HOST · FILESYSTEM · NETWORK · SBOM · CODE ·
+  VPN · STORAGE · CONTAINER+K8S · APP · SIGN · DNS_EMAIL+WEB · AUX+PQC_META
+  · SECRETS · FOSS-tool wrappers.
+- Plan B batch 15 binary protocols: `net.ssh.handshake`, `net.ike.v1v2`,
+  `net.rdp.negotiation`, `net.smb.dialect`, `net.snmp.version`,
+  `net.kerberos.asreq`, `net.db.mysql_tls` (CLIENT_SSL handshake parse),
+  `net.starttls.ldap` (ASN.1 ExtendedRequest).
+- Plan G batch 1 DB-TDE: `db.pg.pgcrypto`, `db.mysql.keyring`, `db.mssql.tde`,
+  `db.mongo.encrypted_storage`.
+- Plan G batch 2 MQ brokers: `mq.kafka.tls`, `mq.rabbitmq.tls`, `mq.nats.tls`,
+  `mq.mqtt.broker`.
+- Plan G batch 3 hardware crypto: `hw.tpm.algorithms`, `hw.pkcs11.modules`,
+  `hw.smartcard.readers`.
+- 15 FOSS-tool / FOSS-VA probe wrappers (Syft, Grype, Semgrep, OSV, testssl,
+  sslyze, nmap, pip-audit, npm-audit, govulncheck, cargo-audit, trivy, lynis,
+  bandit, gitleaks).
+
+### Added — compliance + reporting (Plans C–D)
+
+- `pqcscan.compliance` — YAML-driven engine; 10 framework rule files:
+  BUKUKERJA · NIST IR 8547 · NIST SP 800-227 · CNSA 2.0 · BSI TR-02102-1 ·
+  ANSSI PQC · MAS Notice 655 · ENISA PQC · MyKripto · NACSA Arahan KE No. 9.
+- `pqcscan.renderers` — PDF technical, PDF executive, XLSX BUKUKERJA template,
+  XLSX generic.
+
+### Added — UI features (Plan E batches 1–4)
+
+- `/frameworks`, `/frameworks/{slug}` — bundled framework rule browser.
+- `/probes` — registry view grouped by family.
+- `/baselines`, `/baselines/diff` — baseline management + scan-vs-baseline
+  diff (added/removed/common counts).
+- `/settings` — version, Python, platform, privilege mode, DB path,
+  capability matrix, probe count, framework count.
+- Mark-as-baseline form on the scan-detail page.
+- EN/MS i18n toggle (cookie-based, ~40 translation keys per locale).
+
+### Added — distribution (Plan F batches 1–3)
+
+- `build/pyinstaller.spec` — single-file binary spec; bundles UI templates,
+  static assets, renderer templates, framework YAMLs, Semgrep rules, and
+  (optionally) a `tools/` directory.
+- `scripts/build-binary.sh` — wrapper that cleans prior artifacts, runs
+  PyInstaller, and smoke-tests the binary with `--help`.
+- `.github/workflows/release.yml` — cross-OS release matrix (ubuntu-latest,
+  macos-latest, windows-latest); attaches `pqcscan-{linux-x86_64, macos-arm64,
+  windows-x86_64.exe}` binaries to the GitHub Release on `v*` tag push.
+- `pqcscan.util.offline_pack` — `resolve_tool()` and `resolve_or_none()`
+  helpers (env var → MEIPASS → system PATH search order). Wired through
+  all 14 FOSS-tool probes.
+- `scripts/fetch-offline-tools.sh` — stages Syft + Grype binaries for the
+  current platform.
+
+### Added — offline OSV matcher (B17)
+
+- `cve.osv_offline` real implementation, replacing the v0.1.0 stub. Resolves
+  snapshot via constructor arg → `$PQCSCAN_OSV_SNAPSHOT` env →
+  `/var/lib/pqcscan/osv-snapshot.jsonl` default. Accepts JSONL **or**
+  JSON-array snapshot format.
+- 12 lockfile parsers across 10 ecosystems: `requirements.txt`, `Pipfile.lock`,
+  `poetry.lock` (PyPI), `package-lock.json` v6+v7+ (npm), `Cargo.lock`
+  (crates.io), `go.sum` (Go), `composer.lock` (Packagist), `Gemfile.lock`
+  (RubyGems), `packages.lock.json` (NuGet), `mix.lock` (Hex), `pubspec.lock`
+  (Pub), `gradle.lockfile` (Maven).
+- Range-aware PyPI matching via the `packaging` library: `>=`/`~=`/range
+  constraints in `requirements.txt` are overlap-checked against OSV
+  `affected[].versions` and `affected[].ranges[].events[]`. Range overlaps
+  classify as Sederhana ("potentially affected"); exact `==` pins remain
+  Tinggi.
+- `scripts/fetch-osv-snapshot.sh` — codifies the OSV.dev snapshot
+  download + concat-to-JSONL flow.
+
+### Fixed
+
+- `cve.osv_offline` deduplicates per-record (ecosystem, name) keys at
+  index-build time. Discovered live against the OSV.dev PyPI snapshot
+  (19,220 advisories): records like `urllib3 GHSA-34jh-p97f-mpxf` and
+  `django GHSA-qw25-v68c-qjf3` list the same package under multiple
+  `affected[]` entries; pre-fix this caused 40 duplicate (path, pkg,
+  advisory) findings — now zero. (Commit `28fb7a8`.)
+- SMB protocol-id bytes-literal in `net.smb.dialect` switched from
+  implicit-string-concat (which Python 3.11 breaks at `b"\x00" * N`
+  expressions) to explicit `+` concatenation. (Commit `ce8f584`.)
+
+[Unreleased]: https://github.com/orengacademy/pqc-scanner2/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/orengacademy/pqc-scanner2/releases/tag/v0.1.0

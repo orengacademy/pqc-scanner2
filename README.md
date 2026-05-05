@@ -446,6 +446,13 @@ Probe `framework_tags` include `bukukerja:*`, `mykripto:*`, and `nacsa-arahan-ke
 
 ---
 
+## Contributing & support
+
+- **Contribute:** see [`CONTRIBUTING.md`](CONTRIBUTING.md) for setup, the project layout, how to add a probe or compliance framework, and the PR checklist.
+- **Bugs / features:** open an [issue](https://github.com/orengacademy/pqc-scanner2/issues/new/choose) — there are templates for both.
+- **Security:** see [`SECURITY.md`](SECURITY.md). Email `tools@orengacademy.com` with subject prefix `[pqcscan-security]` instead of opening a public issue.
+- **Release history:** [`CHANGELOG.md`](CHANGELOG.md).
+
 ## Licence
 
-MIT (with caveat tracked in the design spec around scapy GPL-2 — not yet a dependency in the MVP).
+MIT — see [`LICENSE`](LICENSE).
