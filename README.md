@@ -87,6 +87,8 @@ Output: `dist/pqcscan` (Linux/macOS) or `dist/pqcscan.exe` (Windows). Build arti
 
 **Offline pack.** If `tools/` exists at build time (populated by `scripts/fetch-offline-tools.sh`), the resulting binary bundles Syft and Grype so FOSS-tool probes work on hosts without internet. At runtime, `pqcscan.util.offline_pack.resolve_tool()` searches in order: the `PQCSCAN_OFFLINE_PACK` env var → PyInstaller's bundled `tools/` → system `$PATH`. Without the offline pack, probes auto-skip when their tools aren't installed.
 
+**OSV snapshot for offline CVE matching.** The `cve.osv_offline` probe matches lockfile entries (PyPI / npm / Go / crates.io / Packagist / RubyGems / NuGet / Hex / Pub / Maven) against a local copy of the OSV.dev advisory feed. Populate the snapshot once with `bash scripts/fetch-osv-snapshot.sh` (defaults to PyPI + npm + Go, ~75 MB) and either copy it to `/var/lib/pqcscan/osv-snapshot.jsonl` or set `PQCSCAN_OSV_SNAPSHOT=<path>` to activate the matcher. Range-aware PyPI matching uses the `packaging` library to overlap-check `requirements.txt` `>=`/`~=`/`<` constraints against OSV affected versions/ranges, classifying overlap hits as Sederhana ("potentially affected") and exact `==` pin hits as Tinggi ("definitely affected").
+
 Cross-OS release artifacts (Linux x86_64 + macOS arm64 + Windows x86_64) are produced automatically by [`.github/workflows/release.yml`](.github/workflows/release.yml) on any `v*` tag push. Each binary is uploaded as a GitHub Release asset alongside auto-generated release notes.
 
 ## Tech stack
