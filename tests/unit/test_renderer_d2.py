@@ -90,20 +90,30 @@ def test_xlsx_bukukerja_sbom_sheet_lists_packages(tmp_db_path, tmp_path: Path):
     render_xlsx_bukukerja(repo, scan_id, out)
     wb = load_workbook(out)
     sbom = wb["1_SBOM"]
-    rows = list(sbom.iter_rows(min_row=2, values_only=True))
-    # Should have at least one row for the openssl package seeded above.
-    assert any(r[1] == "openssl" and r[2] == "3.0.2-1" for r in rows)
+    # Official Lampiran A template: title row 1, description row 2, blank row 3,
+    # headers row 4, data rows 5+. Columns 1..17 follow the BUKUKERJA spec:
+    #   1=# 2=System/Application 3=Purpose 4=URL 5=Services Mode 6=Target Customer
+    #   7=Software Component ... 14=Vendor's Name ... 17=Link to CBOM
+    rows = list(sbom.iter_rows(min_row=5, values_only=True))
+    # Asset name col (col 2) is "openssl" (from evidence.name); component col
+    # (col 7) is the combined "openssl 3.0.2-1" produced by the renderer.
+    assert any(r[1] == "openssl" and r[6] == "openssl 3.0.2-1" for r in rows), (
+        f"openssl row missing — got rows: {rows!r}"
+    )
 
 
-def test_xlsx_bukukerja_risk_register_carries_clause(tmp_db_path, tmp_path: Path):
+def test_xlsx_bukukerja_risk_register_carries_classification(tmp_db_path, tmp_path: Path):
     repo = Repo(tmp_db_path); repo.init_schema()
     scan_id = _seed(repo)
     out = tmp_path / "bk.xlsx"
     render_xlsx_bukukerja(repo, scan_id, out)
     wb = load_workbook(out)
     risk = wb["3_RiskRegister"]
-    rows = list(risk.iter_rows(min_row=2, values_only=True))
+    # Headers row 4, data rows 5+. Lampiran A Table 3 columns:
+    #   1=# 2=Nama Sistem 3=Jenis Aset 4=Algoritma Kriptografi
+    #   5=Kegunaan 6=Tahap Kritikal 7=Risiko 8=Pemilik Risiko
+    rows = list(risk.iter_rows(min_row=5, values_only=True))
     assert any(
-        r[3] == "BUKUKERJA:risk-register/sangat-tinggi" and r[4] == "non-compliant"
+        r[3] == "RSA-2048" and r[5] == "sangat-tinggi"
         for r in rows
-    )
+    ), f"sangat-tinggi RSA-2048 row missing — got rows: {rows!r}"

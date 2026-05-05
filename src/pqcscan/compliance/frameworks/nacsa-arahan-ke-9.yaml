@@ -1,27 +1,96 @@
 framework: nacsa-arahan-ke-9
-title: NACSA Arahan KE No. 9 — Cyber Security Directive (Malaysia)
-# Source: https://www.nacsa.gov.my/doc/Arahan%20KE%20NACSA%20No.%209.pdf
-# Government-mandated baseline for federal/CNII systems. Treats classical
-# pre-quantum primitives as deprecated and requires PQC migration plans.
+title: NACSA Arahan KE No. 9 — Penyediaan Data dan Maklumat Pelaksanaan Migrasi Kriptografi Pasca Kuantum (Malaysia)
+# Source:   https://www.nacsa.gov.my/doc/Arahan%20KE%20NACSA%20No.%209.pdf
+# Authority: Akta Keselamatan Siber 2024 [Akta 854], seksyen 13;
+#            sub-perenggan 14(1)(a)(A)–(B); perenggan 10(1)(f).
+# Coordinator: Pusat Teknologi dan Pengurusan Kriptologi Malaysia (PTPKM),
+#              under Agensi Keselamatan Siber Negara (NACSA).
+# Effective: 22 September 2025 (perenggan 13).
+# Submission window: tiga (3) bulan dari tarikh notis Ketua Eksekutif NACSA
+#                    (perenggan 10).
+#
+# Phased migration timeline (Lampiran A §C — Pelan Garis Masa Migrasi PQC):
+#   Fasa 1 — Persediaan (Assess)   : Jul–Dis 2025
+#   Fasa 2 — Pemilihan  (Select)   : Jan–Jun 2026
+#   Fasa 3 — Pengesahan (Validate) : Jul–Dis 2026
+#   Fasa 4 — Pelaksanaan (Deploy)  : Jan–Jun 2027
+#   Fasa 5 — Pemantauan (Monitor)  : Julai 2027 dan seterusnya
+#
+# Applies to: PTPKM, all NCII sector heads, and entiti infrastruktur
+# maklumat kritikal negara (NCII entities) per perenggan 12.
+
 rules:
-  - match: { classification: sangat-tinggi }
-    clause: NACSA-9:non-compliant
-    verdict: non-compliant
-    note: "Pelanggaran Arahan KE No. 9 — wajib gantikan."
-  - match: { classification: tinggi }
-    clause: NACSA-9:migrate-required
-    verdict: at-risk
-    deadline: 2030-12-31
-    note: "Pelan migrasi PQC mesti didokumenkan dan dilaksanakan menjelang 2030."
-  - match: { algorithm: SHA-1 }
-    clause: NACSA-9:hash-disallowed
-    verdict: non-compliant
+  # ───── Algorithms explicitly forbidden by NIST FIPS deprecation alignment ─────
   - match: { algorithm: MD5 }
     clause: NACSA-9:hash-disallowed
     verdict: non-compliant
+    note: "MD5 dilarang. Akta 854 — Wajib gantikan dengan SHA-256 / SHA-3."
+  - match: { algorithm: SHA-1 }
+    clause: NACSA-9:hash-disallowed
+    verdict: non-compliant
+    note: "SHA-1 dilarang. Akta 854 — Wajib gantikan dengan SHA-256 / SHA-3."
+  - match: { algorithm: RC4 }
+    clause: NACSA-9:cipher-disallowed
+    verdict: non-compliant
+    note: "RC4 dilarang. Wajib gantikan dengan AES-256-GCM."
+  - match: { algorithm: 3DES }
+    clause: NACSA-9:cipher-disallowed
+    verdict: non-compliant
+    note: "3DES dilarang. Wajib gantikan dengan AES-256-GCM."
+
+  # ───── PQC-ready algorithms (NIST FIPS 203/204/205) — compliant ─────
   - match: { algorithm: ML-KEM }
     clause: NACSA-9:pqc-aligned
     verdict: compliant
+    note: "ML-KEM (FIPS 203). Selari dengan keperluan migrasi PQC."
   - match: { algorithm: ML-DSA }
     clause: NACSA-9:pqc-aligned
     verdict: compliant
+    note: "ML-DSA (FIPS 204). Selari dengan keperluan migrasi PQC."
+  - match: { algorithm: SLH-DSA }
+    clause: NACSA-9:pqc-aligned
+    verdict: compliant
+    note: "SLH-DSA (FIPS 205). Selari dengan keperluan migrasi PQC."
+  - match: { classification: pqc-ready }
+    clause: NACSA-9:pqc-ready
+    verdict: compliant
+
+  # ───── Classification-driven verdicts mapped to the 5-phase plan ─────
+  # Sangat-tinggi (Shor-broken classical asym): must be eradicated by end
+  # of Fasa 4 (Deploy) — Jun 2027.
+  - match: { classification: sangat-tinggi }
+    clause: NACSA-9:fasa-4-deploy
+    verdict: non-compliant
+    deadline: 2027-06-30
+    note: "Algoritma terdedah secara kuantum. Wajib digantikan menjelang akhir Fasa 4 Pelaksanaan (Jun 2027)."
+
+  # Tinggi (HNDL-vulnerable, vendor PQC roadmap exists): plan must reach
+  # validated state by end of Fasa 3 (Validate) — Dec 2026.
+  - match: { classification: tinggi }
+    clause: NACSA-9:fasa-3-validate
+    verdict: at-risk
+    deadline: 2026-12-31
+    note: "Migrasi PQC mesti melepasi Fasa 3 Pengesahan (Validate) menjelang Dis 2026; Pelaksanaan menjelang Jun 2027."
+
+  # Sederhana (Grover-weakened symmetric, double-key-size advisory):
+  # documented in Fasa 2 (Select) — Jun 2026.
+  - match: { classification: sederhana }
+    clause: NACSA-9:fasa-2-select
+    verdict: advisory
+    deadline: 2026-06-30
+    note: "Algoritma simetrik dilemahkan oleh Grover. Pertimbangkan saiz kunci dua kali ganda atau pilih pengganti PQC menjelang Fasa 2 Pemilihan (Jun 2026)."
+
+  # Rendah — kept under monitoring in Fasa 5 (Monitor).
+  - match: { classification: rendah }
+    clause: NACSA-9:fasa-5-monitor
+    verdict: compliant
+    note: "Risiko rendah. Pemantauan berterusan di bawah Fasa 5 (Julai 2027+)."
+
+  # ───── Initial inventory readiness — Fasa 1 (Assess), Jul–Dis 2025 ─────
+  # Any finding without an algorithm field (info-only) hints at an asset
+  # that has not yet been mapped to a Borang Pelaksanaan Migrasi PQC row.
+  - match: { classification: info }
+    clause: NACSA-9:fasa-1-assess
+    verdict: advisory
+    deadline: 2025-12-31
+    note: "Aset perlu didaftar dalam Borang Pelaksanaan Migrasi PQC (Lampiran A, Jadual 0) menjelang akhir Fasa 1 Persediaan (Dis 2025)."

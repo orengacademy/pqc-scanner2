@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from collections import OrderedDict
+from datetime import date
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -74,6 +75,35 @@ async def set_locale(request: Request, locale: str) -> RedirectResponse:
     return resp
 
 
+# NACSA Arahan KE No. 9, Lampiran A §C — Pelan Garis Masa Migrasi PQC.
+# (n, name_bm, name_en, start_date, end_date_or_none)
+_NACSA_FASA: list[dict] = [
+    {"n": 1, "name": "Persediaan",  "en": "Assess",
+     "start": date(2025, 7, 1), "end": date(2025, 12, 31)},
+    {"n": 2, "name": "Pemilihan",   "en": "Select",
+     "start": date(2026, 1, 1), "end": date(2026, 6, 30)},
+    {"n": 3, "name": "Pengesahan",  "en": "Validate",
+     "start": date(2026, 7, 1), "end": date(2026, 12, 31)},
+    {"n": 4, "name": "Pelaksanaan", "en": "Deploy",
+     "start": date(2027, 1, 1), "end": date(2027, 6, 30)},
+    {"n": 5, "name": "Pemantauan",  "en": "Monitor",
+     "start": date(2027, 7, 1), "end": None},
+]
+
+
+def _current_fasa(today: date) -> int:
+    """Return the active NACSA migration fasa (1..5) for `today`."""
+    for fasa in _NACSA_FASA:
+        start: date = fasa["start"]
+        end: date | None = fasa["end"]
+        n: int = fasa["n"]
+        if today < start:
+            return max(1, n - 1)  # haven't entered yet → previous
+        if end is None or today <= end:
+            return n
+    return 5
+
+
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request) -> HTMLResponse:
     repo = request.app.state.repo
@@ -100,6 +130,13 @@ async def dashboard(request: Request) -> HTMLResponse:
             "started_at": s.started_at,
         })
 
+    today = date.today()
+    nacsa_fasa = {
+        "current": _current_fasa(today),
+        "phases": _NACSA_FASA,
+        "today": today,
+    }
+
     return _render(
         request, "dashboard.html",
         {
@@ -111,6 +148,7 @@ async def dashboard(request: Request) -> HTMLResponse:
             "readiness": score,
             "trend": trend,
             "recent_scans": scans[:5],
+            "nacsa_fasa": nacsa_fasa,
         },
     )
 

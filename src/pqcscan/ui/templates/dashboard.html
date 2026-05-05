@@ -156,6 +156,61 @@
 </section>
 {% endif %}
 
+{# ─────────────  NACSA Migration Readiness (Fasa 1-5)  ───────────── #}
+{% if nacsa_fasa %}
+<section class="mb-6">
+  <div class="flex items-end justify-between mb-3">
+    <h2 class="font-mono text-amber-400 font-semibold">NACSA Arahan KE No. 9 — Migration Phases</h2>
+    <span class="section-eyebrow">akta 854 &middot; berkuat kuasa 22 sep 2025 &middot; ptpkm</span>
+  </div>
+  <div class="card p-5">
+    <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+      {% for f in nacsa_fasa.phases %}
+        {% set is_current = (f.n == nacsa_fasa.current) %}
+        {% set is_past = (f.n < nacsa_fasa.current) %}
+        <div class="relative p-3 rounded-lg border transition-colors
+                    {% if is_current %}bg-amber-400/10 border-amber-400/40
+                    {% elif is_past %}bg-zinc-900/50 border-zinc-800 opacity-60
+                    {% else %}bg-zinc-900/30 border-zinc-800/60{% endif %}">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="font-mono text-[10px] uppercase tracking-[0.16em]
+                         {% if is_current %}text-amber-300{% else %}text-zinc-500{% endif %}">
+              Fasa {{ f.n }}
+            </span>
+            {% if is_current %}
+              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 text-[9px] font-mono">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>active
+              </span>
+            {% elif is_past %}
+              <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-500 text-[9px] font-mono">done</span>
+            {% endif %}
+          </div>
+          <p class="font-mono font-semibold text-sm
+                    {% if is_current %}text-zinc-50{% else %}text-zinc-300{% endif %}">
+            {{ f.name }}
+          </p>
+          <p class="font-mono text-[11px] text-zinc-500">{{ f.en }}</p>
+          <p class="font-mono text-[10px] text-zinc-600 mt-1.5">
+            {{ f.start.strftime('%b %Y') }}
+            {%- if f.end %} &ndash; {{ f.end.strftime('%b %Y') }}{% else %}+{% endif %}
+          </p>
+        </div>
+      {% endfor %}
+    </div>
+    <p class="mt-4 text-xs text-zinc-500 font-mono leading-relaxed">
+      Submission via <span class="text-amber-300">Borang Pelaksanaan Migrasi PQC (Lampiran A)</span>
+      &mdash; coordinated by PTPKM under NACSA. 3-month window from CE NACSA notice.
+      {% if last_scan and last_scan.status == 'done' %}
+        <a href="/api/scans/{{ last_scan.id }}/export/xlsx-bukukerja"
+           class="text-amber-400 hover:text-amber-300 transition-colors ml-2">
+          Download BUKUKERJA xlsx &rarr;
+        </a>
+      {% endif %}
+    </p>
+  </div>
+</section>
+{% endif %}
+
 {# ─────────────  Trend (sparkline)  ───────────── #}
 {% if trend and trend|length > 1 %}
 <section class="card p-5 mb-6">
