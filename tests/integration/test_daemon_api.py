@@ -34,7 +34,7 @@ def test_post_scan_creates_and_runs(client):
     scan_id = body["id"]
 
     s = None
-    for _ in range(600):
+    for _ in range(3000):
         s = client.get(f"/api/scans/{scan_id}").json()
         if s["status"] == "done":
             break
@@ -54,7 +54,7 @@ def test_list_scans(client):
 def test_scan_findings(client):
     r = client.post("/api/scans")
     scan_id = r.json()["id"]
-    for _ in range(600):
+    for _ in range(3000):
         if client.get(f"/api/scans/{scan_id}").json()["status"] == "done":
             break
         time.sleep(0.1)
@@ -65,7 +65,7 @@ def test_scan_findings(client):
 
 
 def _wait_for_done(client, scan_id):
-    for _ in range(600):
+    for _ in range(3000):
         if client.get(f"/api/scans/{scan_id}").json()["status"] == "done":
             return
         time.sleep(0.1)

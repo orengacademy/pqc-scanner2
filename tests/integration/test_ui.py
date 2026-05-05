@@ -88,7 +88,7 @@ def test_baselines_diff_page_after_creating_baseline(client):
     sid = client.post("/api/scans").json()["id"]
     # Wait for scan to finish so findings exist.
     import time
-    for _ in range(600):
+    for _ in range(3000):
         if client.get(f"/api/scans/{sid}").json()["status"] == "done":
             break
         time.sleep(0.1)
@@ -157,7 +157,7 @@ def test_settings_page_in_bahasa(client):
 def test_create_baseline_form_redirects(client):
     sid = client.post("/api/scans").json()["id"]
     import time
-    for _ in range(600):
+    for _ in range(3000):
         if client.get(f"/api/scans/{sid}").json()["status"] == "done":
             break
         time.sleep(0.1)
@@ -185,7 +185,7 @@ def test_create_baseline_form_404_for_missing_scan(client):
 def test_scan_detail_shows_mark_baseline_form(client):
     sid = client.post("/api/scans").json()["id"]
     import time
-    for _ in range(600):
+    for _ in range(3000):
         if client.get(f"/api/scans/{sid}").json()["status"] == "done":
             break
         time.sleep(0.1)

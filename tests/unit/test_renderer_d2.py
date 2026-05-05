@@ -42,6 +42,7 @@ def _seed(repo: Repo) -> int:
 
 
 def test_pdf_executive_writes_a_real_pdf(tmp_db_path, tmp_path: Path):
+    pytest.importorskip("weasyprint")
     repo = Repo(tmp_db_path); repo.init_schema()
     scan_id = _seed(repo)
     out = tmp_path / "exec.pdf"
@@ -52,6 +53,7 @@ def test_pdf_executive_writes_a_real_pdf(tmp_db_path, tmp_path: Path):
 
 
 def test_pdf_executive_raises_on_missing_scan(tmp_db_path, tmp_path: Path):
+    pytest.importorskip("weasyprint")
     repo = Repo(tmp_db_path); repo.init_schema()
     with pytest.raises(ValueError):
         render_pdf_executive(repo, scan_id=999, output_path=tmp_path / "x.pdf")

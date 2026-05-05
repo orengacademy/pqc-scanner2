@@ -2,6 +2,12 @@
 from datetime import date
 from pathlib import Path
 
+import pytest
+
+# weasyprint pulls in cairo/pango at import time; it lives in the optional
+# [render] extra so headless installs (CI default) skip these tests.
+pytest.importorskip("weasyprint")
+
 from pqcscan.core.types import Classification, Finding, Severity
 from pqcscan.renderers.pdf_technical import render_pdf_technical
 from pqcscan.store.repo import Repo

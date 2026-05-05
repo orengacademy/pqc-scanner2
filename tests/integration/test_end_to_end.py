@@ -40,6 +40,8 @@ def test_scan_then_export_cbom(tmp_path: Path):
 
 
 def test_scan_then_export_pdf_technical(tmp_path: Path):
+    import pytest
+    pytest.importorskip("weasyprint")
     db = tmp_path / "db.sqlite"
     env = {"PQCSCAN_DB_PATH": str(db)}
 
