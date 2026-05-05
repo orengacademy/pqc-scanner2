@@ -1,27 +1,31 @@
 {% extends "base.html" %}
 {% block body %}
-<h1 style="font-size:20px;font-weight:600;margin-bottom:16px">{{ t('frameworks.title') }}</h1>
-<p style="color:#888;font-size:13px;margin-bottom:24px">
-  {{ frameworks|length }} {{ t('frameworks.bundled') }}
-</p>
-<table style="width:100%;border-collapse:collapse;font-size:13px">
-  <thead>
-    <tr style="text-align:left;color:#888;border-bottom:1px solid #232333">
-      <th style="padding:8px 12px">{{ t('frameworks.col.framework') }}</th>
-      <th style="padding:8px 12px">{{ t('frameworks.col.title') }}</th>
-      <th style="padding:8px 12px;text-align:right">{{ t('frameworks.col.rules') }}</th>
-    </tr>
-  </thead>
-  <tbody>
+
+<section class="mb-6">
+  <p class="text-xs font-mono uppercase tracking-[0.2em] text-zinc-500 mb-2">compliance</p>
+  <h1 class="text-3xl font-semibold tracking-tight text-zinc-50">{{ t('frameworks.title') }}</h1>
+  <p class="mt-2 text-sm text-zinc-400">{{ frameworks|length }} {{ t('frameworks.bundled') }}</p>
+</section>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
   {% for fw in frameworks %}
-    <tr style="border-bottom:1px solid #1a1a26">
-      <td style="padding:8px 12px">
-        <a href="/frameworks/{{ fw.name }}" style="color:#3b82f6;text-decoration:none">{{ fw.name }}</a>
-      </td>
-      <td style="padding:8px 12px">{{ fw.title }}</td>
-      <td style="padding:8px 12px;text-align:right">{{ fw.rule_count }}</td>
-    </tr>
+    <a href="/frameworks/{{ fw.name }}"
+       class="card p-5 hover:border-zinc-700 transition-colors group">
+      <div class="flex items-start justify-between mb-2">
+        <code class="font-mono text-sm font-semibold text-blue-400 group-hover:text-blue-300 transition-colors">
+          {{ fw.name }}
+        </code>
+        <span class="text-[11px] font-mono text-zinc-500 px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800">
+          {{ fw.rule_count }} rules
+        </span>
+      </div>
+      <p class="text-sm text-zinc-300 leading-snug">{{ fw.title }}</p>
+      <div class="mt-3 pt-3 border-t border-zinc-800/80 flex justify-between items-center text-xs text-zinc-500">
+        <span class="font-mono">{{ t('frameworks.col.framework') }}</span>
+        <span class="text-zinc-600 group-hover:text-zinc-400 transition-colors">View rules &rarr;</span>
+      </div>
+    </a>
   {% endfor %}
-  </tbody>
-</table>
+</div>
+
 {% endblock %}

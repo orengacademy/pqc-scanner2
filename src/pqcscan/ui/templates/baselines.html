@@ -1,54 +1,81 @@
 {% extends "base.html" %}
 {% block body %}
-<h1 style="font-size:20px;font-weight:600;margin-bottom:16px">{{ t('baselines.title') }}</h1>
 
-<p style="color:#888;font-size:13px;margin-bottom:24px">{{ t('baselines.help') }}</p>
+<section class="mb-6">
+  <p class="text-xs font-mono uppercase tracking-[0.2em] text-zinc-500 mb-2">reference points</p>
+  <h1 class="text-3xl font-semibold tracking-tight text-zinc-50">{{ t('baselines.title') }}</h1>
+  <p class="mt-2 text-sm text-zinc-400 max-w-2xl leading-relaxed">{{ t('baselines.help') }}</p>
+</section>
 
-<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px">
-  <thead>
-    <tr style="text-align:left;color:#888;border-bottom:1px solid #232333">
-      <th style="padding:8px 12px">{{ t('baselines.col.label') }}</th>
-      <th style="padding:8px 12px">{{ t('baselines.col.scan') }}</th>
-      <th style="padding:8px 12px">{{ t('baselines.col.created') }}</th>
-      <th style="padding:8px 12px">{{ t('baselines.col.notes') }}</th>
-    </tr>
-  </thead>
-  <tbody>
-  {% for b in baselines %}
-    <tr style="border-bottom:1px solid #1a1a26">
-      <td style="padding:8px 12px">{{ b.label }}</td>
-      <td style="padding:8px 12px">
-        <a href="/scans/{{ b.scan_id }}" style="color:#3b82f6;text-decoration:none">#{{ b.scan_id }}</a>
-      </td>
-      <td style="padding:8px 12px;color:#aab">{{ b.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-      <td style="padding:8px 12px;color:#aab">{{ b.notes or '' }}</td>
-    </tr>
-  {% else %}
-    <tr><td colspan="4" style="padding:12px;color:#888;font-size:13px">{{ t('baselines.empty') }}</td></tr>
-  {% endfor %}
-  </tbody>
-</table>
+{% if baselines %}
+<div class="card overflow-hidden mb-6">
+  <table class="w-full text-sm">
+    <thead class="text-xs uppercase tracking-wider text-zinc-500">
+      <tr class="border-b border-zinc-800/80">
+        <th class="text-left font-medium py-3 px-5">{{ t('baselines.col.label') }}</th>
+        <th class="text-left font-medium py-3 px-5">{{ t('baselines.col.scan') }}</th>
+        <th class="text-left font-medium py-3 px-5">{{ t('baselines.col.created') }}</th>
+        <th class="text-left font-medium py-3 px-5">{{ t('baselines.col.notes') }}</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-zinc-800/60">
+    {% for b in baselines %}
+      <tr class="row-hover">
+        <td class="py-3 px-5">
+          <span class="inline-flex items-center gap-2">
+            <span class="w-1.5 h-1.5 rounded-full bg-violet-400 shadow-[0_0_8px_rgb(167_139_250/0.6)]"></span>
+            <span class="font-medium text-zinc-100">{{ b.label }}</span>
+          </span>
+        </td>
+        <td class="py-3 px-5">
+          <a href="/scans/{{ b.scan_id }}"
+             class="font-mono text-blue-400 hover:text-blue-300 transition-colors">#{{ b.scan_id }}</a>
+        </td>
+        <td class="py-3 px-5 font-mono text-xs text-zinc-400">{{ b.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td class="py-3 px-5 text-zinc-400">{{ b.notes or '—' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card p-12 text-center text-sm text-zinc-500 mb-6">
+  {{ t('baselines.empty') }}
+</div>
+{% endif %}
 
 {% if scans and baselines %}
-<h2 style="font-size:15px;font-weight:600;margin:16px 0 8px">{{ t('baselines.diff.heading') }}</h2>
-<form action="/baselines/diff" method="get" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
-  <label style="font-size:13px;color:#aab">
-    {{ t('baselines.diff.current') }}
-    <select name="scan" style="display:block;background:#1a1a26;color:#fff;border:1px solid #232333;padding:6px;border-radius:4px;min-width:180px">
-      {% for s in scans %}
-        <option value="{{ s.id }}">#{{ s.id }} &mdash; {{ s.started_at.strftime('%Y-%m-%d %H:%M') }} ({{ s.status }})</option>
-      {% endfor %}
-    </select>
-  </label>
-  <label style="font-size:13px;color:#aab">
-    {{ t('baselines.diff.baseline') }}
-    <select name="baseline_scan" style="display:block;background:#1a1a26;color:#fff;border:1px solid #232333;padding:6px;border-radius:4px;min-width:180px">
-      {% for b in baselines %}
-        <option value="{{ b.scan_id }}">{{ b.label }} (scan #{{ b.scan_id }})</option>
-      {% endfor %}
-    </select>
-  </label>
-  <button type="submit" style="background:#3b82f6;color:#fff;border:0;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:500">{{ t('baselines.diff.button') }}</button>
-</form>
+<section class="card p-5">
+  <div class="mb-4">
+    <h2 class="text-sm font-mono uppercase tracking-[0.16em] text-zinc-300">{{ t('baselines.diff.heading') }}</h2>
+  </div>
+  <form action="/baselines/diff" method="get" class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:items-end">
+    <label class="text-xs text-zinc-400">
+      {{ t('baselines.diff.current') }}
+      <select name="scan"
+              class="mt-1.5 block w-full px-3 py-2 rounded-md bg-zinc-950 border border-zinc-800 text-zinc-100 font-mono text-sm focus:border-blue-500 focus:ring-0 transition-colors">
+        {% for s in scans %}
+          <option value="{{ s.id }}">#{{ s.id }} &mdash; {{ s.started_at.strftime('%Y-%m-%d %H:%M') }} ({{ s.status }})</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="flex gap-3 items-end">
+      <label class="flex-1 text-xs text-zinc-400">
+        {{ t('baselines.diff.baseline') }}
+        <select name="baseline_scan"
+                class="mt-1.5 block w-full px-3 py-2 rounded-md bg-zinc-950 border border-zinc-800 text-zinc-100 font-mono text-sm focus:border-blue-500 focus:ring-0 transition-colors">
+          {% for b in baselines %}
+            <option value="{{ b.scan_id }}">{{ b.label }} (scan #{{ b.scan_id }})</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button type="submit"
+              class="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-violet-500 hover:bg-violet-400 text-white font-medium text-sm transition-colors h-[38px]">
+        {{ t('baselines.diff.button') }}
+      </button>
+    </div>
+  </form>
+</section>
 {% endif %}
+
 {% endblock %}

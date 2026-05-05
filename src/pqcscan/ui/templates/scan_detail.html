@@ -1,37 +1,145 @@
 {% extends "base.html" %}
 {% block body %}
-<h1 style="font-size:20px;font-weight:600;margin-bottom:8px">Scan #{{ scan.id }}</h1>
-<p style="color:#888;font-size:13px;margin-bottom:16px">
-  Status: {{ scan.status }} &mdash; mode: {{ scan.mode }} &mdash; started: {{ scan.started_at }}
-</p>
+
+{% set sev = severity_counts or {'crit': 0, 'high': 0, 'med': 0, 'info': 0, 'total': 0} %}
+
+<section class="mb-6 flex items-start justify-between gap-6 flex-wrap">
+  <div>
+    <p class="text-xs font-mono uppercase tracking-[0.2em] text-zinc-500 mb-2">scan detail</p>
+    <h1 class="text-3xl font-semibold tracking-tight text-zinc-50 flex items-center gap-3">
+      <span class="text-zinc-500 font-mono text-2xl">#</span>{{ scan.id }}
+      <span class="status-pill" data-status="{{ scan.status }}">
+        <span class="pulse"></span>{{ scan.status }}
+      </span>
+    </h1>
+    <dl class="mt-3 flex items-center gap-x-5 gap-y-1 text-xs text-zinc-500 flex-wrap">
+      <span class="font-mono">{{ scan.mode }} mode</span>
+      <span aria-hidden="true">&middot;</span>
+      <span class="font-mono">started {{ scan.started_at }}</span>
+      {% if scan.finished_at %}
+        <span aria-hidden="true">&middot;</span>
+        <span class="font-mono">finished {{ scan.finished_at }}</span>
+      {% endif %}
+      <span aria-hidden="true">&middot;</span>
+      <span class="font-mono text-zinc-300">{{ sev.total }} findings</span>
+    </dl>
+  </div>
+</section>
+
+<div class="flex flex-wrap items-center gap-2 mb-6"
+     id="sev-filter"
+     role="toolbar" aria-label="Filter findings by severity">
+  <button type="button" class="sev-chip" aria-pressed="true" data-sev="all"
+          onclick="document.getElementById('findings').dataset.filter='all';
+                   for(const c of document.querySelectorAll('#sev-filter .sev-chip'))c.setAttribute('aria-pressed', c===this);">
+    <span class="dot"></span><span>All</span>
+    <span class="font-mono text-xs text-zinc-500">{{ sev.total }}</span>
+  </button>
+  {% for key, label in [('crit','Critical'),('high','High'),('med','Medium'),('info','Info')] %}
+    <button type="button" class="sev-chip" aria-pressed="false" data-sev="{{ key }}"
+            onclick="document.getElementById('findings').dataset.filter='{{ key }}';
+                     for(const c of document.querySelectorAll('#sev-filter .sev-chip'))c.setAttribute('aria-pressed', c===this);">
+      <span class="dot"></span><span>{{ label }}</span>
+      <span class="font-mono text-xs text-zinc-500">{{ sev[key] }}</span>
+    </button>
+  {% endfor %}
+</div>
 
 {% if scan.status == 'done' %}
-<details style="margin-bottom:16px">
-  <summary style="cursor:pointer;color:#aab;font-size:13px">{{ t('scan.mark_baseline.heading') }}</summary>
+<section id="export" class="card p-5 mb-6">
+  <div class="flex items-center justify-between mb-3">
+    <h2 class="text-sm font-mono uppercase tracking-[0.16em] text-zinc-300">Export</h2>
+    <span class="text-[11px] font-mono text-zinc-600">5 formats</span>
+  </div>
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+    {% for slug, label, sub, badge in [
+      ('cbom',           'CBOM',          'CycloneDX 1.6 JSON', 'json'),
+      ('pdf-tech',       'Technical PDF', 'engineer-grade',     'pdf'),
+      ('pdf-exec',       'Executive PDF', 'board summary',      'pdf'),
+      ('xlsx-bukukerja', 'BUKUKERJA',     'NACSA workbook',     'xlsx'),
+      ('xlsx-generic',   'Workbook',      'generic XLSX',       'xlsx'),
+    ] %}
+    <a href="/api/scans/{{ scan.id }}/export/{{ slug }}"
+       class="group flex items-start gap-3 p-3 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-800/80 hover:border-zinc-700 transition-colors">
+      <div class="w-9 h-9 rounded-md bg-zinc-950 border border-zinc-800 flex items-center justify-center flex-shrink-0">
+        <span class="text-[10px] font-mono font-semibold text-zinc-500 uppercase">{{ badge }}</span>
+      </div>
+      <div class="min-w-0">
+        <p class="text-sm font-medium text-zinc-100 truncate">{{ label }}</p>
+        <p class="text-[11px] text-zinc-500 truncate">{{ sub }}</p>
+      </div>
+      <svg class="w-3.5 h-3.5 text-zinc-600 group-hover:text-zinc-400 ml-auto flex-shrink-0 transition-colors"
+           viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/>
+        <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/>
+      </svg>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if scan.status == 'done' %}
+<details class="card p-4 mb-6">
+  <summary class="cursor-pointer text-sm text-zinc-400 hover:text-zinc-200 select-none flex items-center gap-2">
+    <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/>
+    </svg>
+    {{ t('scan.mark_baseline.heading') }}
+  </summary>
   <form action="/baselines/create" method="post"
-        style="display:flex;gap:8px;align-items:flex-end;margin-top:12px;flex-wrap:wrap">
+        class="mt-4 flex flex-col sm:flex-row gap-3 sm:items-end">
     <input type="hidden" name="scan_id" value="{{ scan.id }}">
-    <label style="font-size:13px;color:#aab">
+    <label class="flex-1 text-xs text-zinc-400">
       {{ t('scan.mark_baseline.label') }}
-      <input type="text" name="label" required
-             style="display:block;background:#1a1a26;color:#fff;border:1px solid #232333;padding:6px;border-radius:4px;min-width:240px">
+      <input type="text" name="label" required autocomplete="off"
+             class="mt-1.5 block w-full px-3 py-2 rounded-md bg-zinc-950 border border-zinc-800 text-zinc-100 font-mono text-sm placeholder:text-zinc-600 focus:border-blue-500 focus:ring-0 transition-colors"
+             placeholder="e.g. Q2-2026-pre-pqc">
     </label>
     <button type="submit"
-            style="background:#3b82f6;color:#fff;border:0;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:500">
+            class="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-violet-500 hover:bg-violet-400 text-white font-medium text-sm transition-colors">
       {{ t('scan.mark_baseline.button') }}
     </button>
   </form>
 </details>
 {% endif %}
 
-<div id="findings" hx-ext="sse" sse-connect="/api/scans/{{ scan.id }}/events"
-     sse-swap="finding" hx-swap="afterbegin">
-  {% for f in findings %}
-    <div style="border:1px solid #232333;border-radius:6px;padding:8px 12px;margin-bottom:8px;font-size:13px">
-      <span style="background:#161620;border-radius:4px;padding:2px 6px;text-transform:uppercase;font-size:10px">{{ f.severity }}</span>
-      <span style="color:#a8b;margin-left:8px">{{ f.algorithm }}</span>
-      <span style="margin-left:8px">{{ f.title }}</span>
-    </div>
-  {% endfor %}
-</div>
+<section>
+  <div class="flex items-end justify-between mb-3">
+    <h2 class="text-sm font-mono uppercase tracking-[0.16em] text-zinc-500">Findings</h2>
+    <span class="text-[11px] font-mono text-zinc-600">streamed via SSE</span>
+  </div>
+
+  <div id="findings"
+       class="findings-list card divide-y divide-zinc-800/60 overflow-hidden"
+       data-filter="all"
+       hx-ext="sse" sse-connect="/api/scans/{{ scan.id }}/events"
+       sse-swap="finding" hx-swap="afterbegin">
+    {% for f in findings %}
+      <article data-row-sev="{{ f.severity }}"
+               class="row-hover px-5 py-3 flex items-start gap-4">
+        <span class="sev-pill mt-0.5" data-sev="{{ f.severity }}">{{ f.severity }}</span>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-2 flex-wrap">
+            <code class="font-mono text-xs text-zinc-500">{{ f.probe_id }}</code>
+            {% if f.algorithm and f.algorithm != 'N/A' %}
+              <span class="text-zinc-700" aria-hidden="true">&middot;</span>
+              <code class="font-mono text-xs text-violet-300">{{ f.algorithm }}</code>
+            {% endif %}
+          </div>
+          <p class="mt-1 text-sm text-zinc-100 leading-snug">{{ f.title }}</p>
+        </div>
+      </article>
+    {% else %}
+      <div class="px-5 py-12 text-center text-sm text-zinc-500">
+        {% if scan.status == 'running' %}
+          Scan is running &mdash; findings will appear here as probes complete.
+        {% else %}
+          No findings recorded for this scan.
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
 {% endblock %}

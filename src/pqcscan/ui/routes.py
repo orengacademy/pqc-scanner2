@@ -63,13 +63,33 @@ async def set_locale(request: Request, locale: str) -> RedirectResponse:
     return resp
 
 
+def _count_severities(findings: list) -> dict:
+    """Bucket findings into {crit, high, med, info, total} for the bento
+    dashboard cards and scan-detail filter chips."""
+    counts = {"crit": 0, "high": 0, "med": 0, "info": 0, "total": len(findings)}
+    for f in findings:
+        sev = getattr(f, "severity", None)
+        if sev in counts:
+            counts[sev] += 1
+    return counts
+
+
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request) -> HTMLResponse:
     repo = request.app.state.repo
     scans = repo.list_scans()
     last_scan = scans[0] if scans else None
+    last_scan_severity = (
+        _count_severities(repo.list_findings(last_scan.id))
+        if last_scan is not None else None
+    )
     return _render(
-        request, "dashboard.html", {"last_scan": last_scan},
+        request, "dashboard.html",
+        {
+            "last_scan": last_scan,
+            "last_scan_severity": last_scan_severity,
+            "recent_scans": scans[:5],
+        },
     )
 
 
@@ -90,7 +110,12 @@ async def scan_detail(request: Request, scan_id: int) -> HTMLResponse:
         raise HTTPException(404, "scan not found")
     findings = repo.list_findings(scan_id)
     return _render(
-        request, "scan_detail.html", {"scan": scan, "findings": findings},
+        request, "scan_detail.html",
+        {
+            "scan": scan,
+            "findings": findings,
+            "severity_counts": _count_severities(findings),
+        },
     )
 
 

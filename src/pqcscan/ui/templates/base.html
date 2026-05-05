@@ -1,33 +1,76 @@
 <!doctype html>
-<html lang="{{ locale or 'en' }}">
+<html lang="{{ locale or 'en' }}" class="dark">
 <head>
   <meta charset="utf-8">
   <title>pqcscan</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a0a0f">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap">
   <link rel="stylesheet" href="/static/tailwind.min.css">
+  <link rel="stylesheet" href="/static/app.css">
   <script src="/static/htmx-1.9.10.min.js"></script>
 </head>
-<body>
-  <header style="padding:12px 24px;border-bottom:1px solid #232333;display:flex;justify-content:space-between;align-items:center">
-    <a href="/" style="font-size:18px;font-weight:600;color:#fff;text-decoration:none">pqcscan</a>
-    <nav style="display:flex;align-items:center;gap:16px">
-      <a href="/" style="color:#aab;text-decoration:none">{{ t('nav.dashboard') if t else 'Dashboard' }}</a>
-      <a href="/scans" style="color:#aab;text-decoration:none">{{ t('nav.scans') if t else 'Scans' }}</a>
-      <a href="/frameworks" style="color:#aab;text-decoration:none">{{ t('nav.frameworks') if t else 'Frameworks' }}</a>
-      <a href="/baselines" style="color:#aab;text-decoration:none">{{ t('nav.baselines') if t else 'Baselines' }}</a>
-      <a href="/probes" style="color:#aab;text-decoration:none">{{ t('nav.probes') if t else 'Probes' }}</a>
-      <a href="/settings" style="color:#aab;text-decoration:none">{{ t('nav.settings') if t else 'Settings' }}</a>
-      <span style="color:#444;margin:0 4px">|</span>
-      <form action="/i18n/en" method="post" style="display:inline">
-        <button type="submit" style="background:none;border:0;cursor:pointer;font:inherit;padding:0;color:{{ '#fff' if (locale or 'en') == 'en' else '#aab' }};font-weight:{{ '600' if (locale or 'en') == 'en' else '400' }}">EN</button>
-      </form>
-      <form action="/i18n/ms" method="post" style="display:inline">
-        <button type="submit" style="background:none;border:0;cursor:pointer;font:inherit;padding:0;color:{{ '#fff' if locale == 'ms' else '#aab' }};font-weight:{{ '600' if locale == 'ms' else '400' }}">MS</button>
-      </form>
-    </nav>
+<body class="min-h-dvh bg-zinc-950 text-zinc-100 font-sans antialiased selection:bg-blue-500/30 selection:text-blue-100">
+  <div class="fixed inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-500/40 to-transparent z-50 pointer-events-none"></div>
+
+  <header class="sticky top-0 z-40 border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2 group">
+        <span class="inline-block w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_2px_rgb(59_130_246/0.6)] group-hover:shadow-[0_0_14px_3px_rgb(59_130_246/0.8)] transition-shadow"></span>
+        <span class="text-base font-semibold tracking-tight text-zinc-50">pqcscan</span>
+        <span class="hidden sm:inline text-[11px] font-mono text-zinc-500 ml-1">v0.1.0</span>
+      </a>
+      <nav class="flex items-center gap-1 text-sm">
+        {% set _path = request.url.path if request else '' %}
+        {% for href, key, label in [
+          ('/',           'nav.dashboard',  'Dashboard'),
+          ('/scans',      'nav.scans',      'Scans'),
+          ('/frameworks', 'nav.frameworks', 'Frameworks'),
+          ('/baselines',  'nav.baselines',  'Baselines'),
+          ('/probes',     'nav.probes',     'Probes'),
+          ('/settings',   'nav.settings',   'Settings'),
+        ] %}
+          {% set is_active = (_path == href) or (href != '/' and _path.startswith(href)) %}
+          <a href="{{ href }}"
+             class="relative px-3 py-2 rounded-md transition-colors
+                    {{ 'text-zinc-50 bg-zinc-800/60' if is_active else 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/40' }}">
+            {{ t(key) if t else label }}
+            {% if is_active %}
+              <span class="absolute inset-x-3 -bottom-px h-px bg-blue-500"></span>
+            {% endif %}
+          </a>
+        {% endfor %}
+        <span class="mx-2 h-5 w-px bg-zinc-800"></span>
+        <form action="/i18n/en" method="post" class="inline">
+          <button type="submit"
+                  class="px-2 py-1 rounded text-xs font-mono tracking-wider transition-colors
+                         {{ 'text-blue-400 bg-blue-500/10 ring-1 ring-blue-500/30' if (locale or 'en') == 'en' else 'text-zinc-500 hover:text-zinc-200' }}">
+            EN
+          </button>
+        </form>
+        <form action="/i18n/ms" method="post" class="inline">
+          <button type="submit"
+                  class="px-2 py-1 rounded text-xs font-mono tracking-wider transition-colors
+                         {{ 'text-blue-400 bg-blue-500/10 ring-1 ring-blue-500/30' if locale == 'ms' else 'text-zinc-500 hover:text-zinc-200' }}">
+            MS
+          </button>
+        </form>
+      </nav>
+    </div>
   </header>
-  <main style="padding:24px">
+
+  <main class="max-w-7xl mx-auto px-6 py-8">
     {% block body %}{% endblock %}
   </main>
+
+  <footer class="max-w-7xl mx-auto px-6 py-6 mt-12 border-t border-zinc-900 text-xs text-zinc-600">
+    <div class="flex justify-between items-center">
+      <span class="font-mono">pqcscan &middot; post-quantum readiness scanner</span>
+      <span class="font-mono">{{ locale or 'en' }}</span>
+    </div>
+  </footer>
 </body>
 </html>

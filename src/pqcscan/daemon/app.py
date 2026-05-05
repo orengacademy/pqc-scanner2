@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
-from fastapi import Body, FastAPI, HTTPException
+from fastapi import Body, FastAPI, HTTPException, Response
 from fastapi.responses import StreamingResponse
 
 from pqcscan import __version__
@@ -136,6 +136,77 @@ def create_app(*, db_path: Path, registry: Registry | None = None) -> FastAPI:
             "removed": [_row(f) for f in diff["removed"]],
             "common": diff["common"],
         }
+
+    @app.get("/api/scans/{scan_id}/export/{fmt}")
+    async def export_scan(scan_id: int, fmt: str) -> Response:
+        """Render a scan to one of 5 formats and return as a binary download.
+
+        Mirrors the CLI surface (`pqcscan export --format <fmt>`) but pipes the
+        result back through HTTP so the web UI's export buttons work without
+        users having to touch the CLI. PDF formats degrade gracefully (HTTP 503
+        with a helpful message) when the optional weasyprint dep is absent."""
+        if repo.get_scan(scan_id) is None:
+            raise HTTPException(404, "scan not found")
+
+        import tempfile
+
+        # slug -> (suffix, content-type, filename-base)
+        _xlsx_ct = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        formats: dict[str, tuple[str, str, str]] = {
+            "cbom": (".cdx.json", "application/vnd.cyclonedx+json", "cbom"),
+            "pdf-tech": (".pdf", "application/pdf", "report-technical"),
+            "pdf-exec": (".pdf", "application/pdf", "report-executive"),
+            "xlsx-bukukerja": (".xlsx", _xlsx_ct, "report-bukukerja"),
+            "xlsx-generic": (".xlsx", _xlsx_ct, "report-findings"),
+        }
+        if fmt not in formats:
+            raise HTTPException(400, f"unknown format: {fmt}")
+        suffix, content_type, name = formats[fmt]
+
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            tmp_path = Path(tmp.name)
+        try:
+            if fmt == "cbom":
+                import json as _json
+
+                from pqcscan.cbom.builder import build_cbom
+                tmp_path.write_text(_json.dumps(build_cbom(repo, scan_id), indent=2))
+            elif fmt == "pdf-tech":
+                try:
+                    from pqcscan.renderers.pdf_technical import render_pdf_technical
+                except ImportError:
+                    raise HTTPException(
+                        503,
+                        "PDF export requires weasyprint. Install with: "
+                        "pip install 'pqcscan[render]'",
+                    ) from None
+                render_pdf_technical(repo, scan_id, tmp_path)
+            elif fmt == "pdf-exec":
+                try:
+                    from pqcscan.renderers.pdf_executive import render_pdf_executive
+                except ImportError:
+                    raise HTTPException(
+                        503,
+                        "PDF export requires weasyprint. Install with: "
+                        "pip install 'pqcscan[render]'",
+                    ) from None
+                render_pdf_executive(repo, scan_id, tmp_path)
+            elif fmt == "xlsx-bukukerja":
+                from pqcscan.renderers.xlsx_bukukerja import render_xlsx_bukukerja
+                render_xlsx_bukukerja(repo, scan_id, tmp_path)
+            elif fmt == "xlsx-generic":
+                from pqcscan.renderers.xlsx_generic import render_xlsx_generic
+                render_xlsx_generic(repo, scan_id, tmp_path)
+            data = tmp_path.read_bytes()
+        finally:
+            tmp_path.unlink(missing_ok=True)
+
+        filename = f"pqcscan-scan{scan_id}-{name}{suffix}"
+        return Response(
+            content=data,
+            media_type=content_type,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
 
     # Mount the web UI (Jinja + HTMX + SSE).
     from pqcscan.ui.routes import mount_static

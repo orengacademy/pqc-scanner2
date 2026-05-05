@@ -1,0 +1,174 @@
+/* pqcscan — design tokens + small custom rules layered on top of Tailwind. */
+
+:root {
+  --font-sans: "Fira Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Fira Code", ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace;
+
+  /* Severity tokens — explicit values matching the user spec. */
+  --sev-crit-bg:    rgb(127 29 29 / 0.25);   /* dark red base */
+  --sev-crit-fg:    rgb(252 165 165);
+  --sev-crit-ring:  rgb(153 27 27 / 0.55);
+
+  --sev-high-bg:    rgb(239 68 68 / 0.18);   /* bright red */
+  --sev-high-fg:    rgb(252 165 165);
+  --sev-high-ring:  rgb(239 68 68 / 0.45);
+
+  --sev-med-bg:     rgb(249 115 22 / 0.18);  /* orange */
+  --sev-med-fg:     rgb(253 186 116);
+  --sev-med-ring:   rgb(249 115 22 / 0.45);
+
+  --sev-low-bg:     rgb(34 197 94 / 0.15);   /* green */
+  --sev-low-fg:     rgb(134 239 172);
+  --sev-low-ring:   rgb(34 197 94 / 0.40);
+
+  --sev-info-bg:    rgb(59 130 246 / 0.15);  /* blue */
+  --sev-info-fg:    rgb(147 197 253);
+  --sev-info-ring:  rgb(59 130 246 / 0.40);
+}
+
+html { font-family: var(--font-sans); }
+.font-sans { font-family: var(--font-sans); }
+.font-mono { font-family: var(--font-mono); font-feature-settings: "tnum", "zero"; }
+
+/* Custom scrollbar — minimal, matches OLED canvas. */
+::-webkit-scrollbar           { width: 10px; height: 10px; }
+::-webkit-scrollbar-track     { background: rgb(9 9 11); }
+::-webkit-scrollbar-thumb     { background: rgb(39 39 42); border-radius: 9999px; border: 2px solid rgb(9 9 11); }
+::-webkit-scrollbar-thumb:hover { background: rgb(63 63 70); }
+
+/* Tighter focus ring that respects keyboard-only navigation. */
+:focus { outline: none; }
+:focus-visible {
+  outline: 2px solid rgb(59 130 246 / 0.6);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Severity pill — compact label used inside finding rows. */
+.sev-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+  height: 20px;
+  white-space: nowrap;
+}
+.sev-pill[data-sev="crit"] { background: var(--sev-crit-bg); color: var(--sev-crit-fg); box-shadow: inset 0 0 0 1px var(--sev-crit-ring); }
+.sev-pill[data-sev="high"] { background: var(--sev-high-bg); color: var(--sev-high-fg); box-shadow: inset 0 0 0 1px var(--sev-high-ring); }
+.sev-pill[data-sev="med"]  { background: var(--sev-med-bg);  color: var(--sev-med-fg);  box-shadow: inset 0 0 0 1px var(--sev-med-ring); }
+.sev-pill[data-sev="low"]  { background: var(--sev-low-bg);  color: var(--sev-low-fg);  box-shadow: inset 0 0 0 1px var(--sev-low-ring); }
+.sev-pill[data-sev="info"] { background: var(--sev-info-bg); color: var(--sev-info-fg); box-shadow: inset 0 0 0 1px var(--sev-info-ring); }
+
+/* Severity stat card — used on dashboard + scan-detail. Tinted left border. */
+.sev-card {
+  position: relative;
+  background: rgb(24 24 27 / 0.6);
+  border: 1px solid rgb(39 39 42);
+  border-radius: 12px;
+  padding: 18px 20px;
+  overflow: hidden;
+  transition: border-color 200ms, transform 200ms;
+}
+.sev-card::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--bar, rgb(63 63 70));
+}
+.sev-card:hover { border-color: rgb(63 63 70); }
+.sev-card[data-sev="crit"] { --bar: rgb(153 27 27); }
+.sev-card[data-sev="high"] { --bar: rgb(239 68 68); }
+.sev-card[data-sev="med"]  { --bar: rgb(249 115 22); }
+.sev-card[data-sev="low"]  { --bar: rgb(34 197 94); }
+.sev-card[data-sev="info"] { --bar: rgb(59 130 246); }
+.sev-card[data-sev="total"]{ --bar: rgb(161 161 170); }
+
+/* Severity filter chip — clickable variant of the pill on scan detail. */
+.sev-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: rgb(24 24 27 / 0.6);
+  border: 1px solid rgb(39 39 42);
+  font-size: 13px;
+  color: rgb(212 212 216);
+  cursor: pointer;
+  transition: all 150ms;
+  user-select: none;
+}
+.sev-chip:hover { border-color: rgb(63 63 70); color: rgb(244 244 245); }
+.sev-chip[aria-pressed="true"] { background: rgb(39 39 42); color: rgb(250 250 250); border-color: rgb(82 82 91); }
+.sev-chip .dot {
+  width: 8px; height: 8px; border-radius: 9999px;
+  background: var(--bar, rgb(82 82 91));
+}
+.sev-chip[data-sev="crit"] .dot { background: rgb(153 27 27); box-shadow: 0 0 8px rgb(153 27 27 / 0.6); }
+.sev-chip[data-sev="high"] .dot { background: rgb(239 68 68); box-shadow: 0 0 8px rgb(239 68 68 / 0.6); }
+.sev-chip[data-sev="med"]  .dot { background: rgb(249 115 22); box-shadow: 0 0 8px rgb(249 115 22 / 0.6); }
+.sev-chip[data-sev="low"]  .dot { background: rgb(34 197 94); box-shadow: 0 0 8px rgb(34 197 94 / 0.6); }
+.sev-chip[data-sev="info"] .dot { background: rgb(59 130 246); box-shadow: 0 0 8px rgb(59 130 246 / 0.6); }
+
+/* Status pill — for scan status (running / done / error). */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+.status-pill .pulse {
+  width: 6px; height: 6px; border-radius: 9999px;
+}
+.status-pill[data-status="running"] { background: rgb(59 130 246 / 0.12); color: rgb(147 197 253); }
+.status-pill[data-status="running"] .pulse { background: rgb(59 130 246); animation: pulse 1.6s ease-in-out infinite; box-shadow: 0 0 8px rgb(59 130 246 / 0.6); }
+.status-pill[data-status="done"]    { background: rgb(34 197 94 / 0.12);  color: rgb(134 239 172); }
+.status-pill[data-status="done"]    .pulse { background: rgb(34 197 94); }
+.status-pill[data-status="error"]   { background: rgb(239 68 68 / 0.12);  color: rgb(252 165 165); }
+.status-pill[data-status="error"]   .pulse { background: rgb(239 68 68); }
+
+@keyframes pulse {
+  0%,100% { opacity: 1; }
+  50%     { opacity: 0.35; }
+}
+
+/* Reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Card primitive used across the app. */
+.card {
+  background: rgb(24 24 27 / 0.6);
+  border: 1px solid rgb(39 39 42);
+  border-radius: 14px;
+}
+
+/* Subtle row hover for findings/tables. */
+.row-hover { transition: background-color 150ms; }
+.row-hover:hover { background: rgb(39 39 42 / 0.5); }
+
+/* Filter — when a severity chip is pressed, hide rows that don't match. */
+.findings-list[data-filter="crit"] [data-row-sev]:not([data-row-sev="crit"]),
+.findings-list[data-filter="high"] [data-row-sev]:not([data-row-sev="high"]),
+.findings-list[data-filter="med"]  [data-row-sev]:not([data-row-sev="med"]),
+.findings-list[data-filter="low"]  [data-row-sev]:not([data-row-sev="low"]),
+.findings-list[data-filter="info"] [data-row-sev]:not([data-row-sev="info"]) {
+  display: none;
+}

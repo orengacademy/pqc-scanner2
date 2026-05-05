@@ -1,31 +1,47 @@
 {% extends "base.html" %}
 {% block body %}
-<h1 style="font-size:20px;font-weight:600;margin-bottom:8px">{{ t('probes.title') }}</h1>
-<p style="color:#888;font-size:13px;margin-bottom:24px">
-  {{ total }} {{ t('probes.registered') }}
-</p>
 
+<section class="mb-6">
+  <p class="text-xs font-mono uppercase tracking-[0.2em] text-zinc-500 mb-2">registry</p>
+  <h1 class="text-3xl font-semibold tracking-tight text-zinc-50">{{ t('probes.title') }}</h1>
+  <p class="mt-2 text-sm text-zinc-400">{{ total }} {{ t('probes.registered') }}</p>
+</section>
+
+<div class="space-y-6">
 {% for family, probes in groups.items() %}
-  <h2 style="font-size:14px;font-weight:600;color:#aab;margin:20px 0 8px">
-    {{ family }} <span style="color:#666;font-weight:400">({{ probes|length }})</span>
-  </h2>
-  <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:8px">
-    <thead>
-      <tr style="text-align:left;color:#888;border-bottom:1px solid #232333">
-        <th style="padding:6px 12px">{{ t('probes.col.id') }}</th>
-        <th style="padding:6px 12px">{{ t('probes.col.tags') }}</th>
-      </tr>
-    </thead>
-    <tbody>
-    {% for p in probes %}
-      <tr style="border-bottom:1px solid #1a1a26">
-        <td style="padding:6px 12px;font-family:ui-monospace,Menlo,monospace">{{ p.id }}</td>
-        <td style="padding:6px 12px;color:#aab;font-family:ui-monospace,Menlo,monospace">
-          {{ ', '.join(p.framework_tags) }}
-        </td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
+  <section class="card overflow-hidden">
+    <header class="flex items-center justify-between px-5 py-3 border-b border-zinc-800/80 bg-zinc-900/40">
+      <h2 class="font-mono text-sm font-semibold text-zinc-100 tracking-wider lowercase">{{ family|lower }}</h2>
+      <span class="text-[11px] font-mono text-zinc-500 px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800">
+        {{ probes|length }} probes
+      </span>
+    </header>
+    <table class="w-full text-sm">
+      <thead class="text-[11px] uppercase tracking-wider text-zinc-500">
+        <tr class="border-b border-zinc-800/60">
+          <th class="text-left font-medium py-2 px-5">{{ t('probes.col.id') }}</th>
+          <th class="text-left font-medium py-2 px-5">{{ t('probes.col.tags') }}</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-zinc-800/40">
+      {% for p in probes %}
+        <tr class="row-hover">
+          <td class="py-2 px-5 font-mono text-zinc-100 text-xs">{{ p.id }}</td>
+          <td class="py-2 px-5">
+            <div class="flex flex-wrap gap-1.5">
+              {% for tag in p.framework_tags %}
+                <span class="inline-block font-mono text-[10px] text-zinc-400 px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800">
+                  {{ tag }}
+                </span>
+              {% endfor %}
+            </div>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
 {% endfor %}
+</div>
+
 {% endblock %}

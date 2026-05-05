@@ -1,19 +1,163 @@
 {% extends "base.html" %}
 {% block body %}
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
-  <h1 style="font-size:20px;font-weight:600">{{ t('dashboard.title') }}</h1>
-  <button hx-post="/api/scans" hx-swap="none"
-          style="background:#3b82f6;color:#fff;border:0;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:500">
-    {{ t('dashboard.scan_now') }}
-  </button>
+
+<section class="mb-8 flex items-end justify-between gap-6 flex-wrap">
+  <div>
+    <p class="text-xs font-mono uppercase tracking-[0.2em] text-zinc-500 mb-2">post-quantum readiness</p>
+    <h1 class="text-3xl font-semibold tracking-tight text-zinc-50">{{ t('dashboard.title') }}</h1>
+    <p class="mt-2 text-sm text-zinc-400 max-w-xl">
+      Scan this host for cryptographic primitives that won&rsquo;t survive a quantum adversary &mdash;
+      then export findings against NIST IR 8547, MyKripto, BUKUKERJA, and 7 more frameworks.
+    </p>
+  </div>
+  <div class="flex items-center gap-2">
+    <button hx-post="/api/scans" hx-swap="none"
+            class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white font-medium text-sm transition-colors shadow-[0_0_20px_-4px_rgb(59_130_246/0.6)]">
+      <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"/>
+      </svg>
+      {{ t('dashboard.scan_now') }}
+    </button>
+    {% if last_scan and last_scan.status == 'done' %}
+      <a href="/scans/{{ last_scan.id }}#export"
+         class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-800 font-medium text-sm transition-colors">
+        <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/>
+          <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/>
+        </svg>
+        Export latest
+      </a>
+    {% endif %}
+  </div>
+</section>
+
+{# Bento grid: wide last-scan card + 4 severity stat cards #}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
+  <div class="card p-5 lg:col-span-2 lg:row-span-2 flex flex-col">
+    <div class="flex items-start justify-between mb-4">
+      <div>
+        <p class="text-[11px] font-mono uppercase tracking-[0.18em] text-zinc-500 mb-1">{{ t('dashboard.last_scan') }}</p>
+        {% if last_scan %}
+          <h2 class="text-2xl font-semibold tracking-tight text-zinc-50">
+            <span class="text-zinc-500 font-mono text-xl">#</span>{{ last_scan.id }}
+          </h2>
+        {% else %}
+          <h2 class="text-2xl font-semibold tracking-tight text-zinc-500">&mdash;</h2>
+        {% endif %}
+      </div>
+      {% if last_scan %}
+        <span class="status-pill" data-status="{{ last_scan.status }}">
+          <span class="pulse"></span>{{ last_scan.status }}
+        </span>
+      {% endif %}
+    </div>
+
+    {% if last_scan %}
+      <dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm flex-1">
+        <div>
+          <dt class="text-zinc-500 text-xs">Mode</dt>
+          <dd class="text-zinc-200 font-mono mt-0.5">{{ last_scan.mode }}</dd>
+        </div>
+        <div>
+          <dt class="text-zinc-500 text-xs">Started</dt>
+          <dd class="text-zinc-200 font-mono mt-0.5 truncate">{{ last_scan.started_at }}</dd>
+        </div>
+        <div>
+          <dt class="text-zinc-500 text-xs">Finished</dt>
+          <dd class="text-zinc-200 font-mono mt-0.5 truncate">
+            {{ last_scan.finished_at if last_scan.finished_at else '—' }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-zinc-500 text-xs">Findings</dt>
+          <dd class="text-zinc-200 font-mono mt-0.5">
+            {{ last_scan_severity.total if last_scan_severity else '—' }}
+          </dd>
+        </div>
+      </dl>
+      <div class="mt-5 pt-4 border-t border-zinc-800/80 flex justify-between items-center">
+        <a href="/scans/{{ last_scan.id }}"
+           class="inline-flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300 transition-colors">
+          View scan
+          <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/>
+          </svg>
+        </a>
+        <a href="/scans" class="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">All scans &rarr;</a>
+      </div>
+    {% else %}
+      <div class="flex-1 flex flex-col items-center justify-center py-8 text-center">
+        <div class="w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-3">
+          <svg class="w-5 h-5 text-zinc-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd"/>
+          </svg>
+        </div>
+        <p class="text-sm text-zinc-400 max-w-xs">{{ t('dashboard.no_scans') }}</p>
+      </div>
+    {% endif %}
+  </div>
+
+  {% set sev = last_scan_severity or {'crit': 0, 'high': 0, 'med': 0, 'info': 0, 'total': 0} %}
+  <div class="sev-card" data-sev="crit">
+    <p class="text-[11px] font-mono uppercase tracking-[0.18em] text-zinc-500">Critical</p>
+    <p class="mt-1.5 text-3xl font-semibold tabular-nums text-red-300">{{ sev.crit }}</p>
+    <p class="mt-1 text-xs text-zinc-500">quantum-broken &middot; immediate</p>
+  </div>
+  <div class="sev-card" data-sev="high">
+    <p class="text-[11px] font-mono uppercase tracking-[0.18em] text-zinc-500">High</p>
+    <p class="mt-1.5 text-3xl font-semibold tabular-nums text-red-400">{{ sev.high }}</p>
+    <p class="mt-1 text-xs text-zinc-500">harvest-now-decrypt-later</p>
+  </div>
+  <div class="sev-card" data-sev="med">
+    <p class="text-[11px] font-mono uppercase tracking-[0.18em] text-zinc-500">Medium</p>
+    <p class="mt-1.5 text-3xl font-semibold tabular-nums text-orange-300">{{ sev.med }}</p>
+    <p class="mt-1 text-xs text-zinc-500">crypto-agility gap</p>
+  </div>
+  <div class="sev-card" data-sev="info">
+    <p class="text-[11px] font-mono uppercase tracking-[0.18em] text-zinc-500">Info</p>
+    <p class="mt-1.5 text-3xl font-semibold tabular-nums text-blue-300">{{ sev.info }}</p>
+    <p class="mt-1 text-xs text-zinc-500">inventory observation</p>
+  </div>
 </div>
-{% if last_scan %}
-  <p style="color:#888;font-size:13px">
-    {{ t('dashboard.last_scan') }} #{{ last_scan.id }} &mdash; {{ last_scan.status }}
-    ({{ last_scan.started_at }}, mode={{ last_scan.mode }}).
-    <a href="/scans/{{ last_scan.id }}" style="color:#3b82f6">view</a>
-  </p>
-{% else %}
-  <p style="color:#888;font-size:13px">{{ t('dashboard.no_scans') }}</p>
+
+{% if recent_scans %}
+<section class="mt-10">
+  <div class="flex items-end justify-between mb-3">
+    <h2 class="text-sm font-mono uppercase tracking-[0.16em] text-zinc-500">Recent scans</h2>
+    <a href="/scans" class="text-xs text-zinc-500 hover:text-zinc-300">all &rarr;</a>
+  </div>
+  <div class="card overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="text-xs uppercase tracking-wider text-zinc-500">
+        <tr class="border-b border-zinc-800/80">
+          <th class="text-left font-medium py-2.5 px-4">#</th>
+          <th class="text-left font-medium py-2.5 px-4">Status</th>
+          <th class="text-left font-medium py-2.5 px-4">Mode</th>
+          <th class="text-left font-medium py-2.5 px-4">Started</th>
+          <th class="text-right font-medium py-2.5 px-4"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-zinc-800/60">
+        {% for s in recent_scans %}
+          <tr class="row-hover">
+            <td class="py-2.5 px-4 font-mono text-zinc-400">#{{ s.id }}</td>
+            <td class="py-2.5 px-4">
+              <span class="status-pill" data-status="{{ s.status }}">
+                <span class="pulse"></span>{{ s.status }}
+              </span>
+            </td>
+            <td class="py-2.5 px-4 font-mono text-zinc-400">{{ s.mode }}</td>
+            <td class="py-2.5 px-4 font-mono text-zinc-500 text-xs">{{ s.started_at }}</td>
+            <td class="py-2.5 px-4 text-right">
+              <a href="/scans/{{ s.id }}" class="text-blue-400 hover:text-blue-300 text-xs">View &rarr;</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
 {% endif %}
+
 {% endblock %}
