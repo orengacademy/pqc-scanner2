@@ -67,12 +67,18 @@ async def test_osv_loads_snapshot_and_matches_requirement(
         _json.dumps({
             "id": "PQC-TEST-1",
             "summary": "Synthetic test advisory affecting requests",
-            "affected": [{"package": {"ecosystem": "PyPI", "name": "requests"}}],
+            "affected": [{
+                "package": {"ecosystem": "PyPI", "name": "requests"},
+                "versions": ["2.20.0", "2.20.1"],
+            }],
         }) + "\n" +
         _json.dumps({
             "id": "PQC-TEST-2",
             "summary": "Synthetic flask advisory",
-            "affected": [{"package": {"ecosystem": "PyPI", "name": "flask"}}],
+            "affected": [{
+                "package": {"ecosystem": "PyPI", "name": "flask"},
+                "versions": ["2.5.0"],   # outside the >=1.0,<2.0 range
+            }],
         }) + "\n"
     )
     app = tmp_path / "app"
@@ -99,7 +105,10 @@ async def test_osv_handles_json_array_format(tmp_path: Path, monkeypatch):
     snap = tmp_path / "snap.json"
     snap.write_text(_json.dumps([
         {"id": "ARRAY-1", "summary": "in array",
-         "affected": [{"package": {"ecosystem": "PyPI", "name": "django"}}]},
+         "affected": [{
+             "package": {"ecosystem": "PyPI", "name": "django"},
+             "versions": ["3.0.0"],
+         }]},
     ]))
     app = tmp_path / "app"
     app.mkdir()
@@ -109,6 +118,89 @@ async def test_osv_handles_json_array_format(tmp_path: Path, monkeypatch):
     found: list = []
     await p.run(ctx, emit=lambda f: found.append(f))
     assert any(f.algorithm == "ARRAY-1" for f in found)
+
+
+@pytest.mark.asyncio
+async def test_osv_range_match_with_affected_versions(
+    tmp_path: Path, monkeypatch,
+):
+    """Range constraint overlaps an explicit OSV affected version list."""
+    monkeypatch.delenv("PQCSCAN_OSV_SNAPSHOT", raising=False)
+    snap = tmp_path / "snap.jsonl"
+    snap.write_text(_json.dumps({
+        "id": "RANGE-VERSIONS-1",
+        "summary": "Affects flask 1.5.x series",
+        "affected": [{
+            "package": {"ecosystem": "PyPI", "name": "flask"},
+            "versions": ["1.5.0", "1.5.1", "1.5.2"],
+        }],
+    }) + "\n")
+    app = tmp_path / "app"
+    app.mkdir()
+    (app / "requirements.txt").write_text("flask>=1.0,<2.0\n")
+    p = CveOsvOffline(snapshot_path=snap, roots=[app])
+    ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
+    found: list = []
+    await p.run(ctx, emit=lambda f: found.append(f))
+    hits = [f for f in found if f.algorithm == "RANGE-VERSIONS-1"]
+    assert hits, "expected range overlap on flask>=1.0,<2.0 vs versions 1.5.x"
+    # Range overlap is a "potentially affected" finding — Sederhana, not
+    # the Tinggi we use for exact pins.
+    assert hits[0].classification is Classification.SEDERHANA
+    assert hits[0].evidence["match_kind"] == "range"
+    assert hits[0].evidence["sample_affected_version"] == "1.5.0"
+
+
+@pytest.mark.asyncio
+async def test_osv_range_match_with_affected_ranges(
+    tmp_path: Path, monkeypatch,
+):
+    """Range constraint overlaps an OSV introduced/fixed event range."""
+    monkeypatch.delenv("PQCSCAN_OSV_SNAPSHOT", raising=False)
+    snap = tmp_path / "snap.jsonl"
+    snap.write_text(_json.dumps({
+        "id": "RANGE-EVENTS-1",
+        "affected": [{
+            "package": {"ecosystem": "PyPI", "name": "django"},
+            "ranges": [{
+                "type": "ECOSYSTEM",
+                "events": [{"introduced": "3.0.0"}, {"fixed": "3.2.0"}],
+            }],
+        }],
+    }) + "\n")
+    app = tmp_path / "app"
+    app.mkdir()
+    (app / "requirements.txt").write_text("django>=2.2,<4.0\n")
+    p = CveOsvOffline(snapshot_path=snap, roots=[app])
+    ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
+    found: list = []
+    await p.run(ctx, emit=lambda f: found.append(f))
+    hits = [f for f in found if f.algorithm == "RANGE-EVENTS-1"]
+    assert hits, "expected overlap on django>=2.2,<4.0 vs introduced=3.0.0"
+    assert hits[0].evidence["sample_affected_version"] == "3.0.0"
+
+
+@pytest.mark.asyncio
+async def test_osv_range_no_overlap_no_match(tmp_path: Path, monkeypatch):
+    """Range constraint that excludes the affected versions must NOT match."""
+    monkeypatch.delenv("PQCSCAN_OSV_SNAPSHOT", raising=False)
+    snap = tmp_path / "snap.jsonl"
+    snap.write_text(_json.dumps({
+        "id": "NO-OVERLAP-1",
+        "affected": [{
+            "package": {"ecosystem": "PyPI", "name": "django"},
+            "versions": ["3.0.0", "3.1.0"],
+        }],
+    }) + "\n")
+    app = tmp_path / "app"
+    app.mkdir()
+    # Constraint says "django 4.x only" → no overlap with 3.x advisory.
+    (app / "requirements.txt").write_text("django>=4.0,<5.0\n")
+    p = CveOsvOffline(snapshot_path=snap, roots=[app])
+    ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
+    found: list = []
+    await p.run(ctx, emit=lambda f: found.append(f))
+    assert not any(f.algorithm == "NO-OVERLAP-1" for f in found)
 
 
 @pytest.mark.asyncio

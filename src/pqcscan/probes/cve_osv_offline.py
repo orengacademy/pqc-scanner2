@@ -24,6 +24,8 @@ import re
 from pathlib import Path
 
 import yaml
+from packaging.specifiers import InvalidSpecifier, SpecifierSet
+from packaging.version import InvalidVersion, Version
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
@@ -32,10 +34,14 @@ from pqcscan.probes._base import Emitter, Probe, ScanContext
 _DEFAULT_SNAPSHOT = Path("/var/lib/pqcscan/osv-snapshot.jsonl")
 _ENV_SNAPSHOT = "PQCSCAN_OSV_SNAPSHOT"
 
-# Capture "name==version", "name>=version", "name~=version" etc.
+# Capture the full PEP 508 constraint per requirements.txt line:
+#   name<extras>?<spec>?<;markers>?
+# Group 1 = name, group 2 = comma-separated specifier list (or empty).
 _REQ_LINE_RE = re.compile(
-    r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*(==|>=|<=|~=|!=|>|<)\s*"
-    r"([A-Za-z0-9._-]+)",
+    r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)"      # package name
+    r"(?:\[[^\]]+\])?"                         # extras (ignored)
+    r"\s*((?:(?:==|>=|<=|~=|!=|===|>|<)\s*[A-Za-z0-9._+!*-]+\s*,?\s*)*)"
+    r"(?:\s*;.*)?$",                          # markers (ignored)
     re.MULTILINE,
 )
 # Cargo.lock blocks: [[package]] / name = "..." / version = "..."
@@ -196,24 +202,40 @@ class CveOsvOffline(Probe):
         except OSError:
             return
         for m in _REQ_LINE_RE.finditer(text):
-            name, op, version = m.group(1), m.group(2), m.group(3)
-            # Conservative: only match exact-pin "==". Range comparisons
-            # would need a full PEP 440 evaluator — out of scope for v1.
-            if op != "==":
-                continue
+            name = m.group(1)
+            spec_str = (m.group(2) or "").strip().rstrip(",").strip()
+            line_no = text[: m.start()].count("\n") + 1
             key = ("pypi", name.lower())
-            for adv in index.get(key, []):
-                line_no = text[: m.start()].count("\n") + 1
+            advisories = index.get(key, [])
+            if not advisories:
+                continue
+            for adv in advisories:
+                exact_match = _spec_is_exact_pin(spec_str)
+                hit, sample = _advisory_matches_specifier(spec_str, adv)
+                if not hit:
+                    continue
+                if exact_match:
+                    cls, sev, qualifier = (
+                        Classification.TINGGI, Severity.HIGH, "==",
+                    )
+                else:
+                    # Range overlap → "potentially affected".
+                    cls, sev, qualifier = (
+                        Classification.SEDERHANA, Severity.MED, "range",
+                    )
                 emit(Finding(
                     probe_id=self.id,
                     algorithm=adv.get("id", "N/A"),
-                    classification=Classification.TINGGI,
-                    severity=Severity.HIGH,
-                    title=(f"{adv.get('id', '?')} affects {name}=={version} "
+                    classification=cls, severity=sev,
+                    title=(f"{adv.get('id', '?')} affects "
+                           f"{name}{spec_str or ''} ({qualifier} {sample}) "
                            f"in {path.name}:{line_no}"),
                     evidence={
                         "advisory_id": adv.get("id", ""),
-                        "package": name, "version": version,
+                        "package": name,
+                        "constraint": spec_str,
+                        "sample_affected_version": sample,
+                        "match_kind": qualifier,
                         "summary": (adv.get("summary") or "")[:200],
                         "path": str(path), "line": line_no,
                         "ecosystem": "PyPI",
@@ -585,6 +607,66 @@ def _walk_npm_v6(deps: dict):
         nested = info.get("dependencies")
         if isinstance(nested, dict):
             yield from _walk_npm_v6(nested)
+
+
+_EXACT_PIN_RE = re.compile(r"^==\s*[A-Za-z0-9._+!*-]+$")
+
+
+def _spec_is_exact_pin(spec_str: str) -> bool:
+    """True if the constraint is a single ``==X.Y.Z`` clause."""
+    return bool(_EXACT_PIN_RE.match(spec_str.strip()))
+
+
+def _osv_candidate_versions(advisory: dict) -> list[str]:
+    """Extract candidate vulnerable version strings from an OSV record.
+
+    Walks both ``affected[].versions`` (explicit list) and
+    ``affected[].ranges[].events[]`` (introduced/fixed boundaries).
+    Returns string forms — the caller filters via packaging.Version.
+    """
+    out: list[str] = []
+    for aff in advisory.get("affected") or []:
+        for v in aff.get("versions") or []:
+            if isinstance(v, str):
+                out.append(v)
+        for r in aff.get("ranges") or []:
+            for ev in r.get("events") or []:
+                if not isinstance(ev, dict):
+                    continue
+                introduced = ev.get("introduced")
+                if isinstance(introduced, str) and introduced not in {"", "0"}:
+                    out.append(introduced)
+                # We don't add `fixed` itself — that version is *not*
+                # vulnerable per OSV semantics.
+    return out
+
+
+def _advisory_matches_specifier(
+    spec_str: str, advisory: dict,
+) -> tuple[bool, str | None]:
+    """Return (match?, sample) where sample is a vulnerable version that
+    satisfies ``spec_str``. Empty/invalid specifier means "no version
+    constraint" → any vulnerable version satisfies → match if the
+    advisory has any candidate version at all.
+    """
+    candidates = _osv_candidate_versions(advisory)
+    try:
+        spec = SpecifierSet(spec_str) if spec_str else SpecifierSet("")
+    except InvalidSpecifier:
+        return (False, None)
+    for v in candidates:
+        try:
+            ver = Version(v)
+        except InvalidVersion:
+            continue
+        if spec.contains(str(ver), prereleases=True):
+            return (True, str(ver))
+    # No candidate-version overlap. Conservative fallback: if the spec
+    # is empty (no constraint) and there are *any* candidate versions,
+    # call it a match — an unconstrained "name" line allows everything.
+    if not spec_str and candidates:
+        return (True, candidates[0])
+    return (False, None)
 
 
 def _load_snapshot_index(path: Path) -> dict:
