@@ -204,6 +204,39 @@ async def test_osv_range_no_overlap_no_match(tmp_path: Path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_osv_dedupes_advisory_with_multiple_affected_blocks(
+    tmp_path: Path, monkeypatch,
+):
+    """Real-world regression: an OSV record can list the same package
+    under multiple affected[] entries (different version ranges). The
+    index must insert that record under (ecosystem, name) only once,
+    so the matcher emits at most one finding per (path, package, advisory)."""
+    monkeypatch.delenv("PQCSCAN_OSV_SNAPSHOT", raising=False)
+    snap = tmp_path / "snap.jsonl"
+    snap.write_text(_json.dumps({
+        "id": "DEDUPE-1",
+        "summary": "Same pkg under 2 affected[] blocks",
+        "affected": [
+            {"package": {"ecosystem": "PyPI", "name": "requests"},
+             "versions": ["2.20.0"]},
+            {"package": {"ecosystem": "PyPI", "name": "requests"},
+             "versions": ["2.20.1"]},
+        ],
+    }) + "\n")
+    app = tmp_path / "app"
+    app.mkdir()
+    (app / "requirements.txt").write_text("requests==2.20.0\n")
+    p = CveOsvOffline(snapshot_path=snap, roots=[app])
+    ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
+    found: list = []
+    await p.run(ctx, emit=lambda f: found.append(f))
+    hits = [f for f in found if f.algorithm == "DEDUPE-1"]
+    assert len(hits) == 1, (
+        f"expected exactly 1 DEDUPE-1 finding, got {len(hits)}"
+    )
+
+
+@pytest.mark.asyncio
 async def test_osv_no_match_when_package_absent(tmp_path: Path, monkeypatch):
     monkeypatch.delenv("PQCSCAN_OSV_SNAPSHOT", raising=False)
     snap = tmp_path / "snap.jsonl"

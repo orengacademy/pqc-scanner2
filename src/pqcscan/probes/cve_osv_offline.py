@@ -682,13 +682,22 @@ def _load_snapshot_index(path: Path) -> dict:
     records = _parse_records(text)
     index: dict = {}
     for rec in records:
+        # An OSV record can list the same package multiple times under
+        # different `affected[]` entries (typically different version
+        # ranges). Insert each (ecosystem, name) key only once per
+        # record so the matcher doesn't emit duplicate findings.
+        seen_keys: set = set()
         for aff in rec.get("affected") or []:
             pkg = aff.get("package") or {}
             ecosystem = (pkg.get("ecosystem") or "").lower()
             name = (pkg.get("name") or "").lower()
             if not ecosystem or not name:
                 continue
-            index.setdefault((ecosystem, name), []).append(rec)
+            key = (ecosystem, name)
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            index.setdefault(key, []).append(rec)
     return index
 
 
