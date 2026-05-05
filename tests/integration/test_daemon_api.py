@@ -7,8 +7,8 @@ from pqcscan.daemon.app import create_app
 
 
 @pytest.fixture
-def client(tmp_db_path):
-    app = create_app(db_path=tmp_db_path)
+def client(tmp_db_path, fast_registry):
+    app = create_app(db_path=tmp_db_path, registry=fast_registry)
     return TestClient(app)
 
 

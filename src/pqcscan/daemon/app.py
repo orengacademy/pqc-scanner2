@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 
 from pqcscan import __version__
 from pqcscan.daemon.sse import event_to_sse
-from pqcscan.probes._registry import default_registry
+from pqcscan.probes._registry import Registry, default_registry
 from pqcscan.runner.capabilities import current_mode, detect_capabilities
 from pqcscan.runner.event_bus import EventBus
 from pqcscan.runner.runner import ProbeRunner
@@ -16,12 +16,13 @@ from pqcscan.store.repo import Repo
 from pqcscan.store.schema import Scan
 
 
-def create_app(*, db_path: Path) -> FastAPI:
+def create_app(*, db_path: Path, registry: Registry | None = None) -> FastAPI:
     app = FastAPI(title="pqcscan", version=__version__)
     repo = Repo(db_path)
     repo.init_schema()
     bus = EventBus()
-    registry = default_registry()
+    if registry is None:
+        registry = default_registry()
     runner = ProbeRunner(registry=registry, repo=repo, bus=bus)
 
     app.state.repo = repo
