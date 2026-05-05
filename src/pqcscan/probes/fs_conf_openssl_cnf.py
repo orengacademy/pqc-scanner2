@@ -39,9 +39,11 @@ class FsConfOpensslCnf(Probe):
                 self._scan_text(text, path, emit)
 
     def _scan_text(self, text: str, path: Path, emit: Emitter) -> None:
-        if re.search(r"^\s*legacy\s*=\s*legacy_sect", text, re.MULTILINE):
-            if re.search(r"\[legacy_sect\][^\[]*activate\s*=\s*1", text, re.DOTALL):
-                emit(Finding(
+        if (
+            re.search(r"^\s*legacy\s*=\s*legacy_sect", text, re.MULTILINE)
+            and re.search(r"\[legacy_sect\][^\[]*activate\s*=\s*1", text, re.DOTALL)
+        ):
+            emit(Finding(
                     probe_id=self.id,
                     algorithm="MD5/RC4/etc-via-legacy-provider",
                     classification=Classification.SANGAT_TINGGI,

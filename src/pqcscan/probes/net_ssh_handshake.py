@@ -7,6 +7,7 @@ client->server, MAC server->client. Each is comma-separated UTF-8.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import struct
 
 from pqcscan.core.alg import classify, normalise
@@ -50,7 +51,8 @@ class NetSshHandshake(Probe):
             except (TimeoutError, asyncio.IncompleteReadError):
                 return
             # 2. Send our banner.
-            writer.write(_BANNER); await writer.drain()
+            writer.write(_BANNER)
+            await writer.drain()
             # 3. Read packets until we get SSH_MSG_KEXINIT (msg type 20).
             kexinit = await self._read_until_kexinit(reader)
             if kexinit is None:
@@ -58,10 +60,8 @@ class NetSshHandshake(Probe):
             self._emit_namelists(kexinit, emit, banner)
         finally:
             writer.close()
-            try:
+            with contextlib.suppress(Exception):
                 await writer.wait_closed()
-            except Exception:
-                pass
 
     async def _read_until_kexinit(self, reader: asyncio.StreamReader,
                                    max_packets: int = 5) -> bytes | None:

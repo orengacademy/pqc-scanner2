@@ -46,7 +46,7 @@ class CodeTsJavascript(Probe):
             self._scan(text, path, emit)
 
     def _scan(self, text: str, path: Path, emit: Emitter) -> None:
-        lines = text.splitlines()
+        text.splitlines()
         for m in _WEAK_HASH_RE.finditer(text):
             line_no = text[: m.start()].count("\n") + 1
             alg = m.group(1).upper()

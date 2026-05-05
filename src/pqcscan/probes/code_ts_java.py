@@ -61,7 +61,7 @@ class CodeTsJava(Probe):
             spec = m.group(1)
             up = spec.upper()
             line_no = text[: m.start()].count("\n") + 1
-            if ("DES" in up and "DESEDE" not in up and "AES" not in up) or "DESEDE" in up or "3DES" in up or "RC4" in up or "RC2" in up:
+            if ("DES" in up and "DESEDE" not in up and "AES" not in up) or "DESEDE" in up or "3DES" in up or "RC4" in up or "RC2" in up:  # noqa: E501
                 cls, sev = Classification.SANGAT_TINGGI, Severity.CRIT
             elif "/CBC/" in up:
                 cls, sev = Classification.TINGGI, Severity.HIGH

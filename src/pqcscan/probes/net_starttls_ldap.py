@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import ssl
 
 from cryptography import x509
@@ -55,7 +56,8 @@ class NetStarttlsLdap(Probe):
             ))
             return
         try:
-            writer.write(_STARTTLS_REQ); await writer.drain()
+            writer.write(_STARTTLS_REQ)
+            await writer.drain()
             try:
                 resp = await asyncio.wait_for(reader.read(256), timeout=self.timeout_s)
             except TimeoutError:
@@ -97,10 +99,8 @@ class NetStarttlsLdap(Probe):
             ssl_transport.close()
         finally:
             writer.close()
-            try:
+            with contextlib.suppress(Exception):
                 await writer.wait_closed()
-            except Exception:
-                pass
         if cipher:
             cname, tlsver, _ = cipher
             cls = classify(cname)

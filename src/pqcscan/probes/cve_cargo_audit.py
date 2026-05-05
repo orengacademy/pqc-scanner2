@@ -67,7 +67,7 @@ class CveCargoAudit(Probe):
                         algorithm="N/A",
                         classification=Classification.TINGGI,
                         severity=Severity.HIGH,
-                        title=f"{advisory.get('id', '?')} in Rust crate {pkg.get('name', '?')} {pkg.get('version', '?')}",
+                        title=f"{advisory.get('id', '?')} in Rust crate {pkg.get('name', '?')} {pkg.get('version', '?')}",  # noqa: E501
                         evidence={"advisory_id": advisory.get("id", ""),
                                   "package": pkg.get("name", ""),
                                   "version": pkg.get("version", ""),

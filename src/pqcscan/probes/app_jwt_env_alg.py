@@ -59,11 +59,7 @@ def _is_target(path: Path) -> bool:
         return True
     if name.endswith(".service"):  # systemd unit files
         return True
-    if (name.startswith("application-")
-            and (name.endswith(".properties") or name.endswith(".yml")
-                 or name.endswith(".yaml"))):
-        return True
-    return False
+    return bool(name.startswith("application-") and (name.endswith(".properties") or name.endswith(".yml") or name.endswith(".yaml")))  # noqa: E501
 
 
 _ALG_CLASS = {

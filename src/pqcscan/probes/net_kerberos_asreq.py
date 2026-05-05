@@ -8,6 +8,7 @@ analysis lands when we add an ASN.1 DER encoder.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
@@ -40,16 +41,15 @@ class NetKerberosAsreq(Probe):
             return
         # Write a single zero byte to elicit a malformed-request response,
         # confirming KDC is alive without sending a full AS-REQ.
-        writer.write(b"\x00\x00\x00\x00"); await writer.drain()
+        writer.write(b"\x00\x00\x00\x00")
+        await writer.drain()
         try:
             resp = await asyncio.wait_for(reader.read(64), timeout=self.timeout_s)
         except TimeoutError:
             resp = b""
         writer.close()
-        try:
+        with contextlib.suppress(Exception):
             await writer.wait_closed()
-        except Exception:
-            pass
         emit(Finding(
             probe_id=self.id,
             algorithm="Kerberos",

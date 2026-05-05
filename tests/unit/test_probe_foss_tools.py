@@ -1,4 +1,5 @@
 """Tests for FOSS-tool integration probes — Syft, Grype, OSV stub, Semgrep."""
+import json as _json
 import shutil
 from pathlib import Path
 
@@ -52,9 +53,6 @@ async def test_osv_emits_deferral_notice(tmp_path: Path, monkeypatch):
     await p.run(ctx, emit=lambda f: found.append(f))
     assert len(found) == 1
     assert "not yet implemented" in found[0].title.lower()
-
-
-import json as _json
 
 
 @pytest.mark.asyncio
@@ -669,7 +667,7 @@ async def test_semgrep_runs_against_sample_when_binary_present(tmp_path: Path):
     p = CodeSemgrepPqc(roots=[tmp_path])
     ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
     await p.run(ctx, emit=lambda f: found.append(f))
-    titles = [f.title for f in found]
+    [f.title for f in found]
     # Either Semgrep reports the rule-id-based finding, or the host has a
     # version mismatch and the JSON parse silently yields nothing — tolerate
     # both, but require non-zero on environments where Semgrep does run.

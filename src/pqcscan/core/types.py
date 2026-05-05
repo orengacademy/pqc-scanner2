@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class Capability(str, Enum):
+class Capability(StrEnum):
     ROOT = "root"
     NET_RAW = "net_raw"
     DAC_READ_SEARCH = "dac_read_search"
@@ -14,7 +14,7 @@ class Capability(str, Enum):
     CONTAINER_RT = "container_rt"
 
 
-class ProbeFamily(str, Enum):
+class ProbeFamily(StrEnum):
     HOST = "host"
     SBOM = "sbom"
     NETWORK = "network"
@@ -31,7 +31,7 @@ class ProbeFamily(str, Enum):
     SECRETS = "secrets"
 
 
-class Classification(str, Enum):
+class Classification(StrEnum):
     SANGAT_TINGGI = "sangat-tinggi"
     TINGGI = "tinggi"
     SEDERHANA = "sederhana"
@@ -41,7 +41,7 @@ class Classification(str, Enum):
     ERROR = "error"
 
 
-class Severity(str, Enum):
+class Severity(StrEnum):
     CRIT = "crit"
     HIGH = "high"
     MED = "med"

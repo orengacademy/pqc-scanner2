@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import struct
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
@@ -69,17 +70,16 @@ class NetSmbDialect(Probe):
             ))
             return
         try:
-            writer.write(_smb2_negotiate()); await writer.drain()
+            writer.write(_smb2_negotiate())
+            await writer.drain()
             try:
                 resp = await asyncio.wait_for(reader.read(1024), timeout=self.timeout_s)
             except TimeoutError:
                 return
         finally:
             writer.close()
-            try:
+            with contextlib.suppress(Exception):
                 await writer.wait_closed()
-            except Exception:
-                pass
         if len(resp) < 80 or resp[4:8] != b"\xfeSMB":
             # Not an SMB2 response — could be SMB1 server.
             if resp[4:8] == b"\xffSMB":

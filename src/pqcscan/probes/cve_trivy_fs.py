@@ -57,7 +57,7 @@ class CveTrivyFs(Probe):
                     probe_id=self.id,
                     algorithm="N/A",
                     classification=cls, severity=sev,
-                    title=f"{v.get('VulnerabilityID', '?')} affects {v.get('PkgName', '?')} {v.get('InstalledVersion', '')}",
+                    title=f"{v.get('VulnerabilityID', '?')} affects {v.get('PkgName', '?')} {v.get('InstalledVersion', '')}",  # noqa: E501
                     evidence={"target": target,
                               "cve": v.get("VulnerabilityID", ""),
                               "pkg": v.get("PkgName", ""),

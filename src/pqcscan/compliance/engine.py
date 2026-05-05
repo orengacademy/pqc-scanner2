@@ -63,10 +63,7 @@ class _Rule:
     note: str
 
     def applies(self, f: Finding) -> bool:
-        for key, expected in self.match.items():
-            if not _matches(key, expected, f):
-                return False
-        return True
+        return all(_matches(key, expected, f) for key, expected in self.match.items())
 
 
 @dataclass(frozen=True, slots=True)

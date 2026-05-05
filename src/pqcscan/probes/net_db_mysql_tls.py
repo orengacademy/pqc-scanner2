@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import struct
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
@@ -49,10 +50,8 @@ class NetDbMysqlTls(Probe):
                 return
         finally:
             writer.close()
-            try:
+            with contextlib.suppress(Exception):
                 await writer.wait_closed()
-            except Exception:
-                pass
         if len(payload) < 36 or payload[0] not in (10, 9):
             return
         # protocol_version=1 byte, server_version null-terminated, conn_id 4,

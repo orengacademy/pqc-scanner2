@@ -89,7 +89,7 @@ LOCALES: dict[str, dict[str, str]] = {
         "lang.en": "EN",
         "lang.ms": "MS",
         "settings.title": "Tetapan",
-        "settings.help": "Maklumat sistem (baca sahaja). Edit konfigurasi pqcscan.daemon atau pemboleh ubah persekitaran untuk menukar nilai.",
+        "settings.help": "Maklumat sistem (baca sahaja). Edit konfigurasi pqcscan.daemon atau pemboleh ubah persekitaran untuk menukar nilai.",  # noqa: E501
         "settings.field.version": "Versi",
         "settings.field.python": "Python",
         "settings.field.platform": "Platform",

@@ -1,6 +1,7 @@
 """sbom.os.windows — installed-products list via Windows registry."""
 from __future__ import annotations
 
+import contextlib
 import sys
 
 from pqcscan.core.types import ProbeFamily
@@ -48,14 +49,10 @@ class SbomOsWindows(Probe):
                             continue
                         name = ""
                         version = ""
-                        try:
+                        with contextlib.suppress(OSError):
                             name = winreg.QueryValueEx(sub, "DisplayName")[0]
-                        except OSError:
-                            pass
-                        try:
+                        with contextlib.suppress(OSError):
                             version = winreg.QueryValueEx(sub, "DisplayVersion")[0]
-                        except OSError:
-                            pass
                         winreg.CloseKey(sub)
                         if name:
                             emit_package(self.id, emit,

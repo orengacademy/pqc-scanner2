@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import ssl
 from collections.abc import Callable
 
@@ -54,10 +55,8 @@ async def run_tls_probe(
         cipher = writer.get_extra_info("cipher")  # (name, version, bits)
     finally:
         writer.close()
-        try:
+        with contextlib.suppress(Exception):
             await writer.wait_closed()
-        except Exception:
-            pass
 
     if cipher:
         cname, tlsver, _ = cipher

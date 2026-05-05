@@ -8,6 +8,7 @@ context for the dashboard and future probe-routing logic.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from collections.abc import Iterable
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
@@ -87,10 +88,8 @@ class NetPortsTcp(Probe):
                         timeout=self.connect_timeout_s,
                     )
                     w.close()
-                    try:
+                    with contextlib.suppress(Exception):
                         await w.wait_closed()
-                    except Exception:
-                        pass
                     return port, True
                 except (TimeoutError, OSError):
                     return port, False

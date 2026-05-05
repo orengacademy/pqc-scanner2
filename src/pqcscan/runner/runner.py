@@ -36,6 +36,8 @@ class ProbeRunner:
         self.timeout = per_probe_timeout_s
         # Default: load every YAML in pqcscan/compliance/frameworks/.
         self.compliance = compliance if compliance is not None else ComplianceEngine()
+        # Strong refs to fire-and-forget event-bus publish tasks (RUF006).
+        self._bg_tasks: set[asyncio.Task[None]] = set()
 
     async def run(
         self, *, mode: str, available_capabilities: set[Capability]
@@ -89,10 +91,12 @@ class ProbeRunner:
                     verdict=verdict.verdict,
                     deadline=verdict.deadline,
                 )
-            asyncio.create_task(self.bus.publish(FindingDiscovered(
+            task = asyncio.create_task(self.bus.publish(FindingDiscovered(
                 probe_id=f.probe_id, title=f.title, algorithm=f.algorithm,
                 classification=f.classification.value, severity=f.severity.value,
             )))
+            self._bg_tasks.add(task)
+            task.add_done_callback(self._bg_tasks.discard)
 
         try:
             await asyncio.wait_for(probe.run(ctx, emit), timeout=self.timeout)

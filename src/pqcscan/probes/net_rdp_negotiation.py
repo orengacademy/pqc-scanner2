@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import struct
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
@@ -43,17 +44,16 @@ class NetRdpNegotiation(Probe):
             ))
             return
         try:
-            writer.write(_CR); await writer.drain()
+            writer.write(_CR)
+            await writer.drain()
             try:
                 resp = await asyncio.wait_for(reader.read(64), timeout=self.timeout_s)
             except TimeoutError:
                 return
         finally:
             writer.close()
-            try:
+            with contextlib.suppress(Exception):
                 await writer.wait_closed()
-            except Exception:
-                pass
         if len(resp) < 19:
             return
         # Negotiation Response starts at offset 11 of the X.224 CC.
