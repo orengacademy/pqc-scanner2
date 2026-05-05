@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| **Date** | 2026-05-04 |
-| **Branch / commit** | `main @ 6c18d01` (Plan G batch 3) |
+| **Date** | 2026-05-05 |
+| **Branch / commit** | `main @ cd51b70` (Plan F + B17 expansion) |
 | **Version** | `0.1.0` |
 | **Probes** | 109 / 102 registered (target hit + spec §13.1 deferral fully closed) |
-| **Tests** | ~290+ passed across unit + integration suites (Python 3.11) |
-| **Status** | Plans A+B+C+D+E+G all shipped; only Plan F (PyInstaller packaging) and B17 (OSV snapshot) remain |
+| **Tests** | ~340+ passed across unit + integration suites (Python 3.11) |
+| **Status** | All design-doc plans shipped (A+B+C+D+E+G + Plan F batches 1–3); B17 OSV matcher real across 10 ecosystems / 12 lockfile formats; only Plan F batch 4 (Grype-DB snapshot bundling) + 11 mechanical FOSS-tool probe migrations remain |
 
 ## 1. TL;DR
 
@@ -20,8 +20,10 @@ The full design-doc target is shipped:
 - **Plan D** — Renderers: PDF technical, PDF executive, XLSX BUKUKERJA, XLSX generic.
 - **Plan E (batches 1–4)** — Frameworks page, Probes page, Baselines + scan-vs-baseline diff, EN/MS i18n toggle, Settings page, Mark-as-baseline UX.
 - **Plan G (batches 1–3)** — DB-TDE (4 probes), MQ brokers (4 probes), hardware crypto (3 probes) — all from spec §13.1 deferral.
+- **Plan F (batches 1–3)** — `build/pyinstaller.spec` for self-contained binary builds, `scripts/build-binary.sh`, GitHub Actions release matrix (Linux/macOS/Windows on tag push, auto-attached release assets), `pqcscan.util.offline_pack.resolve_tool()` runtime tool resolver (env override → MEIPASS bundle → PATH), `scripts/fetch-offline-tools.sh` to stage Syft+Grype, 3 reference probe migrations (`sbom_syft`, `cve_grype`, `cve_trivy_fs`).
+- **B17 — Real OSV.dev offline matcher** across **10 ecosystems / 12 lockfile formats**: PyPI (`requirements.txt`, `Pipfile.lock`, `poetry.lock`), npm (`package-lock.json` v6 + v7+), crates.io (`Cargo.lock`), Go (`go.sum`), Packagist (`composer.lock`), RubyGems (`Gemfile.lock`), NuGet (`packages.lock.json`), Hex (`mix.lock`), Pub (`pubspec.lock`), Maven (`gradle.lockfile`). Resolution path: `snapshot_path` constructor arg → `$PQCSCAN_OSV_SNAPSHOT` env → `/var/lib/pqcscan/osv-snapshot.jsonl`.
 
-109 probes registered; SQLite store; web UI at all 9 spec'd pages with EN/MS toggle; PDF/XLSX/CBOM exports; 10 compliance frameworks all evaluated against findings.
+109 probes registered; SQLite store; web UI at all 9 spec'd pages with EN/MS toggle; PDF/XLSX/CBOM exports; 10 compliance frameworks all evaluated against findings; cross-OS PyInstaller binary build pipeline; offline-pack framework with broad-ecosystem CVE matching.
 
 ## 2. What's shipped
 
@@ -70,10 +72,11 @@ EN/MS i18n toggle in nav writes a 1-year cookie; `_render()` injects `t()` calla
 
 | Item | Status | Rationale |
 |---|---|---|
-| **Plan F — PyInstaller packaging + offline pack** | Not started | Significant CI work; ships when distribution is needed. |
-| **B17 — `cve.osv_offline` real DB snapshot** | Stub | Needs either OSV.dev mirror bundling (multi-GB; gated on Plan F) or runner-level SBOM-output sharing (architectural). Existing CVE coverage via `cve.grype` / `cve.pip_audit` / `cve.npm_audit` / `cve.govulncheck` / `cve.cargo_audit` / `cve.trivy_fs` is comprehensive. |
+| **Plan F batch 4 — Grype-DB snapshot bundling** | Not started | Multi-GB Grype-DB snapshot is a release-pipeline / artifact-storage decision rather than code. Without it, bundled `grype` falls back to its online DB sync on first run. |
+| **11 mechanical FOSS-tool probe migrations** | Pending | `host_lynis`, `secrets_gitleaks`, `code_semgrep_pqc`, `net_tls_testssl`, `net_tls_sslyze`, `cve_pip_audit`, `cve_npm_audit`, `cve_govulncheck`, `cve_cargo_audit`, `code_bandit`, `net_tls_nmap_ssl` still call bare `shutil.which`. They work fine — they just don't honour `$PQCSCAN_OFFLINE_PACK` or PyInstaller's bundled `tools/` for *their* tools. ~3-line change per file via `resolve_or_none()`. |
+| **Range-aware PyPI matching** in `cve.osv_offline` | Conservative | Only `==` exact pins in `requirements.txt` are matched; `>=`/`~=`/range constraints would need a PEP 440 evaluator (e.g. the `packaging` lib). Lockfile-driven Python projects (Pipfile.lock, poetry.lock) get full pinned coverage already. |
 
-That's it. **Spec §13.1 deferral is fully closed.**
+**Spec §13.1 deferral is fully closed.** Plan F (batches 1–3) and B17 (across 10 ecosystems) are shipped.
 
 ## 4. How to resume
 
@@ -100,12 +103,14 @@ xdg-open http://127.0.0.1:8765
 
 ## 5. Recommended next steps
 
-1. **Plan F** — only remaining roadmap item. Cross-OS PyInstaller binaries + offline pack (bundles Syft + Grype + Semgrep + OSV snapshot).
-2. **B17 follow-up** — once Plan F lands, drop the OSV snapshot in place and replace `cve.osv_offline.py` body with a real matcher.
-3. **Probe deepening** — current probes are solid but mostly file-scan / regex. Consider:
+1. **Cut a release tag** (e.g. `git tag v0.1.0 && git push origin v0.1.0`) — the `release.yml` workflow will produce binaries for Linux x86_64, macOS arm64, and Windows x86_64 and attach them to a GitHub Release with auto-generated notes.
+2. **FOSS-tool probe migrations** — propagate `resolve_or_none()` to the 11 remaining FOSS-tool probes listed in §3. Pure mechanical (~3 lines per probe) but unblocks `$PQCSCAN_OFFLINE_PACK` for all of them.
+3. **Plan F batch 4 — Grype-DB snapshot bundling.** Decide where to host the snapshot (release artifact vs. a separate CDN) and extend `scripts/fetch-offline-tools.sh` to download it. Then `grype` works fully offline.
+4. **Range-aware PyPI matching** in `cve.osv_offline` — pull in the `packaging` lib and treat each `requirements.txt` line's `SpecifierSet` as a constraint to overlap-check against OSV's `affected[].ranges`. Adds ~50 LOC, real-world coverage jumps significantly.
+5. **Probe deepening** — current probes are solid but file-scan / regex-heavy. Consider:
    - Expanding `code.ts.*` from regex to real tree-sitter parsing.
-   - Adding ASN.1 deep parsing for the Kerberos AS-REQ probe.
-   - Bundling Grype-DB snapshot for `cve.grype`'s offline mode.
+   - Deep ASN.1 parsing for the Kerberos AS-REQ probe.
+   - More OSV ecosystems (Hackage, OPAM, Conan, CRAN, Swift Packages).
 
 ## 6. Pointers
 

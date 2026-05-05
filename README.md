@@ -2,7 +2,7 @@
 
 Post-Quantum Cryptography (PQC) readiness scanner. Single Python process. Bundled web UI + headless CLI. Runs locally on Linux, Windows, macOS.
 
-> **Status: 109 / 102 probes shipped — see [docs/STATUS.md](docs/STATUS.md).** Plans A+B+C+D+E+G are all done: asyncio runner, FastAPI daemon + SSE, click CLI, 9-page Jinja+HTMX web UI with EN/MS toggle, SQLite store with baselines + scan diff, CycloneDX 1.6 CBOM, PDF (technical + executive) + XLSX (BUKUKERJA template + generic) renderers, and a 10-framework YAML-driven compliance engine. Only Plan F (PyInstaller packaging) and a real `cve.osv_offline` snapshot remain.
+> **Status: 109 / 102 probes shipped — see [docs/STATUS.md](docs/STATUS.md).** Plans A+B+C+D+E+G are all done: asyncio runner, FastAPI daemon + SSE, click CLI, 9-page Jinja+HTMX web UI with EN/MS toggle, SQLite store with baselines + scan diff, CycloneDX 1.6 CBOM, PDF + XLSX renderers, 10-framework YAML compliance engine. Plan F batches 1–3 also done: PyInstaller spec, GitHub Actions cross-OS release matrix, offline-pack runtime resolver. The `cve.osv_offline` matcher works across **10 ecosystems / 12 lockfile formats** (PyPI, npm, crates.io, Go, Packagist, RubyGems, NuGet, Hex, Pub, Maven). Only Plan F batch 4 (Grype-DB snapshot bundling) and 11 mechanical FOSS-tool probe migrations remain.
 > See `docs/superpowers/specs/2026-04-29-pqcscan-v2-design.md` for the full design.
 
 ## Install (development)
