@@ -75,6 +75,20 @@ ignore = [
 "tests/**/*.py" = ["E501", "E702"]
 
 [tool.mypy]
+# MVP profile: catch real type bugs (unused ignores, implicit Any return,
+# implicit Optional, stale casts) without forcing pervasive annotation of
+# every helper. Tighten toward `strict = true` as the codebase matures.
 python_version = "3.11"
-strict = true
 files = ["src/pqcscan"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_return_any = true
+no_implicit_optional = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+# Optional/native deps that ship without type info: PyYAML and openpyxl
+# have separate `types-*` packages we don't pull in for v0.1; weasyprint
+# has no stubs at all (Cairo bindings).
+module = ["yaml", "openpyxl", "openpyxl.styles", "weasyprint"]
+ignore_missing_imports = true

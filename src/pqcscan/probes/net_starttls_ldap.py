@@ -93,6 +93,9 @@ class NetStarttlsLdap(Probe):
                     title=f"LDAP STARTTLS handshake failed at {self.host}:{self.port}: {e}",
                 ))
                 return
+            # asyncio.start_tls returns Transport | None; None implies a
+            # connection-level failure that would have raised above.
+            assert ssl_transport is not None
             ssl_obj = ssl_transport.get_extra_info("ssl_object")
             cert_bin = ssl_obj.getpeercert(binary_form=True) if ssl_obj else None
             cipher = ssl_transport.get_extra_info("cipher")

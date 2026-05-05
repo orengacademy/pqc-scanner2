@@ -26,7 +26,7 @@ class SbomOsWindows(Probe):
         if sys.platform != "win32":
             return
         try:
-            import winreg  # type: ignore[import-not-found]
+            import winreg
         except ImportError:
             return
         for hive_root in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
