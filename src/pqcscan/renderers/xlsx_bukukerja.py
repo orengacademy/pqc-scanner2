@@ -68,6 +68,161 @@ def _likelihood_for(probe_id: str) -> int:
     return 3
 
 
+# ───── Bahasa Malaysia helpers for BUKUKERJA Jadual 3 & 4 ─────
+
+# Probe family → Jenis Aset (BM) per BUKUKERJA Jadual 3 column 3.
+_JENIS_ASET_BY_FAMILY: dict[str, str] = {
+    "net.": "Perkhidmatan Rangkaian",
+    "host.": "Sistem Pengendalian / Konfigurasi Hos",
+    "vpn.": "Perisian VPN",
+    "storage.": "Storan",
+    "fs.": "Sistem Fail / Sijil",
+    "code.": "Kod Sumber",
+    "sbom.": "Pakej Perisian",
+    "container.": "Kontena / Imej Kontena",
+    "app.": "Aplikasi",
+    "sign.": "Sijil / Tandatangan Digital",
+    "dns_email.": "DNS / E-mel",
+    "secrets.": "Rahsia",
+    "aux.": "Tambahan",
+    "pqc_meta.": "Metadata PQC",
+    "trust.": "Stor Sijil Akar Sistem",
+}
+
+
+def _jenis_aset(probe_id: str) -> str:
+    """Return BUKUKERJA Jenis Aset label (BM) for a probe family."""
+    pid = (probe_id or "").lower()
+    for prefix, label in _JENIS_ASET_BY_FAMILY.items():
+        if pid.startswith(prefix):
+            return label
+    return "Aset Lain"
+
+
+def _kegunaan_kripto(probe_id: str, algorithm: str) -> str:
+    """Map (probe, algorithm) to a Bahasa Malaysia crypto-function label
+    for Jadual 3 column 5 (Kegunaan Algoritma Kriptografi)."""
+    pid = (probe_id or "").lower()
+    algo = (algorithm or "").upper()
+
+    if "tls" in pid or "starttls" in pid or "https" in pid:
+        return "Pertukaran Kunci & Pengesahan TLS"
+    if pid.startswith("net.ssh") or ".ssh." in pid:
+        return "Pertukaran Kunci & Pengesahan SSH"
+    if pid.startswith("vpn.") or "wireguard" in pid or "openvpn" in pid:
+        return "Pertukaran Kunci VPN"
+    if "cert" in pid or "x509" in pid or "trust" in pid:
+        return "Sijil & Tandatangan Digital"
+    if pid.startswith("sign."):
+        return "Tandatangan Kod / Imej"
+    if pid.startswith(("storage.", "fs.fscrypt")):
+        return "Penyulitan At-Rest"
+    if pid.startswith("dns_email."):
+        return "DNSSEC / DKIM"
+    if pid.startswith(("code.", "sbom.")):
+        return "Pelbagai (libraries)"
+    if "kerberos" in pid:
+        return "Pengesahan Kerberos"
+    if "ldap" in pid:
+        return "Pengesahan LDAP"
+    if any(x in algo for x in ("RSA", "DSA", "ECDSA", "ED25519", "ED448")):
+        return "Tandatangan Digital"
+    if any(x in algo for x in ("DH", "ECDH", "X25519", "X448", "ML-KEM", "KYBER")):
+        return "Pertukaran Kunci"
+    if any(x in algo for x in ("AES", "CHACHA", "3DES", "DES", "RC4")):
+        return "Penyulitan Simetri"
+    if any(x in algo for x in ("SHA", "MD5", "BLAKE", "SHA3")):
+        return "Hash / MAC"
+    return "Pelbagai"
+
+
+# Algorithm fragment → PQC migration recommendation (Pelan Mitigasi).
+_PELAN_MITIGASI_RULES: list[tuple[tuple[str, ...], str]] = [
+    (("ML-KEM", "MLKEM", "KYBER"),
+     "Sudah selari PQC (ML-KEM, FIPS 203). Pemantauan berterusan."),
+    (("ML-DSA", "MLDSA", "DILITHIUM"),
+     "Sudah selari PQC (ML-DSA, FIPS 204). Pemantauan berterusan."),
+    (("SLH-DSA", "SPHINCS"),
+     "Sudah selari PQC (SLH-DSA, FIPS 205). Pemantauan berterusan."),
+    (("RSA",),
+     "Migrasi kepada ML-KEM-768 (KEM, FIPS 203) atau ML-DSA-65 "
+     "(signature, FIPS 204). Pertimbangkan hybrid X25519MLKEM768 "
+     "untuk fasa peralihan."),
+    (("ECDSA", "ED25519", "ED448"),
+     "Migrasi kepada ML-DSA-65 (FIPS 204) atau SLH-DSA-128s "
+     "(FIPS 205). Pertimbangkan hybrid signature untuk peralihan."),
+    (("ECDH", "X25519", "X448"),
+     "Migrasi kepada ML-KEM-768 (FIPS 203) atau hybrid "
+     "X25519MLKEM768 / P256MLKEM768."),
+    (("DH-",),
+     "Migrasi kepada ML-KEM-768 (FIPS 203). DH klasik dimansuhkan."),
+    (("AES-128", "AES128"),
+     "Naik taraf ke AES-256-GCM untuk hadapi serangan Grover "
+     "(saiz kunci dua kali ganda)."),
+    (("3DES", "DES-", "RC4", "BLOWFISH"),
+     "Wajib gantikan dengan AES-256-GCM. Algoritma sudah dimansuhkan."),
+    (("SHA-1", "SHA1"),
+     "Migrasi ke SHA-256 atau SHA-3 (FIPS 180-4 / FIPS 202). "
+     "SHA-1 sudah dimansuhkan."),
+    (("MD5",),
+     "Migrasi ke SHA-256 atau SHA-3. MD5 dilarang sepenuhnya."),
+]
+
+
+def _pelan_mitigasi(algorithm: str) -> str:
+    """Return BUKUKERJA Pelan Mitigasi suggestion for Jadual 4 column 11."""
+    algo = (algorithm or "").upper()
+    if not algo or algo == "N/A":
+        return "Daftar aset dalam Borang Pelaksanaan Migrasi PQC (Lampiran A, Jadual 0)."
+    for fragments, plan in _PELAN_MITIGASI_RULES:
+        if any(f in algo for f in fragments):
+            return plan
+    return "Rujuk Jadual 6 (Protocol Crypto Map) untuk algoritma pengganti PQC yang dicadangkan."
+
+
+def _punca_risiko(probe_id: str, algorithm: str) -> str:
+    """Map a finding to its Bahasa Malaysia root-cause label (Jadual 4 col 5)."""
+    algo = (algorithm or "").upper()
+    pid = (probe_id or "").lower()
+
+    if any(x in algo for x in ("ML-KEM", "ML-DSA", "SLH-DSA", "MLKEM", "MLDSA")):
+        return "Tiada — algoritma sudah selari PQC."
+    if any(x in algo for x in ("RSA", "DSA", "ECDSA", "ECDH", "DH-", "X25519", "X448", "ED25519", "ED448")):
+        return "Algoritma asimetri klasik — terdedah kepada serangan Shor pada CRQC."
+    if any(x in algo for x in ("AES-128", "AES128", "3DES", "DES-", "RC4", "BLOWFISH")):
+        return "Algoritma simetri lemah — dimansuhkan atau dilemahkan oleh Grover."
+    if any(x in algo for x in ("SHA-1", "SHA1", "MD5", "MD4")):
+        return "Algoritma cincang dimansuhkan — risiko pelanggaran/pra-imej."
+    if pid.startswith("sbom."):
+        return "Algoritma dikunci dalam pakej perisian — keperluan kemaskini vendor."
+    if pid.startswith("code."):
+        return "Algoritma terkunci dalam kod sumber — keperluan refactoring."
+    if "cert" in pid or "x509" in pid or "trust" in pid:
+        return "Sijil X.509 menggunakan kunci klasik — keperluan rotasi sijil PQC."
+    return "Sistem/aplikasi sedia ada tidak menyokong algoritma PQC."
+
+
+def _kawalan_sedia_ada(finding) -> str:
+    """Detect compensating controls from a finding's evidence
+    (Jadual 4 col 10 — Kawalan Sedia Ada)."""
+    ev = finding.evidence or {}
+    controls: list[str] = []
+    # Probe might tag hybrid PQC kex if detected.
+    if any(
+        "MLKEM" in str(v).upper() or "KYBER" in str(v).upper() or "PQC" in str(v).upper()
+        for v in ev.values()
+    ):
+        controls.append("Hybrid PQC kex dikesan")
+    # FIPS validation tag.
+    if any("FIPS" in str(v).upper() for v in ev.values()):
+        controls.append("Modul FIPS 140")
+    # Air-gapped / isolated network signal (heuristic).
+    if ev.get("network") == "isolated" or ev.get("airgap"):
+        controls.append("Rangkaian terasing")
+    # Default: blank for the user to fill in.
+    return "; ".join(controls)
+
+
 def _risk_level_label(score: int) -> str:
     """BUKUKERJA Risk Matrix interpretation (per Table 5)."""
     if score >= 20:
@@ -252,11 +407,11 @@ def render_xlsx_bukukerja(repo: Repo, scan_id: int, output_path: Path) -> Path:
         risk_ws.append([
             idx,                                                        # #
             str(_asset_name_for(f))[:120],                              # Nama Sistem
-            _asset_type_for(f.probe_id),                                # Jenis Aset
+            _jenis_aset(f.probe_id),                                    # Jenis Aset (BM)
             f.algorithm,                                                # Algoritma Kriptografi
-            f.probe_id.split(".", 2)[-1].replace("_", " ").title(),     # Kegunaan
+            _kegunaan_kripto(f.probe_id, f.algorithm),                  # Kegunaan (BM)
             str(f.classification),                                      # Tahap Kritikal
-            f.title[:200],                                              # Risiko
+            f.title[:200],                                              # Risiko (probe-emitted detail)
             "",                                                         # Pemilik Risiko (manual)
         ])
         _wrap(risk_ws[risk_ws.max_row])
@@ -273,13 +428,13 @@ def render_xlsx_bukukerja(repo: Repo, scan_id: int, output_path: Path) -> Path:
             str(_asset_name_for(f))[:120],                              # Nama Sistem
             f.algorithm,                                                # Algoritma Kriptografi
             f.title[:200],                                              # Risiko
-            "Sistem/aplikasi sedia ada tidak menyokong algoritma PQC",  # Punca Risiko
+            _punca_risiko(f.probe_id, f.algorithm),                     # Punca Risiko (BM, dynamic)
             impact,                                                     # Impak (1-5)
             likelihood,                                                 # Kemungkinan (1-5)
             score,                                                      # Skor Risiko
             _risk_level_label(score),                                   # Risk Level
-            "",                                                         # Kawalan Sedia Ada (manual)
-            "",                                                         # Mitigation Plan (manual)
+            _kawalan_sedia_ada(f),                                      # Kawalan Sedia Ada (auto-detected)
+            _pelan_mitigasi(f.algorithm),                               # Mitigation Plan (algorithm-aware)
         ])
         _wrap(assess_ws[assess_ws.max_row])
 
