@@ -3,10 +3,10 @@ from __future__ import annotations
 
 import asyncio
 import json
-import shutil
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.util.offline_pack import resolve_or_none
 
 
 class CvePipAudit(Probe):
@@ -19,11 +19,14 @@ class CvePipAudit(Probe):
         self.timeout_s = timeout_s
 
     async def applies(self, ctx: ScanContext) -> bool:
-        return shutil.which(self.bin or "pip-audit") is not None
+        return resolve_or_none(self.bin, "pip-audit") is not None
 
     async def run(self, ctx: ScanContext, emit: Emitter) -> None:
+        bin_path = resolve_or_none(self.bin, "pip-audit")
+        if bin_path is None:
+            return
         proc = await asyncio.create_subprocess_exec(
-            self.bin or "pip-audit", "--format", "json", "--strict",
+            str(bin_path), "--format", "json", "--strict",
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
         )
         try:

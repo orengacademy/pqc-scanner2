@@ -73,7 +73,7 @@ EN/MS i18n toggle in nav writes a 1-year cookie; `_render()` injects `t()` calla
 | Item | Status | Rationale |
 |---|---|---|
 | **Plan F batch 4 — Grype-DB snapshot bundling** | Not started | Multi-GB Grype-DB snapshot is a release-pipeline / artifact-storage decision rather than code. Without it, bundled `grype` falls back to its online DB sync on first run. |
-| **11 mechanical FOSS-tool probe migrations** | Pending | `host_lynis`, `secrets_gitleaks`, `code_semgrep_pqc`, `net_tls_testssl`, `net_tls_sslyze`, `cve_pip_audit`, `cve_npm_audit`, `cve_govulncheck`, `cve_cargo_audit`, `code_bandit`, `net_tls_nmap_ssl` still call bare `shutil.which`. They work fine — they just don't honour `$PQCSCAN_OFFLINE_PACK` or PyInstaller's bundled `tools/` for *their* tools. ~3-line change per file via `resolve_or_none()`. |
+| **7 of 14 FOSS-tool probe migrations remaining** | Pending | Migrated so far: `sbom_syft`, `cve_grype`, `cve_trivy_fs`, `host_lynis`, `secrets_gitleaks`, `cve_pip_audit`, `cve_npm_audit`. Still on bare `shutil.which`: `code_semgrep_pqc`, `net_tls_testssl`, `net_tls_sslyze`, `cve_govulncheck`, `cve_cargo_audit`, `code_bandit`, `net_tls_nmap_ssl`. They work fine — they just don't honour `$PQCSCAN_OFFLINE_PACK` or PyInstaller's bundled `tools/`. ~3-line change per file via `resolve_or_none()`. |
 | **Range-aware PyPI matching** in `cve.osv_offline` | Conservative | Only `==` exact pins in `requirements.txt` are matched; `>=`/`~=`/range constraints would need a PEP 440 evaluator (e.g. the `packaging` lib). Lockfile-driven Python projects (Pipfile.lock, poetry.lock) get full pinned coverage already. |
 
 **Spec §13.1 deferral is fully closed.** Plan F (batches 1–3) and B17 (across 10 ecosystems) are shipped.

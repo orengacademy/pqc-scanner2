@@ -9,11 +9,11 @@ from __future__ import annotations
 
 import asyncio
 import json
-import shutil
 from pathlib import Path
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.util.offline_pack import resolve_or_none
 
 
 class SecretsGitleaks(Probe):
@@ -28,17 +28,18 @@ class SecretsGitleaks(Probe):
         self.timeout_s = timeout_s
 
     async def applies(self, ctx: ScanContext) -> bool:
-        return shutil.which(self.gitleaks_bin or "gitleaks") is not None and any(
-            r.exists() for r in self.roots
-        )
+        return (resolve_or_none(self.gitleaks_bin, "gitleaks") is not None
+                and any(r.exists() for r in self.roots))
 
     async def run(self, ctx: ScanContext, emit: Emitter) -> None:
-        bin_path = self.gitleaks_bin or "gitleaks"
+        bin_path = resolve_or_none(self.gitleaks_bin, "gitleaks")
+        if bin_path is None:
+            return
         for root in self.roots:
             if not root.exists():
                 continue
             proc = await asyncio.create_subprocess_exec(
-                bin_path, "detect", "--no-git", "--report-format", "json",
+                str(bin_path), "detect", "--no-git", "--report-format", "json",
                 "--report-path", "-", "--source", str(root),
                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
             )
