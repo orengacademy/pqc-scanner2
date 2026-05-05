@@ -26,6 +26,7 @@ from openpyxl import load_workbook
 from openpyxl.styles import Alignment
 
 from pqcscan.store.repo import Repo
+from pqcscan.store.schema import FindingRow
 
 _TEMPLATE_PATH = Path(__file__).parent / "templates" / "bukukerja-template.xlsx"
 
@@ -200,6 +201,43 @@ def _punca_risiko(probe_id: str, algorithm: str) -> str:
     if "cert" in pid or "x509" in pid or "trust" in pid:
         return "Sijil X.509 menggunakan kunci klasik — keperluan rotasi sijil PQC."
     return "Sistem/aplikasi sedia ada tidak menyokong algoritma PQC."
+
+
+def _dedupe_risk(findings: list[FindingRow]) -> list[tuple[FindingRow, int]]:
+    """Collapse near-identical risk-register rows.
+
+    Real scans emit one finding per cipher/cert/etc., so a host with 50
+    AES-128 ciphers produces 50 identical "Penyulitan Simetri / AES-128"
+    rows. The auditor sees noise. We group by the natural identity tuple
+    `(asset_name, jenis_aset, algorithm)` and return one representative
+    finding per group along with the occurrence count, choosing the
+    highest-impact instance as the representative so Tahap Kritikal
+    reflects the worst case in the group.
+    """
+    groups: dict[tuple[str, str, str], list[FindingRow]] = defaultdict(list)
+    for f in findings:
+        key = (
+            str(_asset_name_for(f)),
+            _jenis_aset(f.probe_id),
+            (f.algorithm or "").strip(),
+        )
+        groups[key].append(f)
+
+    deduped: list[tuple[FindingRow, int]] = []
+    for fs in groups.values():
+        rep = max(
+            fs,
+            key=lambda f: _IMPACT_BY_CLASSIFICATION.get(str(f.classification), 0),
+        )
+        deduped.append((rep, len(fs)))
+    deduped.sort(
+        key=lambda pair: (
+            -_IMPACT_BY_CLASSIFICATION.get(str(pair[0].classification), 0),
+            -pair[1],
+            str(_asset_name_for(pair[0])),
+        )
+    )
+    return deduped
 
 
 def _kawalan_sedia_ada(finding) -> str:
@@ -399,11 +437,23 @@ def render_xlsx_bukukerja(repo: Repo, scan_id: int, output_path: Path) -> Path:
         f for f in findings
         if str(f.classification) in ("sangat-tinggi", "tinggi", "sederhana")
     ]
+    # Collapse near-identical (asset, jenis_aset, algorithm) rows so
+    # the auditor sees one row per unique risk instead of 50 rows for
+    # 50 AES-128 cipher detections on the same host.
+    risk_grouped = _dedupe_risk(risk_findings)
+
+    def _suffix_count(text: str, count: int) -> str:
+        """Append "(x N kejadian)" if more than one finding collapsed."""
+        if count <= 1:
+            return text
+        suffix = f"  (x{count} kejadian)"
+        # Reserve ~25 chars for the suffix; trim base accordingly.
+        return f"{text[:200 - len(suffix)]}{suffix}"
 
     # ───────────  3_RiskRegister  ───────────
     risk_ws = wb["3_RiskRegister"]
     _delete_example_rows(risk_ws)
-    for idx, f in enumerate(risk_findings, start=1):
+    for idx, (f, count) in enumerate(risk_grouped, start=1):
         risk_ws.append([
             idx,                                                        # #
             str(_asset_name_for(f))[:120],                              # Nama Sistem
@@ -411,7 +461,7 @@ def render_xlsx_bukukerja(repo: Repo, scan_id: int, output_path: Path) -> Path:
             f.algorithm,                                                # Algoritma Kriptografi
             _kegunaan_kripto(f.probe_id, f.algorithm),                  # Kegunaan (BM)
             str(f.classification),                                      # Tahap Kritikal
-            f.title[:200],                                              # Risiko (probe-emitted detail)
+            _suffix_count(f.title, count),                              # Risiko + occurrence
             "",                                                         # Pemilik Risiko (manual)
         ])
         _wrap(risk_ws[risk_ws.max_row])
@@ -419,7 +469,7 @@ def render_xlsx_bukukerja(repo: Repo, scan_id: int, output_path: Path) -> Path:
     # ───────────  4_RiskAssessment  ───────────
     assess_ws = wb["4_RiskAssessment"]
     _delete_example_rows(assess_ws)
-    for idx, f in enumerate(risk_findings, start=1):
+    for idx, (f, count) in enumerate(risk_grouped, start=1):
         impact = _IMPACT_BY_CLASSIFICATION.get(str(f.classification), 1)
         likelihood = _likelihood_for(f.probe_id)
         score = impact * likelihood
@@ -427,7 +477,7 @@ def render_xlsx_bukukerja(repo: Repo, scan_id: int, output_path: Path) -> Path:
             idx,                                                        # #
             str(_asset_name_for(f))[:120],                              # Nama Sistem
             f.algorithm,                                                # Algoritma Kriptografi
-            f.title[:200],                                              # Risiko
+            _suffix_count(f.title, count),                              # Risiko + occurrence
             _punca_risiko(f.probe_id, f.algorithm),                     # Punca Risiko (BM, dynamic)
             impact,                                                     # Impak (1-5)
             likelihood,                                                 # Kemungkinan (1-5)
