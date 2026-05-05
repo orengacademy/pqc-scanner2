@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import asyncio
 import json
-import shutil
 from pathlib import Path
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.util.offline_pack import resolve_or_none
 
 
 class CveCargoAudit(Probe):
@@ -22,11 +22,12 @@ class CveCargoAudit(Probe):
         self.timeout_s = timeout_s
 
     async def applies(self, ctx: ScanContext) -> bool:
-        if shutil.which(self.cargo_bin or "cargo") is None:
+        resolved = resolve_or_none(self.cargo_bin, "cargo")
+        if resolved is None:
             return False
         # cargo-audit subcommand existence:
         proc = await asyncio.create_subprocess_exec(
-            self.cargo_bin or "cargo", "audit", "--version",
+            str(resolved), "audit", "--version",
             stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL,
         )
         try:
@@ -36,7 +37,10 @@ class CveCargoAudit(Probe):
             return False
 
     async def run(self, ctx: ScanContext, emit: Emitter) -> None:
-        bin_path = self.cargo_bin or "cargo"
+        resolved = resolve_or_none(self.cargo_bin, "cargo")
+        if resolved is None:
+            return
+        bin_path = str(resolved)
         for root in self.roots:
             if not root.exists():
                 continue

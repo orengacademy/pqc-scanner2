@@ -3,10 +3,10 @@ from __future__ import annotations
 
 import asyncio
 import json
-import shutil
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.util.offline_pack import resolve_or_none
 
 
 class NetTlsSslyze(Probe):
@@ -21,12 +21,14 @@ class NetTlsSslyze(Probe):
         self.timeout_s = timeout_s
 
     async def applies(self, ctx: ScanContext) -> bool:
-        return shutil.which(self.sslyze_bin or "sslyze") is not None
+        return resolve_or_none(self.sslyze_bin, "sslyze") is not None
 
     async def run(self, ctx: ScanContext, emit: Emitter) -> None:
-        bin_path = self.sslyze_bin or "sslyze"
+        bin_path = resolve_or_none(self.sslyze_bin, "sslyze")
+        if bin_path is None:
+            return
         proc = await asyncio.create_subprocess_exec(
-            bin_path, f"{self.host}:{self.port}", "--json_out=-", "--quiet",
+            str(bin_path), f"{self.host}:{self.port}", "--json_out=-", "--quiet",
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
         )
         try:

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import shutil
 import tempfile
 from pathlib import Path
 
@@ -11,6 +10,7 @@ from pqcscan.core.alg import classify
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._severity import sev_for
+from pqcscan.util.offline_pack import resolve_or_none
 
 
 _SEV_MAP = {
@@ -36,14 +36,16 @@ class NetTlsTestssl(Probe):
         self.timeout_s = timeout_s
 
     async def applies(self, ctx: ScanContext) -> bool:
-        return shutil.which(self.testssl_bin or "testssl.sh") is not None
+        return resolve_or_none(self.testssl_bin, "testssl.sh") is not None
 
     async def run(self, ctx: ScanContext, emit: Emitter) -> None:
-        bin_path = self.testssl_bin or "testssl.sh"
+        bin_path = resolve_or_none(self.testssl_bin, "testssl.sh")
+        if bin_path is None:
+            return
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tf:
             out_json = tf.name
         proc = await asyncio.create_subprocess_exec(
-            bin_path, "--quiet", "--jsonfile", out_json,
+            str(bin_path), "--quiet", "--jsonfile", out_json,
             f"{self.host}:{self.port}",
             stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL,
         )

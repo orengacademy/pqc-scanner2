@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import asyncio
 import json
-import shutil
 from pathlib import Path
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.util.offline_pack import resolve_or_none
 
 
 class CveGovulncheck(Probe):
@@ -22,12 +22,15 @@ class CveGovulncheck(Probe):
         self.timeout_s = timeout_s
 
     async def applies(self, ctx: ScanContext) -> bool:
-        return shutil.which(self.bin_name or "govulncheck") is not None and any(
+        return resolve_or_none(self.bin_name, "govulncheck") is not None and any(
             list(r.rglob("go.mod")) for r in self.roots if r.exists()
         )
 
     async def run(self, ctx: ScanContext, emit: Emitter) -> None:
-        bin_path = self.bin_name or "govulncheck"
+        resolved = resolve_or_none(self.bin_name, "govulncheck")
+        if resolved is None:
+            return
+        bin_path = str(resolved)
         for root in self.roots:
             if not root.exists():
                 continue

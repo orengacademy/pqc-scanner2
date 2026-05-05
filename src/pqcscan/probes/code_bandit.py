@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import asyncio
 import json
-import shutil
 from pathlib import Path
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.util.offline_pack import resolve_or_none
 
 
 _SEV = {
@@ -29,12 +29,15 @@ class CodeBandit(Probe):
         self.timeout_s = timeout_s
 
     async def applies(self, ctx: ScanContext) -> bool:
-        return shutil.which(self.bandit_bin or "bandit") is not None and any(
+        return resolve_or_none(self.bandit_bin, "bandit") is not None and any(
             r.exists() for r in self.roots
         )
 
     async def run(self, ctx: ScanContext, emit: Emitter) -> None:
-        bin_path = self.bandit_bin or "bandit"
+        resolved = resolve_or_none(self.bandit_bin, "bandit")
+        if resolved is None:
+            return
+        bin_path = str(resolved)
         for root in self.roots:
             if not root.exists():
                 continue

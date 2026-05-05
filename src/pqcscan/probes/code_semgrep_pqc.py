@@ -15,11 +15,11 @@ from __future__ import annotations
 
 import asyncio
 import json
-import shutil
 from pathlib import Path
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.util.offline_pack import resolve_or_none
 
 
 _BUNDLED_RULES = Path(__file__).parent / "_semgrep_rules" / "pqc-readiness.yaml"
@@ -47,13 +47,16 @@ class CodeSemgrepPqc(Probe):
 
     async def applies(self, ctx: ScanContext) -> bool:
         return (
-            shutil.which(self.semgrep_bin or "semgrep") is not None
+            resolve_or_none(self.semgrep_bin, "semgrep") is not None
             and self.rules_path.exists()
             and any(r.exists() for r in self.roots)
         )
 
     async def run(self, ctx: ScanContext, emit: Emitter) -> None:
-        bin_path = self.semgrep_bin or "semgrep"
+        resolved = resolve_or_none(self.semgrep_bin, "semgrep")
+        if resolved is None:
+            return
+        bin_path = str(resolved)
         for root in self.roots:
             if not root.exists():
                 continue

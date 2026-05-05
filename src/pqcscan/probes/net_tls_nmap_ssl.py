@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import asyncio
 import re
-import shutil
 
 from pqcscan.core.alg import classify
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._severity import sev_for
+from pqcscan.util.offline_pack import resolve_or_none
 
 
 _LETTER_TO_CLASS = {
@@ -33,12 +33,14 @@ class NetTlsNmapSsl(Probe):
         self.timeout_s = timeout_s
 
     async def applies(self, ctx: ScanContext) -> bool:
-        return shutil.which(self.nmap_bin or "nmap") is not None
+        return resolve_or_none(self.nmap_bin, "nmap") is not None
 
     async def run(self, ctx: ScanContext, emit: Emitter) -> None:
-        bin_path = self.nmap_bin or "nmap"
+        bin_path = resolve_or_none(self.nmap_bin, "nmap")
+        if bin_path is None:
+            return
         proc = await asyncio.create_subprocess_exec(
-            bin_path, "-p", str(self.port), "--script", "ssl-enum-ciphers",
+            str(bin_path), "-p", str(self.port), "--script", "ssl-enum-ciphers",
             self.host,
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
         )
