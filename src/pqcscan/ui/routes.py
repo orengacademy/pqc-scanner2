@@ -12,6 +12,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from pqcscan import __version__ as _pqc_version
+from pqcscan.core.bands import (
+    SURFACE_LABELS,
+    SURFACE_ORDER,
+    classify_band,
+    count_bands,
+    readiness_score,
+    surface_breakdown,
+)
 from pqcscan.probes._registry import default_registry
 from pqcscan.runner.capabilities import current_mode, detect_capabilities
 from pqcscan.ui.i18n import (
@@ -31,6 +39,9 @@ _FRAMEWORKS_DIR = (
 )
 
 templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
+# Expose the band classifier to Jinja templates so per-row colouring
+# (green/yellow/red/grey) doesn't require precomputing a parallel list.
+templates.env.globals["band_of"] = classify_band
 router = APIRouter()
 
 
@@ -63,31 +74,42 @@ async def set_locale(request: Request, locale: str) -> RedirectResponse:
     return resp
 
 
-def _count_severities(findings: list) -> dict:
-    """Bucket findings into {crit, high, med, info, total} for the bento
-    dashboard cards and scan-detail filter chips."""
-    counts = {"crit": 0, "high": 0, "med": 0, "info": 0, "total": len(findings)}
-    for f in findings:
-        sev = getattr(f, "severity", None)
-        if sev in counts:
-            counts[sev] += 1
-    return counts
-
-
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request) -> HTMLResponse:
     repo = request.app.state.repo
     scans = repo.list_scans()
     last_scan = scans[0] if scans else None
-    last_scan_severity = (
-        _count_severities(repo.list_findings(last_scan.id))
-        if last_scan is not None else None
-    )
+
+    bands = None
+    surfaces = None
+    score = None
+    if last_scan is not None:
+        findings = repo.list_findings(last_scan.id)
+        bands = count_bands(findings)
+        surfaces = surface_breakdown(findings)
+        score = readiness_score(bands)
+
+    # Last 30-day trend: take up to 30 most recent done-or-running scans
+    # in chronological order so the sparkline reads left-to-right.
+    trend = []
+    for s in reversed(scans[:30]):
+        s_bands = count_bands(repo.list_findings(s.id))
+        trend.append({
+            "id": s.id,
+            "score": readiness_score(s_bands),
+            "started_at": s.started_at,
+        })
+
     return _render(
         request, "dashboard.html",
         {
             "last_scan": last_scan,
-            "last_scan_severity": last_scan_severity,
+            "bands": bands,
+            "surfaces": surfaces,
+            "surface_order": SURFACE_ORDER,
+            "surface_labels": SURFACE_LABELS,
+            "readiness": score,
+            "trend": trend,
             "recent_scans": scans[:5],
         },
     )
@@ -109,12 +131,17 @@ async def scan_detail(request: Request, scan_id: int) -> HTMLResponse:
     if scan is None:
         raise HTTPException(404, "scan not found")
     findings = repo.list_findings(scan_id)
+    bands = count_bands(findings)
     return _render(
         request, "scan_detail.html",
         {
             "scan": scan,
             "findings": findings,
-            "severity_counts": _count_severities(findings),
+            "bands": bands,
+            "surfaces": surface_breakdown(findings),
+            "surface_order": SURFACE_ORDER,
+            "surface_labels": SURFACE_LABELS,
+            "readiness": readiness_score(bands),
         },
     )
 

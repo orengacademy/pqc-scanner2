@@ -14,13 +14,13 @@
   <script src="/static/htmx-1.9.10.min.js"></script>
 </head>
 <body class="min-h-dvh bg-zinc-950 text-zinc-100 font-sans antialiased selection:bg-blue-500/30 selection:text-blue-100">
-  <div class="fixed inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-500/40 to-transparent z-50 pointer-events-none"></div>
+  <div class="fixed inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent z-50 pointer-events-none"></div>
 
   <header class="sticky top-0 z-40 border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md">
     <div class="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
       <a href="/" class="flex items-center gap-2 group">
-        <span class="inline-block w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_2px_rgb(59_130_246/0.6)] group-hover:shadow-[0_0_14px_3px_rgb(59_130_246/0.8)] transition-shadow"></span>
-        <span class="text-base font-semibold tracking-tight text-zinc-50">pqcscan</span>
+        <span class="inline-block w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_10px_2px_rgb(251_191_36/0.6)] group-hover:shadow-[0_0_14px_3px_rgb(251_191_36/0.8)] transition-shadow"></span>
+        <span class="text-base font-semibold tracking-tight text-amber-400 font-mono">pqcscan</span>
         <span class="hidden sm:inline text-[11px] font-mono text-zinc-500 ml-1">v0.1.0</span>
       </a>
       <nav class="flex items-center gap-1 text-sm">
@@ -35,11 +35,11 @@
         ] %}
           {% set is_active = (_path == href) or (href != '/' and _path.startswith(href)) %}
           <a href="{{ href }}"
-             class="relative px-3 py-2 rounded-md transition-colors
-                    {{ 'text-zinc-50 bg-zinc-800/60' if is_active else 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/40' }}">
+             class="relative px-3 py-2 rounded-md font-mono text-[13px] transition-colors
+                    {{ 'text-amber-400 bg-zinc-800/40' if is_active else 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/40' }}">
             {{ t(key) if t else label }}
             {% if is_active %}
-              <span class="absolute inset-x-3 -bottom-px h-px bg-blue-500"></span>
+              <span class="absolute inset-x-3 -bottom-px h-px bg-amber-400"></span>
             {% endif %}
           </a>
         {% endfor %}
@@ -47,14 +47,14 @@
         <form action="/i18n/en" method="post" class="inline">
           <button type="submit"
                   class="px-2 py-1 rounded text-xs font-mono tracking-wider transition-colors
-                         {{ 'text-blue-400 bg-blue-500/10 ring-1 ring-blue-500/30' if (locale or 'en') == 'en' else 'text-zinc-500 hover:text-zinc-200' }}">
+                         {{ 'text-amber-400 bg-amber-400/10 ring-1 ring-amber-400/30' if (locale or 'en') == 'en' else 'text-zinc-500 hover:text-zinc-200' }}">
             EN
           </button>
         </form>
         <form action="/i18n/ms" method="post" class="inline">
           <button type="submit"
                   class="px-2 py-1 rounded text-xs font-mono tracking-wider transition-colors
-                         {{ 'text-blue-400 bg-blue-500/10 ring-1 ring-blue-500/30' if locale == 'ms' else 'text-zinc-500 hover:text-zinc-200' }}">
+                         {{ 'text-amber-400 bg-amber-400/10 ring-1 ring-amber-400/30' if locale == 'ms' else 'text-zinc-500 hover:text-zinc-200' }}">
             MS
           </button>
         </form>

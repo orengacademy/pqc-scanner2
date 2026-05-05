@@ -1,147 +1,216 @@
 {% extends "base.html" %}
 {% block body %}
 
+{# ─────────────  Page header  ───────────── #}
 <section class="mb-8 flex items-end justify-between gap-6 flex-wrap">
   <div>
-    <p class="text-xs font-mono uppercase tracking-[0.2em] text-zinc-500 mb-2">post-quantum readiness</p>
-    <h1 class="text-3xl font-semibold tracking-tight text-zinc-50">{{ t('dashboard.title') }}</h1>
-    <p class="mt-2 text-sm text-zinc-400 max-w-xl">
-      Scan this host for cryptographic primitives that won&rsquo;t survive a quantum adversary &mdash;
-      then export findings against NIST IR 8547, MyKripto, BUKUKERJA, and 7 more frameworks.
-    </p>
+    <h1 class="section-heading">Post-Quantum Cryptography (PQC) Readiness</h1>
+    <p class="section-eyebrow mt-2">pqcscan &nbsp;&mdash;&nbsp; nist-aligned crypto posture assessment</p>
   </div>
-  <div class="flex items-center gap-2">
-    <button hx-post="/api/scans" hx-swap="none"
-            class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white font-medium text-sm transition-colors shadow-[0_0_20px_-4px_rgb(59_130_246/0.6)]">
+  <button type="button" onclick="document.getElementById('about-card').classList.toggle('hidden')"
+          class="btn-secondary">
+    <svg class="w-3.5 h-3.5 text-amber-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 011-1h.01a1 1 0 01.99 1v4a1 1 0 11-2 0V9zm1-4a1 1 0 100 2 1 1 0 000-2z" clip-rule="evenodd"/>
+    </svg>
+    About
+  </button>
+</section>
+
+{# ─────────────  About callout  ───────────── #}
+<aside id="about-card" class="card p-5 mb-6 hidden border-l-2 border-l-amber-400/60">
+  <div class="flex items-start justify-between mb-3">
+    <div>
+      <h2 class="font-mono text-amber-400 font-semibold">How to read this page.</h2>
+      <p class="section-eyebrow mt-1">aegis-style traffic-light readiness</p>
+    </div>
+    <button type="button" onclick="document.getElementById('about-card').classList.add('hidden')"
+            class="text-zinc-500 hover:text-zinc-200" aria-label="Close">
       <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/>
+      </svg>
+    </button>
+  </div>
+  <p class="text-sm text-zinc-400 leading-relaxed">
+    Each finding is bucketed into a traffic-light band based on the algorithm in use,
+    the probe family, and whether the host software has a PQC upgrade path.
+  </p>
+  <ul class="mt-3 space-y-1.5 text-sm">
+    <li class="flex items-start gap-2"><span class="band-pill mt-0.5" data-band="green"><span class="dot"></span>Green</span>
+      <span class="text-zinc-400">PQC or hybrid PQC in use (ML-KEM, ML-DSA, SLH-DSA, X25519MLKEM768).</span></li>
+    <li class="flex items-start gap-2"><span class="band-pill mt-0.5" data-band="yellow"><span class="dot"></span>Yellow</span>
+      <span class="text-zinc-400">Classical crypto today, but the software / vendor supports a PQC upgrade.</span></li>
+    <li class="flex items-start gap-2"><span class="band-pill mt-0.5" data-band="red"><span class="dot"></span>Red</span>
+      <span class="text-zinc-400">Classical crypto with <em>no</em> PQC roadmap. Highest risk.</span></li>
+    <li class="flex items-start gap-2"><span class="band-pill mt-0.5" data-band="grey"><span class="dot"></span>Grey</span>
+      <span class="text-zinc-400">Not yet scanned, unreachable, or purely informational.</span></li>
+  </ul>
+  <p class="mt-3 text-xs text-zinc-500 italic">
+    Hover any algorithm in the findings list for a plain-English explanation.
+    Mappings: NIST IR 8547, NIST FIPS 203/204/205, MyKripto, BUKUKERJA, NACSA.
+  </p>
+</aside>
+
+{# ─────────────  Organisational Readiness  ───────────── #}
+<section class="card p-6 mb-6">
+  <div class="flex items-end justify-between mb-5 gap-4 flex-wrap">
+    <div>
+      <h2 class="font-mono text-amber-400 font-semibold">Organisational Readiness</h2>
+      {% if last_scan %}
+        <p class="section-eyebrow mt-1">
+          scan #{{ last_scan.id }} &middot; {{ last_scan.status }} &middot;
+          {{ bands.total if bands else 0 }} findings &middot;
+          generated {{ last_scan.started_at }}
+        </p>
+      {% else %}
+        <p class="section-eyebrow mt-1">no scan yet</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+    {# Half-circle gauge #}
+    <div class="md:col-span-1 flex flex-col items-center justify-center">
+      {% set _r = readiness if readiness is not none else 0 %}
+      {# Gauge arc: 180° sweep, fraction proportional to score #}
+      <svg viewBox="0 0 120 70" class="w-44 h-28" aria-label="Readiness score {{ _r }} out of 100">
+        <path d="M 10 60 A 50 50 0 0 1 110 60"
+              fill="none" stroke="rgb(39 39 42)" stroke-width="10" stroke-linecap="round"/>
+        <path d="M 10 60 A 50 50 0 0 1 110 60"
+              fill="none" stroke="rgb(251 191 36)" stroke-width="10" stroke-linecap="round"
+              stroke-dasharray="{{ (_r * 1.57) | round(1) }} 200"
+              transform="" />
+      </svg>
+      <p class="font-mono text-4xl font-bold text-amber-400 -mt-6 tabular-nums">{{ _r }}</p>
+      <p class="section-eyebrow mt-1">readiness score</p>
+    </div>
+
+    {# 4 band tiles #}
+    {% set b = bands or {'green': 0, 'yellow': 0, 'red': 0, 'grey': 0, 'total': 0} %}
+    <div class="md:col-span-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div class="band-tile" data-band="green">
+        <div class="band-num">{{ b.green }}</div>
+        <div class="band-label">Green &middot; ready</div>
+      </div>
+      <div class="band-tile" data-band="yellow">
+        <div class="band-num">{{ b.yellow }}</div>
+        <div class="band-label">Yellow &middot; upgradable</div>
+      </div>
+      <div class="band-tile" data-band="red">
+        <div class="band-num">{{ b.red }}</div>
+        <div class="band-label">Red &middot; blocker</div>
+      </div>
+      <div class="band-tile" data-band="grey">
+        <div class="band-num">{{ b.grey }}</div>
+        <div class="band-label">Grey &middot; unknown</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-3 mt-6 pt-5 border-t border-zinc-800/80">
+    <button hx-post="/api/scans" hx-swap="none" class="btn-primary">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
         <path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"/>
       </svg>
       {{ t('dashboard.scan_now') }}
     </button>
     {% if last_scan and last_scan.status == 'done' %}
-      <a href="/scans/{{ last_scan.id }}#export"
-         class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-800 font-medium text-sm transition-colors">
-        <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <a href="/scans/{{ last_scan.id }}#export" class="btn-secondary">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
           <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/>
           <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/>
         </svg>
-        Export latest
+        Generate PDF report
       </a>
+      <a href="/scans/{{ last_scan.id }}" class="btn-secondary">View scan</a>
     {% endif %}
+    <span class="text-[11px] text-zinc-500 font-mono ml-auto">manual rescans rate-limited to 1 / 10 min</span>
   </div>
 </section>
 
-{# Bento grid: wide last-scan card + 4 severity stat cards #}
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-
-  <div class="card p-5 lg:col-span-2 lg:row-span-2 flex flex-col">
-    <div class="flex items-start justify-between mb-4">
-      <div>
-        <p class="text-[11px] font-mono uppercase tracking-[0.18em] text-zinc-500 mb-1">{{ t('dashboard.last_scan') }}</p>
-        {% if last_scan %}
-          <h2 class="text-2xl font-semibold tracking-tight text-zinc-50">
-            <span class="text-zinc-500 font-mono text-xl">#</span>{{ last_scan.id }}
-          </h2>
-        {% else %}
-          <h2 class="text-2xl font-semibold tracking-tight text-zinc-500">&mdash;</h2>
-        {% endif %}
-      </div>
-      {% if last_scan %}
-        <span class="status-pill" data-status="{{ last_scan.status }}">
-          <span class="pulse"></span>{{ last_scan.status }}
-        </span>
-      {% endif %}
-    </div>
-
-    {% if last_scan %}
-      <dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm flex-1">
-        <div>
-          <dt class="text-zinc-500 text-xs">Mode</dt>
-          <dd class="text-zinc-200 font-mono mt-0.5">{{ last_scan.mode }}</dd>
-        </div>
-        <div>
-          <dt class="text-zinc-500 text-xs">Started</dt>
-          <dd class="text-zinc-200 font-mono mt-0.5 truncate">{{ last_scan.started_at }}</dd>
-        </div>
-        <div>
-          <dt class="text-zinc-500 text-xs">Finished</dt>
-          <dd class="text-zinc-200 font-mono mt-0.5 truncate">
-            {{ last_scan.finished_at if last_scan.finished_at else '—' }}
-          </dd>
-        </div>
-        <div>
-          <dt class="text-zinc-500 text-xs">Findings</dt>
-          <dd class="text-zinc-200 font-mono mt-0.5">
-            {{ last_scan_severity.total if last_scan_severity else '—' }}
-          </dd>
-        </div>
-      </dl>
-      <div class="mt-5 pt-4 border-t border-zinc-800/80 flex justify-between items-center">
-        <a href="/scans/{{ last_scan.id }}"
-           class="inline-flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300 transition-colors">
-          View scan
-          <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/>
-          </svg>
-        </a>
-        <a href="/scans" class="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">All scans &rarr;</a>
-      </div>
-    {% else %}
-      <div class="flex-1 flex flex-col items-center justify-center py-8 text-center">
-        <div class="w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-3">
-          <svg class="w-5 h-5 text-zinc-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd"/>
-          </svg>
-        </div>
-        <p class="text-sm text-zinc-400 max-w-xs">{{ t('dashboard.no_scans') }}</p>
-      </div>
-    {% endif %}
-  </div>
-
-  {% set sev = last_scan_severity or {'crit': 0, 'high': 0, 'med': 0, 'info': 0, 'total': 0} %}
-  <div class="sev-card" data-sev="crit">
-    <p class="text-[11px] font-mono uppercase tracking-[0.18em] text-zinc-500">Critical</p>
-    <p class="mt-1.5 text-3xl font-semibold tabular-nums text-red-300">{{ sev.crit }}</p>
-    <p class="mt-1 text-xs text-zinc-500">quantum-broken &middot; immediate</p>
-  </div>
-  <div class="sev-card" data-sev="high">
-    <p class="text-[11px] font-mono uppercase tracking-[0.18em] text-zinc-500">High</p>
-    <p class="mt-1.5 text-3xl font-semibold tabular-nums text-red-400">{{ sev.high }}</p>
-    <p class="mt-1 text-xs text-zinc-500">harvest-now-decrypt-later</p>
-  </div>
-  <div class="sev-card" data-sev="med">
-    <p class="text-[11px] font-mono uppercase tracking-[0.18em] text-zinc-500">Medium</p>
-    <p class="mt-1.5 text-3xl font-semibold tabular-nums text-orange-300">{{ sev.med }}</p>
-    <p class="mt-1 text-xs text-zinc-500">crypto-agility gap</p>
-  </div>
-  <div class="sev-card" data-sev="info">
-    <p class="text-[11px] font-mono uppercase tracking-[0.18em] text-zinc-500">Info</p>
-    <p class="mt-1.5 text-3xl font-semibold tabular-nums text-blue-300">{{ sev.info }}</p>
-    <p class="mt-1 text-xs text-zinc-500">inventory observation</p>
-  </div>
-</div>
-
-{% if recent_scans %}
-<section class="mt-10">
+{# ─────────────  Surface breakdown  ───────────── #}
+{% if surfaces %}
+<section class="mb-6">
   <div class="flex items-end justify-between mb-3">
-    <h2 class="text-sm font-mono uppercase tracking-[0.16em] text-zinc-500">Recent scans</h2>
-    <a href="/scans" class="text-xs text-zinc-500 hover:text-zinc-300">all &rarr;</a>
+    <h2 class="font-mono text-amber-400 font-semibold">Breakdown by Crypto Surface</h2>
+    <span class="section-eyebrow">tls &middot; ssh &middot; vpn &middot; certs &middot; code &middot; data-at-rest</span>
+  </div>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+    {% for skey in surface_order %}
+      {% set s = surfaces[skey] %}
+      {% set headband = 'red' if s.red else ('yellow' if s.yellow else ('green' if s.green else 'grey')) %}
+      <div class="surface-card" data-headband="{{ headband }}">
+        <div class="surface-head">
+          <span class="head-dot"></span>
+          <span>{{ surface_labels[skey] }}</span>
+        </div>
+        <div class="surface-num">{{ s.total }}</div>
+        <div class="surface-counts">
+          <span class="green-count">{{ s.green }} ready</span> &middot;
+          <span class="yellow-count">{{ s.yellow }} upgradable</span> &middot;
+          <span class="red-count">{{ s.red }} blocker</span> &middot;
+          <span class="grey-count">{{ s.grey }} unknown</span>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{# ─────────────  Trend (sparkline)  ───────────── #}
+{% if trend and trend|length > 1 %}
+<section class="card p-5 mb-6">
+  <div class="flex items-end justify-between mb-3">
+    <h2 class="font-mono text-amber-400 font-semibold">Readiness Trend</h2>
+    <span class="section-eyebrow">last {{ trend|length }} scans &middot; higher is better</span>
+  </div>
+  {# Inline SVG sparkline. Map score 0-100 to y 90-10 (inverted), x by index. #}
+  {% set n = trend|length %}
+  {% set step = 760 / (n - 1) if n > 1 else 760 %}
+  <svg viewBox="0 0 800 110" preserveAspectRatio="none" class="w-full h-32">
+    <line class="trend-axis" x1="20" y1="100" x2="780" y2="100"/>
+    <line class="trend-grid" x1="20" y1="55"  x2="780" y2="55"/>
+    <line class="trend-grid" x1="20" y1="10"  x2="780" y2="10"/>
+    <text class="trend-tick" x="0" y="14">100</text>
+    <text class="trend-tick" x="0" y="59">50</text>
+    <text class="trend-tick" x="0" y="104">0</text>
+    {% set pts = [] %}
+    {% for p in trend %}
+      {% set x = 20 + (loop.index0 * step) %}
+      {% set y = 100 - (p.score * 0.9) %}
+      {% set _ = pts.append('%.1f,%.1f' | format(x, y)) %}
+    {% endfor %}
+    <polyline class="trend-line" points="{{ pts|join(' ') }}"/>
+    {% for p in trend %}
+      {% set x = 20 + (loop.index0 * step) %}
+      {% set y = 100 - (p.score * 0.9) %}
+      <circle cx="{{ '%.1f' | format(x) }}" cy="{{ '%.1f' | format(y) }}" r="2.5" fill="rgb(251 191 36)"/>
+    {% endfor %}
+  </svg>
+</section>
+{% endif %}
+
+{# ─────────────  Recent scans  ───────────── #}
+{% if recent_scans %}
+<section>
+  <div class="flex items-end justify-between mb-3">
+    <h2 class="font-mono text-amber-400 font-semibold">Recent Scans</h2>
+    <a href="/scans" class="text-xs text-zinc-500 hover:text-zinc-300 font-mono">all &rarr;</a>
   </div>
   <div class="card overflow-hidden">
     <table class="w-full text-sm">
-      <thead class="text-xs uppercase tracking-wider text-zinc-500">
+      <thead class="text-[11px] uppercase tracking-wider text-zinc-500">
         <tr class="border-b border-zinc-800/80">
           <th class="text-left font-medium py-2.5 px-4">#</th>
           <th class="text-left font-medium py-2.5 px-4">Status</th>
           <th class="text-left font-medium py-2.5 px-4">Mode</th>
           <th class="text-left font-medium py-2.5 px-4">Started</th>
-          <th class="text-right font-medium py-2.5 px-4"></th>
+          <th class="py-2.5 px-4"></th>
         </tr>
       </thead>
       <tbody class="divide-y divide-zinc-800/60">
         {% for s in recent_scans %}
           <tr class="row-hover">
-            <td class="py-2.5 px-4 font-mono text-zinc-400">#{{ s.id }}</td>
+            <td class="py-2.5 px-4 font-mono text-zinc-300">#{{ s.id }}</td>
             <td class="py-2.5 px-4">
               <span class="status-pill" data-status="{{ s.status }}">
                 <span class="pulse"></span>{{ s.status }}
@@ -150,7 +219,7 @@
             <td class="py-2.5 px-4 font-mono text-zinc-400">{{ s.mode }}</td>
             <td class="py-2.5 px-4 font-mono text-zinc-500 text-xs">{{ s.started_at }}</td>
             <td class="py-2.5 px-4 text-right">
-              <a href="/scans/{{ s.id }}" class="text-blue-400 hover:text-blue-300 text-xs">View &rarr;</a>
+              <a href="/scans/{{ s.id }}" class="text-amber-400 hover:text-amber-300 text-xs font-mono">view &rarr;</a>
             </td>
           </tr>
         {% endfor %}

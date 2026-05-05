@@ -1,8 +1,36 @@
 /* pqcscan — design tokens + small custom rules layered on top of Tailwind. */
 
 :root {
-  --font-sans: "Fira Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* All-mono identity per AEGIS reference. Body == headings == data == mono. */
+  --font-sans: "Fira Code", ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace;
   --font-mono: "Fira Code", ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace;
+
+  /* Brand accent: amber (warm, government/audit feel). */
+  --accent:        rgb(251 191 36);          /* amber-400 */
+  --accent-strong: rgb(245 158 11);          /* amber-500 */
+  --accent-bg:     rgb(251 191 36 / 0.10);
+  --accent-ring:   rgb(251 191 36 / 0.35);
+
+  /* Traffic-light readiness bands per user spec. */
+  --band-green-fg:   rgb(74 222 128);        /* green-400 */
+  --band-green-bg:   rgb(34 197 94 / 0.12);
+  --band-green-ring: rgb(34 197 94 / 0.40);
+  --band-green-bar:  rgb(34 197 94);
+
+  --band-yellow-fg:   rgb(251 191 36);
+  --band-yellow-bg:   rgb(251 191 36 / 0.12);
+  --band-yellow-ring: rgb(251 191 36 / 0.40);
+  --band-yellow-bar:  rgb(251 191 36);
+
+  --band-red-fg:   rgb(248 113 113);         /* red-400 */
+  --band-red-bg:   rgb(239 68 68 / 0.12);
+  --band-red-ring: rgb(239 68 68 / 0.40);
+  --band-red-bar:  rgb(239 68 68);
+
+  --band-grey-fg:   rgb(161 161 170);        /* zinc-400 */
+  --band-grey-bg:   rgb(82 82 91 / 0.18);
+  --band-grey-ring: rgb(82 82 91 / 0.45);
+  --band-grey-bar:  rgb(113 113 122);
 
   /* Severity tokens — explicit values matching the user spec. */
   --sev-crit-bg:    rgb(127 29 29 / 0.25);   /* dark red base */
@@ -172,3 +200,192 @@ html { font-family: var(--font-sans); }
 .findings-list[data-filter="info"] [data-row-sev]:not([data-row-sev="info"]) {
   display: none;
 }
+
+/* ──────────────────────────────────────────────────────────────────
+   Traffic-light band system (AEGIS-style).
+   ────────────────────────────────────────────────────────────────── */
+
+/* Band stat tile — large number + small caps label, used in the
+   "Organisational Readiness" row and the surface breakdown. */
+.band-tile {
+  position: relative;
+  background: rgb(24 24 27 / 0.6);
+  border: 1px solid rgb(39 39 42);
+  border-radius: 10px;
+  padding: 16px 18px;
+  overflow: hidden;
+  transition: border-color 200ms;
+}
+.band-tile:hover { border-color: rgb(63 63 70); }
+
+.band-tile[data-band="green"]  { background: var(--band-green-bg);  border-color: var(--band-green-ring); }
+.band-tile[data-band="yellow"] { background: var(--band-yellow-bg); border-color: var(--band-yellow-ring); }
+.band-tile[data-band="red"]    { background: var(--band-red-bg);    border-color: var(--band-red-ring); }
+.band-tile[data-band="grey"]   { background: var(--band-grey-bg);   border-color: var(--band-grey-ring); }
+
+.band-tile .band-num {
+  font-family: var(--font-mono);
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.band-tile[data-band="green"]  .band-num { color: var(--band-green-fg); }
+.band-tile[data-band="yellow"] .band-num { color: var(--band-yellow-fg); }
+.band-tile[data-band="red"]    .band-num { color: var(--band-red-fg); }
+.band-tile[data-band="grey"]   .band-num { color: var(--band-grey-fg); }
+
+.band-tile .band-label {
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgb(113 113 122);
+}
+
+/* Inline pill ─ used inside finding rows + status indicators. */
+.band-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  height: 20px;
+  white-space: nowrap;
+}
+.band-pill .dot { width: 6px; height: 6px; border-radius: 9999px; }
+
+.band-pill[data-band="green"]  { background: var(--band-green-bg);  color: var(--band-green-fg);  box-shadow: inset 0 0 0 1px var(--band-green-ring); }
+.band-pill[data-band="green"]  .dot { background: var(--band-green-bar); }
+.band-pill[data-band="yellow"] { background: var(--band-yellow-bg); color: var(--band-yellow-fg); box-shadow: inset 0 0 0 1px var(--band-yellow-ring); }
+.band-pill[data-band="yellow"] .dot { background: var(--band-yellow-bar); }
+.band-pill[data-band="red"]    { background: var(--band-red-bg);    color: var(--band-red-fg);    box-shadow: inset 0 0 0 1px var(--band-red-ring); }
+.band-pill[data-band="red"]    .dot { background: var(--band-red-bar); }
+.band-pill[data-band="grey"]   { background: var(--band-grey-bg);   color: var(--band-grey-fg);   box-shadow: inset 0 0 0 1px var(--band-grey-ring); }
+.band-pill[data-band="grey"]   .dot { background: var(--band-grey-bar); }
+
+/* Surface card — used in "Breakdown by Crypto Surface" grid. */
+.surface-card {
+  background: rgb(24 24 27 / 0.6);
+  border: 1px solid rgb(39 39 42);
+  border-radius: 10px;
+  padding: 16px 18px;
+  transition: border-color 200ms;
+}
+.surface-card:hover { border-color: rgb(63 63 70); }
+.surface-card .surface-head {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: rgb(228 228 231);
+}
+.surface-card .surface-head .head-dot {
+  width: 8px; height: 8px; border-radius: 9999px;
+}
+.surface-card[data-headband="green"]  .head-dot { background: var(--band-green-bar); box-shadow: 0 0 8px var(--band-green-bar); }
+.surface-card[data-headband="yellow"] .head-dot { background: var(--band-yellow-bar); box-shadow: 0 0 8px var(--band-yellow-bar); }
+.surface-card[data-headband="red"]    .head-dot { background: var(--band-red-bar); box-shadow: 0 0 8px var(--band-red-bar); }
+.surface-card[data-headband="grey"]   .head-dot { background: var(--band-grey-bar); }
+.surface-card .surface-num {
+  margin-top: 8px;
+  font-family: var(--font-mono);
+  font-size: 36px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.surface-card[data-headband="green"]  .surface-num { color: var(--band-green-fg); }
+.surface-card[data-headband="yellow"] .surface-num { color: var(--band-yellow-fg); }
+.surface-card[data-headband="red"]    .surface-num { color: var(--band-red-fg); }
+.surface-card[data-headband="grey"]   .surface-num { color: var(--band-grey-fg); }
+.surface-card .surface-counts {
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: rgb(113 113 122);
+}
+.surface-card .surface-counts .green-count  { color: var(--band-green-fg); }
+.surface-card .surface-counts .yellow-count { color: var(--band-yellow-fg); }
+.surface-card .surface-counts .red-count    { color: var(--band-red-fg); }
+.surface-card .surface-counts .grey-count   { color: var(--band-grey-fg); }
+
+/* Filter — band-aware findings list. */
+.findings-list[data-bandfilter="green"]  [data-row-band]:not([data-row-band="green"]),
+.findings-list[data-bandfilter="yellow"] [data-row-band]:not([data-row-band="yellow"]),
+.findings-list[data-bandfilter="red"]    [data-row-band]:not([data-row-band="red"]),
+.findings-list[data-bandfilter="grey"]   [data-row-band]:not([data-row-band="grey"]) {
+  display: none;
+}
+
+/* Amber primary action ─ replaces the blue button in AEGIS-style. */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: rgb(24 24 27);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 0;
+  cursor: pointer;
+  transition: background-color 150ms, transform 150ms;
+  box-shadow: 0 0 24px -6px var(--accent-ring);
+}
+.btn-primary:hover { background: var(--accent-strong); }
+.btn-primary:active { transform: translateY(1px); }
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: transparent;
+  color: rgb(212 212 216);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid rgb(63 63 70);
+  cursor: pointer;
+  transition: all 150ms;
+}
+.btn-secondary:hover { background: rgb(39 39 42); color: rgb(244 244 245); border-color: rgb(82 82 91); }
+
+/* Section heading style — small caps mono with amber accent line. */
+.section-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgb(113 113 122);
+}
+.section-heading {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--accent);
+}
+
+/* Trend chart sparkline path (used in inline SVG). */
+.trend-line { stroke: var(--accent); stroke-width: 2; fill: none; }
+.trend-area { fill: var(--accent); fill-opacity: 0.08; }
+.trend-axis { stroke: rgb(39 39 42); stroke-width: 1; }
+.trend-grid { stroke: rgb(39 39 42); stroke-width: 1; stroke-dasharray: 2 4; opacity: 0.5; }
+.trend-tick { font-family: var(--font-mono); font-size: 9px; fill: rgb(82 82 91); }

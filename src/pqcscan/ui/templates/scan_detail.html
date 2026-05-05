@@ -1,55 +1,100 @@
 {% extends "base.html" %}
 {% block body %}
 
-{% set sev = severity_counts or {'crit': 0, 'high': 0, 'med': 0, 'info': 0, 'total': 0} %}
+{% set b = bands or {'green': 0, 'yellow': 0, 'red': 0, 'grey': 0, 'total': 0} %}
+{% set _r = readiness if readiness is not none else 0 %}
 
 <section class="mb-6 flex items-start justify-between gap-6 flex-wrap">
   <div>
-    <p class="text-xs font-mono uppercase tracking-[0.2em] text-zinc-500 mb-2">scan detail</p>
-    <h1 class="text-3xl font-semibold tracking-tight text-zinc-50 flex items-center gap-3">
-      <span class="text-zinc-500 font-mono text-2xl">#</span>{{ scan.id }}
+    <p class="section-eyebrow mb-2">scan detail</p>
+    <h1 class="section-heading flex items-center gap-3">
+      <span class="text-zinc-500 font-mono">#</span>{{ scan.id }}
       <span class="status-pill" data-status="{{ scan.status }}">
         <span class="pulse"></span>{{ scan.status }}
       </span>
     </h1>
-    <dl class="mt-3 flex items-center gap-x-5 gap-y-1 text-xs text-zinc-500 flex-wrap">
-      <span class="font-mono">{{ scan.mode }} mode</span>
+    <dl class="mt-3 flex items-center gap-x-5 gap-y-1 text-xs text-zinc-500 flex-wrap font-mono">
+      <span>{{ scan.mode }} mode</span>
       <span aria-hidden="true">&middot;</span>
-      <span class="font-mono">started {{ scan.started_at }}</span>
+      <span>started {{ scan.started_at }}</span>
       {% if scan.finished_at %}
         <span aria-hidden="true">&middot;</span>
-        <span class="font-mono">finished {{ scan.finished_at }}</span>
+        <span>finished {{ scan.finished_at }}</span>
       {% endif %}
       <span aria-hidden="true">&middot;</span>
-      <span class="font-mono text-zinc-300">{{ sev.total }} findings</span>
+      <span class="text-zinc-300">{{ b.total }} findings</span>
     </dl>
+  </div>
+
+  {# Compact gauge — same SVG arc as the dashboard #}
+  <div class="flex items-center gap-4">
+    <div class="text-right">
+      <p class="font-mono text-3xl font-bold text-amber-400 tabular-nums leading-none">{{ _r }}</p>
+      <p class="section-eyebrow mt-1">readiness</p>
+    </div>
+    <svg viewBox="0 0 120 70" class="w-32 h-20" aria-label="Readiness {{ _r }}/100">
+      <path d="M 10 60 A 50 50 0 0 1 110 60" fill="none" stroke="rgb(39 39 42)" stroke-width="10" stroke-linecap="round"/>
+      <path d="M 10 60 A 50 50 0 0 1 110 60" fill="none" stroke="rgb(251 191 36)" stroke-width="10" stroke-linecap="round"
+            stroke-dasharray="{{ (_r * 1.57) | round(1) }} 200"/>
+    </svg>
   </div>
 </section>
 
+{# Band filter chips #}
 <div class="flex flex-wrap items-center gap-2 mb-6"
-     id="sev-filter"
-     role="toolbar" aria-label="Filter findings by severity">
-  <button type="button" class="sev-chip" aria-pressed="true" data-sev="all"
-          onclick="document.getElementById('findings').dataset.filter='all';
-                   for(const c of document.querySelectorAll('#sev-filter .sev-chip'))c.setAttribute('aria-pressed', c===this);">
-    <span class="dot"></span><span>All</span>
-    <span class="font-mono text-xs text-zinc-500">{{ sev.total }}</span>
+     id="band-filter"
+     role="toolbar" aria-label="Filter findings by readiness band">
+  <button type="button" class="sev-chip" aria-pressed="true" data-band="all"
+          onclick="document.getElementById('findings').dataset.bandfilter='all';
+                   for(const c of document.querySelectorAll('#band-filter .sev-chip'))c.setAttribute('aria-pressed', c===this);">
+    <span class="dot" style="background: rgb(82 82 91); box-shadow: none"></span>
+    <span>All</span><span class="font-mono text-xs text-zinc-500">{{ b.total }}</span>
   </button>
-  {% for key, label in [('crit','Critical'),('high','High'),('med','Medium'),('info','Info')] %}
-    <button type="button" class="sev-chip" aria-pressed="false" data-sev="{{ key }}"
-            onclick="document.getElementById('findings').dataset.filter='{{ key }}';
-                     for(const c of document.querySelectorAll('#sev-filter .sev-chip'))c.setAttribute('aria-pressed', c===this);">
-      <span class="dot"></span><span>{{ label }}</span>
-      <span class="font-mono text-xs text-zinc-500">{{ sev[key] }}</span>
+  {% for key, label, dot_color in [
+    ('green',  'Green / ready',     'rgb(34 197 94)'),
+    ('yellow', 'Yellow / upgradable','rgb(251 191 36)'),
+    ('red',    'Red / blocker',     'rgb(239 68 68)'),
+    ('grey',   'Grey / unknown',    'rgb(113 113 122)'),
+  ] %}
+    <button type="button" class="sev-chip" aria-pressed="false" data-band="{{ key }}"
+            onclick="document.getElementById('findings').dataset.bandfilter='{{ key }}';
+                     for(const c of document.querySelectorAll('#band-filter .sev-chip'))c.setAttribute('aria-pressed', c===this);">
+      <span class="dot" style="background: {{ dot_color }}; box-shadow: 0 0 8px {{ dot_color }}"></span>
+      <span>{{ label }}</span>
+      <span class="font-mono text-xs text-zinc-500">{{ b[key] }}</span>
     </button>
   {% endfor %}
 </div>
 
+{# Surface mini-grid #}
+{% if surfaces %}
+<section class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-6">
+  {% for skey in surface_order %}
+    {% set s = surfaces[skey] %}
+    {% set headband = 'red' if s.red else ('yellow' if s.yellow else ('green' if s.green else 'grey')) %}
+    <div class="surface-card" data-headband="{{ headband }}" style="padding:12px 14px">
+      <div class="surface-head" style="font-size:11px">
+        <span class="head-dot"></span>
+        <span class="truncate">{{ surface_labels[skey] }}</span>
+      </div>
+      <div class="surface-num" style="font-size:24px;margin-top:4px">{{ s.total }}</div>
+      <div class="surface-counts" style="font-size:9px">
+        <span class="green-count">{{ s.green }}g</span>
+        <span class="yellow-count">{{ s.yellow }}y</span>
+        <span class="red-count">{{ s.red }}r</span>
+        <span class="grey-count">{{ s.grey }}—</span>
+      </div>
+    </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{# Export bar #}
 {% if scan.status == 'done' %}
 <section id="export" class="card p-5 mb-6">
   <div class="flex items-center justify-between mb-3">
-    <h2 class="text-sm font-mono uppercase tracking-[0.16em] text-zinc-300">Export</h2>
-    <span class="text-[11px] font-mono text-zinc-600">5 formats</span>
+    <h2 class="font-mono text-amber-400 font-semibold">Export</h2>
+    <span class="section-eyebrow">5 formats</span>
   </div>
   <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
     {% for slug, label, sub, badge in [
@@ -60,28 +105,24 @@
       ('xlsx-generic',   'Workbook',      'generic XLSX',       'xlsx'),
     ] %}
     <a href="/api/scans/{{ scan.id }}/export/{{ slug }}"
-       class="group flex items-start gap-3 p-3 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-800/80 hover:border-zinc-700 transition-colors">
+       class="group flex items-start gap-3 p-3 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-800/80 hover:border-amber-400/40 transition-colors">
       <div class="w-9 h-9 rounded-md bg-zinc-950 border border-zinc-800 flex items-center justify-center flex-shrink-0">
-        <span class="text-[10px] font-mono font-semibold text-zinc-500 uppercase">{{ badge }}</span>
+        <span class="text-[10px] font-mono font-semibold text-amber-400 uppercase">{{ badge }}</span>
       </div>
       <div class="min-w-0">
-        <p class="text-sm font-medium text-zinc-100 truncate">{{ label }}</p>
-        <p class="text-[11px] text-zinc-500 truncate">{{ sub }}</p>
+        <p class="text-sm font-medium text-zinc-100 truncate font-mono">{{ label }}</p>
+        <p class="text-[11px] text-zinc-500 truncate font-mono">{{ sub }}</p>
       </div>
-      <svg class="w-3.5 h-3.5 text-zinc-600 group-hover:text-zinc-400 ml-auto flex-shrink-0 transition-colors"
-           viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-        <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/>
-        <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/>
-      </svg>
     </a>
     {% endfor %}
   </div>
 </section>
 {% endif %}
 
+{# Mark-as-baseline collapsible #}
 {% if scan.status == 'done' %}
 <details class="card p-4 mb-6">
-  <summary class="cursor-pointer text-sm text-zinc-400 hover:text-zinc-200 select-none flex items-center gap-2">
+  <summary class="cursor-pointer text-sm text-zinc-400 hover:text-zinc-200 select-none flex items-center gap-2 font-mono">
     <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
       <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/>
     </svg>
@@ -90,48 +131,49 @@
   <form action="/baselines/create" method="post"
         class="mt-4 flex flex-col sm:flex-row gap-3 sm:items-end">
     <input type="hidden" name="scan_id" value="{{ scan.id }}">
-    <label class="flex-1 text-xs text-zinc-400">
+    <label class="flex-1 text-xs text-zinc-400 font-mono">
       {{ t('scan.mark_baseline.label') }}
       <input type="text" name="label" required autocomplete="off"
-             class="mt-1.5 block w-full px-3 py-2 rounded-md bg-zinc-950 border border-zinc-800 text-zinc-100 font-mono text-sm placeholder:text-zinc-600 focus:border-blue-500 focus:ring-0 transition-colors"
+             class="mt-1.5 block w-full px-3 py-2 rounded-md bg-zinc-950 border border-zinc-800 text-zinc-100 font-mono text-sm placeholder:text-zinc-600 focus:border-amber-400 focus:ring-0 transition-colors"
              placeholder="e.g. Q2-2026-pre-pqc">
     </label>
-    <button type="submit"
-            class="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-violet-500 hover:bg-violet-400 text-white font-medium text-sm transition-colors">
+    <button type="submit" class="btn-primary">
       {{ t('scan.mark_baseline.button') }}
     </button>
   </form>
 </details>
 {% endif %}
 
+{# Findings list #}
 <section>
   <div class="flex items-end justify-between mb-3">
-    <h2 class="text-sm font-mono uppercase tracking-[0.16em] text-zinc-500">Findings</h2>
-    <span class="text-[11px] font-mono text-zinc-600">streamed via SSE</span>
+    <h2 class="font-mono text-amber-400 font-semibold">Asset Inventory &amp; Findings</h2>
+    <span class="section-eyebrow">streamed via sse</span>
   </div>
 
   <div id="findings"
        class="findings-list card divide-y divide-zinc-800/60 overflow-hidden"
-       data-filter="all"
+       data-bandfilter="all"
        hx-ext="sse" sse-connect="/api/scans/{{ scan.id }}/events"
        sse-swap="finding" hx-swap="afterbegin">
     {% for f in findings %}
-      <article data-row-sev="{{ f.severity }}"
+      {% set fb = band_of(f) %}
+      <article data-row-band="{{ fb }}"
                class="row-hover px-5 py-3 flex items-start gap-4">
-        <span class="sev-pill mt-0.5" data-sev="{{ f.severity }}">{{ f.severity }}</span>
+        <span class="band-pill mt-0.5" data-band="{{ fb }}"><span class="dot"></span>{{ fb }}</span>
         <div class="min-w-0 flex-1">
           <div class="flex items-center gap-2 flex-wrap">
             <code class="font-mono text-xs text-zinc-500">{{ f.probe_id }}</code>
             {% if f.algorithm and f.algorithm != 'N/A' %}
               <span class="text-zinc-700" aria-hidden="true">&middot;</span>
-              <code class="font-mono text-xs text-violet-300">{{ f.algorithm }}</code>
+              <code class="font-mono text-xs text-amber-300">{{ f.algorithm }}</code>
             {% endif %}
           </div>
-          <p class="mt-1 text-sm text-zinc-100 leading-snug">{{ f.title }}</p>
+          <p class="mt-1 text-sm text-zinc-100 leading-snug font-mono">{{ f.title }}</p>
         </div>
       </article>
     {% else %}
-      <div class="px-5 py-12 text-center text-sm text-zinc-500">
+      <div class="px-5 py-12 text-center text-sm text-zinc-500 font-mono">
         {% if scan.status == 'running' %}
           Scan is running &mdash; findings will appear here as probes complete.
         {% else %}
