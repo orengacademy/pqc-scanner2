@@ -17,8 +17,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      - name: System deps (weasyprint runtime + liboqs for active extras)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libcairo2 libpango-1.0-0 libpangoft2-1.0-0 \
+            libgdk-pixbuf2.0-0 shared-mime-info \
+            liboqs-dev || true
       - name: Install
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev,render]" && pip install "liboqs-python>=0.10,<0.12" || true
       - name: Lint
         run: ruff check src/ tests/
       - name: Type-check

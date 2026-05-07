@@ -44,7 +44,30 @@ class TrustSystemRoots(Probe):
                 pem = bundle.read_bytes()
             except OSError:
                 continue
-            certs = x509.load_pem_x509_certificates(pem)[: self.max_certs]
+            # Suppress CryptographyDeprecationWarning for negative-serial
+            # certs (Microsoft Code Verification Root et al.). cryptography
+            # >= 45 will refuse these; for now we still want to inventory
+            # them. Per-cert fallback skips malformed entries without
+            # losing the rest of the bundle.
+            import warnings
+
+            from cryptography.utils import CryptographyDeprecationWarning
+            certs: list[x509.Certificate] = []
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", CryptographyDeprecationWarning)
+                    certs = list(x509.load_pem_x509_certificates(pem))
+            except ValueError:
+                blocks = pem.split(b"-----BEGIN CERTIFICATE-----")
+                for blk in blocks[1:]:
+                    blob = b"-----BEGIN CERTIFICATE-----" + blk
+                    try:
+                        with warnings.catch_warnings():
+                            warnings.simplefilter("ignore", CryptographyDeprecationWarning)
+                            certs.append(x509.load_pem_x509_certificate(blob))
+                    except ValueError:
+                        continue
+            certs = certs[: self.max_certs]
             for cert in certs:
                 pk = cert.public_key()
                 if isinstance(pk, rsa.RSAPublicKey):
