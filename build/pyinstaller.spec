@@ -51,7 +51,10 @@ HIDDEN_IMPORTS = [
     "pqcscan.renderers.xlsx_generic",
     "weasyprint",
     "openpyxl",
-    "cyclonedx_python_lib",
+    "cyclonedx",
+    "cyclonedx.model",
+    "cyclonedx.output",
+    "cyclonedx.schema",
     "multipart",  # python-multipart, used by FastAPI Form()
 ]
 for path in sorted(_PROBES_DIR.glob("*.py")):

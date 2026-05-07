@@ -28,9 +28,9 @@ except ImportError:
 if _sys.platform == "win32":
     _prior_unraisablehook = _sys.unraisablehook
 
-    def _pqcscan_unraisablehook(unraisable: _sys.UnraisableHookArgs) -> None:
-        exc_type = unraisable.exc_type
-        exc_value = unraisable.exc_value
+    def _pqcscan_unraisablehook(unraisable):
+        exc_type = getattr(unraisable, "exc_type", None)
+        exc_value = getattr(unraisable, "exc_value", None)
         msg = str(exc_value) if exc_value else ""
         if (
             (exc_type is RuntimeError and "Event loop is closed" in msg)
