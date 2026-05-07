@@ -50,7 +50,7 @@ def test_spec_includes_dynamic_imports():
         "pqcscan.runner.runner",
         "weasyprint",
         "openpyxl",
-        "cyclonedx_python_lib",
+        "cyclonedx",
         "multipart",
     ):
         assert needed in src, f"spec must hidden-import {needed}"
