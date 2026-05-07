@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| **Date** | 2026-05-05 |
-| **Branch / commit** | `main @ c92956e` (post Plan F migrations + B17 range-aware + OSV fetch script) |
-| **Version** | `0.1.0` |
-| **Probes** | 109 / 102 registered (target hit + spec §13.1 deferral fully closed) |
-| **Tests** | ~365+ passed across unit + integration suites (Python 3.11) |
-| **Status** | All design-doc plans shipped (A+B+C+D+E+F+G); B17 OSV matcher real across 10 ecosystems / 12 lockfile formats with range-aware PyPI; all 14 FOSS-tool probes use the offline-pack resolver; only Plan F batch 4 (multi-GB Grype-DB snapshot bundling — release-pipeline decision) remains |
+| **Date** | 2026-05-07 |
+| **Branch / commit** | `plan-h` (Plan H.1 trim + Plan H.2 UDP+DTLS) |
+| **Version** | `0.3.0` |
+| **Probes** | 99 / 99 registered (Plan H.1 trim + Plan H.2 UDP+DTLS foundation) |
+| **Tests** | 321 passed across unit + integration suites (Python 3.11) |
+| **Status** | Plans A+B+C+D+E+F+G shipped; Plan H.1 trim + Plan H.2 (UDP scan + DTLS helper) closed; Plan H.3 (OT/ICS family) follows |
 
 ## 1. TL;DR
 
