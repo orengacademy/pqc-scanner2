@@ -31,7 +31,8 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — 118 probes (Plan H + Plan I.7.a/b/c)."""
+    """Built-in probe set — 121 probes (Plan H + Plan I.7 complete: a/b/c/d/e)."""
+    from pqcscan.probes.app_crypto_lib_pqc_support import AppCryptoLibPqcSupport
     from pqcscan.probes.app_jwt_env_alg import AppJwtEnvAlg
     from pqcscan.probes.app_nginx_jwt_validation import AppNginxJwtValidation
     from pqcscan.probes.app_oauth_jwks import AppOauthJwks
@@ -61,6 +62,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.fs_conf_openssl_cnf import FsConfOpensslCnf
     from pqcscan.probes.fs_conf_sshd import FsConfSshd
     from pqcscan.probes.host_gnupg_config import HostGnupgConfig
+    from pqcscan.probes.host_libcrypto_pqc_features import HostLibcryptoPqcFeatures
     from pqcscan.probes.host_openssl_ciphers import HostOpenSSLCiphers
     from pqcscan.probes.host_openssl_config import HostOpenSSLConfig
     from pqcscan.probes.host_openssl_engines import HostOpenSSLEngines
@@ -121,6 +123,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.ot_opc_ua import OTOpcUa
     from pqcscan.probes.ot_s7comm import OTS7comm
     from pqcscan.probes.pqc_alg_normaliser import PqcAlgNormaliser
+    from pqcscan.probes.pqc_kat_fips import PqcKatFips
     from pqcscan.probes.pqc_meta_oqs_status import PqcMetaOqsStatus
     from pqcscan.probes.sbom_lang_cargo import SbomLangCargo
     from pqcscan.probes.sbom_lang_composer import SbomLangComposer
@@ -300,4 +303,9 @@ def default_registry() -> Registry:
     reg.register(NetTlsPqcHandshake())
     # Plan I.7.c — X.509 PQC cert profile probe.
     reg.register(FsCertPqcX509())
+    # Plan I.7.d — local crypto stack PQC inventory.
+    reg.register(AppCryptoLibPqcSupport())
+    reg.register(HostLibcryptoPqcFeatures())
+    # Plan I.7.e — NIST FIPS 203/204/205 KAT runner.
+    reg.register(PqcKatFips())
     return reg
