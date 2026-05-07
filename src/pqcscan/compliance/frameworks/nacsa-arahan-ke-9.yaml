@@ -101,3 +101,13 @@ rules:
     verdict: non-compliant
     deadline: 2027-06-30
     note: "Protokol OT tanpa kriptografi (Modbus/S7/DNP3/IEC-104/EtherNet-IP/BACnet plain). Wajib dilindungi (TLS-wrap atau IEC 62351 / CIP Security / BACnet-SC) menjelang Fasa 4 (Jun 2027)."
+
+  - match: { algorithm: Basic128Rsa15 }
+    clause: NACSA-9:opcua-deprecated
+    verdict: non-compliant
+    note: "OPC UA Basic128Rsa15 menggunakan SHA-1 + RSA-PKCS#1 v1.5 (terlarang). Wajib gantikan dengan Aes256_Sha256_RsaPss atau profil PQC."
+
+  - match: { algorithm: Basic256 }
+    clause: NACSA-9:opcua-deprecated
+    verdict: non-compliant
+    note: "OPC UA Basic256 (SHA-1) terlarang. Gunakan Basic256Sha256 atau lebih baik."
