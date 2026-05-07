@@ -9,12 +9,20 @@ from pqcscan.core.types import Capability, Finding, ProbeFamily
 
 
 @dataclass(slots=True)
+class OTTarget:
+    host: str
+    port: int
+    proto_hint: str | None = None  # "modbus" | "s7" | "opcua" | "dnp3" | ...
+
+
+@dataclass(slots=True)
 class ScanContext:
     scan_id: int
     mode: str  # "root" | "user"
     available_capabilities: set[Capability]
     scan_paths: list[Path] = field(default_factory=list)
     server_target: str | None = None
+    ot_targets: list["OTTarget"] = field(default_factory=list)
 
 
 Emitter = Callable[[Finding], None]

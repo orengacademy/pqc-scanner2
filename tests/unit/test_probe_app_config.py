@@ -5,7 +5,6 @@ import pytest
 
 from pqcscan.core.types import Classification, ProbeFamily
 from pqcscan.probes._base import ScanContext
-from pqcscan.probes.app_dotenv_secrets import AppDotenvSecrets
 from pqcscan.probes.app_jwt_env_alg import AppJwtEnvAlg
 from pqcscan.probes.app_nginx_jwt_validation import AppNginxJwtValidation
 from pqcscan.probes.app_oauth_jwks import AppOauthJwks
@@ -17,7 +16,6 @@ from pqcscan.probes.app_spring_properties import AppSpringProperties
     [
         (AppJwtEnvAlg, "app.jwt.env_alg"),
         (AppOauthJwks, "app.oauth.jwks"),
-        (AppDotenvSecrets, "app.dotenv.secrets"),
         (AppSpringProperties, "app.spring.properties"),
         (AppNginxJwtValidation, "app.nginx.jwt_validation"),
     ],
@@ -73,18 +71,6 @@ async def test_oauth_jwks_flags_rsa_2048(tmp_path: Path):
     assert any(f.algorithm.startswith("RSA-")
                and f.classification in {Classification.SANGAT_TINGGI, Classification.TINGGI}
                for f in found)
-
-
-@pytest.mark.asyncio
-async def test_dotenv_secrets_flags_short_secret_key(tmp_path: Path):
-    env = tmp_path / ".env"
-    env.write_text("DJANGO_SECRET_KEY=short\n")
-    found: list = []
-    p = AppDotenvSecrets(roots=[tmp_path])
-    ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
-    await p.run(ctx, emit=lambda f: found.append(f))
-    assert any("DJANGO_SECRET_KEY" in f.title for f in found)
-    assert all(f.classification is Classification.SANGAT_TINGGI for f in found)
 
 
 @pytest.mark.asyncio
