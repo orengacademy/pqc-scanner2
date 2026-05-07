@@ -31,14 +31,12 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — 109 probes (Plan B 1-15 + FOSS-tools + Plan G 1-3: DB-TDE + MQ + HW crypto)."""
-    from pqcscan.probes.app_dotenv_secrets import AppDotenvSecrets
+    """Built-in probe set — 114 probes (Plan H complete: H.1 + H.2 + H.3a + H.3b + H.3c)."""
     from pqcscan.probes.app_jwt_env_alg import AppJwtEnvAlg
     from pqcscan.probes.app_nginx_jwt_validation import AppNginxJwtValidation
     from pqcscan.probes.app_oauth_jwks import AppOauthJwks
     from pqcscan.probes.app_spring_properties import AppSpringProperties
     from pqcscan.probes.aux_clock_cert_validity import AuxClockCertValidity
-    from pqcscan.probes.code_bandit import CodeBandit
     from pqcscan.probes.code_semgrep_pqc import CodeSemgrepPqc
     from pqcscan.probes.code_ts_go import CodeTsGo
     from pqcscan.probes.code_ts_java import CodeTsJava
@@ -48,13 +46,6 @@ def default_registry() -> Registry:
     from pqcscan.probes.code_ts_rust import CodeTsRust
     from pqcscan.probes.container_image_sbom import ContainerImageSbom
     from pqcscan.probes.container_runtime_detect import ContainerRuntimeDetect
-    from pqcscan.probes.cve_cargo_audit import CveCargoAudit
-    from pqcscan.probes.cve_govulncheck import CveGovulncheck
-    from pqcscan.probes.cve_grype import CveGrype
-    from pqcscan.probes.cve_npm_audit import CveNpmAudit
-    from pqcscan.probes.cve_osv_offline import CveOsvOffline
-    from pqcscan.probes.cve_pip_audit import CvePipAudit
-    from pqcscan.probes.cve_trivy_fs import CveTrivyFs
     from pqcscan.probes.db_mongo_encrypted_storage import DbMongoEncryptedStorage
     from pqcscan.probes.db_mssql_tde import DbMssqlTde
     from pqcscan.probes.db_mysql_keyring import DbMysqlKeyring
@@ -69,7 +60,6 @@ def default_registry() -> Registry:
     from pqcscan.probes.fs_conf_openssl_cnf import FsConfOpensslCnf
     from pqcscan.probes.fs_conf_sshd import FsConfSshd
     from pqcscan.probes.host_gnupg_config import HostGnupgConfig
-    from pqcscan.probes.host_lynis import HostLynis
     from pqcscan.probes.host_openssl_ciphers import HostOpenSSLCiphers
     from pqcscan.probes.host_openssl_config import HostOpenSSLConfig
     from pqcscan.probes.host_openssl_engines import HostOpenSSLEngines
@@ -93,6 +83,22 @@ def default_registry() -> Registry:
     from pqcscan.probes.net_ike_v1v2 import NetIkeV1V2
     from pqcscan.probes.net_kerberos_asreq import NetKerberosAsreq
     from pqcscan.probes.net_ports_tcp import NetPortsTcp
+    from pqcscan.probes.net_ports_udp import NetPortsUDP
+    from pqcscan.probes.ot_bacnet import OTBacnet
+    from pqcscan.probes.ot_bacnet_sc import OTBacnetSc
+    from pqcscan.probes.ot_cip_security import OTCipSecurity
+    from pqcscan.probes.ot_coap_dtls import OTCoapDtls
+    from pqcscan.probes.ot_dicom_tls import OTDicomTls
+    from pqcscan.probes.ot_dnp3_tcp import OTDnp3Tcp
+    from pqcscan.probes.ot_ethernet_ip import OTEthernetIp
+    from pqcscan.probes.ot_gtp import OTGtp
+    from pqcscan.probes.ot_hl7_tls import OTHl7Tls
+    from pqcscan.probes.ot_iec_104 import OTIec104
+    from pqcscan.probes.ot_iec_61850_mms import OTIec61850Mms
+    from pqcscan.probes.ot_modbus_secure import OTModbusSecure
+    from pqcscan.probes.ot_modbus_tcp import OTModbusTcp
+    from pqcscan.probes.ot_opc_ua import OTOpcUa
+    from pqcscan.probes.ot_s7comm import OTS7comm
     from pqcscan.probes.net_rdp_negotiation import NetRdpNegotiation
     from pqcscan.probes.net_smb_dialect import NetSmbDialect
     from pqcscan.probes.net_snmp_version import NetSnmpVersion
@@ -125,7 +131,6 @@ def default_registry() -> Registry:
     from pqcscan.probes.sbom_os_rpm import SbomOsRpm
     from pqcscan.probes.sbom_os_windows import SbomOsWindows
     from pqcscan.probes.sbom_syft import SbomSyft
-    from pqcscan.probes.secrets_gitleaks import SecretsGitleaks
     from pqcscan.probes.sign_code_authenticode import SignCodeAuthenticode
     from pqcscan.probes.sign_git_signing_keys import SignGitSigningKeys
     from pqcscan.probes.sign_gpg_keyrings import SignGpgKeyrings
@@ -184,6 +189,7 @@ def default_registry() -> Registry:
     reg.register(SbomLangGomod())
     # Plan B batch 6 — port discovery + database TLS.
     reg.register(NetPortsTcp())
+    reg.register(NetPortsUDP())  # Plan H.2 — UDP scan
     reg.register(NetDbPostgresTls())
     reg.register(NetDbMongoTls())
     reg.register(NetDbRedisTls())
@@ -205,28 +211,18 @@ def default_registry() -> Registry:
     reg.register(K8sSecretsTypes())
     reg.register(K8sHelmReleases())
     reg.register(K8sMeshMtls())
-    # FOSS-tools add-on — Syft + Grype + Semgrep + OSV stub.
+    # FOSS-tools add-on — Syft + Semgrep (Plan H.1 dropped Grype + OSV).
     reg.register(SbomSyft())
-    reg.register(CveGrype())
-    reg.register(CveOsvOffline())
     reg.register(CodeSemgrepPqc())
-    # FOSS VA suite — TLS-specialised + per-language VA + system audit
-    # + Python SAST + secrets. Each auto-skips when its tool isn't on PATH.
+    # FOSS VA suite — TLS-specialised. Each auto-skips when its tool isn't on PATH.
+    # (Plan H.1 dropped pip-audit, npm-audit, govulncheck, cargo-audit, trivy,
+    # lynis, bandit, gitleaks — out of PQC scope.)
     reg.register(NetTlsTestssl())
     reg.register(NetTlsSslyze())
     reg.register(NetTlsNmapSsl())
-    reg.register(CvePipAudit())
-    reg.register(CveNpmAudit())
-    reg.register(CveGovulncheck())
-    reg.register(CveCargoAudit())
-    reg.register(CveTrivyFs())
-    reg.register(HostLynis())
-    reg.register(CodeBandit())
-    reg.register(SecretsGitleaks())
-    # Plan B batch 10 — app-config crypto.
+    # Plan B batch 10 — app-config crypto (Plan H.1 dropped dotenv-secrets).
     reg.register(AppJwtEnvAlg())
     reg.register(AppOauthJwks())
-    reg.register(AppDotenvSecrets())
     reg.register(AppSpringProperties())
     reg.register(AppNginxJwtValidation())
     # Plan B batch 11 — signing & integrity.
@@ -275,4 +271,22 @@ def default_registry() -> Registry:
     reg.register(HwTpmAlgorithms())
     reg.register(HwPkcs11Modules())
     reg.register(HwSmartcardReaders())
+    # Plan H.3a — OT/ICS TCP binary parsers.
+    reg.register(OTModbusTcp())
+    reg.register(OTModbusSecure())
+    reg.register(OTS7comm())
+    reg.register(OTDnp3Tcp())
+    reg.register(OTIec104())
+    reg.register(OTIec61850Mms())
+    reg.register(OTEthernetIp())
+    # Plan H.3b — OT/ICS TLS-wrapped + OPC UA + BACnet.
+    reg.register(OTOpcUa())
+    reg.register(OTCipSecurity())
+    reg.register(OTBacnet())
+    reg.register(OTBacnetSc())
+    # Plan H.3c — OT telco / health / IoT.
+    reg.register(OTGtp())
+    reg.register(OTDicomTls())
+    reg.register(OTHl7Tls())
+    reg.register(OTCoapDtls())
     return reg

@@ -29,6 +29,7 @@ class ProbeFamily(StrEnum):
     PQC_META = "pqc_meta"
     AUX = "aux"
     SECRETS = "secrets"
+    OT = "ot"
 
 
 class Classification(StrEnum):
