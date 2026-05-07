@@ -25,3 +25,47 @@ jobs:
         run: mypy src/pqcscan
       - name: Test
         run: pytest -q --cov=pqcscan --cov-report=term-missing
+
+  binary_smoke:
+    # Build the PyInstaller binary on each runner OS and invoke it.
+    # Catches regressions like the v0.2.0-v0.6.0 silent-exit bug where
+    # cli/main.py declared the Click group but never called it. Pip
+    # install passed CI; frozen binary exited silently.
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
+        run: pip install -e ".[dev,build]"
+      - name: Build PyInstaller binary
+        run: pyinstaller build/pyinstaller.spec
+      - name: Smoke help
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            BIN=dist/pqcscan.exe
+          else
+            BIN=dist/pqcscan
+          fi
+          OUT="$("$BIN" --help)"
+          echo "$OUT"
+          echo "$OUT" | grep -q "Usage:"           || (echo "FAIL no Usage"; exit 1)
+          echo "$OUT" | grep -q "Post-Quantum"     || (echo "FAIL no desc"; exit 1)
+          for cmd in scan scans daemon export version; do
+            echo "$OUT" | grep -q "$cmd" || (echo "FAIL missing $cmd"; exit 1)
+          done
+      - name: Smoke version
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            BIN=dist/pqcscan.exe
+          else
+            BIN=dist/pqcscan
+          fi
+          "$BIN" version
