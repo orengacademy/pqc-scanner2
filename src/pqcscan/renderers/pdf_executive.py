@@ -58,6 +58,14 @@ def render_pdf_executive(repo: Repo, scan_id: int, output_path: Path) -> Path:
         top_findings=top_findings,
         crit_probes=crit_probes.most_common(5),
     )
-    from weasyprint import HTML
+    try:
+        from weasyprint import HTML
+    except ImportError as e:
+        raise ModuleNotFoundError(
+            "PDF export requires weasyprint + cairo/pango runtime. "
+            "Install with: pip install 'pqcscan[render]'. "
+            "Frozen binaries currently do not bundle PDF support; "
+            "use CBOM (JSON) or XLSX export instead.",
+        ) from e
     HTML(string=html_str).write_pdf(str(output_path))
     return output_path

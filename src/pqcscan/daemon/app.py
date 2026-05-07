@@ -174,23 +174,27 @@ def create_app(*, db_path: Path, registry: Registry | None = None) -> FastAPI:
             elif fmt == "pdf-tech":
                 try:
                     from pqcscan.renderers.pdf_technical import render_pdf_technical
-                except ImportError:
+                    render_pdf_technical(repo, scan_id, tmp_path)
+                except (ImportError, ModuleNotFoundError) as e:
                     raise HTTPException(
                         503,
-                        "PDF export requires weasyprint. Install with: "
-                        "pip install 'pqcscan[render]'",
-                    ) from None
-                render_pdf_technical(repo, scan_id, tmp_path)
+                        "PDF export requires weasyprint + cairo/pango "
+                        "runtime. Install with: pip install 'pqcscan[render]'. "
+                        "Frozen binaries do not bundle PDF support; use CBOM "
+                        "or XLSX export instead.",
+                    ) from e
             elif fmt == "pdf-exec":
                 try:
                     from pqcscan.renderers.pdf_executive import render_pdf_executive
-                except ImportError:
+                    render_pdf_executive(repo, scan_id, tmp_path)
+                except (ImportError, ModuleNotFoundError) as e:
                     raise HTTPException(
                         503,
-                        "PDF export requires weasyprint. Install with: "
-                        "pip install 'pqcscan[render]'",
-                    ) from None
-                render_pdf_executive(repo, scan_id, tmp_path)
+                        "PDF export requires weasyprint + cairo/pango "
+                        "runtime. Install with: pip install 'pqcscan[render]'. "
+                        "Frozen binaries do not bundle PDF support; use CBOM "
+                        "or XLSX export instead.",
+                    ) from e
             elif fmt == "xlsx-bukukerja":
                 from pqcscan.renderers.xlsx_bukukerja import render_xlsx_bukukerja
                 render_xlsx_bukukerja(repo, scan_id, tmp_path, locale=lang)
