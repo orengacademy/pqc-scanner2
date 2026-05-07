@@ -81,7 +81,7 @@ class OTOpcUa(Probe):
                     cls = Classification.INFO
                 else:
                     sev = Severity.MED
-                    cls = classify(pol) if classify else Classification.INFO
+                    cls = classify(pol)
                 emit(Finding(
                     probe_id=self.id,
                     algorithm=pol,
