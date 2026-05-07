@@ -31,7 +31,7 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — 117 probes (Plan H + Plan I.7.a + Plan I.7.b active hybrid-KEX)."""
+    """Built-in probe set — 118 probes (Plan H + Plan I.7.a/b/c)."""
     from pqcscan.probes.app_jwt_env_alg import AppJwtEnvAlg
     from pqcscan.probes.app_nginx_jwt_validation import AppNginxJwtValidation
     from pqcscan.probes.app_oauth_jwks import AppOauthJwks
@@ -53,6 +53,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.dns_dnssec_zones import DnsDnssecZones
     from pqcscan.probes.email_dkim_selectors import EmailDkimSelectors
     from pqcscan.probes.email_smime_certs import EmailSmimeCerts
+    from pqcscan.probes.fs_cert_pqc_x509 import FsCertPqcX509
     from pqcscan.probes.fs_cert_privkey import FsCertPrivkey
     from pqcscan.probes.fs_cert_x509 import FsCertX509
     from pqcscan.probes.fs_conf_apache import FsConfApache
@@ -297,4 +298,6 @@ def default_registry() -> Registry:
     reg.register(PqcMetaOqsStatus())
     # Plan I.7.b — active hybrid-KEX TLS probe.
     reg.register(NetTlsPqcHandshake())
+    # Plan I.7.c — X.509 PQC cert profile probe.
+    reg.register(FsCertPqcX509())
     return reg
