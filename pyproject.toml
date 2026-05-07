@@ -36,6 +36,14 @@ dev = [
   "ruff>=0.4",
   "mypy>=1.10",
 ]
+# Plan I.7.a — OQS active validation extras. Default install stays passive.
+# With this set, OQS-dependent probes register and can perform active
+# hybrid-KEX handshakes + ML-DSA signature verify + NIST FIPS 203/204/205
+# KAT runs. Requires native liboqs >= 0.10 on host (apt: liboqs-dev /
+# brew: liboqs / vcpkg: liboqs).
+active = [
+  "liboqs-python>=0.10,<0.12",
+]
 build = [
   "pyinstaller>=6.0",
 ]
