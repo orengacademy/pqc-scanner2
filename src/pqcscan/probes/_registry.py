@@ -31,7 +31,7 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — 114 probes (Plan H complete: H.1 + H.2 + H.3a + H.3b + H.3c)."""
+    """Built-in probe set — 116 probes (Plan H complete + Plan I.7.a OQS foundation)."""
     from pqcscan.probes.app_jwt_env_alg import AppJwtEnvAlg
     from pqcscan.probes.app_nginx_jwt_validation import AppNginxJwtValidation
     from pqcscan.probes.app_oauth_jwks import AppOauthJwks
@@ -63,6 +63,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.host_openssl_ciphers import HostOpenSSLCiphers
     from pqcscan.probes.host_openssl_config import HostOpenSSLConfig
     from pqcscan.probes.host_openssl_engines import HostOpenSSLEngines
+    from pqcscan.probes.host_openssl_oqs_provider import HostOpenSSLOqsProvider
     from pqcscan.probes.host_ssh_client_config import HostSshClientConfig
     from pqcscan.probes.host_ssh_server_config import HostSshServerConfig
     from pqcscan.probes.hw_pkcs11_modules import HwPkcs11Modules
@@ -118,6 +119,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.ot_opc_ua import OTOpcUa
     from pqcscan.probes.ot_s7comm import OTS7comm
     from pqcscan.probes.pqc_alg_normaliser import PqcAlgNormaliser
+    from pqcscan.probes.pqc_meta_oqs_status import PqcMetaOqsStatus
     from pqcscan.probes.sbom_lang_cargo import SbomLangCargo
     from pqcscan.probes.sbom_lang_composer import SbomLangComposer
     from pqcscan.probes.sbom_lang_gomod import SbomLangGomod
@@ -289,4 +291,7 @@ def default_registry() -> Registry:
     reg.register(OTDicomTls())
     reg.register(OTHl7Tls())
     reg.register(OTCoapDtls())
+    # Plan I.7.a — OQS active validation foundation.
+    reg.register(HostOpenSSLOqsProvider())
+    reg.register(PqcMetaOqsStatus())
     return reg
