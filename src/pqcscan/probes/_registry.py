@@ -31,7 +31,7 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — 99 probes (Plan H.1 trim + Plan H.2 UDP+DTLS foundation)."""
+    """Built-in probe set — 106 probes (Plan H.1 + H.2 + H.3a OT TCP family)."""
     from pqcscan.probes.app_jwt_env_alg import AppJwtEnvAlg
     from pqcscan.probes.app_nginx_jwt_validation import AppNginxJwtValidation
     from pqcscan.probes.app_oauth_jwks import AppOauthJwks
@@ -84,6 +84,13 @@ def default_registry() -> Registry:
     from pqcscan.probes.net_kerberos_asreq import NetKerberosAsreq
     from pqcscan.probes.net_ports_tcp import NetPortsTcp
     from pqcscan.probes.net_ports_udp import NetPortsUDP
+    from pqcscan.probes.ot_dnp3_tcp import OTDnp3Tcp
+    from pqcscan.probes.ot_ethernet_ip import OTEthernetIp
+    from pqcscan.probes.ot_iec_104 import OTIec104
+    from pqcscan.probes.ot_iec_61850_mms import OTIec61850Mms
+    from pqcscan.probes.ot_modbus_secure import OTModbusSecure
+    from pqcscan.probes.ot_modbus_tcp import OTModbusTcp
+    from pqcscan.probes.ot_s7comm import OTS7comm
     from pqcscan.probes.net_rdp_negotiation import NetRdpNegotiation
     from pqcscan.probes.net_smb_dialect import NetSmbDialect
     from pqcscan.probes.net_snmp_version import NetSnmpVersion
@@ -256,4 +263,12 @@ def default_registry() -> Registry:
     reg.register(HwTpmAlgorithms())
     reg.register(HwPkcs11Modules())
     reg.register(HwSmartcardReaders())
+    # Plan H.3a — OT/ICS TCP binary parsers.
+    reg.register(OTModbusTcp())
+    reg.register(OTModbusSecure())
+    reg.register(OTS7comm())
+    reg.register(OTDnp3Tcp())
+    reg.register(OTIec104())
+    reg.register(OTIec61850Mms())
+    reg.register(OTEthernetIp())
     return reg

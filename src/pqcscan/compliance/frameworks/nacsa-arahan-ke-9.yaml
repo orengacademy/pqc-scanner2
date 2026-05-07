@@ -94,3 +94,10 @@ rules:
     verdict: advisory
     deadline: 2025-12-31
     note: "Aset perlu didaftar dalam Borang Pelaksanaan Migrasi PQC (Lampiran A, Jadual 0) menjelang akhir Fasa 1 Persediaan (Dis 2025)."
+
+  # ───── OT/ICS clauses (Plan H.3) ─────
+  - match: { probe_family: ot }
+    clause: NACSA-9:ot-no-crypto
+    verdict: non-compliant
+    deadline: 2027-06-30
+    note: "Protokol OT tanpa kriptografi (Modbus/S7/DNP3/IEC-104/EtherNet-IP/BACnet plain). Wajib dilindungi (TLS-wrap atau IEC 62351 / CIP Security / BACnet-SC) menjelang Fasa 4 (Jun 2027)."
