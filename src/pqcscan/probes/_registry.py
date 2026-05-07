@@ -31,7 +31,7 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — 110 probes (Plan H.1 + H.2 + H.3a + H.3b)."""
+    """Built-in probe set — 114 probes (Plan H complete: H.1 + H.2 + H.3a + H.3b + H.3c)."""
     from pqcscan.probes.app_jwt_env_alg import AppJwtEnvAlg
     from pqcscan.probes.app_nginx_jwt_validation import AppNginxJwtValidation
     from pqcscan.probes.app_oauth_jwks import AppOauthJwks
@@ -87,8 +87,12 @@ def default_registry() -> Registry:
     from pqcscan.probes.ot_bacnet import OTBacnet
     from pqcscan.probes.ot_bacnet_sc import OTBacnetSc
     from pqcscan.probes.ot_cip_security import OTCipSecurity
+    from pqcscan.probes.ot_coap_dtls import OTCoapDtls
+    from pqcscan.probes.ot_dicom_tls import OTDicomTls
     from pqcscan.probes.ot_dnp3_tcp import OTDnp3Tcp
     from pqcscan.probes.ot_ethernet_ip import OTEthernetIp
+    from pqcscan.probes.ot_gtp import OTGtp
+    from pqcscan.probes.ot_hl7_tls import OTHl7Tls
     from pqcscan.probes.ot_iec_104 import OTIec104
     from pqcscan.probes.ot_iec_61850_mms import OTIec61850Mms
     from pqcscan.probes.ot_modbus_secure import OTModbusSecure
@@ -280,4 +284,9 @@ def default_registry() -> Registry:
     reg.register(OTCipSecurity())
     reg.register(OTBacnet())
     reg.register(OTBacnetSc())
+    # Plan H.3c — OT telco / health / IoT.
+    reg.register(OTGtp())
+    reg.register(OTDicomTls())
+    reg.register(OTHl7Tls())
+    reg.register(OTCoapDtls())
     return reg
