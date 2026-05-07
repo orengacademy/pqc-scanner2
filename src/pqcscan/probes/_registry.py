@@ -84,21 +84,6 @@ def default_registry() -> Registry:
     from pqcscan.probes.net_kerberos_asreq import NetKerberosAsreq
     from pqcscan.probes.net_ports_tcp import NetPortsTcp
     from pqcscan.probes.net_ports_udp import NetPortsUDP
-    from pqcscan.probes.ot_bacnet import OTBacnet
-    from pqcscan.probes.ot_bacnet_sc import OTBacnetSc
-    from pqcscan.probes.ot_cip_security import OTCipSecurity
-    from pqcscan.probes.ot_coap_dtls import OTCoapDtls
-    from pqcscan.probes.ot_dicom_tls import OTDicomTls
-    from pqcscan.probes.ot_dnp3_tcp import OTDnp3Tcp
-    from pqcscan.probes.ot_ethernet_ip import OTEthernetIp
-    from pqcscan.probes.ot_gtp import OTGtp
-    from pqcscan.probes.ot_hl7_tls import OTHl7Tls
-    from pqcscan.probes.ot_iec_104 import OTIec104
-    from pqcscan.probes.ot_iec_61850_mms import OTIec61850Mms
-    from pqcscan.probes.ot_modbus_secure import OTModbusSecure
-    from pqcscan.probes.ot_modbus_tcp import OTModbusTcp
-    from pqcscan.probes.ot_opc_ua import OTOpcUa
-    from pqcscan.probes.ot_s7comm import OTS7comm
     from pqcscan.probes.net_rdp_negotiation import NetRdpNegotiation
     from pqcscan.probes.net_smb_dialect import NetSmbDialect
     from pqcscan.probes.net_snmp_version import NetSnmpVersion
@@ -117,6 +102,21 @@ def default_registry() -> Registry:
     from pqcscan.probes.net_tls_smtps import NetTlsSmtps
     from pqcscan.probes.net_tls_sslyze import NetTlsSslyze
     from pqcscan.probes.net_tls_testssl import NetTlsTestssl
+    from pqcscan.probes.ot_bacnet import OTBacnet
+    from pqcscan.probes.ot_bacnet_sc import OTBacnetSc
+    from pqcscan.probes.ot_cip_security import OTCipSecurity
+    from pqcscan.probes.ot_coap_dtls import OTCoapDtls
+    from pqcscan.probes.ot_dicom_tls import OTDicomTls
+    from pqcscan.probes.ot_dnp3_tcp import OTDnp3Tcp
+    from pqcscan.probes.ot_ethernet_ip import OTEthernetIp
+    from pqcscan.probes.ot_gtp import OTGtp
+    from pqcscan.probes.ot_hl7_tls import OTHl7Tls
+    from pqcscan.probes.ot_iec_104 import OTIec104
+    from pqcscan.probes.ot_iec_61850_mms import OTIec61850Mms
+    from pqcscan.probes.ot_modbus_secure import OTModbusSecure
+    from pqcscan.probes.ot_modbus_tcp import OTModbusTcp
+    from pqcscan.probes.ot_opc_ua import OTOpcUa
+    from pqcscan.probes.ot_s7comm import OTS7comm
     from pqcscan.probes.pqc_alg_normaliser import PqcAlgNormaliser
     from pqcscan.probes.sbom_lang_cargo import SbomLangCargo
     from pqcscan.probes.sbom_lang_composer import SbomLangComposer

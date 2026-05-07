@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, OTTarget, Probe, ScanContext
@@ -30,7 +31,7 @@ class OTS7comm(Probe):
                 reader, writer = await asyncio.wait_for(
                     asyncio.open_connection(target.host, target.port), timeout=3.0,
                 )
-            except (OSError, TimeoutError, asyncio.TimeoutError) as e:
+            except (OSError, TimeoutError) as e:
                 emit(Finding(
                     probe_id=self.id,
                     algorithm="N/A",
@@ -45,14 +46,12 @@ class OTS7comm(Probe):
                 await writer.drain()
                 try:
                     resp = await asyncio.wait_for(reader.read(256), timeout=3.0)
-                except (TimeoutError, asyncio.TimeoutError):
+                except TimeoutError:
                     resp = b""
             finally:
                 writer.close()
-                try:
+                with contextlib.suppress(Exception):
                     await writer.wait_closed()
-                except Exception:
-                    pass
             cotp_cc_ok = len(resp) >= 6 and resp[0] == 0x03 and resp[5] == 0xD0
             emit(Finding(
                 probe_id=self.id,

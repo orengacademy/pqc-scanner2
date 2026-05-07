@@ -75,7 +75,7 @@ class NetPortsUDP(Probe):
                     "response_len": len(resp),
                     "response_head_hex": resp[:32].hex(),
                 }
-            except (TimeoutError, asyncio.TimeoutError):
+            except TimeoutError:
                 return "open|filtered", {"port": port, "name": payload.name, "timeout_s": self.timeout_s}
             except OSError as e:
                 return "closed", {"port": port, "name": payload.name, "error": repr(e)}

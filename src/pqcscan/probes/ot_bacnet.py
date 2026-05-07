@@ -57,7 +57,7 @@ class OTBacnet(Probe):
             transport.sendto(_who_is())
             try:
                 resp = await asyncio.wait_for(future_resp, timeout=2.0)
-            except (TimeoutError, asyncio.TimeoutError):
+            except TimeoutError:
                 resp = b""
         finally:
             transport.close()

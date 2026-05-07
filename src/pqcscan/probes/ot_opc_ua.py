@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import re
 
 from pqcscan.core.alg import classify
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, OTTarget, Probe, ScanContext
-
 
 _POLICY_RE = re.compile(rb"SecurityPolicy#([A-Za-z0-9_]+)")
 
@@ -39,7 +39,7 @@ class OTOpcUa(Probe):
                 reader, writer = await asyncio.wait_for(
                     asyncio.open_connection(target.host, target.port), timeout=3.0,
                 )
-            except (OSError, TimeoutError, asyncio.TimeoutError) as e:
+            except (OSError, TimeoutError) as e:
                 emit(Finding(
                     probe_id=self.id,
                     algorithm="N/A",
@@ -54,14 +54,12 @@ class OTOpcUa(Probe):
                 await writer.drain()
                 try:
                     resp = await asyncio.wait_for(reader.read(8192), timeout=3.0)
-                except (TimeoutError, asyncio.TimeoutError):
+                except TimeoutError:
                     resp = b""
             finally:
                 writer.close()
-                try:
+                with contextlib.suppress(Exception):
                     await writer.wait_closed()
-                except Exception:
-                    pass
 
             policies = _parse_security_policies(resp)
             if not policies:

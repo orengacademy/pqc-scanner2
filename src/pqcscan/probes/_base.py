@@ -22,7 +22,7 @@ class ScanContext:
     available_capabilities: set[Capability]
     scan_paths: list[Path] = field(default_factory=list)
     server_target: str | None = None
-    ot_targets: list["OTTarget"] = field(default_factory=list)
+    ot_targets: list[OTTarget] = field(default_factory=list)
 
 
 Emitter = Callable[[Finding], None]

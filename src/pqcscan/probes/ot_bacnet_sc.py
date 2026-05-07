@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, OTTarget, Probe, ScanContext
@@ -26,11 +27,9 @@ class OTBacnetSc(Probe):
                     asyncio.open_connection(target.host, target.port), timeout=2.0,
                 )
                 writer.close()
-                try:
+                with contextlib.suppress(Exception):
                     await writer.wait_closed()
-                except Exception:
-                    pass
-            except (OSError, TimeoutError, asyncio.TimeoutError) as e:
+            except (OSError, TimeoutError) as e:
                 emit(Finding(
                     probe_id=self.id,
                     algorithm="N/A",

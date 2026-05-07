@@ -57,7 +57,7 @@ class OTGtp(Probe):
             transport.sendto(_gtpv2c_echo())
             try:
                 resp = await asyncio.wait_for(future_resp, timeout=2.0)
-            except (TimeoutError, asyncio.TimeoutError):
+            except TimeoutError:
                 resp = b""
         finally:
             transport.close()

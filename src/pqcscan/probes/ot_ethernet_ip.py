@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, OTTarget, Probe, ScanContext
@@ -28,7 +29,7 @@ class OTEthernetIp(Probe):
                 reader, writer = await asyncio.wait_for(
                     asyncio.open_connection(target.host, target.port), timeout=3.0,
                 )
-            except (OSError, TimeoutError, asyncio.TimeoutError) as e:
+            except (OSError, TimeoutError) as e:
                 emit(Finding(
                     probe_id=self.id,
                     algorithm="N/A",
@@ -43,14 +44,12 @@ class OTEthernetIp(Probe):
                 await writer.drain()
                 try:
                     resp = await asyncio.wait_for(reader.read(512), timeout=3.0)
-                except (TimeoutError, asyncio.TimeoutError):
+                except TimeoutError:
                     resp = b""
             finally:
                 writer.close()
-                try:
+                with contextlib.suppress(Exception):
                     await writer.wait_closed()
-                except Exception:
-                    pass
             enip_ok = len(resp) >= 4 and resp[:2] == b"\x63\x00"
             emit(Finding(
                 probe_id=self.id,

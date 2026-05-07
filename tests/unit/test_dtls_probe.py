@@ -11,7 +11,6 @@ import pytest
 from pqcscan.core.types import Finding
 from pqcscan.probes._dtls_probe import run_dtls_probe
 
-
 pytestmark = pytest.mark.skipif(
     shutil.which("openssl") is None, reason="openssl binary not on PATH"
 )
