@@ -10,7 +10,6 @@ from dataclasses import dataclass
 from pqcscan.core.alg import classify, normalise
 from pqcscan.core.types import Classification, Finding, Severity
 
-
 _CIPHER_RE = re.compile(r"^\s*Cipher\s*:\s*(\S+)", re.MULTILINE)
 _VERSION_RE = re.compile(r"^\s*Protocol\s*:\s*(\S+)", re.MULTILINE)
 _SUBJECT_RE = re.compile(r"^\s*subject=([^\n]+)", re.MULTILINE)
@@ -100,7 +99,7 @@ async def run_dtls_probe(
         stdout_b, stderr_b = await asyncio.wait_for(
             proc.communicate(input=b"\n"), timeout=timeout_s,
         )
-    except (TimeoutError, asyncio.TimeoutError):
+    except TimeoutError:
         proc.kill()
         emit(Finding(
             probe_id=probe_id,
