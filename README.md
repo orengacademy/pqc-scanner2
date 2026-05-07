@@ -2,7 +2,7 @@
 
 Post-Quantum Cryptography (PQC) readiness scanner. Single Python process. Bundled web UI + headless CLI. Runs locally on Linux, Windows, macOS.
 
-> **Status: 109 / 102 probes shipped — see [docs/STATUS.md](docs/STATUS.md).** Plans A+B+C+D+E+F+G are all done: asyncio runner, FastAPI daemon + SSE, click CLI, 9-page Jinja+HTMX web UI with EN/MS toggle, SQLite store with baselines + scan diff, CycloneDX 1.6 CBOM, PDF + XLSX renderers, 10-framework YAML compliance engine, PyInstaller cross-OS build pipeline, offline-pack runtime resolver wired through all 14 FOSS-tool probes. The `cve.osv_offline` matcher works across **10 ecosystems / 12 lockfile formats** (PyPI, npm, crates.io, Go, Packagist, RubyGems, NuGet, Hex, Pub, Maven), with **range-aware PyPI matching** via the `packaging` library so non-pinned `requirements.txt` constraints are also covered. Only Plan F batch 4 (multi-GB Grype-DB snapshot bundling — a release-pipeline decision) remains.
+> **Status: 98 probes shipped — see [docs/STATUS.md](docs/STATUS.md).** Plans A+B+C+D+E+F+G remain done; **Plan H.1 trim** complete: CVE family, secrets scanner, lynis, bandit dropped (all out of PQC scope). B17 OSV matcher and Plan F batch 4 (Grype-DB bundle) no longer applicable. UDP scan + DTLS foundation (Plan H.2) and OT/ICS family (Plan H.3) follow.
 > See `docs/superpowers/specs/2026-04-29-pqcscan-v2-design.md` for the full design.
 
 ---
@@ -42,7 +42,7 @@ flowchart LR
 
     subgraph proc["pqcscan single process"]
         direction TB
-        REG["probe registry<br/>(default_registry, 109 probes)"]
+        REG["probe registry<br/>(default_registry, 98 probes)"]
         RUN["async runner<br/>(asyncio.gather per family,<br/>per-probe timeout)"]
         BUS["event bus<br/>(SSE-friendly)"]
         REPO[("SQLite store<br/>scans · findings ·<br/>baselines · framework_views")]
@@ -173,11 +173,11 @@ sequenceDiagram
 
 ## Probe families
 
-109 probes registered across 14 families. Each probe is a small `Probe` subclass that declares an `id`, a `family`, and `framework_tags` for the compliance engine to map findings.
+98 probes registered across 14 families. Each probe is a small `Probe` subclass that declares an `id`, a `family`, and `framework_tags` for the compliance engine to map findings.
 
 ```mermaid
 flowchart TB
-    REG["default_registry()<br/><b>109 probes</b>"]
+    REG["default_registry()<br/><b>98 probes</b>"]
 
     REG --> HOST["<b>HOST</b> · 6<br/>openssl.config / ciphers / engines<br/>ssh.server_config / client_config<br/>gnupg.config"]
     REG --> FS["<b>FILESYSTEM</b> · 6<br/>cert.x509 · cert.privkey<br/>conf.{nginx,apache,sshd,openssl_cnf}"]
@@ -229,7 +229,7 @@ flowchart LR
     DETAIL["/scans/{id}<br/>live SSE feed +<br/>findings table +<br/>'Mark as baseline' form"]
     FRAMEWORKS["/frameworks<br/>10 framework YAMLs"]
     FW_DET["/frameworks/{slug}<br/>rules · clauses · verdicts"]
-    PROBES["/probes<br/>109 probes by family"]
+    PROBES["/probes<br/>98 probes by family"]
     BASELINES["/baselines<br/>list + diff form"]
     DIFF["/baselines/diff<br/>added · removed · common"]
     SETTINGS["/settings<br/>version · python · platform ·<br/>privilege mode · DB · capabilities"]
