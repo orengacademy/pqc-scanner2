@@ -94,29 +94,23 @@
 <section id="export" class="card p-5 mb-6">
   <div class="flex items-center justify-between mb-3">
     <h2 class="font-mono text-amber-400 font-semibold">Export</h2>
-    <span class="section-eyebrow">{{ 5 if pdf_available else 3 }} formats{% if not pdf_available %} (PDF disabled — install pqcscan[render]){% endif %}</span>
+    <span class="section-eyebrow">5 formats</span>
   </div>
   <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-    {% for slug, label, sub, badge, requires_pdf in [
-      ('cbom',           'CBOM',          'CycloneDX 1.6 JSON', 'json', false),
-      ('pdf-tech',       'Technical PDF', 'engineer-grade',     'pdf',  true),
-      ('pdf-exec',       'Executive PDF', 'board summary',      'pdf',  true),
-      ('xlsx-bukukerja', 'BUKUKERJA',     'NACSA workbook',     'xlsx', false),
-      ('xlsx-generic',   'Workbook',      'generic XLSX',       'xlsx', false),
+    {% set _tech_url = ('/api/scans/' ~ scan.id ~ '/export/pdf-tech') if pdf_available else ('/scans/' ~ scan.id ~ '/report/tech') %}
+    {% set _exec_url = ('/api/scans/' ~ scan.id ~ '/export/pdf-exec') if pdf_available else ('/scans/' ~ scan.id ~ '/report/exec_summary') %}
+    {% set _tech_sub = 'engineer-grade' if pdf_available else 'HTML — browser Print to PDF' %}
+    {% set _exec_sub = 'board summary' if pdf_available else 'HTML — browser Print to PDF' %}
+    {% set _tech_target = '_self' if pdf_available else '_blank' %}
+    {% set _exec_target = '_self' if pdf_available else '_blank' %}
+    {% for slug, url, label, sub, badge, target in [
+      ('cbom',           '/api/scans/' ~ scan.id ~ '/export/cbom',           'CBOM',          'CycloneDX 1.6 JSON', 'json', '_self'),
+      ('pdf-tech',       _tech_url,                                          'Technical PDF', _tech_sub,            'pdf',  _tech_target),
+      ('pdf-exec',       _exec_url,                                          'Executive PDF', _exec_sub,            'pdf',  _exec_target),
+      ('xlsx-bukukerja', '/api/scans/' ~ scan.id ~ '/export/xlsx-bukukerja', 'BUKUKERJA',     'NACSA workbook',     'xlsx', '_self'),
+      ('xlsx-generic',   '/api/scans/' ~ scan.id ~ '/export/xlsx-generic',   'Workbook',      'generic XLSX',       'xlsx', '_self'),
     ] %}
-    {% if requires_pdf and not pdf_available %}
-    <div class="flex items-start gap-3 p-3 rounded-lg bg-zinc-900/30 border border-zinc-800/40 opacity-50 cursor-not-allowed"
-         title="PDF export unavailable — frozen binary does not bundle weasyprint. Install via pip install 'pqcscan[render]' on a Python install.">
-      <div class="w-9 h-9 rounded-md bg-zinc-950 border border-zinc-800 flex items-center justify-center flex-shrink-0">
-        <span class="text-[10px] font-mono font-semibold text-zinc-600 uppercase">{{ badge }}</span>
-      </div>
-      <div class="min-w-0">
-        <p class="text-sm font-medium text-zinc-500 truncate font-mono line-through">{{ label }}</p>
-        <p class="text-[11px] text-zinc-600 truncate font-mono">unavailable</p>
-      </div>
-    </div>
-    {% else %}
-    <a href="/api/scans/{{ scan.id }}/export/{{ slug }}"
+    <a href="{{ url }}" target="{{ target }}"
        class="group flex items-start gap-3 p-3 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-800/80 hover:border-amber-400/40 transition-colors">
       <div class="w-9 h-9 rounded-md bg-zinc-950 border border-zinc-800 flex items-center justify-center flex-shrink-0">
         <span class="text-[10px] font-mono font-semibold text-amber-400 uppercase">{{ badge }}</span>
@@ -126,7 +120,6 @@
         <p class="text-[11px] text-zinc-500 truncate font-mono">{{ sub }}</p>
       </div>
     </a>
-    {% endif %}
     {% endfor %}
   </div>
 </section>

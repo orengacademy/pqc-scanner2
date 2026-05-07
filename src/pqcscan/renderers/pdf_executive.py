@@ -17,7 +17,11 @@ _TEMPLATE_DIR = Path(__file__).parent / "templates"
 _TOP_N = 10
 
 
-def render_pdf_executive(repo: Repo, scan_id: int, output_path: Path) -> Path:
+def build_html_executive(repo: Repo, scan_id: int) -> str:
+    """Render scan_id as an executive HTML report (no weasyprint).
+
+    Suitable for direct browser display + Print-to-PDF.
+    """
     scan = repo.get_scan(scan_id)
     if scan is None:
         raise ValueError(f"scan {scan_id} not found")
@@ -38,7 +42,6 @@ def render_pdf_executive(repo: Repo, scan_id: int, output_path: Path) -> Path:
                        0 if f.classification == "sangat-tinggi" else 1),
     )[:_TOP_N]
 
-    # Top remediation themes — count probe_ids producing crit/high findings.
     crit_probes: Counter[str] = Counter(
         f.probe_id for f in findings if f.severity in {"crit", "high"}
     )
@@ -49,7 +52,7 @@ def render_pdf_executive(repo: Repo, scan_id: int, output_path: Path) -> Path:
         trim_blocks=True, lstrip_blocks=True,
     )
     template = env.get_template("pdf_executive.html")
-    html_str = template.render(
+    return template.render(
         scan=scan, version=__version__,
         total_findings=len(findings),
         class_counts=dict(class_counts),
@@ -58,6 +61,10 @@ def render_pdf_executive(repo: Repo, scan_id: int, output_path: Path) -> Path:
         top_findings=top_findings,
         crit_probes=crit_probes.most_common(5),
     )
+
+
+def render_pdf_executive(repo: Repo, scan_id: int, output_path: Path) -> Path:
+    html_str = build_html_executive(repo, scan_id)
     try:
         from weasyprint import HTML
     except ImportError as e:
