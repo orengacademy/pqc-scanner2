@@ -31,7 +31,7 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — 98 probes (Plan H.1 trim: CVE/secrets/audit out of PQC scope)."""
+    """Built-in probe set — 99 probes (Plan H.1 trim + Plan H.2 UDP+DTLS foundation)."""
     from pqcscan.probes.app_jwt_env_alg import AppJwtEnvAlg
     from pqcscan.probes.app_nginx_jwt_validation import AppNginxJwtValidation
     from pqcscan.probes.app_oauth_jwks import AppOauthJwks
@@ -83,6 +83,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.net_ike_v1v2 import NetIkeV1V2
     from pqcscan.probes.net_kerberos_asreq import NetKerberosAsreq
     from pqcscan.probes.net_ports_tcp import NetPortsTcp
+    from pqcscan.probes.net_ports_udp import NetPortsUDP
     from pqcscan.probes.net_rdp_negotiation import NetRdpNegotiation
     from pqcscan.probes.net_smb_dialect import NetSmbDialect
     from pqcscan.probes.net_snmp_version import NetSnmpVersion
@@ -173,6 +174,7 @@ def default_registry() -> Registry:
     reg.register(SbomLangGomod())
     # Plan B batch 6 — port discovery + database TLS.
     reg.register(NetPortsTcp())
+    reg.register(NetPortsUDP())  # Plan H.2 — UDP scan
     reg.register(NetDbPostgresTls())
     reg.register(NetDbMongoTls())
     reg.register(NetDbRedisTls())
