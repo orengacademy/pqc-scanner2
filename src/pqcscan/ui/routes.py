@@ -265,6 +265,30 @@ async def scan_detail(request: Request, scan_id: int) -> HTMLResponse:
     )
 
 
+@router.get("/scans/{scan_id}/report/tech", response_class=HTMLResponse)
+async def scan_report_tech(request: Request, scan_id: int) -> HTMLResponse:
+    """HTML report (technical) — browser-printable, no weasyprint required."""
+    repo = request.app.state.repo
+    scan = repo.get_scan(scan_id)
+    if scan is None:
+        raise HTTPException(404, "scan not found")
+    from pqcscan.renderers.pdf_technical import build_html_technical
+    html = build_html_technical(repo, scan_id)
+    return HTMLResponse(html)
+
+
+@router.get("/scans/{scan_id}/report/exec_summary", response_class=HTMLResponse)
+async def scan_report_exec_summary(request: Request, scan_id: int) -> HTMLResponse:
+    """HTML report (executive summary) — browser-printable, no weasyprint required."""
+    repo = request.app.state.repo
+    scan = repo.get_scan(scan_id)
+    if scan is None:
+        raise HTTPException(404, "scan not found")
+    from pqcscan.renderers.pdf_executive import build_html_executive
+    html = build_html_executive(repo, scan_id)
+    return HTMLResponse(html)
+
+
 def _load_framework(path: Path) -> dict:
     with path.open(encoding="utf-8") as fh:
         return yaml.safe_load(fh) or {}

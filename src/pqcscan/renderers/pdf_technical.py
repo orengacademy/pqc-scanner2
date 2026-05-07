@@ -16,6 +16,50 @@ from pqcscan.store.repo import Repo
 _TEMPLATE_DIR = Path(__file__).parent / "templates"
 
 
+def build_html_technical(repo: Repo, scan_id: int) -> str:
+    """Render scan_id as a technical HTML report (no weasyprint).
+
+    Suitable for direct browser display + Print-to-PDF via the browser,
+    so works on every install including frozen binaries that lack the
+    cairo/pango runtime.
+    """
+    scan = repo.get_scan(scan_id)
+    if scan is None:
+        raise ValueError(f"scan {scan_id} not found")
+    findings = repo.list_findings(scan_id)
+    framework_views = repo.list_framework_views(scan_id)
+
+    verdicts_by_finding: dict[int, list[Any]] = defaultdict(list)
+    for v in framework_views:
+        verdicts_by_finding[v.finding_id].append(v)
+
+    class_counts: dict[str, int] = defaultdict(int)
+    for f in findings:
+        class_counts[f.classification] += 1
+
+    fw_summary: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    for v in framework_views:
+        fw_summary[v.framework][v.verdict] += 1
+
+    env = Environment(
+        loader=FileSystemLoader(str(_TEMPLATE_DIR)),
+        autoescape=select_autoescape(["html"]),
+        trim_blocks=True,
+        lstrip_blocks=True,
+    )
+    template = env.get_template("pdf_technical.html")
+    return template.render(
+        scan=scan,
+        findings=findings,
+        verdicts_by_finding=verdicts_by_finding,
+        class_counts=dict(class_counts),
+        fw_summary={k: dict(v) for k, v in fw_summary.items()},
+        total_findings=len(findings),
+        total_framework_views=len(framework_views),
+        version=__version__,
+    )
+
+
 def render_pdf_technical(
     repo: Repo, scan_id: int, output_path: Path,
 ) -> Path:
