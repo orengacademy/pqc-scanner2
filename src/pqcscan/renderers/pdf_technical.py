@@ -60,6 +60,16 @@ def render_pdf_technical(
     )
 
     # Lazy import: weasyprint pulls in cairo/pango at module load.
-    from weasyprint import HTML
+    # Frozen binaries don't bundle it (would balloon EXE + need cairo
+    # runtime on Windows). Surface a clean error if missing.
+    try:
+        from weasyprint import HTML
+    except ImportError as e:
+        raise ModuleNotFoundError(
+            "PDF export requires weasyprint + cairo/pango runtime. "
+            "Install with: pip install 'pqcscan[render]'. "
+            "Frozen binaries currently do not bundle PDF support; "
+            "use CBOM (JSON) or XLSX export instead.",
+        ) from e
     HTML(string=html_str).write_pdf(str(output_path))
     return output_path
