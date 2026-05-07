@@ -24,3 +24,11 @@ cli.add_command(scans_cmd, name="scans")
 cli.add_command(status_cmd, name="status")
 cli.add_command(daemon_cmd, name="daemon")
 cli.add_command(export_cmd, name="export")
+
+
+if __name__ == "__main__":
+    # PyInstaller-built binaries invoke this module as the entry point.
+    # Pip-installed `pqcscan` script uses [project.scripts] -> cli:cli
+    # which calls the group directly. The frozen binary needs this
+    # explicit dispatch or the binary exits silently with no output.
+    cli()
