@@ -248,6 +248,8 @@ async def scan_detail(request: Request, scan_id: int) -> HTMLResponse:
         raise HTTPException(404, "scan not found")
     findings = repo.list_findings(scan_id)
     bands = count_bands(findings)
+    import importlib.util
+    pdf_available = importlib.util.find_spec("weasyprint") is not None
     return _render(
         request, "scan_detail.html",
         {
@@ -258,6 +260,7 @@ async def scan_detail(request: Request, scan_id: int) -> HTMLResponse:
             "surface_order": SURFACE_ORDER,
             "surface_labels": SURFACE_LABELS,
             "readiness": readiness_score(bands),
+            "pdf_available": pdf_available,
         },
     )
 
