@@ -36,11 +36,21 @@ class FsCertX509(Probe):
             data = path.read_bytes()
         except OSError:
             return
+        # Suppress CryptographyDeprecationWarning for negative-serial certs
+        # (Microsoft Code Verification Root et al.). cryptography >= 45 will
+        # refuse them; for now keep the inventory by silencing the warning.
+        import warnings
+
+        from cryptography.utils import CryptographyDeprecationWarning
         try:
-            cert = x509.load_pem_x509_certificate(data)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", CryptographyDeprecationWarning)
+                cert = x509.load_pem_x509_certificate(data)
         except ValueError:
             try:
-                cert = x509.load_der_x509_certificate(data)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", CryptographyDeprecationWarning)
+                    cert = x509.load_der_x509_certificate(data)
             except ValueError:
                 return
         pk = cert.public_key()
