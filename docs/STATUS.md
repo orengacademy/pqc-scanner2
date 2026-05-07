@@ -5,7 +5,7 @@
 | **Date** | 2026-05-07 |
 | **Branch / commit** | `plan-h` (Plan H.1 trim + Plan H.2 UDP+DTLS) |
 | **Version** | `0.3.0` |
-| **Probes** | 99 / 99 registered (Plan H.1 trim + Plan H.2 UDP+DTLS foundation) |
+| **Probes** | 106 / 106 registered (Plan H.1 + H.2 + H.3a OT TCP family) |
 | **Tests** | 321 passed across unit + integration suites (Python 3.11) |
 | **Status** | Plans A+B+C+D+E+F+G shipped; Plan H.1 trim + Plan H.2 (UDP scan + DTLS helper) closed; Plan H.3 (OT/ICS family) follows |
 
@@ -23,7 +23,7 @@ The full design-doc target is shipped:
 - **Plan F (batches 1–3)** — `build/pyinstaller.spec` for self-contained binary builds, `scripts/build-binary.sh`, GitHub Actions release matrix (Linux/macOS/Windows on tag push, auto-attached release assets), `pqcscan.util.offline_pack.resolve_tool()` runtime tool resolver (env override → MEIPASS bundle → PATH), `scripts/fetch-offline-tools.sh` to stage Syft+Grype, 3 reference probe migrations (`sbom_syft`, `cve_grype`, `cve_trivy_fs`).
 - **B17 — Real OSV.dev offline matcher** across **10 ecosystems / 12 lockfile formats**: PyPI (`requirements.txt`, `Pipfile.lock`, `poetry.lock`), npm (`package-lock.json` v6 + v7+), crates.io (`Cargo.lock`), Go (`go.sum`), Packagist (`composer.lock`), RubyGems (`Gemfile.lock`), NuGet (`packages.lock.json`), Hex (`mix.lock`), Pub (`pubspec.lock`), Maven (`gradle.lockfile`). Resolution path: `snapshot_path` constructor arg → `$PQCSCAN_OSV_SNAPSHOT` env → `/var/lib/pqcscan/osv-snapshot.jsonl`.
 
-99 probes registered; SQLite store; web UI at all 9 spec'd pages with EN/MS toggle; PDF/XLSX/CBOM exports; 10 compliance frameworks all evaluated against findings; cross-OS PyInstaller binary build pipeline; offline-pack framework with broad-ecosystem CVE matching.
+106 probes registered; SQLite store; web UI at all 9 spec'd pages with EN/MS toggle; PDF/XLSX/CBOM exports; 10 compliance frameworks all evaluated against findings; cross-OS PyInstaller binary build pipeline; offline-pack framework with broad-ecosystem CVE matching.
 
 ## 2. What's shipped
 
@@ -34,7 +34,7 @@ The full design-doc target is shipped:
 | Core types & PQC classifier | `src/pqcscan/core/{types,alg}.py` | Capability/ProbeFamily/Classification/Severity enums; Finding/Component dataclasses; classify() per spec Appendix B |
 | SQLite store | `src/pqcscan/store/{schema,migrations,repo}.py` | scans, components, findings, graph_edges, framework_views, baselines; `check_same_thread=False`; baseline create + diff helpers |
 | Async runner + event bus | `src/pqcscan/runner/*.py` | Probe isolation, per-probe timeout, asyncio.gather per family, Finding/ScanCompleted SSE events |
-| Probe ABC + registry | `src/pqcscan/probes/{_base,_registry}.py` | `default_registry()` seeds 99 probes |
+| Probe ABC + registry | `src/pqcscan/probes/{_base,_registry}.py` | `default_registry()` seeds 106 probes |
 | FastAPI daemon + API | `src/pqcscan/daemon/app.py` | health, version, scans, findings, events SSE, baselines, scan diff |
 | Web UI | `src/pqcscan/ui/{routes,templates,static,i18n}.py` | 9 pages; EN/MS toggle via `pqcscan_locale` cookie; vanilla forms, no JS deps |
 | CycloneDX 1.6 CBOM + PDF/XLSX renderers | `src/pqcscan/{cbom,renderers}/*` | CBOM JSON, PDF (technical/executive), XLSX (BUKUKERJA template + generic) |
