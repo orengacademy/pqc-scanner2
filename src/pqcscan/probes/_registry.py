@@ -31,7 +31,7 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — 121 probes (Plan H + Plan I.7 complete: a/b/c/d/e)."""
+    """Built-in probe set — 122 probes (Plan H + Plan I.7 + Plan I.2 minimal)."""
     from pqcscan.probes.app_crypto_lib_pqc_support import AppCryptoLibPqcSupport
     from pqcscan.probes.app_jwt_env_alg import AppJwtEnvAlg
     from pqcscan.probes.app_nginx_jwt_validation import AppNginxJwtValidation
@@ -124,6 +124,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.ot_s7comm import OTS7comm
     from pqcscan.probes.pqc_alg_normaliser import PqcAlgNormaliser
     from pqcscan.probes.pqc_kat_fips import PqcKatFips
+    from pqcscan.probes.pqc_meta_nacsa_phase import PqcMetaNacsaPhase
     from pqcscan.probes.pqc_meta_oqs_status import PqcMetaOqsStatus
     from pqcscan.probes.sbom_lang_cargo import SbomLangCargo
     from pqcscan.probes.sbom_lang_composer import SbomLangComposer
@@ -308,4 +309,6 @@ def default_registry() -> Registry:
     reg.register(HostLibcryptoPqcFeatures())
     # Plan I.7.e — NIST FIPS 203/204/205 KAT runner.
     reg.register(PqcKatFips())
+    # Plan I.2 (minimal) — NACSA Arahan #9 Fasa state.
+    reg.register(PqcMetaNacsaPhase())
     return reg
