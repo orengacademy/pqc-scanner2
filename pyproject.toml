@@ -4,7 +4,10 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pqcscan"
-version = "0.1.0"
+# Single source of truth: src/pqcscan/__init__.py:__version__ (read by hatchling
+# below). Keeps the wheel metadata, `pqcscan version`, and the /api/health
+# endpoint in lockstep so the frozen binary can't report a stale version.
+dynamic = ["version"]
 description = "Post-Quantum Cryptography readiness scanner (v2)"
 readme = "README.md"
 license = { text = "MIT" }
@@ -56,6 +59,9 @@ render = [
 
 [project.scripts]
 pqcscan = "pqcscan.cli.main:cli"
+
+[tool.hatch.version]
+path = "src/pqcscan/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pqcscan"]

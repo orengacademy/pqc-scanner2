@@ -3,6 +3,8 @@ import os
 import subprocess
 import sys
 
+from pqcscan import __version__
+
 
 def _run(*args, env=None):
     full_env = os.environ.copy()
@@ -20,7 +22,7 @@ def _run(*args, env=None):
 def test_version():
     p = _run("version")
     assert p.returncode == 0, p.stderr
-    assert "0.1.0" in p.stdout
+    assert __version__ in p.stdout
 
 
 def test_help():
