@@ -61,6 +61,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.fs_conf_nginx import FsConfNginx
     from pqcscan.probes.fs_conf_openssl_cnf import FsConfOpensslCnf
     from pqcscan.probes.fs_conf_sshd import FsConfSshd
+    from pqcscan.probes.host_crypto_policies import HostCryptoPolicies
     from pqcscan.probes.host_gnupg_config import HostGnupgConfig
     from pqcscan.probes.host_libcrypto_pqc_features import HostLibcryptoPqcFeatures
     from pqcscan.probes.host_openssl_ciphers import HostOpenSSLCiphers
@@ -311,4 +312,6 @@ def default_registry() -> Registry:
     reg.register(PqcKatFips())
     # Plan I.2 (minimal) — NACSA Arahan #9 Fasa state.
     reg.register(PqcMetaNacsaPhase())
+    # Coverage roadmap Phase 0 — system-wide crypto policy (RHEL/Fedora).
+    reg.register(HostCryptoPolicies())
     return reg
