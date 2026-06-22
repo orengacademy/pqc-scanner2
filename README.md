@@ -11,6 +11,7 @@ Post-Quantum Cryptography (PQC) readiness scanner. Single Python process. Bundle
 
 - [Architecture](#architecture)
 - [Install (development)](#install-development)
+- [Deployment (production)](#deployment-production)
 - [Quickstart](#quickstart)
 - [CLI](#cli)
 - [Scan flow](#scan-flow)
@@ -85,6 +86,21 @@ pip install -e ".[dev]"
 ```
 
 Requirements: Python 3.11+. Optional: `openssl` binary on PATH (used by some tests for cert generation).
+
+---
+
+## Deployment (production)
+
+For production hosts, deploy the prebuilt release binary as a hardened systemd
+service instead of the editable dev install — no Python or `ssl` module is
+required on the host. See **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for the
+checksum-verified binary install, the systemd unit
+([`packaging/systemd/pqcscan.service`](packaging/systemd/pqcscan.service)), the
+root-vs-`DynamicUser` privilege trade-off, SSH-tunnel / nginx (TLS + Basic
+auth) access paths, and SELinux notes.
+
+> The daemon has no built-in auth and serves plain HTTP. Keep it bound to
+> `127.0.0.1` unless it sits behind a TLS-terminating reverse proxy with auth.
 
 ---
 
