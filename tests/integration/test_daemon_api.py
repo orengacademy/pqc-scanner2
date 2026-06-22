@@ -3,6 +3,7 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
+from pqcscan import __version__
 from pqcscan.daemon.app import create_app
 
 
@@ -23,7 +24,7 @@ def test_health(client):
 def test_version(client):
     r = client.get("/api/version")
     assert r.status_code == 200
-    assert r.json()["version"] == "0.1.0"
+    assert r.json()["version"] == __version__
 
 
 def test_post_scan_creates_and_runs(client):

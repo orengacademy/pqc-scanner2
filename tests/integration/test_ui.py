@@ -1,6 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from pqcscan import __version__
 from pqcscan.daemon.app import create_app
 
 
@@ -143,7 +144,7 @@ def test_settings_page(client):
                   "Database", "Capabilities", "Probes registered",
                   "Frameworks bundled"):
         assert label in r.text
-    assert "0.1.0" in r.text       # __version__
+    assert __version__ in r.text   # __version__
     assert "sqlite" in r.text       # db_url
 
 

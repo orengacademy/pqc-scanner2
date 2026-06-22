@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.9] — 2026-06-22
+
+### Fixed
+- Version string is no longer frozen at `0.1.0`. `pqcscan.__version__` is now
+  the single source of truth, and `pyproject.toml` reads it via
+  `[tool.hatch.version]`, so the wheel metadata, `pqcscan version`, and the
+  `/api/health` endpoint all report the real release version — including in the
+  PyInstaller frozen binary, which previously self-reported `0.1.0`.
+
+### Added
+- `packaging/systemd/pqcscan.service` — hardened systemd unit for the daemon.
+- `docs/DEPLOYMENT.md` — production deploy guide (prebuilt binary + systemd,
+  privilege trade-off, SSH-tunnel / nginx TLS+auth access, SELinux notes),
+  linked from the README.
+
 ### Notes
 First release candidate. The design-spec target (109 probes, 10 compliance
 frameworks, 9 web UI pages, cross-OS binary build) is fully met.
