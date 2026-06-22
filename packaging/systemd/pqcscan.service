@@ -1,0 +1,44 @@
+[Unit]
+Description=pqcscan — Post-Quantum Cryptography readiness scanner daemon
+Documentation=https://github.com/orengacademy/pqc-scanner2
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+# Root READ is needed for a full host crypto inventory (private keys, /etc
+# configs, package DBs). To trade scan coverage for least privilege, replace
+# the User=/Group= lines below with `DynamicUser=yes` — see docs/DEPLOYMENT.md.
+User=root
+Group=root
+
+# Loopback ONLY. The daemon has no built-in authentication and serves plain
+# HTTP. Never bind a routable address without a TLS-terminating reverse proxy
+# and auth in front of it (docs/DEPLOYMENT.md covers the nginx path).
+ExecStart=/usr/local/bin/pqcscan daemon --bind 127.0.0.1 --port 8765 --db /var/lib/pqcscan/pqcscan.db
+
+# systemd creates and owns /var/lib/pqcscan before the unit starts.
+StateDirectory=pqcscan
+StateDirectoryMode=0750
+Environment=PATH=/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+
+# --- Sandbox: tuned so the scanner can still READ the host it inventories. ---
+NoNewPrivileges=true
+ProtectSystem=strict          # /usr /boot /etc read-only; the scanner only reads them
+ProtectHome=read-only         # ~/.ssh client configs stay visible, read-only
+ReadWritePaths=/var/lib/pqcscan
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+# NOTE: do NOT add PrivateDevices or tighter syscall filters blindly — network
+# probes (TLS/STARTTLS/DTLS/UDP) and active-mode raw sockets break under them.
+
+[Install]
+WantedBy=multi-user.target
