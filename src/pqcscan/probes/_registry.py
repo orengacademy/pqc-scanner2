@@ -69,6 +69,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.host_openssl_config import HostOpenSSLConfig
     from pqcscan.probes.host_openssl_engines import HostOpenSSLEngines
     from pqcscan.probes.host_openssl_oqs_provider import HostOpenSSLOqsProvider
+    from pqcscan.probes.host_openssl_version import HostOpenSSLVersion
     from pqcscan.probes.host_ssh_binary_caps import HostSshBinaryCaps
     from pqcscan.probes.host_ssh_client_config import HostSshClientConfig
     from pqcscan.probes.host_ssh_server_config import HostSshServerConfig
@@ -320,4 +321,6 @@ def default_registry() -> Registry:
     reg.register(HostSshBinaryCaps())
     # Coverage roadmap Phase 0 — Kerberos krb5.conf weak enctypes + PKINIT.
     reg.register(HostKrb5Config())
+    # Coverage roadmap Phase 0 — OpenSSL library version & PQC tier.
+    reg.register(HostOpenSSLVersion())
     return reg
