@@ -68,6 +68,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.host_openssl_config import HostOpenSSLConfig
     from pqcscan.probes.host_openssl_engines import HostOpenSSLEngines
     from pqcscan.probes.host_openssl_oqs_provider import HostOpenSSLOqsProvider
+    from pqcscan.probes.host_ssh_binary_caps import HostSshBinaryCaps
     from pqcscan.probes.host_ssh_client_config import HostSshClientConfig
     from pqcscan.probes.host_ssh_server_config import HostSshServerConfig
     from pqcscan.probes.hw_pkcs11_modules import HwPkcs11Modules
@@ -314,4 +315,6 @@ def default_registry() -> Registry:
     reg.register(PqcMetaNacsaPhase())
     # Coverage roadmap Phase 0 — system-wide crypto policy (RHEL/Fedora).
     reg.register(HostCryptoPolicies())
+    # Coverage roadmap Phase 0 — OpenSSH PQC-KEX binary capability.
+    reg.register(HostSshBinaryCaps())
     return reg
