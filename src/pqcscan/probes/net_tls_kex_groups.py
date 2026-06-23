@@ -149,7 +149,14 @@ class NetTlsKexGroups(Probe):
         if not raw:
             return None
         host, _, port = raw.partition(":")
-        return host, int(port) if port else 443
+        if not host:
+            return None
+        if not port:
+            return host, 443
+        try:
+            return host, int(port)
+        except ValueError:
+            return None
 
     async def applies(self, ctx: ScanContext) -> bool:
         return self._resolve_target(ctx) is not None

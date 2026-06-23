@@ -54,6 +54,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.dns_dnssec_zones import DnsDnssecZones
     from pqcscan.probes.email_dkim_selectors import EmailDkimSelectors
     from pqcscan.probes.email_smime_certs import EmailSmimeCerts
+    from pqcscan.probes.fs_cert_chain import FsCertChain
     from pqcscan.probes.fs_cert_csr import FsCertCsr
     from pqcscan.probes.fs_cert_expiry_horizon import FsCertExpiryHorizon
     from pqcscan.probes.fs_cert_pkcs7 import FsCertPkcs7
@@ -76,6 +77,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.host_openssl_ciphers import HostOpenSSLCiphers
     from pqcscan.probes.host_openssl_config import HostOpenSSLConfig
     from pqcscan.probes.host_openssl_engines import HostOpenSSLEngines
+    from pqcscan.probes.host_openssl_groups import HostOpenSSLGroups
     from pqcscan.probes.host_openssl_oqs_provider import HostOpenSSLOqsProvider
     from pqcscan.probes.host_openssl_version import HostOpenSSLVersion
     from pqcscan.probes.host_ssh_binary_caps import HostSshBinaryCaps
@@ -87,6 +89,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.k8s_helm_releases import K8sHelmReleases
     from pqcscan.probes.k8s_ingress_tls import K8sIngressTls
     from pqcscan.probes.k8s_mesh_mtls import K8sMeshMtls
+    from pqcscan.probes.k8s_mesh_policy import K8sMeshPolicy
     from pqcscan.probes.k8s_secrets_types import K8sSecretsTypes
     from pqcscan.probes.mq_kafka_tls import MqKafkaTls
     from pqcscan.probes.mq_mqtt_broker import MqMqttBroker
@@ -120,6 +123,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.net_tls_smtps import NetTlsSmtps
     from pqcscan.probes.net_tls_sslyze import NetTlsSslyze
     from pqcscan.probes.net_tls_testssl import NetTlsTestssl
+    from pqcscan.probes.net_tls_versions import NetTlsVersions
     from pqcscan.probes.ot_bacnet import OTBacnet
     from pqcscan.probes.ot_bacnet_sc import OTBacnetSc
     from pqcscan.probes.ot_cip_security import OTCipSecurity
@@ -346,4 +350,10 @@ def default_registry() -> Registry:
     reg.register(FsKeystoreJks())
     # Coverage roadmap Phase 2 — raw-TLS handshake engine: KEX-group enumeration.
     reg.register(NetTlsKexGroups())
+    # Coverage roadmap Phase 2/3 — TLS version sweep, OpenSSL group policy,
+    # service-mesh policy, cert-chain assembly.
+    reg.register(NetTlsVersions())
+    reg.register(HostOpenSSLGroups())
+    reg.register(K8sMeshPolicy())
+    reg.register(FsCertChain())
     return reg
