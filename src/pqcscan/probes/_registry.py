@@ -59,12 +59,14 @@ def default_registry() -> Registry:
     from pqcscan.probes.fs_cert_pkcs7 import FsCertPkcs7
     from pqcscan.probes.fs_cert_pqc_x509 import FsCertPqcX509
     from pqcscan.probes.fs_cert_privkey import FsCertPrivkey
+    from pqcscan.probes.fs_cert_privkey_encrypted import FsCertPrivkeyEncrypted
     from pqcscan.probes.fs_cert_x509 import FsCertX509
     from pqcscan.probes.fs_conf_apache import FsConfApache
     from pqcscan.probes.fs_conf_nginx import FsConfNginx
     from pqcscan.probes.fs_conf_openssl_cnf import FsConfOpensslCnf
     from pqcscan.probes.fs_conf_sshd import FsConfSshd
     from pqcscan.probes.fs_keyref_cloud import FsKeyrefCloud
+    from pqcscan.probes.fs_keystore_jks import FsKeystoreJks
     from pqcscan.probes.fs_keystore_pkcs12 import FsKeystorePkcs12
     from pqcscan.probes.fs_ssh_host_keys import FsSshHostKeys
     from pqcscan.probes.host_crypto_policies import HostCryptoPolicies
@@ -338,4 +340,7 @@ def default_registry() -> Registry:
     reg.register(FsCertCsr())
     reg.register(FsCertPkcs7())
     reg.register(FsCertExpiryHorizon())
+    # Coverage roadmap Phase 1 — encrypted private keys + Java keystores.
+    reg.register(FsCertPrivkeyEncrypted())
+    reg.register(FsKeystoreJks())
     return reg
