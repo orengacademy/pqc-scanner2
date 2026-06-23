@@ -86,6 +86,9 @@ def test_resolve_target():
     assert p._resolve_target(_ctx("host.example:8443")) == ("host.example", 8443)
     assert p._resolve_target(_ctx("host.example")) == ("host.example", 443)
     assert p._resolve_target(_ctx(None)) is None
+    # Malformed targets gate off safely (applies() runs outside runner try/except).
+    assert p._resolve_target(_ctx("host:notaport")) is None
+    assert p._resolve_target(_ctx("host:80:443")) is None
 
 
 @pytest.mark.asyncio
