@@ -54,6 +54,9 @@ def default_registry() -> Registry:
     from pqcscan.probes.dns_dnssec_zones import DnsDnssecZones
     from pqcscan.probes.email_dkim_selectors import EmailDkimSelectors
     from pqcscan.probes.email_smime_certs import EmailSmimeCerts
+    from pqcscan.probes.fs_cert_csr import FsCertCsr
+    from pqcscan.probes.fs_cert_expiry_horizon import FsCertExpiryHorizon
+    from pqcscan.probes.fs_cert_pkcs7 import FsCertPkcs7
     from pqcscan.probes.fs_cert_pqc_x509 import FsCertPqcX509
     from pqcscan.probes.fs_cert_privkey import FsCertPrivkey
     from pqcscan.probes.fs_cert_x509 import FsCertX509
@@ -62,6 +65,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.fs_conf_openssl_cnf import FsConfOpensslCnf
     from pqcscan.probes.fs_conf_sshd import FsConfSshd
     from pqcscan.probes.fs_keyref_cloud import FsKeyrefCloud
+    from pqcscan.probes.fs_keystore_pkcs12 import FsKeystorePkcs12
     from pqcscan.probes.fs_ssh_host_keys import FsSshHostKeys
     from pqcscan.probes.host_crypto_policies import HostCryptoPolicies
     from pqcscan.probes.host_gnupg_config import HostGnupgConfig
@@ -329,4 +333,9 @@ def default_registry() -> Registry:
     reg.register(FsSshHostKeys())
     # Coverage roadmap Phase 1 — cloud KMS / Key Vault / PKCS#11 key references.
     reg.register(FsKeyrefCloud())
+    # Coverage roadmap Phase 1 — cert/keystore parsers (PKCS#12, CSR, PKCS#7, expiry-HNDL).
+    reg.register(FsKeystorePkcs12())
+    reg.register(FsCertCsr())
+    reg.register(FsCertPkcs7())
+    reg.register(FsCertExpiryHorizon())
     return reg
