@@ -116,6 +116,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.net_starttls_ldap import NetStarttlsLdap
     from pqcscan.probes.net_starttls_pop3 import NetStarttlsPop3
     from pqcscan.probes.net_starttls_smtp import NetStarttlsSmtp
+    from pqcscan.probes.net_tls_cert_chain import NetTlsCertChain
     from pqcscan.probes.net_tls_https import NetTlsHttps
     from pqcscan.probes.net_tls_imaps import NetTlsImaps
     from pqcscan.probes.net_tls_kex_groups import NetTlsKexGroups
@@ -352,8 +353,9 @@ def default_registry() -> Registry:
     # Coverage roadmap Phase 1 — encrypted private keys + Java keystores.
     reg.register(FsCertPrivkeyEncrypted())
     reg.register(FsKeystoreJks())
-    # Coverage roadmap Phase 2 — raw-TLS handshake engine: KEX-group enumeration.
+    # Coverage roadmap Phase 2 — raw-TLS handshake engine: KEX + served chain.
     reg.register(NetTlsKexGroups())
+    reg.register(NetTlsCertChain())
     # Coverage roadmap Phase 2/3 — TLS version sweep, OpenSSL group policy,
     # service-mesh policy, cert-chain assembly.
     reg.register(NetTlsVersions())
