@@ -72,11 +72,15 @@ def default_registry() -> Registry:
     from pqcscan.probes.fs_ssh_host_keys import FsSshHostKeys
     from pqcscan.probes.host_crypto_policies import HostCryptoPolicies
     from pqcscan.probes.host_gnupg_config import HostGnupgConfig
+    from pqcscan.probes.host_gnutls_config import HostGnutlsConfig
+    from pqcscan.probes.host_kernel_crypto_registry import HostKernelCryptoRegistry
     from pqcscan.probes.host_krb5_config import HostKrb5Config
     from pqcscan.probes.host_libcrypto_pqc_features import HostLibcryptoPqcFeatures
+    from pqcscan.probes.host_nss_policy import HostNssPolicy
     from pqcscan.probes.host_openssl_ciphers import HostOpenSSLCiphers
     from pqcscan.probes.host_openssl_config import HostOpenSSLConfig
     from pqcscan.probes.host_openssl_engines import HostOpenSSLEngines
+    from pqcscan.probes.host_openssl_fips_state import HostOpenSSLFipsState
     from pqcscan.probes.host_openssl_groups import HostOpenSSLGroups
     from pqcscan.probes.host_openssl_oqs_provider import HostOpenSSLOqsProvider
     from pqcscan.probes.host_openssl_version import HostOpenSSLVersion
@@ -356,4 +360,9 @@ def default_registry() -> Registry:
     reg.register(HostOpenSSLGroups())
     reg.register(K8sMeshPolicy())
     reg.register(FsCertChain())
+    # Coverage roadmap Phase 3 — host crypto-policy backends (FIPS/kernel/GnuTLS/NSS).
+    reg.register(HostOpenSSLFipsState())
+    reg.register(HostKernelCryptoRegistry())
+    reg.register(HostGnutlsConfig())
+    reg.register(HostNssPolicy())
     return reg
