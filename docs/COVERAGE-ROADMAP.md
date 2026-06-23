@@ -3,6 +3,20 @@
 **Date:** 2026-06-22 · **Baseline:** v0.6.9 (114 probes) · **Method:** 25-agent workflow — per-domain "everything possible" enumeration → repo-grounded gap audit → synthesis.
 **Headline:** **70 capabilities covered, 254 missing/proposed across 12 domains.** pqcscan is a strong PQC-readiness scanner; this maps what it would take to maximize coverage of what a scanner *can* own.
 
+## Delivery progress (updated 2026-06-23) — 114 → 143 probes
+
+**Phase 0 — complete.** WireGuard PSK severity fix · `host.crypto_policies.profile` · `host.ssh.binary_caps` · `host.krb5.config` · `host.openssl.version` · `fs.ssh.host_keys`.
+
+**Phase 1 — complete.** `fs.keyref.cloud` (AWS/Azure/GCP KMS + PKCS#11) · `fs.keystore.pkcs12` · `fs.cert.csr` · `fs.cert.pkcs7` · `fs.cert.expiry_horizon` (CNSA-2.0 HNDL, CA-cert-skip) · `fs.cert.privkey_encrypted` · `fs.keystore.jks` (magic-byte inventory; full per-entry parsing deferred — needs `pyjks`).
+
+**Phase 2 — keystone landed + partial.** `net.tls.kex_groups` (raw-TLS KEX-group enumeration, no OS `ssl` — closes the #1 HNDL gap) · `net.tls.versions` (raw-socket version sweep). *Still open:* full served-chain `signatureAlgorithm` (TLS 1.3 encrypts the Certificate → needs handshake completion / a TLS 1.2 cleartext path), QUIC (needs `aioquic`).
+
+**Phase 3 — substantial progress.** `host.openssl.groups` · `k8s.mesh.policy` · `fs.cert.chain` (AKI/SKI assembly + key-reuse) · `host.openssl.fips_state` · `host.kernel.crypto_registry` · `host.gnutls.config` · `host.nss.policy`. *Still open:* `net.kerberos.etypes` (L, ASN.1 AS-REQ), real `net.ike.transforms` (L), TLS resumption/revocation, passive PCAP, service-mesh SPIFFE deep parse.
+
+**Decision-gated / deferred:** `pyjks` (full JKS), `aioquic` (QUIC), tree-sitter grammars (Phase 4 app-code AST rebuild). **Phase 4–5** (classifier hardening, ROCA/Debian key-health, chain blast-radius, kernel/TPM/smartcard long-tail) largely untouched.
+
+**Bug found + fixed during delivery:** `net.tls.*` `_resolve_target` crashed the scan on a malformed target (`applies()` runs outside the runner's try/except) — now gates off safely.
+
 ## Three structural ceilings (recur in every domain)
 
 1. **Network probes ride the OS `ssl` stack** — they see only the *negotiated* cipher + *leaf* cert (`_tls_probe.py` uses `getpeercert(binary_form=True)`). Offered/selected **KEX groups**, the **full served chain's `signatureAlgorithm`**, QUIC, real IKE SA transforms, Kerberos etypes are invisible. → classical ECDHE/FFDHE **harvest-now-decrypt-later** exposure is largely undetected.
