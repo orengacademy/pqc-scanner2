@@ -61,6 +61,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.fs_conf_nginx import FsConfNginx
     from pqcscan.probes.fs_conf_openssl_cnf import FsConfOpensslCnf
     from pqcscan.probes.fs_conf_sshd import FsConfSshd
+    from pqcscan.probes.fs_keyref_cloud import FsKeyrefCloud
     from pqcscan.probes.fs_ssh_host_keys import FsSshHostKeys
     from pqcscan.probes.host_crypto_policies import HostCryptoPolicies
     from pqcscan.probes.host_gnupg_config import HostGnupgConfig
@@ -326,4 +327,6 @@ def default_registry() -> Registry:
     reg.register(HostOpenSSLVersion())
     # Coverage roadmap Phase 0 — on-disk SSH public key inventory.
     reg.register(FsSshHostKeys())
+    # Coverage roadmap Phase 1 — cloud KMS / Key Vault / PKCS#11 key references.
+    reg.register(FsKeyrefCloud())
     return reg
