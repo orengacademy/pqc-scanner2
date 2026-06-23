@@ -61,6 +61,8 @@ def default_registry() -> Registry:
     from pqcscan.probes.fs_cert_pqc_x509 import FsCertPqcX509
     from pqcscan.probes.fs_cert_privkey import FsCertPrivkey
     from pqcscan.probes.fs_cert_privkey_encrypted import FsCertPrivkeyEncrypted
+    from pqcscan.probes.fs_cert_revocation import FsCertRevocation
+    from pqcscan.probes.fs_cert_sniff import FsCertSniff
     from pqcscan.probes.fs_cert_x509 import FsCertX509
     from pqcscan.probes.fs_conf_apache import FsConfApache
     from pqcscan.probes.fs_conf_nginx import FsConfNginx
@@ -87,6 +89,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.host_ssh_binary_caps import HostSshBinaryCaps
     from pqcscan.probes.host_ssh_client_config import HostSshClientConfig
     from pqcscan.probes.host_ssh_server_config import HostSshServerConfig
+    from pqcscan.probes.host_tpm_sealed_keys import HostTpmSealedKeys
     from pqcscan.probes.hw_pkcs11_modules import HwPkcs11Modules
     from pqcscan.probes.hw_smartcard_readers import HwSmartcardReaders
     from pqcscan.probes.hw_tpm_algorithms import HwTpmAlgorithms
@@ -367,4 +370,8 @@ def default_registry() -> Registry:
     reg.register(HostKernelCryptoRegistry())
     reg.register(HostGnutlsConfig())
     reg.register(HostNssPolicy())
+    # Coverage roadmap Phase 3/4 — mislabeled certs, revocation path, TPM-sealed keys.
+    reg.register(FsCertSniff())
+    reg.register(FsCertRevocation())
+    reg.register(HostTpmSealedKeys())
     return reg
