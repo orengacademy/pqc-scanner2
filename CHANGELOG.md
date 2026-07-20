@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.4] — 2026-07-20
+
+### Added
+- **macOS x86_64 (Intel) release binary** (`pqcscan-macos-x86_64`, built on
+  `macos-13`) — completes the platform set: linux-x86_64 (glibc 2.17+),
+  macos-arm64, macos-x86_64, windows-x86_64.
+
 ### Added — closing closeable competitor gaps (self-contained-safe)
 - **`fs.binary.crypto`** — scans compiled **binaries with no source** (ELF / PE
   / Mach-O) for the crypto libraries they dynamically link or statically embed
