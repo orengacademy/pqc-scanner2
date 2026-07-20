@@ -166,6 +166,7 @@ def create_app(*, db_path: Path, registry: Registry | None = None) -> FastAPI:
         _xlsx_ct = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         formats: dict[str, tuple[str, str, str]] = {
             "cbom": (".cdx.json", "application/vnd.cyclonedx+json", "cbom"),
+            "sarif": (".sarif", "application/sarif+json", "findings"),
             "pdf-tech": (".pdf", "application/pdf", "report-technical"),
             "pdf-exec": (".pdf", "application/pdf", "report-executive"),
             "xlsx-bukukerja": (".xlsx", _xlsx_ct, "report-bukukerja"),
@@ -183,6 +184,9 @@ def create_app(*, db_path: Path, registry: Registry | None = None) -> FastAPI:
 
                 from pqcscan.cbom.builder import build_cbom
                 tmp_path.write_text(_json.dumps(build_cbom(repo, scan_id), indent=2))
+            elif fmt == "sarif":
+                from pqcscan.renderers.sarif import render_sarif
+                render_sarif(repo, scan_id, tmp_path)
             elif fmt == "pdf-tech":
                 try:
                     from pqcscan.renderers.pdf_technical import render_pdf_technical

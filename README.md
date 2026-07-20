@@ -47,7 +47,7 @@ flowchart LR
         RUN["async runner<br/>(asyncio.gather per family,<br/>per-probe timeout)"]
         BUS["event bus<br/>(SSE-friendly)"]
         REPO[("SQLite store<br/>scans · findings ·<br/>baselines · framework_views")]
-        COMP["compliance engine<br/>(10 framework YAMLs)"]
+        COMP["compliance engine<br/>(11 framework YAMLs)"]
         DAEMON["FastAPI daemon<br/>+ Jinja UI + SSE"]
         CLI["click CLI<br/>(scan / scans / export)"]
         REND["renderers<br/>CBOM · PDF · XLSX"]
@@ -131,11 +131,18 @@ xdg-open http://127.0.0.1:8765
 ```
 pqcscan version                              # print version
 pqcscan daemon [--port 8765] [--bind ...]    # start daemon + web UI
-pqcscan scan [--json] [--watch]              # one-shot in-process scan
+pqcscan scan [--json] [--watch]              # one-shot local-host scan
+pqcscan scan --target host[:port]            # scan a network endpoint (TLS/STARTTLS)
+pqcscan scan --path /etc/ssl --path /opt/app # scan filesystem paths (certs/keys/code)
+pqcscan scan --ot plc.local:502:modbus       # scan an OT/ICS endpoint
 pqcscan scans                                # list past scans
 pqcscan status --id N                        # one scan's status
-pqcscan export --scan N --format cbom -o ... # export CycloneDX 1.6
+pqcscan export --scan N --format FMT -o ...  # FMT: cbom | sarif | pdf-tech |
+                                             #      pdf-exec | xlsx-bukukerja | xlsx-generic
 ```
+
+`--format sarif` emits a SARIF 2.1.0 log for GitHub Code Scanning (each probe
+becomes a rule; each finding a result with the PQC migration target + deadline).
 
 Exit codes:
 - `0` — scan completed; nothing high/crit.
@@ -243,7 +250,7 @@ flowchart LR
     HOME["/  Dashboard<br/>last-scan summary +<br/>'Scan now' button"]
     SCANS["/scans<br/>scans list"]
     DETAIL["/scans/{id}<br/>live SSE feed +<br/>findings table +<br/>'Mark as baseline' form"]
-    FRAMEWORKS["/frameworks<br/>10 framework YAMLs"]
+    FRAMEWORKS["/frameworks<br/>11 framework YAMLs"]
     FW_DET["/frameworks/{slug}<br/>rules · clauses · verdicts"]
     PROBES["/probes<br/>114 probes by family"]
     BASELINES["/baselines<br/>list + diff form"]

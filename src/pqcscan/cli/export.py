@@ -15,7 +15,7 @@ from pqcscan.util.paths import default_db_path
 @click.option(
     "--format", "fmt", required=True,
     type=click.Choice(
-        ["cbom", "pdf-tech", "pdf-exec", "xlsx-bukukerja", "xlsx-generic"],
+        ["cbom", "sarif", "pdf-tech", "pdf-exec", "xlsx-bukukerja", "xlsx-generic"],
         case_sensitive=False,
     ),
 )
@@ -46,6 +46,10 @@ def export_cmd(
         doc = build_cbom(repo, scan_id)
         out.write_text(json.dumps(doc, indent=2))
         click.echo(f"wrote CycloneDX 1.6 CBOM -> {out}")
+    elif f == "sarif":
+        from pqcscan.renderers.sarif import render_sarif
+        render_sarif(repo, scan_id, out)
+        click.echo(f"wrote SARIF 2.1.0 log -> {out}")
     elif f == "pdf-tech":
         from pqcscan.renderers.pdf_technical import render_pdf_technical
         render_pdf_technical(repo, scan_id, out)
