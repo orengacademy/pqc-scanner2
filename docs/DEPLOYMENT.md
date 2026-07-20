@@ -1,7 +1,7 @@
 # Production deployment (Linux / systemd)
 
 This guide deploys the `pqcscan` daemon as a hardened systemd service on a
-Linux host (tested target: RHEL / Oracle Linux 8–9). It uses the prebuilt
+Linux host (tested target: RHEL / Oracle Linux 7.9–9). It uses the prebuilt
 single-file binary from GitHub Releases — no Python, pip, or `ssl` module on
 the host is required.
 
@@ -44,8 +44,11 @@ pqcscan --help
 
 `curl` and `sha256sum` use the system crypto libraries, so they work even on a
 host whose Python lacks a working `ssl` module. Verify the checksum prints `OK`
-**before** `chmod`. The binary is built on `ubuntu-latest` (glibc); Oracle
-Linux / RHEL 8 and 9 are new enough. RHEL 7 (EOL) is too old.
+**before** `chmod`. The Linux binary is built in a manylinux2014 container
+(`scripts/build-linux-compat.sh`), so it needs only glibc ≥ 2.17: RHEL /
+Oracle Linux 7.9, 8, and 9 all work. (Releases up to v0.6.9 were built on
+`ubuntu-latest` and required glibc ≥ 2.38 — those fail on OL7 with
+`GLIBC_2.38 not found`; use a newer release.)
 
 Air-gapped host? Download the asset on a connected workstation, verify the
 checksum, then `scp` it to `/usr/local/bin/pqcscan` on the target.

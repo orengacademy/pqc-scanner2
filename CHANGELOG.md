@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.10] — 2026-07-20
+
+### Fixed
+- Linux release binary now runs on glibc ≥ 2.17 hosts (RHEL / Oracle Linux
+  7.9+). Previous releases were built on `ubuntu-latest`, so the bundled
+  `libpython3.11.so.1.0` required `GLIBC_2.38` and the binary aborted on OL7
+  with `Failed to load Python shared library ... GLIBC_2.38 not found`. The
+  Linux build now runs inside a `manylinux2014` (CentOS 7 userland) container
+  via `scripts/build-linux-compat.sh`, using a uv-managed CPython 3.11
+  (python-build-standalone, glibc 2.17 floor) and only `manylinux2014`-tagged
+  wheels; the script smoke-tests the result (`--help`, `version`) on an
+  `oraclelinux:7.9` container. `scripts/build-binary.sh` delegates to the
+  compat build automatically on Linux x86_64 when docker is available
+  (opt out with `PQCSCAN_NO_COMPAT=1`), so CI needed no workflow changes.
+  Verified end to end on OL 7.9: daemon boots, `/api/health` returns 200.
+
 ## [0.6.9] — 2026-06-22
 
 ### Fixed
