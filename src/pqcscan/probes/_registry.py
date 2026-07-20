@@ -113,8 +113,10 @@ def default_registry() -> Registry:
     from pqcscan.probes.net_db_mysql_tls import NetDbMysqlTls
     from pqcscan.probes.net_db_postgres_tls import NetDbPostgresTls
     from pqcscan.probes.net_db_redis_tls import NetDbRedisTls
+    from pqcscan.probes.net_ike_transforms import NetIkeTransforms
     from pqcscan.probes.net_ike_v1v2 import NetIkeV1V2
     from pqcscan.probes.net_kerberos_asreq import NetKerberosAsreq
+    from pqcscan.probes.net_kerberos_etypes import NetKerberosEtypes
     from pqcscan.probes.net_ports_tcp import NetPortsTcp
     from pqcscan.probes.net_ports_udp import NetPortsUDP
     from pqcscan.probes.net_rdp_negotiation import NetRdpNegotiation
@@ -127,6 +129,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.net_starttls_pop3 import NetStarttlsPop3
     from pqcscan.probes.net_starttls_smtp import NetStarttlsSmtp
     from pqcscan.probes.net_tls_cert_chain import NetTlsCertChain
+    from pqcscan.probes.net_tls_cert_chain_tls13 import NetTlsCertChainTls13
     from pqcscan.probes.net_tls_https import NetTlsHttps
     from pqcscan.probes.net_tls_imaps import NetTlsImaps
     from pqcscan.probes.net_tls_kex_groups import NetTlsKexGroups
@@ -293,6 +296,9 @@ def default_registry() -> Registry:
     # Plan B batch 15 — binary-protocol probes (live network handshakes).
     reg.register(NetSshHandshake())
     reg.register(NetIkeV1V2())
+    reg.register(NetIkeTransforms())
+    reg.register(NetKerberosEtypes())
+    reg.register(NetTlsCertChainTls13())
     reg.register(NetRdpNegotiation())
     reg.register(NetSmbDialect())
     reg.register(NetSnmpVersion())

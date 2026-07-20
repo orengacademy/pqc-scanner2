@@ -39,6 +39,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cookie by default). The HTML reports need no WeasyPrint, so they render
   identically in the frozen binary and print to PDF from any browser.
 
+### Added — deep transport probes (157 probes)
+- **`net.tls.cert_chain_tls13`** — recovers a TLS **1.3** server's served
+  certificate chain. Completes a real X25519 handshake, runs the RFC 8446 §7.1
+  key schedule (`_tls13_keyschedule.py`, verified against the RFC 8448 test
+  vectors), AEAD-decrypts the encrypted Certificate + CertificateVerify, and
+  classifies each cert's signature algorithm + the negotiated SignatureScheme.
+  Closes the biggest network-visibility gap (the TLS 1.3 Certificate is
+  encrypted, so the OS `ssl` stack can't see the served-chain sigalgs).
+- **`net.kerberos.etypes`** — enumerates a KDC's supported encryption types via
+  a hand-rolled ASN.1 AS-REQ (`_krb_asn1.py`); flags DES/RC4/single-DES
+  (SANGAT_TINGGI), 3DES (TINGGI), and grades the AES etypes.
+- **`net.ike.transforms`** — enumerates an IKEv2 responder's chosen SA
+  transforms via a full IKE_SA_INIT (`_ike_packet.py`); flags classical DH
+  groups (MODP/ECP/Curve25519 → quantum-vulnerable) and DES/3DES, and
+  recognises RFC 9370 / ML-KEM PQC groups as PQC-ready.
+- All three keep their protocol encode/decode as pure, dependency-free
+  functions tested with recorded/constructed bytes; live network is gated on a
+  target and wrapped so a scan never crashes.
+
 ## [0.7.5] — 2026-07-20
 
 ### Added — findings UX
