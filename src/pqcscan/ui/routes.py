@@ -43,6 +43,8 @@ templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 # Expose the band classifier to Jinja templates so per-row colouring
 # (green/yellow/red/grey) doesn't require precomputing a parallel list.
 templates.env.globals["band_of"] = classify_band
+# Real version in the nav/footer (was hardcoded to v0.1.0 in the template).
+templates.env.globals["pqc_version"] = _pqc_version
 router = APIRouter()
 
 
