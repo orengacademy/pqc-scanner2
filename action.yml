@@ -1,0 +1,65 @@
+name: "pqcscan PQC readiness scan"
+description: >-
+  Run the pqcscan post-quantum-cryptography readiness scanner as a CI/CD gate
+  and export SARIF for the GitHub Security tab.
+author: "OrenG Academy"
+
+branding:
+  icon: "shield"
+  color: "purple"
+
+inputs:
+  version:
+    description: "Release tag of pqcscan to download (e.g. v0.9.2)."
+    required: false
+    default: "v0.9.2"
+  path:
+    description: "Filesystem path to scan for certs/keys/code."
+    required: false
+    default: "."
+  fail-on:
+    description: >-
+      Severity gate: fail the job if any finding is at/above this level
+      (none|low|med|high|crit). 'none' disables the gate.
+    required: false
+    default: "high"
+  target:
+    description: "Optional network endpoint host[:port] for TLS/STARTTLS probes."
+    required: false
+    default: ""
+
+outputs:
+  sarif:
+    description: "Path to the exported SARIF file (feed to upload-sarif)."
+    value: ${{ steps.export.outputs.sarif }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Download pqcscan binary
+      shell: bash
+      run: |
+        set -euo pipefail
+        url="https://github.com/orengacademy/pqc-scanner2/releases/download/${{ inputs.version }}/pqcscan-linux-x86_64"
+        echo "Downloading pqcscan ${{ inputs.version }} from ${url}"
+        curl -fsSL -o pqcscan "${url}"
+        chmod +x pqcscan
+
+    - name: Run pqcscan scan
+      shell: bash
+      run: |
+        set -euo pipefail
+        args=(scan --path "${{ inputs.path }}" --fail-on "${{ inputs.fail-on }}" --db ./pqcscan.db)
+        if [ -n "${{ inputs.target }}" ]; then
+          args+=(--target "${{ inputs.target }}")
+        fi
+        ./pqcscan "${args[@]}"
+
+    - name: Export SARIF
+      id: export
+      if: always()
+      shell: bash
+      run: |
+        set -euo pipefail
+        ./pqcscan export --scan 1 --format sarif -o pqcscan.sarif --db ./pqcscan.db
+        echo "sarif=pqcscan.sarif" >> "$GITHUB_OUTPUT"

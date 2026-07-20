@@ -83,6 +83,12 @@ def _result_for(f: Any) -> dict[str, Any]:
         result["properties"]["migration_deadline"] = remediation["deadline"]
     if remediation.get("hndl"):
         result["properties"]["harvest_now_decrypt_later"] = True
+    # Per-language before/after fix, so SARIF consumers (Security tab, CI) show
+    # a concrete remediation snippet alongside the finding.
+    snippet = remediation.get("snippet")
+    if isinstance(snippet, dict) and snippet.get("after"):
+        result["properties"]["pqc_fix_before"] = snippet.get("before", "")
+        result["properties"]["pqc_fix_after"] = snippet["after"]
 
     # Physical location when a probe recorded a filesystem path in evidence.
     path = (f.evidence or {}).get("path")

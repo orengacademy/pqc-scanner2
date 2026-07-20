@@ -84,6 +84,14 @@
     .ev { background: #f8fafc; font-family: "SF Mono", monospace; font-size: 7.3pt;
           padding: 4pt 6pt; border-radius: 2pt; white-space: pre-wrap; word-break: break-all;
           margin-top: 4pt; color: #475569; max-height: 60pt; overflow: hidden; }
+    .fix { margin-top: 4pt; page-break-inside: avoid; }
+    .fix-hd { font-size: 7.8pt; font-weight: 700; color: #334155; margin-bottom: 2pt; }
+    .fix-lang { font-weight: 400; color: #64748b; font-variant: small-caps; }
+    .fix pre { font-family: "SF Mono", monospace; font-size: 7.3pt; padding: 3pt 6pt;
+               border-radius: 2pt; white-space: pre-wrap; word-break: break-word; margin: 0; }
+    .fix-before { background: #fef2f2; color: #991b1b; border-left: 2pt solid #f87171; }
+    .fix-after { background: #f0fdf4; color: #14532d; border-left: 2pt solid #4ade80; margin-top: 2pt !important; }
+    .fix-note { font-size: 7.3pt; color: #64748b; margin-top: 2pt; }
     footer { margin-top: 14pt; color: #64748b; font-size: 7.5pt; border-top: 1pt solid #e2e8f0; padding-top: 5pt; }
   </style>
 </head>
@@ -230,7 +238,15 @@
     {% if rem.get('replacement') %}
     <div class="rem">
       → {{ t('col.target') }} <strong>{{ rem.get('replacement') }}</strong>{% if rem.get('standard') %} ({{ rem.get('standard') }}){% endif %}{% if rem.get('deadline') %} · {{ t('col.deadline') }} {{ rem.get('deadline') }}{% endif %}{% if rem.get('hndl') %} · <span class="pill hndl">{{ t('priority.hndl') }}</span>{% endif %}
-      {% if rem.get('snippet') %}<div class="small" style="margin-top:3pt"><code>{{ rem.get('snippet') }}</code></div>{% endif %}
+    </div>
+    {% endif %}
+    {% if rem.snippet %}
+    {% set sn = rem.snippet %}
+    <div class="fix">
+      <div class="fix-hd">{{ t('fix.suggested') }}{% if sn.language and sn.language != 'generic' %} <span class="fix-lang">{{ sn.language }}</span>{% endif %}</div>
+      <pre class="fix-before">- {{ sn.before }}</pre>
+      <pre class="fix-after">+ {{ sn.after }}</pre>
+      {% if sn.note %}<div class="fix-note">{{ sn.note }}</div>{% endif %}
     </div>
     {% endif %}
     {% if f.evidence %}<pre class="ev">{{ f.evidence|tojson(indent=2) }}</pre>{% endif %}

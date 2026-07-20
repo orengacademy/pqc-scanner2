@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.3] — 2026-07-21
+
+### Added — actionable remediation + CI/CD gate
+The last actionable convenience gaps from the deep-research pass. Pure-stdlib.
+- **Per-language remediation snippets** (`core/remediation_snippets.py`) — every
+  finding now carries a concrete before→after fix for its language (Python,
+  Java, Go, JavaScript) or a language-agnostic one-liner (config/cert/network):
+  weak hashes → SHA-256, DES/3DES/RC4 → AES-256-GCM, RSA/ECDSA signatures →
+  ML-DSA-65 (FIPS 204), DH → hybrid ML-KEM-768. Rendered in the technical report
+  (bilingual) and projected into SARIF `properties` (`pqc_fix_before/after`) so
+  CI security-tab consumers see the fix.
+- **CI/CD gate** — `pqcscan scan --fail-on [none|low|med|high|crit]` (default
+  `high`, preserving current behavior); exit 0 clean / 1 gate tripped / 3 error.
+- **Reusable GitHub composite Action** (`action.yml`) — downloads the pinned
+  release binary, scans, exports SARIF for `codeql-action/upload-sarif`.
+- **`docs/CICD.md`** — GitHub Actions / GitLab CI / generic-shell integration
+  guides.
+
 ## [0.9.2] — 2026-07-21
 
 ### Added — IDS-log ingestion + decision outputs
