@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.2] — 2026-07-21
+
+### Added — IDS-log ingestion + decision outputs
+Remaining actionable findings from the 103-agent deep-research pass. Pure-stdlib.
+- **`fs.zeek.logs`** (174th probe) — ingests crypto posture from existing
+  **Zeek** (`ssl.log` / `x509.log`, TSV *and* JSON) and **Suricata** (`eve.json`)
+  IDS logs. A new offline discovery surface: orgs already run these sensors, so
+  we inventory TLS versions / cipher suites / curves / cert signature algorithms
+  from their telemetry without our own tap. `#fields`-driven column mapping
+  (robust to Zeek version reordering), dedup per endpoint, medium confidence
+  (log-derived, second-hand).
+- **Migration-readiness score** (`core/migration_score.py`) — a weighted
+  quantum-safe percentage (safe 100% / hybrid 80% / partial 30% / vulnerable 0%)
+  binned EXCELLENT/GOOD/MODERATE/POOR/CRITICAL. Complements the band-based
+  readiness gauge and the Mosca calculator.
+- **Multi-axis exposure register** (`core/exposure.py`) — prioritizes each
+  quantum-vulnerable finding by criticality × data-longevity × migration-
+  feasibility (1–27, tiered), operationalizing the Mosca intuition per asset.
+- Both decision outputs render in the executive report (bilingual EN/MS) next to
+  the existing readiness + Mosca blocks.
+
 ## [0.9.1] — 2026-07-21
 
 ### Added — reachability / executability confirmation (precision)

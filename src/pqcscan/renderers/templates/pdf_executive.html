@@ -106,6 +106,56 @@
   {% if mosca.assumed %}<p class="muted" style="font-size:8.5pt">{{ t('mosca.assumed') }}</p>{% endif %}
   {% endif %}
 
+  {% if migration_readiness %}
+  <h2>{{ t('sec.migration') }}</h2>
+  <div class="cards">
+    <div class="card {{ 'green' if migration_readiness.score >= 70 else 'yellow' if migration_readiness.score >= 25 else 'red' }}">
+      <div class="n">{{ migration_readiness.score }}%</div>
+      <div class="l">{{ t('migration.score') }} · {{ t('migration.band.' ~ migration_readiness.band) }}</div>
+    </div>
+    <div class="card green"><div class="n">{{ migration_readiness.safe }}</div><div class="l">{{ t('migration.safe') }}</div></div>
+    <div class="card yellow"><div class="n">{{ migration_readiness.hybrid }}</div><div class="l">{{ t('migration.hybrid') }}</div></div>
+    <div class="card grey"><div class="n">{{ migration_readiness.partial }}</div><div class="l">{{ t('migration.partial') }}</div></div>
+    <div class="card red"><div class="n">{{ migration_readiness.vulnerable }}</div><div class="l">{{ t('migration.vulnerable') }}</div></div>
+  </div>
+  <p class="muted" style="font-size:8.5pt">{{ t('migration.intro') }}</p>
+  {% endif %}
+
+  {% if exposure and exposure.total %}
+  <h2>{{ t('sec.exposure') }}</h2>
+  <p>{{ t('exposure.intro') }}</p>
+  <div class="cards">
+    <div class="card red"><div class="n">{{ exposure.tier_counts.CRITICAL }}</div><div class="l">{{ t('tier.CRITICAL') }}</div></div>
+    <div class="card yellow"><div class="n">{{ exposure.tier_counts.HIGH }}</div><div class="l">{{ t('tier.HIGH') }}</div></div>
+    <div class="card grey"><div class="n">{{ exposure.tier_counts.MEDIUM }}</div><div class="l">{{ t('tier.MEDIUM') }}</div></div>
+    <div class="card grey"><div class="n">{{ exposure.tier_counts.LOW }}</div><div class="l">{{ t('tier.LOW') }}</div></div>
+  </div>
+  <table>
+    <thead><tr>
+      <th>{{ t('exposure.ref') }}</th><th>{{ t('col.algorithm') }}</th>
+      <th class="num-col">{{ t('exposure.crit') }}</th><th class="num-col">{{ t('exposure.long') }}</th>
+      <th class="num-col">{{ t('exposure.feas') }}</th><th class="num-col">{{ t('exposure.score') }}</th>
+      <th>{{ t('exposure.tier') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for row in exposure.rows %}
+      <tr>
+        <td><code>{{ row.finding_ref }}</code></td>
+        <td>{{ row.algorithm or '—' }}</td>
+        <td class="num-col">{{ row.criticality }}</td>
+        <td class="num-col">{{ row.longevity }}</td>
+        <td class="num-col">{{ row.feasibility }}</td>
+        <td class="num-col"><strong>{{ row.exposure }}</strong></td>
+        <td><span class="pill {{ 'crit' if row.tier == 'CRITICAL' else 'high' if row.tier == 'HIGH' else 'med' if row.tier == 'MEDIUM' else 'low' }}">{{ t('tier.' ~ row.tier) }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% elif exposure %}
+  <h2>{{ t('sec.exposure') }}</h2>
+  <p class="muted">{{ t('exposure.none') }}</p>
+  {% endif %}
+
   <h2>{{ t('sec.priority') }}</h2>
   {% if priority %}
   <table>
