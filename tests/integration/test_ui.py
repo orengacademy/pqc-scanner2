@@ -79,11 +79,11 @@ def test_scan_detail_page_404_for_missing(client):
 def test_frameworks_list_page(client):
     r = client.get("/frameworks")
     assert r.status_code == 200
-    # All 10 bundled frameworks (YAML 'framework:' slug) should be linked.
+    # All 11 bundled frameworks (YAML 'framework:' slug) should be linked.
     for slug in (
         "bukukerja", "nist-ir-8547", "nist-sp-800-227", "cnsa2",
         "bsi-tr-02102-1", "anssi-pqc", "mas-notice-655", "enisa-pqc",
-        "mykripto", "nacsa-arahan-ke-9",
+        "mykripto", "nacsa-arahan-ke-9", "qramm",
     ):
         assert slug in r.text
 

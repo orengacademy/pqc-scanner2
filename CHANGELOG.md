@@ -108,7 +108,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   AES-256). Probe-authored remediation snippets are preserved.
 - **Public-key health (`core/keyhealth.py`).** ROCA (CVE-2017-15361)
   fingerprint detection and small-modulus flagging over public moduli only —
-  catches keys broken *today*, independent of the quantum threat.## [0.6.10] — 2026-07-20
+  catches keys broken *today*, independent of the quantum threat.
+
+## [0.6.10] — 2026-07-20
 
 ### Fixed
 - Linux release binary now runs on glibc ≥ 2.17 hosts (RHEL / Oracle Linux
