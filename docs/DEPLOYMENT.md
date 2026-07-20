@@ -31,8 +31,8 @@ The only thing protecting it out of the box is the default `127.0.0.1` bind.
 ## 1. Install the binary
 
 ```bash
-VERSION=v0.6.8
-SHA256=a98540a2ac2f8cbe0f9cdfdd84f795c8e0a7d515d956eaf90f6371c9c2668ddb
+VERSION=v0.6.10
+SHA256=c8c5ecdc969e5e198c8c7ea557479589f27811c75fc1dca286584f696d63afc5
 
 curl -fsSL -o /usr/local/bin/pqcscan \
   "https://github.com/orengacademy/pqc-scanner2/releases/download/${VERSION}/pqcscan-linux-x86_64"
