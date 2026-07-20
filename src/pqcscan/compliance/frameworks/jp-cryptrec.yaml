@@ -1,0 +1,43 @@
+framework: jp-cryptrec
+title: Japan CRYPTREC — e-Government Recommended Ciphers List
+# CRYPTREC (Cryptography Research and Evaluation Committees, Japan) maintains
+# three lists: the e-Government Recommended Ciphers List, the Candidate
+# Recommended Ciphers List, and the Monitored Ciphers List. The Recommended
+# list was formulated March 2013, last revised 8 March 2023 (remarks added for
+# DSA and 3-key Triple DES on 2024-05-16). Legacy algorithms SHA-1, RSA-1024
+# and Triple DES (3DES) are NOT on the e-Government Recommended list (treated
+# as monitored / non-recommended). PQC is under CRYPTREC monitoring (Crypto
+# Technique Monitoring Subcommittee) with no formal e-Government recommendation
+# yet, so PQC is flagged at-risk/monitor rather than compliant, and no PQC
+# deadline is asserted (none published). Sources cited in report.
+rules:
+  - match: { algorithm: SHA-1 }
+    clause: CRYPTREC:non-recommended-hash
+    verdict: non-compliant
+    note: "SHA-1 not on the e-Government Recommended Ciphers List."
+  - match: { algorithm: MD5 }
+    clause: CRYPTREC:non-recommended-hash
+    verdict: non-compliant
+  - match: { algorithm: RSA, key_size_lt: 2048 }
+    clause: CRYPTREC:non-recommended-key
+    verdict: non-compliant
+    note: "RSA-1024 / RSA <2048 not e-Government recommended."
+  - match: { algorithm: 3DES }
+    clause: CRYPTREC:non-recommended-cipher
+    verdict: non-compliant
+    note: "3-key Triple DES no longer e-Government recommended (2024-05-16 remark)."
+  - match: { algorithm: RC4 }
+    clause: CRYPTREC:non-recommended-cipher
+    verdict: non-compliant
+  - match: { classification: tinggi }
+    clause: CRYPTREC:PQC-monitored
+    verdict: at-risk
+    note: "PQC under CRYPTREC monitoring; no e-Government recommendation or deadline published yet."
+  - match: { algorithm: ML-KEM }
+    clause: CRYPTREC:PQC-monitored
+    verdict: at-risk
+    note: "ML-KEM tracked by CRYPTREC monitoring; not yet on the e-Government Recommended list."
+  - match: { algorithm: ML-DSA }
+    clause: CRYPTREC:PQC-monitored
+    verdict: at-risk
+    note: "ML-DSA tracked by CRYPTREC monitoring; not yet on the e-Government Recommended list."

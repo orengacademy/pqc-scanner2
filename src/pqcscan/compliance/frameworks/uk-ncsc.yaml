@@ -1,0 +1,51 @@
+framework: uk-ncsc
+title: UK NCSC — Timelines for Migration to Post-Quantum Cryptography
+# NCSC guidance "Timelines for migration to post-quantum cryptography"
+# (published March 2025) defines three milestones:
+#   by 2028 — define migration goals, complete a full discovery of cryptographic
+#             assets/dependencies, and build an initial migration plan;
+#   by 2031 — carry out highest-priority PQC upgrades of the most critical
+#             systems and data, refining the plan;
+#   by 2035 — complete migration to PQC for all systems, services and products.
+# Quantum-vulnerable classical public-key crypto is at-risk against these
+# milestones; ML-KEM / ML-DSA / SLH-DSA are aligned. Sources cited in report.
+rules:
+  - match: { algorithm: SHA-1 }
+    clause: NCSC:legacy-hash-disallowed
+    verdict: non-compliant
+    note: "SHA-1 already unsuitable independent of PQC timelines."
+  - match: { algorithm: MD5 }
+    clause: NCSC:legacy-hash-disallowed
+    verdict: non-compliant
+  - match: { algorithm: RSA }
+    clause: NCSC:PQC-milestone-discovery
+    verdict: at-risk
+    deadline: 2028-12-31
+    note: "By 2028 discover and plan; RSA is quantum-vulnerable and must be in scope."
+  - match: { algorithm: ECDSA }
+    clause: NCSC:PQC-milestone-priority
+    verdict: at-risk
+    deadline: 2031-12-31
+    note: "By 2031 migrate highest-priority critical systems off ECDSA."
+  - match: { algorithm: ECDH }
+    clause: NCSC:PQC-milestone-priority
+    verdict: at-risk
+    deadline: 2031-12-31
+  - match: { algorithm: DSA }
+    clause: NCSC:PQC-milestone-complete
+    verdict: at-risk
+    deadline: 2035-12-31
+    note: "By 2035 complete migration to PQC for all systems, services and products."
+  - match: { algorithm: DH }
+    clause: NCSC:PQC-milestone-complete
+    verdict: at-risk
+    deadline: 2035-12-31
+  - match: { algorithm: ML-KEM }
+    clause: NCSC:PQC-aligned
+    verdict: compliant
+  - match: { algorithm: ML-DSA }
+    clause: NCSC:PQC-aligned
+    verdict: compliant
+  - match: { algorithm: SLH-DSA }
+    clause: NCSC:PQC-aligned
+    verdict: compliant

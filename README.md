@@ -2,7 +2,7 @@
 
 Post-Quantum Cryptography (PQC) readiness scanner. Single Python process. Bundled web UI + headless CLI. Runs locally on Linux, Windows, macOS.
 
-> **Status: 170 probes · 11 compliance frameworks · SARIF + CBOM + PDF + XLSX exports · light/dark web UI — see [docs/STATUS.md](docs/STATUS.md).**
+> **Status: 172 probes · 19 compliance frameworks · SARIF + CBOM + PDF + XLSX exports · light/dark web UI — see [docs/STATUS.md](docs/STATUS.md).**
 > Scans point at the local host **or** a network endpoint (`--target`), filesystem paths (`--path`), or an OT/ICS endpoint (`--ot`). Every finding carries a typed PQC migration target + deadline, surfaced inline in the UI and in the SARIF export. See `docs/superpowers/specs/2026-04-29-pqcscan-v2-design.md` for the full design.
 
 ---
@@ -43,11 +43,11 @@ flowchart LR
 
     subgraph proc["pqcscan single process"]
         direction TB
-        REG["probe registry<br/>(default_registry, 170 probes)"]
+        REG["probe registry<br/>(default_registry, 172 probes)"]
         RUN["async runner<br/>(asyncio.gather per family,<br/>per-probe timeout)"]
         BUS["event bus<br/>(SSE-friendly)"]
         REPO[("SQLite store<br/>scans · findings ·<br/>baselines · framework_views")]
-        COMP["compliance engine<br/>(11 framework YAMLs)"]
+        COMP["compliance engine<br/>(19 framework YAMLs)"]
         DAEMON["FastAPI daemon<br/>+ Jinja UI + SSE"]
         CLI["click CLI<br/>(scan / scans / export)"]
         REND["renderers<br/>CBOM · PDF · XLSX"]
@@ -117,7 +117,7 @@ pqcscan scan --json
 # List scans.
 pqcscan scans
 
-# Export the canonical CBOM (CycloneDX 1.6).
+# Export the canonical CBOM (CycloneDX 1.7).
 pqcscan export --scan 1 --format cbom -o cbom.json
 
 # Or just visit the UI.
@@ -196,11 +196,11 @@ sequenceDiagram
 
 ## Probe families
 
-170 probes registered across 15 families. Each probe is a small `Probe` subclass that declares an `id`, a `family`, and `framework_tags` for the compliance engine to map findings.
+172 probes registered across 15 families. Each probe is a small `Probe` subclass that declares an `id`, a `family`, and `framework_tags` for the compliance engine to map findings.
 
 ```mermaid
 flowchart TB
-    REG["default_registry()<br/><b>170 probes</b>"]
+    REG["default_registry()<br/><b>172 probes</b>"]
 
     REG --> HOST["<b>HOST</b> · 6<br/>openssl.config / ciphers / engines<br/>ssh.server_config / client_config<br/>gnupg.config"]
     REG --> FS["<b>FILESYSTEM</b> · 6<br/>cert.x509 · cert.privkey<br/>conf.{nginx,apache,sshd,openssl_cnf}"]
@@ -250,9 +250,9 @@ flowchart LR
     HOME["/  Dashboard<br/>last-scan summary +<br/>'Scan now' button"]
     SCANS["/scans<br/>scans list"]
     DETAIL["/scans/{id}<br/>live SSE feed +<br/>findings table +<br/>'Mark as baseline' form"]
-    FRAMEWORKS["/frameworks<br/>11 framework YAMLs"]
+    FRAMEWORKS["/frameworks<br/>19 framework YAMLs"]
     FW_DET["/frameworks/{slug}<br/>rules · clauses · verdicts"]
-    PROBES["/probes<br/>170 probes by family"]
+    PROBES["/probes<br/>172 probes by family"]
     BASELINES["/baselines<br/>list + diff form"]
     DIFF["/baselines/diff<br/>added · removed · common"]
     SETTINGS["/settings<br/>version · python · platform ·<br/>privilege mode · DB · capabilities"]

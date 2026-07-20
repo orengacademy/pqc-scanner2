@@ -1,0 +1,39 @@
+framework: iso-27001-2022
+title: ISO/IEC 27001:2022 — Annex A 8.24 Use of Cryptography
+# ISO/IEC 27001:2022 Annex A control 8.24 (Use of cryptography) consolidates
+# the former 2013 controls 10.1.1/10.1.2 and requires a documented policy on
+# cryptographic techniques: approved algorithms, key strengths, key management
+# and lifecycle. Weak/deprecated algorithms breach the "effective use of
+# cryptography" requirement. Linked to Annex A 5.23 (Information security for
+# use of cloud services) so the crypto inventory extends to cloud platforms.
+# No fixed regulatory deadline (certification-driven), so classical-only
+# constructions are flagged at-risk pending a documented migration plan.
+# Sources cited in report.
+rules:
+  - match: { algorithm: SHA-1 }
+    clause: ISO-27001-2022:A.8.24-weak-hash
+    verdict: non-compliant
+    note: "SHA-1 not an approved cryptographic technique under the A.8.24 policy."
+  - match: { algorithm: MD5 }
+    clause: ISO-27001-2022:A.8.24-weak-hash
+    verdict: non-compliant
+  - match: { algorithm: DES }
+    clause: ISO-27001-2022:A.8.24-weak-cipher
+    verdict: non-compliant
+  - match: { algorithm: 3DES }
+    clause: ISO-27001-2022:A.8.24-weak-cipher
+    verdict: non-compliant
+  - match: { algorithm: RC4 }
+    clause: ISO-27001-2022:A.8.24-weak-cipher
+    verdict: non-compliant
+  - match: { algorithm: RSA, key_size_lt: 2048 }
+    clause: ISO-27001-2022:A.8.24-weak-key
+    verdict: non-compliant
+    note: "Key strength below the A.8.24 documented minimum."
+  - match: { classification: tinggi }
+    clause: ISO-27001-2022:A.8.24-inventory-monitor
+    verdict: at-risk
+    note: "Record in the A.8.24 crypto inventory (also A.5.23 for cloud) and document a PQC migration plan."
+  - match: { classification: pqc-ready }
+    clause: ISO-27001-2022:A.8.24-aligned
+    verdict: compliant

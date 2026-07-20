@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] — 2026-07-21
+
+### Added — coverage + interop + agility expansion
+Five capability additions from a market/GitHub gap analysis, all pure-stdlib /
+existing-deps so the self-contained any-OS binary is unchanged.
+
+- **8 audit-regime compliance frameworks** (11 → **19**): PCI DSS 4.0 (req
+  12.3.3), ISO/IEC 27001:2022 (A.8.24), EU DORA, EU NIS2, UK NCSC (2028/2031/
+  2035 timelines), Australian ASD ISM (2030), Canada CCCS (2031/2035), Japan
+  CRYPTREC — each with cited clauses + verified deadlines.
+- **Infrastructure-as-Code scanning** (170 → **172 probes**): `fs.iac.terraform`
+  (aws_kms_key / tls_private_key / aws_lb_listener ssl_policy / acm / azurerm /
+  google_privateca) and `fs.iac.cloudformation` (AWS::KMS::Key / ACM / ELB
+  SslPolicy + cert-manager Certificate/Issuer keyAlgorithm).
+- **CBOM CycloneDX 1.6 → 1.7**: standardized `ellipticCurve` enum (replaces the
+  deprecated free-text `curve`), `algorithmFamily`, and a **fixed latent bug** —
+  the 1.6 output emitted `primitive` values (`cipher`, `key-agreement`) that
+  were not in the CycloneDX enum; corrected to `block-cipher`/`stream-cipher`/
+  `key-agree`, and ML-KEM is now `kem` (was mis-lumped as key-agreement).
+- **Mosca X+Y>Z shelf-life calculator**: `core/mosca.py` + `pqcscan scan
+  --data-lifetime/--migration-years/--threat-years`; the executive report gains
+  a bilingual "shelf-life exposure" block (X/Y/Z, gap, at-risk verdict).
+- **Composite / hybrid PQC certificate recognition**: 18 LAMPS composite ML-DSA
+  signature OIDs (IANA arc `1.3.6.1.5.5.7.6.*`, draft-19-verified) + SLH-DSA
+  confirmed — a cert already migrated to hybrid PQC now classifies PQC-positive.
+
 ## [0.8.8] — 2026-07-20
 
 ### Changed — live sniffer now does TCP stream reassembly

@@ -1,0 +1,48 @@
+framework: eu-nis2
+title: EU NIS2 — Directive (EU) 2022/2555, Art. 21(2)(h) Cryptography
+# NIS2 Directive (EU) 2022/2555 Article 21(2)(h) requires essential and
+# important entities to adopt "policies and procedures regarding the use of
+# cryptography and, where appropriate, encryption" as a cyber risk-management
+# measure. On 20 Jan 2026 the Commission published COM(2026) 13 final, a
+# proposed directive amending NIS2 whose new Art. 7(2)(k) would oblige Member
+# States to include post-quantum cryptography transition policies in national
+# cybersecurity strategies (EU PQC roadmap milestones: begin transition by end
+# 2026, critical infrastructure complete by 2030). COM(2026)13 is still in the
+# legislative process, so its milestones are treated as at-risk targets, not
+# fixed deadlines. Sources cited in report.
+rules:
+  - match: { algorithm: SHA-1 }
+    clause: NIS2:Art21-2-h-weak-hash
+    verdict: non-compliant
+    note: "SHA-1 inconsistent with state-of-the-art cryptography under Art. 21(2)(h)."
+  - match: { algorithm: MD5 }
+    clause: NIS2:Art21-2-h-weak-hash
+    verdict: non-compliant
+  - match: { algorithm: RC4 }
+    clause: NIS2:Art21-2-h-weak-cipher
+    verdict: non-compliant
+  - match: { algorithm: DES }
+    clause: NIS2:Art21-2-h-weak-cipher
+    verdict: non-compliant
+  - match: { algorithm: 3DES }
+    clause: NIS2:Art21-2-h-weak-cipher
+    verdict: non-compliant
+  - match: { algorithm: RSA, key_size_lt: 2048 }
+    clause: NIS2:Art21-2-h-weak-key
+    verdict: non-compliant
+  - match: { algorithm: RSA }
+    clause: NIS2:PQC-roadmap-transition
+    verdict: at-risk
+    deadline: 2030-12-31
+    note: "EU PQC roadmap (per COM(2026)13 amendment proposal): begin transition by end 2026, critical infrastructure by 2030."
+  - match: { algorithm: ECDSA }
+    clause: NIS2:PQC-roadmap-transition
+    verdict: at-risk
+    deadline: 2030-12-31
+  - match: { algorithm: ECDH }
+    clause: NIS2:PQC-roadmap-transition
+    verdict: at-risk
+    deadline: 2030-12-31
+  - match: { classification: pqc-ready }
+    clause: NIS2:Art21-2-h-aligned
+    verdict: compliant

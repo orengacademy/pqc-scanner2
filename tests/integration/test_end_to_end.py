@@ -36,7 +36,7 @@ def test_scan_then_export_cbom(tmp_path: Path):
 
     cbom = json.loads(out.read_text())
     assert cbom["bomFormat"] == "CycloneDX"
-    assert cbom["specVersion"] == "1.6"
+    assert cbom["specVersion"] == "1.7"
 
 
 def test_scan_then_export_sarif(tmp_path: Path):
