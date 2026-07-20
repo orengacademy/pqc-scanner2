@@ -5,14 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.8.5] — 2026-07-20
+
+### Added — DB-column + network-appliance scanning (closing the last peer gaps)
+Closes the two surfaces the closest commercial analog (PQ Crypta Discovery
+Agent) had that we lacked — both pure-stdlib, self-contained:
+- **`fs.db.crypto`** — scans **databases for crypto material stored in
+  columns**: opens SQLite files read-only (stdlib `sqlite3`) and scans SQL
+  dumps, extracting embedded X.509 certificates, private keys, and SSH keys
+  from TEXT/BLOB columns and classifying them. Private-key material is flagged
+  CRIT and **redacted** (evidence never carries the key bytes).
+- **`fs.conf.f5`** — F5 BIG-IP `bigip.conf` client-ssl/server-ssl profiles
+  (weak `ciphers`, `options { no-tlsv1.3 }` regressions).
+- **`fs.conf.netscaler`** — Citrix NetScaler `ns.conf` SSL config (`-ssl3/-tls1/
+  -tls11 ENABLED`, weak cipher-name bindings like `SSL3-DES-CBC3-SHA`, `RC4-MD5`).
+
+### Changed
+- `docs/COMPETITIVE-LANDSCAPE.md` expanded with the full 2026 tool catalog
+  (PQ Crypta, CipherIQ/cbom-generator, HCL BigFix, QuantumGate, Q-CORE, cdxgen,
+  cbomkit, the hosted edge scanners PostQ/PQScan.io/Cyberzero, and the Santander
+  PQCTools index).
 
 ## [0.8.4] — 2026-07-20
 
 ### Added
-- **macOS x86_64 (Intel) release binary** (`pqcscan-macos-x86_64`, built on
-  `macos-13`) — completes the platform set: linux-x86_64 (glibc 2.17+),
-  macos-arm64, macos-x86_64, windows-x86_64.
+- Attempted a **macOS x86_64 (Intel) release binary** on `macos-13`, but those
+  Intel runners are deprecated/unschedulable and a stuck job blocks the whole
+  release, so v0.8.4 ships the reliable 3-platform set: linux-x86_64 (glibc
+  2.17+), macos-arm64, windows-x86_64. Intel-Mac users install from source
+  (`pip install -e .`) — see `docs/DEPLOYMENT.md`.
 
 ### Added — closing closeable competitor gaps (self-contained-safe)
 - **`fs.binary.crypto`** — scans compiled **binaries with no source** (ELF / PE
