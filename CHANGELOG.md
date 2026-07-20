@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] — 2026-07-21
+
+### Added — reachability / executability confirmation (precision)
+From a 103-agent deep-research pass, the one high-value delta vs the field: prove
+detected crypto is actually *invoked / enabled*, not merely present — a false-
+positive reduction. Both pure-stdlib.
+- **ELF `.dynsym` reachability** in `fs.binary.crypto` — a binary that lists a
+  crypto library in `DT_NEEDED` but imports **no** `EVP_*/SSL_*/gnutls_*/...`
+  symbols is very likely a transitive dependency that's never called. Findings
+  now carry `reachability` = `invoked` (crypto API symbols imported; sample
+  listed) / `linked-only` (linked but no crypto symbols → **down-ranked to low
+  confidence**) / `unknown` (no `.dynsym` / non-ELF). Mirrors QED's `.dynsym`
+  intersection technique; the RAM-heavy angr callgraph phase is deliberately
+  not adopted (would break the any-OS binary).
+- **`host.java.security`** (173rd probe) — parses the JVM policy file
+  (`$JAVA_HOME/**/java.security`) `jdk.tls/certpath/jar.disabledAlgorithms` +
+  `legacyAlgorithms` (with Java `.properties` line-continuation), reports the
+  JVM crypto posture: which weak/legacy algorithms the JVM has disabled (a
+  mitigating control, à la CBOMkit-theia's executability check) vs. left
+  enabled (gap findings for TLSv1.x / RC4 / 3DES / MD5 not disabled and missing
+  RSA/DH/EC key-size floors).
+
 ## [0.9.0] — 2026-07-21
 
 ### Added — coverage + interop + agility expansion
