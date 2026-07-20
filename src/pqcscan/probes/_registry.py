@@ -84,6 +84,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.host_kernel_crypto_registry import HostKernelCryptoRegistry
     from pqcscan.probes.host_krb5_config import HostKrb5Config
     from pqcscan.probes.host_libcrypto_pqc_features import HostLibcryptoPqcFeatures
+    from pqcscan.probes.host_macos_keychain import HostMacosKeychain
     from pqcscan.probes.host_nss_policy import HostNssPolicy
     from pqcscan.probes.host_openssl_ciphers import HostOpenSSLCiphers
     from pqcscan.probes.host_openssl_config import HostOpenSSLConfig
@@ -93,12 +94,14 @@ def default_registry() -> Registry:
     from pqcscan.probes.host_openssl_oqs_provider import HostOpenSSLOqsProvider
     from pqcscan.probes.host_openssl_version import HostOpenSSLVersion
     from pqcscan.probes.host_pam_hashing import HostPamHashing
+    from pqcscan.probes.host_platform_info import HostPlatformInfo
     from pqcscan.probes.host_rng_config import HostRngConfig
     from pqcscan.probes.host_ssh_binary_caps import HostSshBinaryCaps
     from pqcscan.probes.host_ssh_client_config import HostSshClientConfig
     from pqcscan.probes.host_ssh_moduli import HostSshModuli
     from pqcscan.probes.host_ssh_server_config import HostSshServerConfig
     from pqcscan.probes.host_tpm_sealed_keys import HostTpmSealedKeys
+    from pqcscan.probes.host_windows_schannel import HostWindowsSchannel
     from pqcscan.probes.hw_pkcs11_modules import HwPkcs11Modules
     from pqcscan.probes.hw_smartcard_readers import HwSmartcardReaders
     from pqcscan.probes.hw_tpm_algorithms import HwTpmAlgorithms
@@ -401,4 +404,8 @@ def default_registry() -> Registry:
     reg.register(HostRngConfig())
     reg.register(HostPamHashing())
     reg.register(HostSshModuli())
+    # Any-OS: cross-platform posture + OS-native probes.
+    reg.register(HostPlatformInfo())
+    reg.register(HostWindowsSchannel())
+    reg.register(HostMacosKeychain())
     return reg

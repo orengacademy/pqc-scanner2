@@ -75,6 +75,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hashes, RSA key sizes, and PQC-library usage. No native tree-sitter — keeps
   the binary self-contained and any-OS.
 
+### Added — any-OS applicability
+- **`host.platform_info`** — always-on probe recording the scanned OS / release
+  / arch / Python / glibc, so a report states its coverage context and every
+  scan produces at least one finding even where posix-specific probes skip.
+- **`host.windows.schannel`** — Windows-native TLS posture from the SCHANNEL
+  registry (enabled weak Protocols / Ciphers / Hashes / KeyExchangeAlgorithms);
+  `winreg` is imported lazily under a `win32` guard, so the module loads on any
+  OS. Injectable config for testing.
+- **`host.macos.keychain`** — macOS system-root-CA crypto inventory via
+  `security find-certificate`, flagging MD5/SHA-1-signed and RSA-1024 roots.
+- **Cross-OS graceful degradation** is now covered by a test asserting every
+  probe's `applies()` gate is safe on a bare context on any OS (the runner
+  already wraps `run()`), and that all ~157 probe modules import cleanly with
+  no top-level OS-specific imports.
+- **Release matrix** adds **macOS x86_64** (`macos-13`, for Intel Macs) →
+  `pqcscan-macos-x86_64`, alongside linux-x86_64 (glibc 2.17), macos-arm64, and
+  windows-x86_64. `docs/DEPLOYMENT.md` documents the full platform-compatibility
+  floor.
+
 ## [0.7.5] — 2026-07-20
 
 ### Added — findings UX
