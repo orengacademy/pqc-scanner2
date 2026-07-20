@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — full bilingual web
+- **Complete EN/MS coverage of the web UI.** The dashboard body, scan-detail
+  page, and scans list are now fully translated into Bahasa Melayu, joining the
+  already-localised nav/settings/frameworks/probes/baselines pages. Every
+  user-visible string — page headings, the "How to read this page" band
+  legend, the run-a-scan form, organisational-readiness tiles, crypto-surface
+  breakdown, NACSA migration-phase notes, export cards, band filter chips,
+  finding remediation chips, table headers, and the footer tagline / theme
+  aria-label — now flips with the `pqcscan_locale` cookie. Technical acronyms
+  (PQC, TLS, ML-KEM, SARIF, CBOM, HNDL, NIST, NACSA, SSE) are kept verbatim in
+  both languages.
+
 ## [0.7.5] — 2026-07-20
 
 ### Added — findings UX

@@ -225,6 +225,31 @@ def test_create_baseline_form_404_for_missing_scan(client):
     assert r.status_code == 404
 
 
+def test_dashboard_page_in_bahasa(client):
+    # The dashboard body (not just the nav) must render in Bahasa Melayu when
+    # the locale cookie is set.
+    r = client.get("/", cookies={"pqcscan_locale": "ms"})
+    assert r.status_code == 200
+    assert "Kesediaan Organisasi" in r.text     # MS "Organisational Readiness"
+    assert "Organisational Readiness" not in r.text
+    assert 'lang="ms"' in r.text
+
+
+def test_scan_detail_page_in_bahasa(client):
+    # The scan-detail body must render in Bahasa Melayu under the MS cookie.
+    sid = client.post("/api/scans").json()["id"]
+    import time
+    for _ in range(3000):
+        if client.get(f"/api/scans/{sid}").json()["status"] == "done":
+            break
+        time.sleep(0.1)
+    r = client.get(f"/scans/{sid}", cookies={"pqcscan_locale": "ms"})
+    assert r.status_code == 200
+    assert "butiran imbasan" in r.text          # MS "scan detail"
+    assert "Inventori Aset" in r.text            # MS "Asset Inventory & Findings"
+    assert "Asset Inventory" not in r.text
+
+
 def test_scan_detail_shows_mark_baseline_form(client):
     sid = client.post("/api/scans").json()["id"]
     import time

@@ -51,7 +51,7 @@
         {% endfor %}
         <span class="mx-2 h-5 w-px nav-divider"></span>
         {# Theme toggle — sun/moon, persists to localStorage. #}
-        <button type="button" id="theme-toggle" aria-label="Toggle light / dark theme"
+        <button type="button" id="theme-toggle" aria-label="{{ t('common.theme_toggle') }}"
                 class="p-2 rounded-md nav-link" onclick="pqcToggleTheme()">
           <svg class="w-4 h-4 icon-sun" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
             <path d="M10 2a.75.75 0 01.75.75v1a.75.75 0 01-1.5 0v-1A.75.75 0 0110 2zm4.95 2.05a.75.75 0 010 1.06l-.7.7a.75.75 0 11-1.06-1.06l.7-.7a.75.75 0 011.06 0zM18 10a.75.75 0 01-.75.75h-1a.75.75 0 010-1.5h1A.75.75 0 0118 10zm-2.75 4.19l.7.7a.75.75 0 11-1.06 1.06l-.7-.7a.75.75 0 111.06-1.06zM10 16.25a.75.75 0 01.75.75v1a.75.75 0 01-1.5 0v-1a.75.75 0 01.75-.75zM5.81 14.19a.75.75 0 010 1.06l-.7.7a.75.75 0 01-1.06-1.06l.7-.7a.75.75 0 011.06 0zM3.75 10A.75.75 0 013 10.75H2a.75.75 0 010-1.5h1A.75.75 0 013.75 10zm1.36-4.89a.75.75 0 01-1.06 1.06l-.7-.7A.75.75 0 013.4 4.4l.7.7zM10 6a4 4 0 100 8 4 4 0 000-8z"/>
@@ -79,7 +79,7 @@
 
   <footer class="max-w-7xl mx-auto px-6 py-6 mt-12 app-footer text-xs">
     <div class="flex justify-between items-center">
-      <span class="font-mono">pqcscan v{{ pqc_version }} &middot; post-quantum readiness scanner</span>
+      <span class="font-mono">pqcscan v{{ pqc_version }} &middot; {{ t('common.tagline') }}</span>
       <span class="font-mono muted">{{ locale or 'en' }}</span>
     </div>
   </footer>

@@ -4,15 +4,15 @@
 {# ─────────────  Page header  ───────────── #}
 <section class="mb-8 flex items-end justify-between gap-6 flex-wrap">
   <div>
-    <h1 class="section-heading">Post-Quantum Cryptography (PQC) Readiness</h1>
-    <p class="section-eyebrow mt-2">pqcscan &nbsp;&mdash;&nbsp; nist-aligned crypto posture assessment</p>
+    <h1 class="section-heading">{{ t('dashboard.heading') }}</h1>
+    <p class="section-eyebrow mt-2">{{ t('dashboard.subtitle') }}</p>
   </div>
   <button type="button" onclick="document.getElementById('about-card').classList.toggle('hidden')"
           class="btn-secondary">
     <svg class="w-3.5 h-3.5 text-amber-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
       <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 011-1h.01a1 1 0 01.99 1v4a1 1 0 11-2 0V9zm1-4a1 1 0 100 2 1 1 0 000-2z" clip-rule="evenodd"/>
     </svg>
-    About
+    {{ t('dashboard.about') }}
   </button>
 </section>
 
@@ -20,55 +20,53 @@
 <section class="card p-5 mb-8">
   <form action="/scans/new" method="post" class="flex flex-wrap items-end gap-3">
     <div class="flex-1 min-w-[16rem]">
-      <label for="scan-target" class="section-eyebrow block mb-1">Network target (optional)</label>
+      <label for="scan-target" class="section-eyebrow block mb-1">{{ t('scanform.target_label') }}</label>
       <input id="scan-target" name="target" type="text" autocomplete="off"
              placeholder="example.com or example.com:8443"
              class="w-full bg-zinc-900/70 border border-zinc-700 rounded-md px-3 py-2 text-sm font-mono
                     text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-amber-400/60">
     </div>
     <div class="flex-1 min-w-[16rem]">
-      <label for="scan-paths" class="section-eyebrow block mb-1">Filesystem paths (optional, comma-separated)</label>
+      <label for="scan-paths" class="section-eyebrow block mb-1">{{ t('scanform.paths_label') }}</label>
       <input id="scan-paths" name="paths" type="text" autocomplete="off"
              placeholder="/etc/ssl, /opt/app"
              class="w-full bg-zinc-900/70 border border-zinc-700 rounded-md px-3 py-2 text-sm font-mono
                     text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-amber-400/60">
     </div>
-    <button type="submit" class="btn-primary">Run scan</button>
+    <button type="submit" class="btn-primary">{{ t('scanform.run') }}</button>
   </form>
-  <p class="section-eyebrow mt-2">Leave blank to scan the local host. A network target activates the TLS/STARTTLS probes; paths activate certificate/key/code probes.</p>
+  <p class="section-eyebrow mt-2">{{ t('scanform.help') }}</p>
 </section>
 
 {# ─────────────  About callout  ───────────── #}
 <aside id="about-card" class="card p-5 mb-6 hidden border-l-2 border-l-amber-400/60">
   <div class="flex items-start justify-between mb-3">
     <div>
-      <h2 class="font-mono text-amber-400 font-semibold">How to read this page.</h2>
-      <p class="section-eyebrow mt-1">aegis-style traffic-light readiness</p>
+      <h2 class="font-mono text-amber-400 font-semibold">{{ t('dashboard.about_heading') }}</h2>
+      <p class="section-eyebrow mt-1">{{ t('dashboard.about_eyebrow') }}</p>
     </div>
     <button type="button" onclick="document.getElementById('about-card').classList.add('hidden')"
-            class="text-zinc-500 hover:text-zinc-200" aria-label="Close">
+            class="text-zinc-500 hover:text-zinc-200" aria-label="{{ t('common.close') }}">
       <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
         <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/>
       </svg>
     </button>
   </div>
   <p class="text-sm text-zinc-400 leading-relaxed">
-    Each finding is bucketed into a traffic-light band based on the algorithm in use,
-    the probe family, and whether the host software has a PQC upgrade path.
+    {{ t('dashboard.about_intro') }}
   </p>
   <ul class="mt-3 space-y-1.5 text-sm">
-    <li class="flex items-start gap-2"><span class="band-pill mt-0.5" data-band="green"><span class="dot"></span>Green</span>
-      <span class="text-zinc-400">PQC or hybrid PQC in use (ML-KEM, ML-DSA, SLH-DSA, X25519MLKEM768).</span></li>
-    <li class="flex items-start gap-2"><span class="band-pill mt-0.5" data-band="yellow"><span class="dot"></span>Yellow</span>
-      <span class="text-zinc-400">Classical crypto today, but the software / vendor supports a PQC upgrade.</span></li>
-    <li class="flex items-start gap-2"><span class="band-pill mt-0.5" data-band="red"><span class="dot"></span>Red</span>
-      <span class="text-zinc-400">Classical crypto with <em>no</em> PQC roadmap. Highest risk.</span></li>
-    <li class="flex items-start gap-2"><span class="band-pill mt-0.5" data-band="grey"><span class="dot"></span>Grey</span>
-      <span class="text-zinc-400">Not yet scanned, unreachable, or purely informational.</span></li>
+    <li class="flex items-start gap-2"><span class="band-pill mt-0.5" data-band="green"><span class="dot"></span>{{ t('band.green') }}</span>
+      <span class="text-zinc-400">{{ t('dashboard.band_green_desc') }}</span></li>
+    <li class="flex items-start gap-2"><span class="band-pill mt-0.5" data-band="yellow"><span class="dot"></span>{{ t('band.yellow') }}</span>
+      <span class="text-zinc-400">{{ t('dashboard.band_yellow_desc') }}</span></li>
+    <li class="flex items-start gap-2"><span class="band-pill mt-0.5" data-band="red"><span class="dot"></span>{{ t('band.red') }}</span>
+      <span class="text-zinc-400">{{ t('dashboard.band_red_desc') | safe }}</span></li>
+    <li class="flex items-start gap-2"><span class="band-pill mt-0.5" data-band="grey"><span class="dot"></span>{{ t('band.grey') }}</span>
+      <span class="text-zinc-400">{{ t('dashboard.band_grey_desc') }}</span></li>
   </ul>
   <p class="mt-3 text-xs text-zinc-500 italic">
-    Hover any algorithm in the findings list for a plain-English explanation.
-    Mappings: NIST IR 8547, NIST FIPS 203/204/205, MyKripto, BUKUKERJA, NACSA.
+    {{ t('dashboard.about_footer') }}
   </p>
 </aside>
 
@@ -76,15 +74,15 @@
 <section class="card p-6 mb-6">
   <div class="flex items-end justify-between mb-5 gap-4 flex-wrap">
     <div>
-      <h2 class="font-mono text-amber-400 font-semibold">Organisational Readiness</h2>
+      <h2 class="font-mono text-amber-400 font-semibold">{{ t('dashboard.org_readiness') }}</h2>
       {% if last_scan %}
         <p class="section-eyebrow mt-1">
-          scan #{{ last_scan.id }} &middot; {{ last_scan.status }} &middot;
-          {{ bands.total if bands else 0 }} findings &middot;
-          generated {{ last_scan.started_at }}
+          {{ t('common.scan') }} #{{ last_scan.id }} &middot; {{ last_scan.status }} &middot;
+          {{ bands.total if bands else 0 }} {{ t('common.findings') }} &middot;
+          {{ t('common.generated') }} {{ last_scan.started_at }}
         </p>
       {% else %}
-        <p class="section-eyebrow mt-1">no scan yet</p>
+        <p class="section-eyebrow mt-1">{{ t('dashboard.no_scan_yet') }}</p>
       {% endif %}
     </div>
   </div>
@@ -94,7 +92,7 @@
     <div class="md:col-span-1 flex flex-col items-center justify-center">
       {% set _r = readiness if readiness is not none else 0 %}
       {# Gauge arc: 180° sweep, fraction proportional to score #}
-      <svg viewBox="0 0 120 70" class="w-44 h-28" aria-label="Readiness score {{ _r }} out of 100">
+      <svg viewBox="0 0 120 70" class="w-44 h-28" aria-label="{{ t('dashboard.readiness_score') }} {{ _r }}/100">
         <path d="M 10 60 A 50 50 0 0 1 110 60"
               fill="none" stroke="rgb(39 39 42)" stroke-width="10" stroke-linecap="round"/>
         <path d="M 10 60 A 50 50 0 0 1 110 60"
@@ -103,7 +101,7 @@
               transform="" />
       </svg>
       <p class="font-mono text-4xl font-bold text-amber-400 -mt-6 tabular-nums">{{ _r }}</p>
-      <p class="section-eyebrow mt-1">readiness score</p>
+      <p class="section-eyebrow mt-1">{{ t('dashboard.readiness_score') }}</p>
     </div>
 
     {# 4 band tiles #}
@@ -111,19 +109,19 @@
     <div class="md:col-span-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
       <div class="band-tile" data-band="green">
         <div class="band-num">{{ b.green }}</div>
-        <div class="band-label">Green &middot; ready</div>
+        <div class="band-label">{{ t('band.green') }} &middot; {{ t('band.ready') }}</div>
       </div>
       <div class="band-tile" data-band="yellow">
         <div class="band-num">{{ b.yellow }}</div>
-        <div class="band-label">Yellow &middot; upgradable</div>
+        <div class="band-label">{{ t('band.yellow') }} &middot; {{ t('band.upgradable') }}</div>
       </div>
       <div class="band-tile" data-band="red">
         <div class="band-num">{{ b.red }}</div>
-        <div class="band-label">Red &middot; blocker</div>
+        <div class="band-label">{{ t('band.red') }} &middot; {{ t('band.blocker') }}</div>
       </div>
       <div class="band-tile" data-band="grey">
         <div class="band-num">{{ b.grey }}</div>
-        <div class="band-label">Grey &middot; unknown</div>
+        <div class="band-label">{{ t('band.grey') }} &middot; {{ t('band.unknown') }}</div>
       </div>
     </div>
   </div>
@@ -141,12 +139,12 @@
           <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/>
           <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/>
         </svg>
-        Download PDF report
+        {{ t('dashboard.download_pdf') }}
       </a>
-      <a href="/scans/{{ last_scan.id }}/risk" class="btn-secondary">Risk Assessment</a>
-      <a href="/scans/{{ last_scan.id }}" class="btn-secondary">View scan</a>
+      <a href="/scans/{{ last_scan.id }}/risk" class="btn-secondary">{{ t('dashboard.risk_assessment') }}</a>
+      <a href="/scans/{{ last_scan.id }}" class="btn-secondary">{{ t('dashboard.view_scan') }}</a>
     {% endif %}
-    <span class="text-[11px] text-zinc-500 font-mono ml-auto">manual rescans rate-limited to 1 / 10 min</span>
+    <span class="text-[11px] text-zinc-500 font-mono ml-auto">{{ t('dashboard.rate_limit') }}</span>
   </div>
 </section>
 
@@ -154,7 +152,7 @@
 {% if surfaces %}
 <section class="mb-6">
   <div class="flex items-end justify-between mb-3">
-    <h2 class="font-mono text-amber-400 font-semibold">Breakdown by Crypto Surface</h2>
+    <h2 class="font-mono text-amber-400 font-semibold">{{ t('dashboard.surface_breakdown') }}</h2>
     <span class="section-eyebrow">tls &middot; ssh &middot; vpn &middot; certs &middot; code &middot; data-at-rest</span>
   </div>
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -168,10 +166,10 @@
         </div>
         <div class="surface-num">{{ s.total }}</div>
         <div class="surface-counts">
-          <span class="green-count">{{ s.green }} ready</span> &middot;
-          <span class="yellow-count">{{ s.yellow }} upgradable</span> &middot;
-          <span class="red-count">{{ s.red }} blocker</span> &middot;
-          <span class="grey-count">{{ s.grey }} unknown</span>
+          <span class="green-count">{{ s.green }} {{ t('band.ready') }}</span> &middot;
+          <span class="yellow-count">{{ s.yellow }} {{ t('band.upgradable') }}</span> &middot;
+          <span class="red-count">{{ s.red }} {{ t('band.blocker') }}</span> &middot;
+          <span class="grey-count">{{ s.grey }} {{ t('band.unknown') }}</span>
         </div>
       </div>
     {% endfor %}
@@ -183,7 +181,7 @@
 {% if nacsa_fasa %}
 <section class="mb-6">
   <div class="flex items-end justify-between mb-3">
-    <h2 class="font-mono text-amber-400 font-semibold">NACSA Arahan KE No. 9 — Migration Phases</h2>
+    <h2 class="font-mono text-amber-400 font-semibold">{{ t('nacsa.heading') }}</h2>
     <span class="section-eyebrow">akta 854 &middot; berkuat kuasa 22 sep 2025 &middot; ptpkm</span>
   </div>
   <div class="card p-5">
@@ -202,10 +200,10 @@
             </span>
             {% if is_current %}
               <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 text-[9px] font-mono">
-                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>active
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>{{ t('nacsa.active') }}
               </span>
             {% elif is_past %}
-              <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-500 text-[9px] font-mono">done</span>
+              <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-500 text-[9px] font-mono">{{ t('nacsa.done') }}</span>
             {% endif %}
           </div>
           <p class="font-mono font-semibold text-sm
@@ -221,18 +219,18 @@
       {% endfor %}
     </div>
     <p class="mt-4 text-xs text-zinc-500 font-mono leading-relaxed">
-      Submission via <span class="text-amber-300">Borang Pelaksanaan Migrasi PQC (Lampiran A)</span>
-      &mdash; coordinated by PTPKM under NACSA. 3-month window from CE NACSA notice.
+      {{ t('nacsa.submission_via') }} <span class="text-amber-300">Borang Pelaksanaan Migrasi PQC (Lampiran A)</span>
+      &mdash; {{ t('nacsa.coordinated') }}
       {% if last_scan and last_scan.status == 'done' %}
         <span class="ml-2 inline-flex items-center gap-2">
           <a href="/api/scans/{{ last_scan.id }}/export/xlsx-bukukerja?lang=ms"
              class="text-amber-400 hover:text-amber-300 transition-colors">
-            Download BUKUKERJA (BM) &rarr;
+            {{ t('common.download') }} BUKUKERJA (BM) &rarr;
           </a>
           <span class="text-zinc-700">|</span>
           <a href="/api/scans/{{ last_scan.id }}/export/xlsx-bukukerja?lang=en"
              class="text-amber-400 hover:text-amber-300 transition-colors">
-            Download BUKUKERJA (EN) &rarr;
+            {{ t('common.download') }} BUKUKERJA (EN) &rarr;
           </a>
         </span>
       {% endif %}
@@ -245,8 +243,8 @@
 {% if trend and trend|length > 1 %}
 <section class="card p-5 mb-6">
   <div class="flex items-end justify-between mb-3">
-    <h2 class="font-mono text-amber-400 font-semibold">Readiness Trend</h2>
-    <span class="section-eyebrow">last {{ trend|length }} scans &middot; higher is better</span>
+    <h2 class="font-mono text-amber-400 font-semibold">{{ t('dashboard.readiness_trend') }}</h2>
+    <span class="section-eyebrow">{{ t('dashboard.trend_a') }} {{ trend|length }} {{ t('dashboard.trend_b') }}</span>
   </div>
   {# Inline SVG sparkline. Map score 0-100 to y 90-10 (inverted), x by index. #}
   {% set n = trend|length %}
@@ -278,17 +276,17 @@
 {% if recent_scans %}
 <section>
   <div class="flex items-end justify-between mb-3">
-    <h2 class="font-mono text-amber-400 font-semibold">Recent Scans</h2>
-    <a href="/scans" class="text-xs text-zinc-500 hover:text-zinc-300 font-mono">all &rarr;</a>
+    <h2 class="font-mono text-amber-400 font-semibold">{{ t('dashboard.recent_scans') }}</h2>
+    <a href="/scans" class="text-xs text-zinc-500 hover:text-zinc-300 font-mono">{{ t('common.all') }} &rarr;</a>
   </div>
   <div class="card overflow-hidden">
     <table class="w-full text-sm">
       <thead class="text-[11px] uppercase tracking-wider text-zinc-500">
         <tr class="border-b border-zinc-800/80">
           <th class="text-left font-medium py-2.5 px-4">#</th>
-          <th class="text-left font-medium py-2.5 px-4">Status</th>
-          <th class="text-left font-medium py-2.5 px-4">Mode</th>
-          <th class="text-left font-medium py-2.5 px-4">Started</th>
+          <th class="text-left font-medium py-2.5 px-4">{{ t('common.status') }}</th>
+          <th class="text-left font-medium py-2.5 px-4">{{ t('common.mode') }}</th>
+          <th class="text-left font-medium py-2.5 px-4">{{ t('common.started') }}</th>
           <th class="py-2.5 px-4"></th>
         </tr>
       </thead>
@@ -304,7 +302,7 @@
             <td class="py-2.5 px-4 font-mono text-zinc-400">{{ s.mode }}</td>
             <td class="py-2.5 px-4 font-mono text-zinc-500 text-xs">{{ s.started_at }}</td>
             <td class="py-2.5 px-4 text-right">
-              <a href="/scans/{{ s.id }}" class="text-amber-400 hover:text-amber-300 text-xs font-mono">view &rarr;</a>
+              <a href="/scans/{{ s.id }}" class="text-amber-400 hover:text-amber-300 text-xs font-mono">{{ t('common.view') }} &rarr;</a>
             </td>
           </tr>
         {% endfor %}

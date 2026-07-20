@@ -6,7 +6,7 @@
 
 <section class="mb-6 flex items-start justify-between gap-6 flex-wrap">
   <div>
-    <p class="section-eyebrow mb-2">scan detail</p>
+    <p class="section-eyebrow mb-2">{{ t('scan.detail') }}</p>
     <h1 class="section-heading flex items-center gap-3">
       <span class="text-zinc-500 font-mono">#</span>{{ scan.id }}
       <span class="status-pill" data-status="{{ scan.status }}">
@@ -14,15 +14,15 @@
       </span>
     </h1>
     <dl class="mt-3 flex items-center gap-x-5 gap-y-1 text-xs text-zinc-500 flex-wrap font-mono">
-      <span>{{ scan.mode }} mode</span>
+      <span>{{ scan.mode }} {{ t('scan.mode_word') }}</span>
       <span aria-hidden="true">&middot;</span>
-      <span>started {{ scan.started_at }}</span>
+      <span>{{ t('scan.started_word') }} {{ scan.started_at }}</span>
       {% if scan.finished_at %}
         <span aria-hidden="true">&middot;</span>
-        <span>finished {{ scan.finished_at }}</span>
+        <span>{{ t('scan.finished_word') }} {{ scan.finished_at }}</span>
       {% endif %}
       <span aria-hidden="true">&middot;</span>
-      <span class="text-zinc-300">{{ b.total }} findings</span>
+      <span class="text-zinc-300">{{ b.total }} {{ t('common.findings') }}</span>
     </dl>
   </div>
 
@@ -30,9 +30,9 @@
   <div class="flex items-center gap-4">
     <div class="text-right">
       <p class="font-mono text-3xl font-bold text-amber-400 tabular-nums leading-none">{{ _r }}</p>
-      <p class="section-eyebrow mt-1">readiness</p>
+      <p class="section-eyebrow mt-1">{{ t('scan.readiness') }}</p>
     </div>
-    <svg viewBox="0 0 120 70" class="w-32 h-20" aria-label="Readiness {{ _r }}/100">
+    <svg viewBox="0 0 120 70" class="w-32 h-20" aria-label="{{ t('scan.readiness') }} {{ _r }}/100">
       <path d="M 10 60 A 50 50 0 0 1 110 60" fill="none" stroke="rgb(39 39 42)" stroke-width="10" stroke-linecap="round"/>
       <path d="M 10 60 A 50 50 0 0 1 110 60" fill="none" stroke="rgb(251 191 36)" stroke-width="10" stroke-linecap="round"
             stroke-dasharray="{{ (_r * 1.57) | round(1) }} 200"/>
@@ -43,18 +43,18 @@
 {# Band filter chips #}
 <div class="flex flex-wrap items-center gap-2 mb-6"
      id="band-filter"
-     role="toolbar" aria-label="Filter findings by readiness band">
+     role="toolbar" aria-label="{{ t('filter.aria') }}">
   <button type="button" class="sev-chip" aria-pressed="true" data-band="all"
           onclick="document.getElementById('findings').dataset.bandfilter='all';
                    for(const c of document.querySelectorAll('#band-filter .sev-chip'))c.setAttribute('aria-pressed', c===this);">
     <span class="dot" style="background: rgb(82 82 91); box-shadow: none"></span>
-    <span>All</span><span class="font-mono text-xs text-zinc-500">{{ b.total }}</span>
+    <span>{{ t('filter.all') }}</span><span class="font-mono text-xs text-zinc-500">{{ b.total }}</span>
   </button>
   {% for key, label, dot_color in [
-    ('green',  'Green / ready',     'rgb(34 197 94)'),
-    ('yellow', 'Yellow / upgradable','rgb(251 191 36)'),
-    ('red',    'Red / blocker',     'rgb(239 68 68)'),
-    ('grey',   'Grey / unknown',    'rgb(113 113 122)'),
+    ('green',  t('band.green') ~ ' / ' ~ t('band.ready'),      'rgb(34 197 94)'),
+    ('yellow', t('band.yellow') ~ ' / ' ~ t('band.upgradable'),'rgb(251 191 36)'),
+    ('red',    t('band.red') ~ ' / ' ~ t('band.blocker'),      'rgb(239 68 68)'),
+    ('grey',   t('band.grey') ~ ' / ' ~ t('band.unknown'),     'rgb(113 113 122)'),
   ] %}
     <button type="button" class="sev-chip" aria-pressed="false" data-band="{{ key }}"
             onclick="document.getElementById('findings').dataset.bandfilter='{{ key }}';
@@ -93,22 +93,22 @@
 {% if scan.status == 'done' %}
 <section id="export" class="card p-5 mb-6">
   <div class="flex items-center justify-between mb-3">
-    <h2 class="font-mono text-amber-400 font-semibold">Export</h2>
-    <span class="section-eyebrow">5 formats</span>
+    <h2 class="font-mono text-amber-400 font-semibold">{{ t('export.title') }}</h2>
+    <span class="section-eyebrow">{{ t('export.formats') }}</span>
   </div>
   <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
     {% set _tech_url = ('/api/scans/' ~ scan.id ~ '/export/pdf-tech') if pdf_available else ('/scans/' ~ scan.id ~ '/report/tech') %}
     {% set _exec_url = ('/api/scans/' ~ scan.id ~ '/export/pdf-exec') if pdf_available else ('/scans/' ~ scan.id ~ '/report/exec_summary') %}
-    {% set _tech_sub = 'engineer-grade' if pdf_available else 'HTML — browser Print to PDF' %}
-    {% set _exec_sub = 'board summary' if pdf_available else 'HTML — browser Print to PDF' %}
+    {% set _tech_sub = t('export.engineer_grade') if pdf_available else t('export.html_print') %}
+    {% set _exec_sub = t('export.board_summary') if pdf_available else t('export.html_print') %}
     {% set _tech_target = '_self' if pdf_available else '_blank' %}
     {% set _exec_target = '_self' if pdf_available else '_blank' %}
     {% for slug, url, label, sub, badge, target in [
-      ('cbom',           '/api/scans/' ~ scan.id ~ '/export/cbom',           'CBOM',          'CycloneDX 1.6 JSON', 'json', '_self'),
-      ('pdf-tech',       _tech_url,                                          'Technical PDF', _tech_sub,            'pdf',  _tech_target),
-      ('pdf-exec',       _exec_url,                                          'Executive PDF', _exec_sub,            'pdf',  _exec_target),
-      ('xlsx-bukukerja', '/api/scans/' ~ scan.id ~ '/export/xlsx-bukukerja', 'BUKUKERJA',     'NACSA workbook',     'xlsx', '_self'),
-      ('xlsx-generic',   '/api/scans/' ~ scan.id ~ '/export/xlsx-generic',   'Workbook',      'generic XLSX',       'xlsx', '_self'),
+      ('cbom',           '/api/scans/' ~ scan.id ~ '/export/cbom',           'CBOM',                 'CycloneDX 1.6 JSON',       'json', '_self'),
+      ('pdf-tech',       _tech_url,                                          t('export.pdf_tech'),   _tech_sub,                  'pdf',  _tech_target),
+      ('pdf-exec',       _exec_url,                                          t('export.pdf_exec'),   _exec_sub,                  'pdf',  _exec_target),
+      ('xlsx-bukukerja', '/api/scans/' ~ scan.id ~ '/export/xlsx-bukukerja', 'BUKUKERJA',           t('export.nacsa_workbook'), 'xlsx', '_self'),
+      ('xlsx-generic',   '/api/scans/' ~ scan.id ~ '/export/xlsx-generic',   t('export.workbook'),  t('export.generic_xlsx'),   'xlsx', '_self'),
     ] %}
     <a href="{{ url }}" target="{{ target }}"
        class="group flex items-start gap-3 p-3 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-800/80 hover:border-amber-400/40 transition-colors">
@@ -153,16 +153,16 @@
 {# Findings list #}
 <section>
   <div class="flex items-end justify-between mb-3 gap-4 flex-wrap">
-    <h2 class="font-mono text-amber-400 font-semibold">Asset Inventory &amp; Findings</h2>
+    <h2 class="font-mono text-amber-400 font-semibold">{{ t('scan.findings_title') }}</h2>
     <div class="flex items-center gap-3">
       {% if scan.status == 'running' %}
         <span id="live-progress" class="status-pill" data-status="running">
-          <span class="pulse"></span><span id="live-count">{{ b.total }}</span> findings &middot; <span id="live-stage">scanning</span>
+          <span class="pulse"></span><span id="live-count">{{ b.total }}</span> {{ t('common.findings') }} &middot; <span id="live-stage">{{ t('scan.scanning') }}</span>
         </span>
       {% endif %}
       <label class="relative">
-        <span class="sr-only">Search findings</span>
-        <input id="find-search" type="search" autocomplete="off" placeholder="Filter findings…"
+        <span class="sr-only">{{ t('scan.search_findings') }}</span>
+        <input id="find-search" type="search" autocomplete="off" placeholder="{{ t('scan.filter_placeholder') }}"
                oninput="pqcFilterFindings(this.value)"
                class="w-56 bg-zinc-900/70 border border-zinc-700 rounded-md pl-3 pr-3 py-1.5 text-xs font-mono
                       text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-amber-400/60">
@@ -193,14 +193,14 @@
             <div class="mt-1.5 flex items-center gap-2 flex-wrap text-[11px] font-mono">
               <span class="remediation-chip">
                 <svg class="w-3 h-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10.75 4.75a.75.75 0 00-1.5 0v5.19L6.3 6.99a.75.75 0 10-1.1 1.02l4.25 4.6a.75.75 0 001.1 0l4.25-4.6a.75.75 0 10-1.1-1.02l-2.95 2.95V4.75z"/></svg>
-                migrate to <strong>{{ rem.get('replacement') }}</strong>
+                {{ t('remediation.migrate_to') }} <strong>{{ rem.get('replacement') }}</strong>
                 {% if rem.get('standard') %}<span class="opacity-70">({{ rem.get('standard') }})</span>{% endif %}
               </span>
               {% if rem.get('deadline') %}
-                <span class="deadline-chip">by {{ rem.get('deadline') }}</span>
+                <span class="deadline-chip">{{ t('remediation.by') }} {{ rem.get('deadline') }}</span>
               {% endif %}
               {% if rem.get('hndl') %}
-                <span class="hndl-chip" title="Harvest-now-decrypt-later exposure">HNDL</span>
+                <span class="hndl-chip" title="{{ t('remediation.hndl_title') }}">HNDL</span>
               {% endif %}
             </div>
           {% endif %}
@@ -209,14 +209,14 @@
     {% else %}
       <div class="px-5 py-12 text-center text-sm text-zinc-500 font-mono">
         {% if scan.status == 'running' %}
-          Scan is running &mdash; findings will appear here as probes complete.
+          {{ t('scan.running_hint') }}
         {% else %}
-          No findings recorded for this scan.
+          {{ t('scan.no_findings') }}
         {% endif %}
       </div>
     {% endfor %}
   </div>
-  <p id="find-empty" class="hidden px-5 py-8 text-center text-sm text-zinc-500 font-mono">No findings match your filter.</p>
+  <p id="find-empty" class="hidden px-5 py-8 text-center text-sm text-zinc-500 font-mono">{{ t('scan.no_match') }}</p>
 </section>
 
 <script>
