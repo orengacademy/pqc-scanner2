@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-07-20
+
 ### Added — full bilingual web
 - **Complete EN/MS coverage of the web UI.** The dashboard body, scan-detail
   page, and scans list are now fully translated into Bahasa Melayu, joining the
