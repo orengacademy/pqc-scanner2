@@ -53,6 +53,29 @@ Oracle Linux 7.9, 8, and 9 all work. (Releases up to v0.6.9 were built on
 Air-gapped host? Download the asset on a connected workstation, verify the
 checksum, then `scp` it to `/usr/local/bin/pqcscan` on the target.
 
+### Platform compatibility
+
+pqcscan runs on any of these; the scan never aborts on an unsupported OS —
+probes that don't apply to the host simply skip, and a `host.platform_info`
+finding always records what was scanned.
+
+| Platform | Release asset | Floor | Notes |
+|---|---|---|---|
+| Linux x86_64 | `pqcscan-linux-x86_64` | **glibc ≥ 2.17** | RHEL / Oracle Linux **7.9**, 8, 9; Debian 8+; Ubuntu 14.04+; SLES 12+. Built in a manylinux2014 container. |
+| macOS arm64 | `pqcscan-macos-arm64` | macOS 11+ | Apple Silicon. |
+| Windows x86_64 | `pqcscan-windows-x86_64.exe` | Windows 8 / Server 2012+ | PyInstaller onefile. |
+| macOS x86_64 | _(pending)_ | macOS 10.15+ | Intel Macs. A `macos-13` matrix entry is ready to add to `release.yml`; run from source meanwhile. |
+
+The binary is self-contained (bundled Python + deps) and makes **no network
+requests from the web UI** (fonts and assets are inlined), so it works
+unchanged on air-gapped and legacy hosts. OS-native posture probes activate
+per platform: `host.crypto_policies` / `host.pam.hashing` / `host.ssh.*` on
+Linux, `host.windows.schannel` on Windows, `host.macos.keychain` on macOS.
+
+> Older/other targets (Linux aarch64, 32-bit, musl/Alpine) aren't pre-built;
+> run from source there (`pip install -e .`) — pqcscan is pure-Python plus
+> `cryptography`, so it works anywhere those install.
+
 ---
 
 ## 2. Install the systemd unit
