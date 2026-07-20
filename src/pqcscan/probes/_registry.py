@@ -55,6 +55,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.dns_dnssec_zones import DnsDnssecZones
     from pqcscan.probes.email_dkim_selectors import EmailDkimSelectors
     from pqcscan.probes.email_smime_certs import EmailSmimeCerts
+    from pqcscan.probes.fs_binary_crypto import FsBinaryCrypto
     from pqcscan.probes.fs_cert_chain import FsCertChain
     from pqcscan.probes.fs_cert_csr import FsCertCsr
     from pqcscan.probes.fs_cert_expiry_horizon import FsCertExpiryHorizon
@@ -78,6 +79,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.fs_keystore_pkcs12 import FsKeystorePkcs12
     from pqcscan.probes.fs_pcap_crypto import FsPcapCrypto
     from pqcscan.probes.fs_ssh_host_keys import FsSshHostKeys
+    from pqcscan.probes.host_cloud_kms import HostCloudKms
     from pqcscan.probes.host_crypto_policies import HostCryptoPolicies
     from pqcscan.probes.host_gnupg_config import HostGnupgConfig
     from pqcscan.probes.host_gnutls_config import HostGnutlsConfig
@@ -307,6 +309,8 @@ def default_registry() -> Registry:
     reg.register(NetSshHandshake())
     reg.register(NetIkeV1V2())
     reg.register(NetCtCrtsh())
+    reg.register(FsBinaryCrypto())
+    reg.register(HostCloudKms())
     reg.register(NetIkeTransforms())
     reg.register(NetKerberosEtypes())
     reg.register(NetTlsCertChainTls13())

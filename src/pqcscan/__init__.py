@@ -1,4 +1,4 @@
-__version__ = "0.8.2"
+__version__ = "0.8.3"
 
 # Many trust-root and email-S/MIME bundles ship certs with negative-serial
 # numbers (Microsoft Code Verification Root et al.) which cryptography >= 41
