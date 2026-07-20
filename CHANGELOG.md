@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-07-20
+
+### Added
+- **Classifier hardening (`core/alg.py`).** OID table extended with the NIST
+  FIPS 203/204/205 arcs (ML-KEM, ML-DSA, SLH-DSA — both standard and legacy
+  OQS OIDs), RSASSA-PSS, ECDSA-SHA224/512, Ed448, DSA variants, and bare hash
+  OIDs. SLH-DSA / Falcon / composite-hybrid names now classify PQC-ready; RSA
+  signature-alg names (`RSA-SHA256`, `RSA-PSS`) classify TINGGI instead of
+  falling through to INFO; AES-128 GCM/CCM is SEDERHANA while AES-128-CBC is
+  TINGGI; ChaCha20 and AES-192/256 are RENDAH.
+- **Harvest-now-decrypt-later + deadline logic.** `hndl_exposed()`,
+  `is_key_establishment()`, and `migration_deadline()` score key-establishment
+  primitives against the CNSA 2.0 calendar (2030 for HNDL key establishment,
+  2035 for full transition).
+- **Structured remediation (`core/remediation.py`).** Every finding is now
+  centrally enriched (in the runner) with a typed PQC-replacement descriptor —
+  target algorithm, FIPS standard, migration deadline, and HNDL rationale
+  (RSA/DH/ECDH → ML-KEM-768 hybrid; RSA/ECDSA/EdDSA → ML-DSA-65; AES-128 →
+  AES-256). Probe-authored remediation snippets are preserved.
+- **Public-key health (`core/keyhealth.py`).** ROCA (CVE-2017-15361)
+  fingerprint detection and small-modulus flagging over public moduli only —
+  catches keys broken *today*, independent of the quantum threat.
+
 ## [0.6.10] — 2026-07-20
 
 ### Fixed
