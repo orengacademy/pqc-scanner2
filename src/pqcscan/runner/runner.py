@@ -3,13 +3,14 @@ from __future__ import annotations
 import asyncio
 import platform
 from collections import defaultdict
+from pathlib import Path
 
 from loguru import logger
 
 from pqcscan.compliance.engine import ComplianceEngine
 from pqcscan.core.remediation import enrich as enrich_remediation
 from pqcscan.core.types import Capability, Classification, Finding, Severity
-from pqcscan.probes._base import Probe, ScanContext
+from pqcscan.probes._base import OTTarget, Probe, ScanContext
 from pqcscan.probes._registry import Registry
 from pqcscan.runner.event_bus import (
     EventBus,
@@ -41,7 +42,13 @@ class ProbeRunner:
         self._bg_tasks: set[asyncio.Task[None]] = set()
 
     async def run(
-        self, *, mode: str, available_capabilities: set[Capability]
+        self,
+        *,
+        mode: str,
+        available_capabilities: set[Capability],
+        scan_paths: list[Path] | None = None,
+        server_target: str | None = None,
+        ot_targets: list[OTTarget] | None = None,
     ) -> int:
         probe_versions = {p.id: p.version for p in self.registry.all()}
         scan_id = self.repo.create_scan(
@@ -53,6 +60,9 @@ class ProbeRunner:
             scan_id=scan_id,
             mode=mode,
             available_capabilities=available_capabilities,
+            scan_paths=scan_paths or [],
+            server_target=server_target,
+            ot_targets=ot_targets or [],
         )
 
         by_family: dict[str, list[Probe]] = defaultdict(list)
