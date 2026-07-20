@@ -1,27 +1,36 @@
 <!doctype html>
-<html lang="{{ locale or 'en' }}" class="dark">
+<html lang="{{ locale or 'en' }}">
 <head>
   <meta charset="utf-8">
   <title>pqcscan</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0a0a0f">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap">
+  {# Set the theme before first paint to avoid a flash. Honours a saved
+     choice, else the OS preference. Self-contained — no external requests. #}
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('pqcscan-theme');
+        var theme = saved || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="/static/tailwind.min.css">
   <link rel="stylesheet" href="/static/app.css">
   <script src="/static/htmx-1.9.10.min.js"></script>
 </head>
-<body class="min-h-dvh bg-zinc-950 text-zinc-100 font-sans antialiased selection:bg-blue-500/30 selection:text-blue-100">
-  <div class="fixed inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent z-50 pointer-events-none"></div>
+<body class="min-h-dvh app-body antialiased">
+  <div class="fixed inset-x-0 top-0 h-px accent-hairline z-50 pointer-events-none"></div>
 
-  <header class="sticky top-0 z-40 border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-md">
+  <header class="sticky top-0 z-40 app-header">
     <div class="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
       <a href="/" class="flex items-center gap-2 group">
-        <span class="inline-block w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_10px_2px_rgb(251_191_36/0.6)] group-hover:shadow-[0_0_14px_3px_rgb(251_191_36/0.8)] transition-shadow"></span>
-        <span class="text-base font-semibold tracking-tight text-amber-400 font-mono">pqcscan</span>
-        <span class="hidden sm:inline text-[11px] font-mono text-zinc-500 ml-1">v0.1.0</span>
+        <span class="inline-block w-2 h-2 rounded-full brand-dot"></span>
+        <span class="text-base font-semibold tracking-tight brand-mark font-mono">pqcscan</span>
+        <span class="hidden sm:inline text-[11px] font-mono muted ml-1">v{{ pqc_version }}</span>
       </a>
       <nav class="flex items-center gap-1 text-sm">
         {% set _path = request.url.path if request else '' %}
@@ -35,28 +44,30 @@
         ] %}
           {% set is_active = (_path == href) or (href != '/' and _path.startswith(href)) %}
           <a href="{{ href }}"
-             class="relative px-3 py-2 rounded-md font-mono text-[13px] transition-colors
-                    {{ 'text-amber-400 bg-zinc-800/40' if is_active else 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/40' }}">
+             class="relative px-3 py-2 rounded-md font-mono text-[13px] transition-colors nav-link {{ 'is-active' if is_active else '' }}">
             {{ t(key) if t else label }}
-            {% if is_active %}
-              <span class="absolute inset-x-3 -bottom-px h-px bg-amber-400"></span>
-            {% endif %}
+            {% if is_active %}<span class="absolute inset-x-3 -bottom-px h-px nav-underline"></span>{% endif %}
           </a>
         {% endfor %}
-        <span class="mx-2 h-5 w-px bg-zinc-800"></span>
+        <span class="mx-2 h-5 w-px nav-divider"></span>
+        {# Theme toggle — sun/moon, persists to localStorage. #}
+        <button type="button" id="theme-toggle" aria-label="Toggle light / dark theme"
+                class="p-2 rounded-md nav-link" onclick="pqcToggleTheme()">
+          <svg class="w-4 h-4 icon-sun" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path d="M10 2a.75.75 0 01.75.75v1a.75.75 0 01-1.5 0v-1A.75.75 0 0110 2zm4.95 2.05a.75.75 0 010 1.06l-.7.7a.75.75 0 11-1.06-1.06l.7-.7a.75.75 0 011.06 0zM18 10a.75.75 0 01-.75.75h-1a.75.75 0 010-1.5h1A.75.75 0 0118 10zm-2.75 4.19l.7.7a.75.75 0 11-1.06 1.06l-.7-.7a.75.75 0 111.06-1.06zM10 16.25a.75.75 0 01.75.75v1a.75.75 0 01-1.5 0v-1a.75.75 0 01.75-.75zM5.81 14.19a.75.75 0 010 1.06l-.7.7a.75.75 0 01-1.06-1.06l.7-.7a.75.75 0 011.06 0zM3.75 10A.75.75 0 013 10.75H2a.75.75 0 010-1.5h1A.75.75 0 013.75 10zm1.36-4.89a.75.75 0 01-1.06 1.06l-.7-.7A.75.75 0 013.4 4.4l.7.7zM10 6a4 4 0 100 8 4 4 0 000-8z"/>
+          </svg>
+          <svg class="w-4 h-4 icon-moon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path d="M7.5 2.1a.75.75 0 01.02.79A6.5 6.5 0 0016.6 12a.75.75 0 01.98.98A7.5 7.5 0 116.72 1.5a.75.75 0 01.78.6z"/>
+          </svg>
+        </button>
+        <span class="mx-1 h-5 w-px nav-divider"></span>
         <form action="/i18n/en" method="post" class="inline">
           <button type="submit"
-                  class="px-2 py-1 rounded text-xs font-mono tracking-wider transition-colors
-                         {{ 'text-amber-400 bg-amber-400/10 ring-1 ring-amber-400/30' if (locale or 'en') == 'en' else 'text-zinc-500 hover:text-zinc-200' }}">
-            EN
-          </button>
+                  class="px-2 py-1 rounded text-xs font-mono tracking-wider transition-colors locale-btn {{ 'is-active' if (locale or 'en') == 'en' else '' }}">EN</button>
         </form>
         <form action="/i18n/ms" method="post" class="inline">
           <button type="submit"
-                  class="px-2 py-1 rounded text-xs font-mono tracking-wider transition-colors
-                         {{ 'text-amber-400 bg-amber-400/10 ring-1 ring-amber-400/30' if locale == 'ms' else 'text-zinc-500 hover:text-zinc-200' }}">
-            MS
-          </button>
+                  class="px-2 py-1 rounded text-xs font-mono tracking-wider transition-colors locale-btn {{ 'is-active' if locale == 'ms' else '' }}">MS</button>
         </form>
       </nav>
     </div>
@@ -66,11 +77,20 @@
     {% block body %}{% endblock %}
   </main>
 
-  <footer class="max-w-7xl mx-auto px-6 py-6 mt-12 border-t border-zinc-900 text-xs text-zinc-600">
+  <footer class="max-w-7xl mx-auto px-6 py-6 mt-12 app-footer text-xs">
     <div class="flex justify-between items-center">
-      <span class="font-mono">pqcscan &middot; post-quantum readiness scanner</span>
-      <span class="font-mono">{{ locale or 'en' }}</span>
+      <span class="font-mono">pqcscan v{{ pqc_version }} &middot; post-quantum readiness scanner</span>
+      <span class="font-mono muted">{{ locale or 'en' }}</span>
     </div>
   </footer>
+
+  <script>
+    function pqcToggleTheme() {
+      var cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+      var next = cur === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', next);
+      try { localStorage.setItem('pqcscan-theme', next); } catch (e) {}
+    }
+  </script>
 </body>
 </html>

@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.4] — 2026-07-20
+
+### Changed — web UI design system
+- **Self-contained fonts.** Removed the Google Fonts network `<link>` — the
+  web UI no longer makes any external request, so the frozen binary and
+  air-gapped hosts render identically (and it's CSP-clean). Mono-forward
+  "audit tool" identity preserved via a system-font stack.
+- **Light + dark theme.** New `data-theme` system with a nav toggle
+  (sun/moon), persisted to `localStorage` and defaulting to the OS
+  preference; theme is applied before first paint (no flash). A semantic
+  token layer (`--page-bg`, `--surface`, `--border`, `--text`, `--accent`…)
+  drives the chrome, and the content templates' Tailwind utilities are
+  remapped for light mode. Amber accent darkens to amber-600/700 on white
+  for contrast.
+- **Dynamic version** in the nav + footer (was hardcoded `v0.1.0`), sourced
+  from `pqcscan.__version__` via a Jinja global.
+
+
 ## [0.7.3] — 2026-07-20
 
 ### Added — reporting & integration
@@ -76,8 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   AES-256). Probe-authored remediation snippets are preserved.
 - **Public-key health (`core/keyhealth.py`).** ROCA (CVE-2017-15361)
   fingerprint detection and small-modulus flagging over public moduli only —
-  catches keys broken *today*, independent of the quantum threat.
-## [0.6.10] — 2026-07-20
+  catches keys broken *today*, independent of the quantum threat.## [0.6.10] — 2026-07-20
 
 ### Fixed
 - Linux release binary now runs on glibc ≥ 2.17 hosts (RHEL / Oracle Linux

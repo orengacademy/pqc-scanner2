@@ -1,9 +1,24 @@
 /* pqcscan — design tokens + small custom rules layered on top of Tailwind. */
 
 :root {
-  /* All-mono identity per AEGIS reference. Body == headings == data == mono. */
-  --font-sans: "Fira Code", ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace;
-  --font-mono: "Fira Code", ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace;
+  /* Self-contained font stack — no network fetch, so the bundled binary and
+     air-gapped hosts render identically. Mono-forward "audit tool" identity;
+     system faces are used, with Fira Code / JetBrains Mono honoured if the
+     host happens to have them installed. */
+  --font-sans: ui-monospace, "JetBrains Mono", "Fira Code", "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  --font-mono: ui-monospace, "JetBrains Mono", "Fira Code", "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+
+  /* ── Semantic surface tokens (dark is the default theme) ─────────── */
+  --page-bg:      rgb(9 9 11);          /* zinc-950 */
+  --header-bg:    rgb(9 9 11 / 0.80);
+  --surface:      rgb(24 24 27 / 0.60); /* zinc-900/60 */
+  --surface-2:    rgb(39 39 42 / 0.50);
+  --border:       rgb(39 39 42);        /* zinc-800 */
+  --border-soft:  rgb(39 39 42 / 0.80);
+  --text:         rgb(244 244 245);     /* zinc-100 */
+  --text-muted:   rgb(161 161 170);     /* zinc-400 */
+  --text-faint:   rgb(113 113 122);     /* zinc-500 */
+  color-scheme: dark;
 
   /* Brand accent: amber (warm, government/audit feel). */
   --accent:        rgb(251 191 36);          /* amber-400 */
@@ -389,3 +404,117 @@ html { font-family: var(--font-sans); }
 .trend-axis { stroke: rgb(39 39 42); stroke-width: 1; }
 .trend-grid { stroke: rgb(39 39 42); stroke-width: 1; stroke-dasharray: 2 4; opacity: 0.5; }
 .trend-tick { font-family: var(--font-mono); font-size: 9px; fill: rgb(82 82 91); }
+
+/* ══════════════════════════════════════════════════════════════════
+   THEME SYSTEM — dark (default) + light, driven by <html data-theme>.
+   The base.html chrome uses the semantic component classes below so it
+   themes cleanly; the content templates lean on Tailwind utilities, which
+   are remapped for light mode further down (attribute+class specificity
+   beats a bare utility class, so these win without !important).
+   ══════════════════════════════════════════════════════════════════ */
+
+:root[data-theme="light"] {
+  --page-bg:      rgb(250 250 249);     /* warm off-white */
+  --header-bg:    rgb(255 255 255 / 0.85);
+  --surface:      rgb(255 255 255);
+  --surface-2:    rgb(244 244 245);
+  --border:       rgb(228 228 231);     /* zinc-200 */
+  --border-soft:  rgb(228 228 231 / 0.90);
+  --text:         rgb(24 24 27);        /* zinc-900 */
+  --text-muted:   rgb(82 82 91);        /* zinc-600 */
+  --text-faint:   rgb(113 113 122);     /* zinc-500 */
+  --accent:        rgb(217 119 6);      /* amber-600 — readable on white */
+  --accent-strong: rgb(180 83 9);       /* amber-700 */
+  --accent-bg:     rgb(217 119 6 / 0.10);
+  --accent-ring:   rgb(217 119 6 / 0.30);
+  color-scheme: light;
+}
+
+/* ── base.html chrome (semantic, token-driven) ─────────────────────── */
+.app-body   { background: var(--page-bg); color: var(--text); }
+.app-header { border-bottom: 1px solid var(--border-soft); background: var(--header-bg); backdrop-filter: blur(8px); }
+.app-footer { border-top: 1px solid var(--border); color: var(--text-faint); }
+.accent-hairline { background: linear-gradient(to right, transparent, var(--accent-ring), transparent); }
+.brand-dot  { background: var(--accent); box-shadow: 0 0 10px 2px var(--accent-ring); }
+.brand-mark { color: var(--accent); }
+.muted      { color: var(--text-faint); }
+
+.nav-link { color: var(--text-muted); }
+.nav-link:hover { color: var(--text); background: var(--surface-2); }
+.nav-link.is-active { color: var(--accent); background: var(--surface-2); }
+.nav-underline { background: var(--accent); }
+.nav-divider   { background: var(--border); }
+
+.locale-btn { color: var(--text-faint); }
+.locale-btn:hover { color: var(--text); }
+.locale-btn.is-active { color: var(--accent); background: var(--accent-bg); box-shadow: inset 0 0 0 1px var(--accent-ring); }
+
+/* Theme toggle — show the icon for the theme you'd switch TO. */
+.icon-sun  { display: none; }
+.icon-moon { display: block; }
+:root[data-theme="light"] .icon-sun  { display: block; }
+:root[data-theme="light"] .icon-moon { display: none; }
+
+/* ── Light-mode remaps of the Tailwind utilities the templates use ──── */
+:root[data-theme="light"] {
+  /* page + body baseline (body still carries a couple of util classes) */
+}
+:root[data-theme="light"] .bg-zinc-950,
+:root[data-theme="light"] .bg-zinc-900 { background-color: var(--surface); }
+:root[data-theme="light"] .bg-zinc-950\/80 { background-color: rgb(255 255 255 / 0.85); }
+:root[data-theme="light"] .bg-zinc-900\/70,
+:root[data-theme="light"] .bg-zinc-900\/50,
+:root[data-theme="light"] .bg-zinc-900\/40,
+:root[data-theme="light"] .bg-zinc-900\/30 { background-color: rgb(244 244 245 / 0.7); }
+:root[data-theme="light"] .bg-zinc-800,
+:root[data-theme="light"] .bg-zinc-800\/40 { background-color: rgb(244 244 245); }
+
+:root[data-theme="light"] .text-zinc-50,
+:root[data-theme="light"] .text-zinc-100 { color: rgb(24 24 27); }
+:root[data-theme="light"] .text-zinc-200 { color: rgb(39 39 42); }
+:root[data-theme="light"] .text-zinc-300 { color: rgb(63 63 70); }
+:root[data-theme="light"] .text-zinc-400 { color: rgb(82 82 91); }
+:root[data-theme="light"] .text-zinc-500 { color: rgb(113 113 122); }
+:root[data-theme="light"] .text-zinc-600,
+:root[data-theme="light"] .text-zinc-700 { color: rgb(140 140 148); }
+
+:root[data-theme="light"] .border-zinc-700 { border-color: rgb(212 212 216); }
+:root[data-theme="light"] .border-zinc-800,
+:root[data-theme="light"] .border-zinc-800\/80,
+:root[data-theme="light"] .border-zinc-800\/60,
+:root[data-theme="light"] .border-zinc-900 { border-color: var(--border); }
+:root[data-theme="light"] .divide-zinc-800\/60 > :not([hidden]) ~ :not([hidden]),
+:root[data-theme="light"] .divide-zinc-800\/40 > :not([hidden]) ~ :not([hidden]),
+:root[data-theme="light"] .divide-zinc-800 > :not([hidden]) ~ :not([hidden]) { border-color: var(--border); }
+
+/* amber accents shift a touch darker on white for contrast */
+:root[data-theme="light"] .text-amber-400,
+:root[data-theme="light"] .text-amber-300 { color: rgb(180 83 9); }
+:root[data-theme="light"] .bg-amber-400 { background-color: rgb(217 119 6); }
+
+/* ── Component tokenisation so custom widgets follow the theme ──────── */
+.card         { background: var(--surface); border-color: var(--border); }
+.band-tile,
+.surface-card { background: var(--surface); border-color: var(--border); }
+.sev-card,
+.sev-chip     { background: var(--surface); border-color: var(--border); }
+.section-eyebrow { color: var(--text-faint); }
+.section-heading { color: var(--accent); }
+.surface-card .surface-head { color: var(--text); }
+.sev-chip { color: var(--text-muted); }
+.sev-chip:hover { color: var(--text); }
+.sev-chip[aria-pressed="true"] { background: var(--surface-2); color: var(--text); border-color: var(--border); }
+.btn-secondary { color: var(--text-muted); border-color: var(--border); }
+.btn-secondary:hover { background: var(--surface-2); color: var(--text); }
+
+/* In light mode the translucent band tints need a hair more opacity to
+   read against white. */
+:root[data-theme="light"] .band-tile[data-band="green"]  { background: rgb(34 197 94 / 0.14); }
+:root[data-theme="light"] .band-tile[data-band="yellow"] { background: rgb(234 179 8 / 0.16); }
+:root[data-theme="light"] .band-tile[data-band="red"]    { background: rgb(239 68 68 / 0.12); }
+:root[data-theme="light"] .band-tile[data-band="grey"]   { background: rgb(82 82 91 / 0.10); }
+:root[data-theme="light"] .band-tile[data-band="yellow"] .band-num { color: rgb(180 83 9); }
+
+/* Scrollbar tracks follow the page colour. */
+:root[data-theme="light"] ::-webkit-scrollbar-track { background: rgb(244 244 245); }
+:root[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgb(212 212 216); border-color: rgb(244 244 245); }
