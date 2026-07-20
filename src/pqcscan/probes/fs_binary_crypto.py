@@ -123,6 +123,11 @@ class _Hit:
     confidence: str      # "high" | "medium"
     version: str | None = None
     detail: str | None = None   # the raw soname/DLL/dylib that matched
+    # ELF .dynsym reachability: "invoked" (crypto API symbols imported),
+    # "linked-only" (DT_NEEDED but no crypto symbols imported), or "unknown"
+    # (no .dynsym / non-ELF / library with no known symbol prefixes).
+    reachability: str = "unknown"
+    imported_crypto_symbols: list[str] | None = None
 
 
 # --- version helpers ------------------------------------------------------
@@ -163,6 +168,31 @@ def _cstr(buf: bytes, start: int, end: int | None = None) -> str:
 
 _SHT_DYNAMIC = 6
 _DT_NEEDED = 1
+_SHT_DYNSYM = 11
+_SHN_UNDEF = 0
+# Hard cap on symbol-table entries scanned, so a hostile/huge .dynsym can't
+# turn a bounded parse into an unbounded loop.
+_MAX_DYNSYM = 100_000
+
+# Imported-symbol prefixes that prove a linked crypto library is actually
+# INVOKED (its API is called), not merely present as a transitive DT_NEEDED.
+# Keyed by the crypto-library id from _LIB_RULES. Intersecting these against
+# the .dynsym imported (SHN_UNDEF) symbol names is the pure-stdlib half of the
+# QED (arXiv 2409.07852) reachability check; libraries absent from this table
+# are left "unknown" (we cannot prove or disprove invocation for them).
+_OPENSSL_SYMBOL_PREFIXES: tuple[str, ...] = (
+    "EVP_", "SSL_", "RSA_", "EC_", "ECDSA_", "DH_", "DSA_", "SHA1", "MD5",
+    "X509_", "PEM_", "BN_", "CRYPTO_", "OPENSSL_", "TLS_",
+)
+_CRYPTO_SYMBOL_PREFIXES: dict[str, tuple[str, ...]] = {
+    "openssl": _OPENSSL_SYMBOL_PREFIXES,
+    "boringssl": _OPENSSL_SYMBOL_PREFIXES,   # BoringSSL keeps the OpenSSL API names
+    "gnutls": ("gnutls_",),
+    "nss": ("PK11_", "NSS_", "SEC_"),
+    "libsodium": ("crypto_",),
+    "mbedtls": ("mbedtls_",),
+    "wolfssl": ("wolfSSL_", "wc_"),
+}
 
 
 def _elf_needed(data: bytes) -> list[str]:
@@ -234,6 +264,99 @@ def _elf_needed(data: bytes) -> list[str]:
             if name:
                 needed.append(name)
     return needed
+
+
+def _elf_dynsym_imports(data: bytes) -> set[str]:
+    """Imported (SHN_UNDEF) symbol names from an ELF's .dynsym section.
+
+    These are the externally-resolved symbols the binary calls out to — its
+    shared-library API imports. Intersecting them against a crypto-API name
+    list distinguishes a library that is merely LINKED (DT_NEEDED) from one
+    that is actually INVOKED. The .dynsym section survives aggressive compiler
+    optimisation, so an empty crypto intersection is strong evidence of a
+    transitive-but-unused dependency (a classic false positive).
+
+    Mirrors _elf_needed's section-header walk (32/64-bit, endianness). Fully
+    guarded: any malformed/truncated input yields an empty set, never raises.
+    An empty return also means "no .dynsym present" (or no undefined symbols),
+    which callers treat as reachability "unknown".
+    """
+    if len(data) < 64 or data[:4] != b"\x7fELF":
+        return set()
+    ei_class, ei_data = data[4], data[5]
+    if ei_class not in (1, 2):
+        return set()
+    endian = ">" if ei_data == 2 else "<"
+    is64 = ei_class == 2
+    try:
+        if is64:
+            (_type, _mach, _ver, _entry, _phoff, e_shoff, _flags, _ehsize,
+             _phentsize, _phnum, e_shentsize, e_shnum, _shstrndx) = struct.unpack(
+                endian + "HHIQQQIHHHHHH", data[16:64])
+        else:
+            (_type, _mach, _ver, _entry, _phoff, e_shoff, _flags, _ehsize,
+             _phentsize, _phnum, e_shentsize, e_shnum, _shstrndx) = struct.unpack(
+                endian + "HHIIIIIHHHHHH", data[16:52])
+    except struct.error:
+        return set()
+
+    sh_entry = 64 if is64 else 40
+    sections: list[tuple[int, int, int, int]] = []  # (type, offset, size, link)
+    dynsym_idx: int | None = None
+    for i in range(min(e_shnum, 4096)):
+        base = e_shoff + i * e_shentsize
+        chunk = data[base:base + sh_entry]
+        if len(chunk) < sh_entry:
+            break
+        try:
+            if is64:
+                (_name, sh_type, _flags, _addr, sh_offset, sh_size, sh_link,
+                 _info, _align, _entsize) = struct.unpack(endian + "IIQQQQIIQQ", chunk)
+            else:
+                (_name, sh_type, _flags, _addr, sh_offset, sh_size, sh_link,
+                 _info, _align, _entsize) = struct.unpack(endian + "IIIIIIIIII", chunk)
+        except struct.error:
+            continue
+        sections.append((sh_type, sh_offset, sh_size, sh_link))
+        if sh_type == _SHT_DYNSYM and dynsym_idx is None:
+            dynsym_idx = len(sections) - 1
+
+    if dynsym_idx is None:
+        return set()
+    # The symbol table's sh_link is the index of its associated string table
+    # (.dynstr); st_name values are byte offsets into it.
+    _t, sym_off, sym_size, sym_link = sections[dynsym_idx]
+    if not (0 <= sym_link < len(sections)):
+        return set()
+    _t2, str_off, str_size, _l2 = sections[sym_link]
+
+    # Elf32_Sym is 16 bytes: st_name u32, st_value u32, st_size u32,
+    #   st_info u8, st_other u8, st_shndx u16.
+    # Elf64_Sym is 24 bytes: st_name u32, st_info u8, st_other u8,
+    #   st_shndx u16, st_value u64, st_size u64.
+    ent = 24 if is64 else 16
+    imports: set[str] = set()
+    count = min(sym_size // ent, _MAX_DYNSYM) if ent else 0
+    for i in range(count):
+        base = sym_off + i * ent
+        chunk = data[base:base + ent]
+        if len(chunk) < ent:
+            break
+        try:
+            if is64:
+                st_name, _info, _other, st_shndx, _val, _size = struct.unpack(
+                    endian + "IBBHQQ", chunk)
+            else:
+                st_name, _val, _size, _info, _other, st_shndx = struct.unpack(
+                    endian + "IIIBBH", chunk)
+        except (struct.error, ValueError):
+            break
+        if st_shndx != _SHN_UNDEF or st_name == 0:
+            continue  # defined symbol (or the null entry) — not an import
+        name = _cstr(data, str_off + st_name, str_off + str_size)
+        if name:
+            imports.add(name)
+    return imports
 
 
 # --- PE -------------------------------------------------------------------
@@ -476,6 +599,25 @@ class FsBinaryCrypto(Probe):
             if lib_id is not None and lib_id not in hits:
                 hits[lib_id] = _Hit(library=lib_id, fmt=fmt, origin="linked",
                                     confidence="high", detail=raw)
+
+        # For ELF, resolve whether each linked crypto library is actually
+        # INVOKED by intersecting its API-symbol prefixes against the .dynsym
+        # imported (SHN_UNDEF) symbols. A DT_NEEDED with no imported crypto
+        # symbol is very likely a transitive-but-unused dependency.
+        if fmt == "elf" and hits:
+            imports = _elf_dynsym_imports(data)
+            if imports:  # empty ⇒ no .dynsym / no imports ⇒ leave "unknown"
+                for hit in hits.values():
+                    prefixes = _CRYPTO_SYMBOL_PREFIXES.get(hit.library)
+                    if prefixes is None:
+                        continue  # no known symbol prefixes → cannot assess
+                    matched = sorted(
+                        s for s in imports if s.startswith(prefixes))
+                    if matched:
+                        hit.reachability = "invoked"
+                        hit.imported_crypto_symbols = matched[:10]
+                    else:
+                        hit.reachability = "linked-only"
         try:
             banners = _scan_banners(data)
         except Exception:  # pragma: no cover
@@ -509,6 +651,19 @@ def _finding(probe_id: str, path: Path, hit: _Hit) -> Finding:
         evidence["matched"] = hit.detail
     if hit.origin == "embedded":
         evidence["confidence"] = "medium"
+
+    # ELF reachability (additive metadata + a confidence nudge). "linked-only"
+    # — DT_NEEDED but no crypto API symbol imported — is the classic false
+    # positive, so force confidence low; the central model honours the forced
+    # value. "invoked" keeps the origin's confidence (high for linked).
+    confidence = hit.confidence
+    evidence["reachability"] = hit.reachability
+    if hit.reachability == "invoked" and hit.imported_crypto_symbols:
+        evidence["imported_crypto_symbols"] = hit.imported_crypto_symbols
+    elif hit.reachability == "linked-only":
+        evidence["confidence"] = "low"
+        confidence = "low"
+
     return Finding(
         probe_id=probe_id,
         algorithm=algorithm,
@@ -517,7 +672,7 @@ def _finding(probe_id: str, path: Path, hit: _Hit) -> Finding:
         title=f"{path.name}: {hit.library} crypto library ({linked}) — {note}",
         component_purl=purl,
         evidence=evidence,
-        confidence=hit.confidence,
+        confidence=confidence,
     )
 
 

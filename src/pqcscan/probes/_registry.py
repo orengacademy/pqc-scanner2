@@ -88,6 +88,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.host_crypto_policies import HostCryptoPolicies
     from pqcscan.probes.host_gnupg_config import HostGnupgConfig
     from pqcscan.probes.host_gnutls_config import HostGnutlsConfig
+    from pqcscan.probes.host_java_security import HostJavaSecurity
     from pqcscan.probes.host_kernel_crypto_registry import HostKernelCryptoRegistry
     from pqcscan.probes.host_krb5_config import HostKrb5Config
     from pqcscan.probes.host_libcrypto_pqc_features import HostLibcryptoPqcFeatures
@@ -379,6 +380,8 @@ def default_registry() -> Registry:
     reg.register(HostSshBinaryCaps())
     # Coverage roadmap Phase 0 — Kerberos krb5.conf weak enctypes + PKINIT.
     reg.register(HostKrb5Config())
+    # Reachability — JVM crypto posture (java.security disabledAlgorithms).
+    reg.register(HostJavaSecurity())
     # Coverage roadmap Phase 0 — OpenSSL library version & PQC tier.
     reg.register(HostOpenSSLVersion())
     # Coverage roadmap Phase 0 — on-disk SSH public key inventory.

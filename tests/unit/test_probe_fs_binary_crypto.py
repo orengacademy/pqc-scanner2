@@ -103,6 +103,69 @@ def _elf64_with_needed(soname: bytes = b"libcrypto.so.3") -> bytes:
     return ehdr + dynstr + dynamic + shtab
 
 
+# --- ELF64 fixture builder with a .dynsym symbol table --------------------
+#
+# Extends the DT_NEEDED fixture with a .dynsym (SHT_DYNSYM) section and its
+# linked symbol string table, so the probe's reachability check has real
+# imported (SHN_UNDEF) symbols to intersect against.
+#
+# Sections: [NULL, .dynstr, .dynamic->.dynstr, .dynsym->symstr, symstr]
+
+
+def _elf64_with_symbols(
+    soname: bytes = b"libssl.so.3",
+    symbols: tuple[bytes, ...] = (b"EVP_EncryptInit_ex",),
+) -> bytes:
+    dynstr = b"\x00" + soname + b"\x00"           # DT_NEEDED name at offset 1
+    dynamic = struct.pack("<qQ", 1, 1)            # DT_NEEDED, val = strtab offset 1
+    dynamic += struct.pack("<qQ", 0, 0)           # DT_NULL
+
+    # Symbol string table + one UNDEF symbol per requested name (st_shndx = 0).
+    symstr = b"\x00"
+    sym_offsets: list[int] = []
+    for s in symbols:
+        sym_offsets.append(len(symstr))
+        symstr += s + b"\x00"
+    # Elf64_Sym: st_name u32, st_info u8, st_other u8, st_shndx u16,
+    #            st_value u64, st_size u64  ("<IBBHQQ", 24 bytes).
+    symtab = struct.pack("<IBBHQQ", 0, 0, 0, 0, 0, 0)   # index 0: null symbol
+    for off in sym_offsets:
+        symtab += struct.pack("<IBBHQQ", off, 0, 0, 0, 0, 0)  # SHN_UNDEF import
+
+    ehdr_size = 64
+    off_dynstr = ehdr_size
+    off_dynamic = off_dynstr + len(dynstr)
+    off_symstr = off_dynamic + len(dynamic)
+    off_symtab = off_symstr + len(symstr)
+    off_sh = off_symtab + len(symtab)
+    sh_entry = 64
+    e_shnum = 5
+    dynstr_idx = 1
+    symstr_idx = 4
+
+    def shdr(sh_type: int, sh_offset: int, sh_size: int, sh_link: int, sh_entsize: int) -> bytes:
+        return struct.pack(
+            "<IIQQQQIIQQ",
+            0, sh_type, 0, 0, sh_offset, sh_size, sh_link, 0, 0, sh_entsize,
+        )
+
+    shtab = b"".join((
+        shdr(0, 0, 0, 0, 0),                                        # 0: SHT_NULL
+        shdr(3, off_dynstr, len(dynstr), 0, 0),                     # 1: .dynstr
+        shdr(6, off_dynamic, len(dynamic), dynstr_idx, 16),         # 2: .dynamic
+        shdr(11, off_symtab, len(symtab), symstr_idx, 24),          # 3: .dynsym
+        shdr(3, off_symstr, len(symstr), 0, 0),                     # 4: symstr
+    ))
+
+    e_ident = b"\x7fELF" + bytes([2, 1, 1]) + b"\x00" * 9           # ELFCLASS64 LSB
+    ehdr = e_ident + struct.pack(
+        "<HHIQQQIHHHHHH",
+        2, 0x3E, 1, 0, 0, off_sh, 0, ehdr_size, 0, 0, sh_entry, e_shnum, 0,
+    )
+    assert len(ehdr) == ehdr_size
+    return ehdr + dynstr + dynamic + symstr + symtab + shtab
+
+
 # --- PE fixture builder ---------------------------------------------------
 #
 # Minimal PE32+ with a single ".idata" section carrying one import descriptor
@@ -195,6 +258,65 @@ async def test_elf_libssl_maps_to_openssl(tmp_path: Path):
     _write(tmp_path, "app2.so", _elf64_with_needed(b"libssl.so.1.1"))
     found = await _run(tmp_path)
     assert any(f.evidence.get("library") == "openssl" for f in found)
+
+
+# --- tests: ELF .dynsym reachability --------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_elf_invoked_crypto_symbol(tmp_path: Path):
+    # libssl DT_NEEDED + an imported EVP_ symbol → the library is INVOKED.
+    _write(tmp_path, "invoked.elf",
+           _elf64_with_symbols(b"libssl.so.3", (b"EVP_EncryptInit_ex", b"printf")))
+    found = await _run(tmp_path)
+    openssl = [f for f in found if f.evidence.get("library") == "openssl"]
+    assert openssl, "expected an openssl finding"
+    hit = openssl[0]
+    assert hit.evidence["reachability"] == "invoked"
+    assert "EVP_EncryptInit_ex" in hit.evidence["imported_crypto_symbols"]
+    assert "printf" not in hit.evidence["imported_crypto_symbols"]
+    assert hit.confidence == "high"          # invoked keeps linked confidence
+
+
+@pytest.mark.asyncio
+async def test_elf_linked_only_no_crypto_symbol(tmp_path: Path):
+    # libssl DT_NEEDED but .dynsym imports only printf → LINKED-ONLY, the
+    # classic transitive-dependency false positive → forced low confidence.
+    _write(tmp_path, "linkedonly.elf",
+           _elf64_with_symbols(b"libssl.so.3", (b"printf", b"malloc")))
+    found = await _run(tmp_path)
+    openssl = [f for f in found if f.evidence.get("library") == "openssl"]
+    assert openssl, "expected an openssl finding"
+    hit = openssl[0]
+    assert hit.evidence["reachability"] == "linked-only"
+    assert hit.evidence["confidence"] == "low"
+    assert hit.confidence == "low"
+    assert "imported_crypto_symbols" not in hit.evidence
+
+
+@pytest.mark.asyncio
+async def test_elf_no_dynsym_reachability_unknown(tmp_path: Path):
+    # The DT_NEEDED-only fixture has no .dynsym section → reachability unknown
+    # and confidence unchanged (high), i.e. behaviour identical to before.
+    _write(tmp_path, "nodynsym.elf", _elf64_with_needed(b"libcrypto.so.3"))
+    found = await _run(tmp_path)
+    openssl = [f for f in found if f.evidence.get("library") == "openssl"]
+    assert openssl
+    hit = openssl[0]
+    assert hit.evidence["reachability"] == "unknown"
+    assert hit.confidence == "high"
+    assert "imported_crypto_symbols" not in hit.evidence
+
+
+def test_elf_dynsym_imports_direct():
+    # Unit-level check of the parser: only SHN_UNDEF names are returned.
+    from pqcscan.probes.fs_binary_crypto import _elf_dynsym_imports
+    data = _elf64_with_symbols(b"libssl.so.3", (b"EVP_DigestInit", b"gnutls_init"))
+    imports = _elf_dynsym_imports(data)
+    assert {"EVP_DigestInit", "gnutls_init"} <= imports
+    # Non-ELF / garbage never raises and yields an empty set.
+    assert _elf_dynsym_imports(b"not an elf") == set()
+    assert _elf_dynsym_imports(b"\x7fELF" + b"\x00" * 60) == set()
 
 
 # --- tests: PE ------------------------------------------------------------
