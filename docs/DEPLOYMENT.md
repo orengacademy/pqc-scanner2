@@ -61,7 +61,7 @@ finding always records what was scanned.
 
 | Platform | Release asset | Floor | Notes |
 |---|---|---|---|
-| Linux x86_64 | `pqcscan-linux-x86_64` | **glibc ≥ 2.17** | RHEL / Oracle Linux **7.9**, 8, 9; Debian 8+; Ubuntu 14.04+; SLES 12+. Built in a manylinux2014 container. |
+| Linux x86_64 | `pqcscan-linux-x86_64` | **glibc ≥ 2.17** | RHEL / Oracle Linux **7.9**, 8, 9; Debian 8+; Ubuntu 14.04+; SLES 12+. Built in a manylinux2014 container. **Verified: v0.8.5 boots on OL 7.9 (glibc 2.17) — daemon serves `/api/health`, full 169-probe scan runs.** |
 | macOS arm64 | `pqcscan-macos-arm64` | macOS 11+ | Apple Silicon. |
 | Windows x86_64 | `pqcscan-windows-x86_64.exe` | Windows 8 / Server 2012+ | PyInstaller onefile. |
 | macOS x86_64 (Intel) | _from source_ | macOS 10.15+ | GitHub's Intel (`macos-13`) runners are deprecated/unschedulable, so no pre-built asset. Run `pip install -e .` — pqcscan is pure-Python + `cryptography`, so it works on any Intel Mac. |
