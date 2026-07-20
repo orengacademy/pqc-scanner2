@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — closing closeable competitor gaps (self-contained-safe)
+- **`fs.binary.crypto`** — scans compiled **binaries with no source** (ELF / PE
+  / Mach-O) for the crypto libraries they dynamically link or statically embed
+  (OpenSSL, GnuTLS, NSS, libsodium, mbedTLS, wolfSSL, BoringSSL, bcrypt/ncrypt,
+  Security.framework), flagging pre-PQC stacks (OpenSSL < 3.5) and recognising
+  PQC-capable ones (OpenSSL ≥ 3.5 ships hybrid X25519MLKEM768). Pure-stdlib
+  binary parsing — no new dependencies. Closes the "binary scanning" gap the
+  commercial tools (InfoSec Global / Keyfactor) have.
+- **`host.cloud_kms`** — **live** cloud KMS / Key Vault key enumeration via the
+  host CLI (`aws` / `az`, if installed + authenticated — the same shell-out
+  pattern as the OpenSSL probes, so no cloud SDKs), classifying each key's
+  algorithm (RSA/ECC → quantum-vulnerable; AES-256 → safe). Complements the
+  config-reference probe `fs.keyref.cloud`. Closes the live-cloud-KMS gap
+  without breaking the self-contained binary.
+
 ## [0.8.2] — 2026-07-20
 
 ### Added — Certificate Transparency lookup + competitive landscape
