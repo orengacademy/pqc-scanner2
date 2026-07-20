@@ -190,7 +190,7 @@ def create_app(*, db_path: Path, registry: Registry | None = None) -> FastAPI:
             elif fmt == "pdf-tech":
                 try:
                     from pqcscan.renderers.pdf_technical import render_pdf_technical
-                    render_pdf_technical(repo, scan_id, tmp_path)
+                    render_pdf_technical(repo, scan_id, tmp_path, lang=lang)
                 except (ImportError, ModuleNotFoundError) as e:
                     raise HTTPException(
                         503,
@@ -202,7 +202,7 @@ def create_app(*, db_path: Path, registry: Registry | None = None) -> FastAPI:
             elif fmt == "pdf-exec":
                 try:
                     from pqcscan.renderers.pdf_executive import render_pdf_executive
-                    render_pdf_executive(repo, scan_id, tmp_path)
+                    render_pdf_executive(repo, scan_id, tmp_path, lang=lang)
                 except (ImportError, ModuleNotFoundError) as e:
                     raise HTTPException(
                         503,

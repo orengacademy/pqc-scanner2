@@ -320,28 +320,35 @@ async def scan_detail(request: Request, scan_id: int) -> HTMLResponse:
     )
 
 
+def _report_lang(request: Request, lang: str | None) -> str:
+    """Report language: explicit ?lang= wins, else the UI locale cookie."""
+    if lang in SUPPORTED_LOCALES:
+        return lang
+    return get_locale(request)
+
+
 @router.get("/scans/{scan_id}/report/tech", response_class=HTMLResponse)
-async def scan_report_tech(request: Request, scan_id: int) -> HTMLResponse:
+async def scan_report_tech(
+    request: Request, scan_id: int, lang: str | None = None,
+) -> HTMLResponse:
     """HTML report (technical) — browser-printable, no weasyprint required."""
     repo = request.app.state.repo
-    scan = repo.get_scan(scan_id)
-    if scan is None:
+    if repo.get_scan(scan_id) is None:
         raise HTTPException(404, "scan not found")
     from pqcscan.renderers.pdf_technical import build_html_technical
-    html = build_html_technical(repo, scan_id)
-    return HTMLResponse(html)
+    return HTMLResponse(build_html_technical(repo, scan_id, lang=_report_lang(request, lang)))
 
 
 @router.get("/scans/{scan_id}/report/exec_summary", response_class=HTMLResponse)
-async def scan_report_exec_summary(request: Request, scan_id: int) -> HTMLResponse:
+async def scan_report_exec_summary(
+    request: Request, scan_id: int, lang: str | None = None,
+) -> HTMLResponse:
     """HTML report (executive summary) — browser-printable, no weasyprint required."""
     repo = request.app.state.repo
-    scan = repo.get_scan(scan_id)
-    if scan is None:
+    if repo.get_scan(scan_id) is None:
         raise HTTPException(404, "scan not found")
     from pqcscan.renderers.pdf_executive import build_html_executive
-    html = build_html_executive(repo, scan_id)
-    return HTMLResponse(html)
+    return HTMLResponse(build_html_executive(repo, scan_id, lang=_report_lang(request, lang)))
 
 
 def _load_framework(path: Path) -> dict:

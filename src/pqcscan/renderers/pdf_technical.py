@@ -1,111 +1,43 @@
-"""renderers.pdf_technical — full technical PDF: every finding + framework verdicts.
+"""renderers.pdf_technical — full technical report (HTML + optional PDF).
 
-Reads from the SQLite store (Repo). Renders Jinja2 → HTML → WeasyPrint → PDF.
+Bilingual (English / Bahasa Melayu). Reads from the SQLite store, renders
+Jinja2 → HTML; `render_pdf_technical` additionally pipes the HTML through
+WeasyPrint. The frozen binary ships without WeasyPrint, so the HTML path
+(browser Print-to-PDF) is the universally-available one.
 """
 from __future__ import annotations
 
-from collections import defaultdict
 from pathlib import Path
-from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from pqcscan import __version__
+from pqcscan.renderers._report_context import build_report_context
 from pqcscan.store.repo import Repo
 
 _TEMPLATE_DIR = Path(__file__).parent / "templates"
 
 
-def build_html_technical(repo: Repo, scan_id: int) -> str:
-    """Render scan_id as a technical HTML report (no weasyprint).
-
-    Suitable for direct browser display + Print-to-PDF via the browser,
-    so works on every install including frozen binaries that lack the
-    cairo/pango runtime.
-    """
-    scan = repo.get_scan(scan_id)
-    if scan is None:
-        raise ValueError(f"scan {scan_id} not found")
-    findings = repo.list_findings(scan_id)
-    framework_views = repo.list_framework_views(scan_id)
-
-    verdicts_by_finding: dict[int, list[Any]] = defaultdict(list)
-    for v in framework_views:
-        verdicts_by_finding[v.finding_id].append(v)
-
-    class_counts: dict[str, int] = defaultdict(int)
-    for f in findings:
-        class_counts[f.classification] += 1
-
-    fw_summary: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
-    for v in framework_views:
-        fw_summary[v.framework][v.verdict] += 1
-
+def _render_html(repo: Repo, scan_id: int, lang: str) -> str:
     env = Environment(
         loader=FileSystemLoader(str(_TEMPLATE_DIR)),
         autoescape=select_autoescape(["html"]),
         trim_blocks=True,
         lstrip_blocks=True,
     )
-    template = env.get_template("pdf_technical.html")
-    return template.render(
-        scan=scan,
-        findings=findings,
-        verdicts_by_finding=verdicts_by_finding,
-        class_counts=dict(class_counts),
-        fw_summary={k: dict(v) for k, v in fw_summary.items()},
-        total_findings=len(findings),
-        total_framework_views=len(framework_views),
-        version=__version__,
-    )
+    ctx = build_report_context(repo, scan_id, lang=lang)
+    return env.get_template("pdf_technical.html").render(**ctx)
+
+
+def build_html_technical(repo: Repo, scan_id: int, lang: str = "en") -> str:
+    """Render scan_id as a technical HTML report (no WeasyPrint needed)."""
+    return _render_html(repo, scan_id, lang)
 
 
 def render_pdf_technical(
-    repo: Repo, scan_id: int, output_path: Path,
+    repo: Repo, scan_id: int, output_path: Path, lang: str = "en",
 ) -> Path:
     """Render scan_id as a technical PDF; returns the output_path."""
-    scan = repo.get_scan(scan_id)
-    if scan is None:
-        raise ValueError(f"scan {scan_id} not found")
-    findings = repo.list_findings(scan_id)
-    framework_views = repo.list_framework_views(scan_id)
-
-    # Group framework verdicts by finding_id for easy template lookup.
-    verdicts_by_finding: dict[int, list[Any]] = defaultdict(list)
-    for v in framework_views:
-        verdicts_by_finding[v.finding_id].append(v)
-
-    # Per-classification counts for the executive summary block.
-    class_counts: dict[str, int] = defaultdict(int)
-    for f in findings:
-        class_counts[f.classification] += 1
-
-    # Per-framework summary (counts of each verdict per framework).
-    fw_summary: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
-    for v in framework_views:
-        fw_summary[v.framework][v.verdict] += 1
-
-    env = Environment(
-        loader=FileSystemLoader(str(_TEMPLATE_DIR)),
-        autoescape=select_autoescape(["html"]),
-        trim_blocks=True,
-        lstrip_blocks=True,
-    )
-    template = env.get_template("pdf_technical.html")
-    html_str = template.render(
-        scan=scan,
-        findings=findings,
-        verdicts_by_finding=verdicts_by_finding,
-        class_counts=dict(class_counts),
-        fw_summary={k: dict(v) for k, v in fw_summary.items()},
-        total_findings=len(findings),
-        total_framework_views=len(framework_views),
-        version=__version__,
-    )
-
-    # Lazy import: weasyprint pulls in cairo/pango at module load.
-    # Frozen binaries don't bundle it (would balloon EXE + need cairo
-    # runtime on Windows). Surface a clean error if missing.
+    html_str = _render_html(repo, scan_id, lang)
     try:
         from weasyprint import HTML
     except ImportError as e:
@@ -113,7 +45,7 @@ def render_pdf_technical(
             "PDF export requires weasyprint + cairo/pango runtime. "
             "Install with: pip install 'pqcscan[render]'. "
             "Frozen binaries currently do not bundle PDF support; "
-            "use CBOM (JSON) or XLSX export instead.",
+            "use the HTML report or the XLSX / CBOM export instead.",
         ) from e
     HTML(string=html_str).write_pdf(str(output_path))
     return output_path

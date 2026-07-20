@@ -52,12 +52,12 @@ def export_cmd(
         click.echo(f"wrote SARIF 2.1.0 log -> {out}")
     elif f == "pdf-tech":
         from pqcscan.renderers.pdf_technical import render_pdf_technical
-        render_pdf_technical(repo, scan_id, out)
-        click.echo(f"wrote technical PDF -> {out}")
+        render_pdf_technical(repo, scan_id, out, lang=lang.lower())
+        click.echo(f"wrote technical PDF ({lang}) -> {out}")
     elif f == "pdf-exec":
         from pqcscan.renderers.pdf_executive import render_pdf_executive
-        render_pdf_executive(repo, scan_id, out)
-        click.echo(f"wrote executive PDF -> {out}")
+        render_pdf_executive(repo, scan_id, out, lang=lang.lower())
+        click.echo(f"wrote executive PDF ({lang}) -> {out}")
     elif f == "xlsx-bukukerja":
         from pqcscan.renderers.xlsx_bukukerja import render_xlsx_bukukerja
         render_xlsx_bukukerja(repo, scan_id, out, locale=lang.lower())
