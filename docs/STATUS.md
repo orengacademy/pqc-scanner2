@@ -2,12 +2,13 @@
 
 | | |
 |---|---|
-| **Date** | 2026-05-07 |
-| **Branch / commit** | `plan-h` (Plan H.1 trim + Plan H.2 UDP+DTLS) |
-| **Version** | `0.3.0` |
-| **Probes** | 106 / 106 registered (Plan H.1 + H.2 + H.3a OT TCP family) |
-| **Tests** | 321 passed across unit + integration suites (Python 3.11) |
-| **Status** | Plans A+B+C+D+E+F+G shipped; Plan H.1 trim + Plan H.2 (UDP scan + DTLS helper) closed; Plan H.3 (OT/ICS family) follows |
+| **Date** | 2026-07-20 |
+| **Branch / commit** | `main` |
+| **Version** | `0.7.5` |
+| **Probes** | 154 registered across 15 families |
+| **Frameworks** | 11 compliance YAMLs |
+| **Tests** | 700 passed / 1 skipped (Python 3.11) |
+| **Status** | Design-doc target shipped. 2026-07-20 coverage+UX loop added: classifier/HNDL hardening, structured remediation, target/domain scanning, 7 reverse-proxy/mesh + host probes, SARIF + QRAMM, light/dark self-contained web UI, inline remediation. See §7. |
 
 ## 1. TL;DR
 
@@ -23,7 +24,7 @@ The full design-doc target is shipped:
 - **Plan F (batches 1–3)** — `build/pyinstaller.spec` for self-contained binary builds, `scripts/build-binary.sh`, GitHub Actions release matrix (Linux/macOS/Windows on tag push, auto-attached release assets), `pqcscan.util.offline_pack.resolve_tool()` runtime tool resolver (env override → MEIPASS bundle → PATH), `scripts/fetch-offline-tools.sh` to stage Syft+Grype, 3 reference probe migrations (`sbom_syft`, `cve_grype`, `cve_trivy_fs`).
 - **B17 — Real OSV.dev offline matcher** across **10 ecosystems / 12 lockfile formats**: PyPI (`requirements.txt`, `Pipfile.lock`, `poetry.lock`), npm (`package-lock.json` v6 + v7+), crates.io (`Cargo.lock`), Go (`go.sum`), Packagist (`composer.lock`), RubyGems (`Gemfile.lock`), NuGet (`packages.lock.json`), Hex (`mix.lock`), Pub (`pubspec.lock`), Maven (`gradle.lockfile`). Resolution path: `snapshot_path` constructor arg → `$PQCSCAN_OSV_SNAPSHOT` env → `/var/lib/pqcscan/osv-snapshot.jsonl`.
 
-114 probes registered; SQLite store; web UI at all 9 spec'd pages with EN/MS toggle; PDF/XLSX/CBOM exports; 10 compliance frameworks all evaluated against findings; cross-OS PyInstaller binary build pipeline; offline-pack framework with broad-ecosystem CVE matching.
+154 probes registered; SQLite store; web UI at all 9 spec'd pages with EN/MS toggle; PDF/XLSX/CBOM exports; 10 compliance frameworks all evaluated against findings; cross-OS PyInstaller binary build pipeline; offline-pack framework with broad-ecosystem CVE matching.
 
 ## 2. What's shipped
 
@@ -34,7 +35,7 @@ The full design-doc target is shipped:
 | Core types & PQC classifier | `src/pqcscan/core/{types,alg}.py` | Capability/ProbeFamily/Classification/Severity enums; Finding/Component dataclasses; classify() per spec Appendix B |
 | SQLite store | `src/pqcscan/store/{schema,migrations,repo}.py` | scans, components, findings, graph_edges, framework_views, baselines; `check_same_thread=False`; baseline create + diff helpers |
 | Async runner + event bus | `src/pqcscan/runner/*.py` | Probe isolation, per-probe timeout, asyncio.gather per family, Finding/ScanCompleted SSE events |
-| Probe ABC + registry | `src/pqcscan/probes/{_base,_registry}.py` | `default_registry()` seeds 114 probes |
+| Probe ABC + registry | `src/pqcscan/probes/{_base,_registry}.py` | `default_registry()` seeds 154 probes |
 | FastAPI daemon + API | `src/pqcscan/daemon/app.py` | health, version, scans, findings, events SSE, baselines, scan diff |
 | Web UI | `src/pqcscan/ui/{routes,templates,static,i18n}.py` | 9 pages; EN/MS toggle via `pqcscan_locale` cookie; vanilla forms, no JS deps |
 | CycloneDX 1.6 CBOM + PDF/XLSX renderers | `src/pqcscan/{cbom,renderers}/*` | CBOM JSON, PDF (technical/executive), XLSX (BUKUKERJA template + generic) |
@@ -120,6 +121,52 @@ xdg-open http://127.0.0.1:8765
 - **GitHub repo** — https://github.com/orengacademy/pqc-scanner2 (private)
 - **README** — [`README.md`](../README.md)
 
+## 7. 2026-07-20 coverage + UX loop (v0.7.0 → v0.7.5)
+
+A focused loop to widen coverage ("scan everything applicable"), lift the web
+UI to production quality, and make findings actionable. Shipped as PRs #41–#46,
+each with its own tests, all green through CI.
+
+**Shipped**
+
+- **v0.7.0 — classifier + remediation foundation.** `core/alg.py` OID table
+  extended to the full FIPS 203/204/205 arc + RSASSA-PSS/Ed448/DSA/curve
+  handling; RSA signature names no longer fall through to INFO; HNDL /
+  CNSA-2.0 deadline logic (`hndl_exposed`, `migration_deadline`). New
+  `core/remediation.py` centrally enriches every finding with a typed PQC
+  replacement (target, FIPS standard, deadline, HNDL flag). New
+  `core/keyhealth.py` ROCA (CVE-2017-15361) + small-modulus detection.
+- **v0.7.1 — target/domain scanning.** The runner threads
+  `scan_paths`/`server_target`/`ot_targets` into the `ScanContext`, so the
+  ~30 network probes and the OT family (previously dormant — nothing ever set
+  a target) now fire. `pqcscan scan --target/--path/--ot`; `POST /api/scans`
+  body; a dashboard "Run a scan" form.
+- **v0.7.2 — coverage wave (147 → 154 probes).** `fs.conf.{haproxy,envoy,
+  traefik,caddy}` reverse-proxy/mesh TLS config; `host.rng.config`,
+  `host.pam.hashing`, `host.ssh.moduli` long-tail host posture.
+- **v0.7.3 — reporting.** SARIF 2.1.0 renderer (GitHub Code Scanning) + QRAMM
+  compliance framework (→ 11 frameworks).
+- **v0.7.4 — web UI.** Self-contained fonts (no network fetch — air-gap
+  correct), light/dark theme with a persisted toggle, dynamic version.
+- **v0.7.5 — findings UX.** Inline PQC-migration chips (target + deadline +
+  HNDL badge) on every finding, a text filter, and live SSE progress.
+
+**Deferred — with rationale** (kept honest; these are the XL / heavy-dep /
+flaky-live-network items intentionally not attempted this loop):
+
+- **TLS 1.3 served-chain `signatureAlgorithm`** — needs a full TLS 1.3 key
+  schedule to decrypt the Certificate message. Real work, no reliable way to
+  unit-test without a live 1.3 server; deferred over shipping flaky code.
+- **Live Kerberos etype / IKE SA transform enumeration** — active-network
+  probes that can't be exercised deterministically in CI. `net.kerberos.asreq`
+  and `net.ike.v1v2` already cover the passive/handshake angle.
+- **PCAP ingestion** — would add a heavy `scapy`/`pyshark` dependency to a
+  binary whose whole premise is being small and self-contained; poor fit.
+- **Tree-sitter AST rebuild of `code.ts.*`** — XL grammar-bundling effort; the
+  regex probes stay in place until it's worth the binary-size cost.
+- **SBOM → crypto-primitive mapping** — needs a curated library→primitive
+  corpus to be worth shipping; a data-collection task more than a code one.
+
 ---
 
-_Last updated: 2026-05-04. Update this file at the end of any session that ships meaningful work._
+_Last updated: 2026-07-20. Update this file at the end of any session that ships meaningful work._
