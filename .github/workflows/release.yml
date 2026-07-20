@@ -29,10 +29,15 @@ jobs:
             asset_suffix: macos-arm64
             bin_name: pqcscan
             shell: bash
-          - os: macos-13
-            asset_suffix: macos-x86_64
-            bin_name: pqcscan
-            shell: bash
+          # NOTE: macOS x86_64 (Intel) is intentionally NOT a build target.
+          # GitHub's `macos-13` Intel runners are being deprecated and are
+          # effectively unschedulable (jobs queue for hours), and a stuck job
+          # blocks the whole release (publish needs all builds). setup-python
+          # ships an arm64-only Python on macos-latest, so `--target-arch
+          # x86_64` can't cross-build there either. Intel-Mac users install
+          # from source (`pip install -e .`) — pqcscan is pure-Python +
+          # cryptography, so it works on any Mac. Revisit if GitHub restores
+          # Intel runner capacity or a universal2 Python is used.
           - os: windows-latest
             asset_suffix: windows-x86_64.exe
             bin_name: pqcscan.exe

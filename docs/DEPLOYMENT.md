@@ -63,8 +63,8 @@ finding always records what was scanned.
 |---|---|---|---|
 | Linux x86_64 | `pqcscan-linux-x86_64` | **glibc ≥ 2.17** | RHEL / Oracle Linux **7.9**, 8, 9; Debian 8+; Ubuntu 14.04+; SLES 12+. Built in a manylinux2014 container. |
 | macOS arm64 | `pqcscan-macos-arm64` | macOS 11+ | Apple Silicon. |
-| macOS x86_64 | `pqcscan-macos-x86_64` | macOS 10.15+ | Intel Macs (built on `macos-13`). |
 | Windows x86_64 | `pqcscan-windows-x86_64.exe` | Windows 8 / Server 2012+ | PyInstaller onefile. |
+| macOS x86_64 (Intel) | _from source_ | macOS 10.15+ | GitHub's Intel (`macos-13`) runners are deprecated/unschedulable, so no pre-built asset. Run `pip install -e .` — pqcscan is pure-Python + `cryptography`, so it works on any Intel Mac. |
 
 The binary is self-contained (bundled Python + deps) and makes **no network
 requests from the web UI** (fonts and assets are inlined), so it works

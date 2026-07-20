@@ -30,12 +30,15 @@ def test_triggers_on_version_tags(doc):
     assert "workflow_dispatch" in on
 
 
-def test_matrix_covers_all_release_targets(doc):
+def test_matrix_covers_three_reliable_targets(doc):
     matrix = doc["jobs"]["build"]["strategy"]["matrix"]["include"]
     oses = {entry["os"] for entry in matrix}
-    assert oses == {"ubuntu-latest", "macos-latest", "macos-13", "windows-latest"}
+    # macOS x86_64 (macos-13) is intentionally omitted — Intel runners are
+    # deprecated/unschedulable and would block the whole release; Intel-Mac
+    # users run from source. See the comment in release.yml.
+    assert oses == {"ubuntu-latest", "macos-latest", "windows-latest"}
     suffixes = {entry["asset_suffix"] for entry in matrix}
-    assert suffixes == {"linux-x86_64", "macos-arm64", "macos-x86_64", "windows-x86_64.exe"}
+    assert suffixes == {"linux-x86_64", "macos-arm64", "windows-x86_64.exe"}
 
 
 def test_unix_jobs_invoke_build_script():
