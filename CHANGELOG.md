@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.8] — 2026-07-20
+
+### Changed — live sniffer now does TCP stream reassembly
+`net.sniff.live` previously parsed each TCP segment in isolation, so any TLS
+handshake message split across packets — most importantly a multi-certificate
+chain, which routinely spans many segments and records — was missed.
+- Captured frames are now grouped into **directional TCP flows** and rebuilt in
+  **sequence order** (`_reassemble_flows` / `_reassemble_stream`): reordering is
+  fixed by sorting on the sequence offset, retransmits/overlaps are trimmed, a
+  gap ends the contiguous run (so a truncated hello can't be mis-parsed), and
+  each flow is bounded at 256 KiB.
+- The reassembled stream is fed to the existing record/handshake reassembly
+  (`reassemble_handshake` + `extract_certificates`), so fragmented ClientHello,
+  ServerHello, and Certificate messages are all parsed whole.
+- `_pcap.Segment` now carries the TCP `seq` (captured in the L4 decode); default
+  0 keeps every other caller unchanged.
+- Pure-stdlib, no new deps, binary unchanged. New tests cover multi-segment
+  ClientHello, a 3-segment Certificate chain, out-of-order + retransmit, and
+  the gap-stops-parse guard.
+
 ## [0.8.7] — 2026-07-20
 
 ### Added — measured accuracy: precision/recall benchmark harness
