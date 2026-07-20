@@ -4,11 +4,11 @@
 |---|---|
 | **Date** | 2026-07-20 |
 | **Branch / commit** | `main` |
-| **Version** | `0.7.5` |
-| **Probes** | 154 registered across 15 families |
+| **Version** | `0.8.0` |
+| **Probes** | 163 registered across 15 families |
 | **Frameworks** | 11 compliance YAMLs |
-| **Tests** | 700 passed / 1 skipped (Python 3.11) |
-| **Status** | Design-doc target shipped. 2026-07-20 coverage+UX loop added: classifier/HNDL hardening, structured remediation, target/domain scanning, 7 reverse-proxy/mesh + host probes, SARIF + QRAMM, light/dark self-contained web UI, inline remediation. See §7. |
+| **Tests** | 826 passed / 1 skipped (Python 3.11) |
+| **Status** | Design-doc target shipped, plus two loops (§7 coverage+UX, §8 deferred-items + bilingual + any-OS). Every roadmap item is now done — deferred backend items (TLS 1.3 chain, Kerberos etypes, IKE transforms, PCAP, SBOM-crypto-map, code depth) all shipped; reports + web fully bilingual EN/MS; runs on any OS. |
 
 ## 1. TL;DR
 
@@ -24,7 +24,7 @@ The full design-doc target is shipped:
 - **Plan F (batches 1–3)** — `build/pyinstaller.spec` for self-contained binary builds, `scripts/build-binary.sh`, GitHub Actions release matrix (Linux/macOS/Windows on tag push, auto-attached release assets), `pqcscan.util.offline_pack.resolve_tool()` runtime tool resolver (env override → MEIPASS bundle → PATH), `scripts/fetch-offline-tools.sh` to stage Syft+Grype, 3 reference probe migrations (`sbom_syft`, `cve_grype`, `cve_trivy_fs`).
 - **B17 — Real OSV.dev offline matcher** across **10 ecosystems / 12 lockfile formats**: PyPI (`requirements.txt`, `Pipfile.lock`, `poetry.lock`), npm (`package-lock.json` v6 + v7+), crates.io (`Cargo.lock`), Go (`go.sum`), Packagist (`composer.lock`), RubyGems (`Gemfile.lock`), NuGet (`packages.lock.json`), Hex (`mix.lock`), Pub (`pubspec.lock`), Maven (`gradle.lockfile`). Resolution path: `snapshot_path` constructor arg → `$PQCSCAN_OSV_SNAPSHOT` env → `/var/lib/pqcscan/osv-snapshot.jsonl`.
 
-154 probes registered; SQLite store; web UI at all 9 spec'd pages with EN/MS toggle; PDF/XLSX/CBOM exports; 10 compliance frameworks all evaluated against findings; cross-OS PyInstaller binary build pipeline; offline-pack framework with broad-ecosystem CVE matching.
+163 probes registered; SQLite store; web UI at all 9 spec'd pages with EN/MS toggle; PDF/XLSX/CBOM exports; 10 compliance frameworks all evaluated against findings; cross-OS PyInstaller binary build pipeline; offline-pack framework with broad-ecosystem CVE matching.
 
 ## 2. What's shipped
 
@@ -35,7 +35,7 @@ The full design-doc target is shipped:
 | Core types & PQC classifier | `src/pqcscan/core/{types,alg}.py` | Capability/ProbeFamily/Classification/Severity enums; Finding/Component dataclasses; classify() per spec Appendix B |
 | SQLite store | `src/pqcscan/store/{schema,migrations,repo}.py` | scans, components, findings, graph_edges, framework_views, baselines; `check_same_thread=False`; baseline create + diff helpers |
 | Async runner + event bus | `src/pqcscan/runner/*.py` | Probe isolation, per-probe timeout, asyncio.gather per family, Finding/ScanCompleted SSE events |
-| Probe ABC + registry | `src/pqcscan/probes/{_base,_registry}.py` | `default_registry()` seeds 154 probes |
+| Probe ABC + registry | `src/pqcscan/probes/{_base,_registry}.py` | `default_registry()` seeds 163 probes |
 | FastAPI daemon + API | `src/pqcscan/daemon/app.py` | health, version, scans, findings, events SSE, baselines, scan diff |
 | Web UI | `src/pqcscan/ui/{routes,templates,static,i18n}.py` | 9 pages; EN/MS toggle via `pqcscan_locale` cookie; vanilla forms, no JS deps |
 | CycloneDX 1.6 CBOM + PDF/XLSX renderers | `src/pqcscan/{cbom,renderers}/*` | CBOM JSON, PDF (technical/executive), XLSX (BUKUKERJA template + generic) |
@@ -166,6 +166,46 @@ flaky-live-network items intentionally not attempted this loop):
   regex probes stay in place until it's worth the binary-size cost.
 - **SBOM → crypto-primitive mapping** — needs a curated library→primitive
   corpus to be worth shipping; a data-collection task more than a code one.
+
+## 8. 2026-07-20 continuation — deferred items + bilingual + any-OS (v0.8.0)
+
+A second loop that closed **every** item §7 deferred, made reports + web fully
+bilingual, and made the scanner applicable on any OS. Shipped as PRs #48–#52
+(163 probes; 826 tests).
+
+- **Fully bilingual web (EN + Bahasa Melayu).** Every remaining hardcoded string
+  in the dashboard, scan-detail, and scans pages is now translated (82 new i18n
+  keys/locale); the whole UI flips with the `pqcscan_locale` cookie.
+- **Reports rebuilt — 10/10 + bilingual.** Technical + executive reports share a
+  context builder and render a readiness gauge, band cards, a **priority-
+  remediation table grouped by NIST replacement (HNDL-first)**, an HNDL callout,
+  the surface breakdown, the compliance matrix, and the NACSA timeline — in EN
+  **or** MS via a `lang` param (CLI `--lang`, API `?lang=`, web routes follow
+  the locale cookie). The HTML report needs no WeasyPrint, so it's the universal
+  path in the frozen binary.
+- **Deferred backend items — all shipped, none skipped:**
+  - `net.tls.cert_chain_tls13` — real TLS 1.3 handshake + RFC 8446 key schedule
+    (verified against RFC 8448 vectors) + AEAD-decrypt of the encrypted
+    Certificate. The "TLS 1.3 served-chain" gap is closed.
+  - `net.kerberos.etypes` (ASN.1 AS-REQ) and `net.ike.transforms` (IKE_SA_INIT)
+    — the live etype / IKE-transform enumeration.
+  - `fs.pcap.crypto` — **PCAP/pcapng ingestion with a pure-Python parser** (no
+    scapy — the self-contained premise is preserved).
+  - `sbom.crypto_map` — the SBOM → crypto-primitive mapping (44-library corpus).
+  - `code.crypto_primitives` — broadened cross-language code detection (31
+    patterns, 13 languages) instead of native tree-sitter (which would break the
+    any-OS self-contained binary).
+- **Any-OS applicability.** `host.windows.schannel` + `host.macos.keychain`
+  native probes, a cross-OS `host.platform_info`, a graceful-degradation test
+  (every `applies()` safe on any OS; every module imports with no top-level
+  OS-specific imports), and a documented platform-compatibility floor
+  (`docs/DEPLOYMENT.md`): Linux glibc 2.17+ (RHEL/OL 7.9+), macOS 11+/10.15+,
+  Windows 8+.
+
+**Still deferred (with rationale):** native tree-sitter grammars (platform-
+specific compiled artifacts would break the any-OS self-contained binary — the
+regex/keyword probes cover the ground instead); the `macos-13` (x86_64) release-
+matrix line is prepared but needs a `workflow`-scoped token to push.
 
 ---
 
