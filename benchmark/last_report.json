@@ -1,0 +1,530 @@
+{
+  "overall": {
+    "tp": 19,
+    "fp": 0,
+    "fn": 0,
+    "tn": 22,
+    "precision": 1.0,
+    "recall": 1.0,
+    "positives": 19,
+    "negatives": 22,
+    "cases": 41
+  },
+  "per_probe": {
+    "code.ts.go": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "tn": 3,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "code.ts.java": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "tn": 2,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "code.ts.javascript": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "tn": 3,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "code.ts.php": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "tn": 2,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "code.ts.python": {
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "tn": 3,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "code.ts.rust": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "tn": 2,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "fs.cert.x509": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "tn": 1,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "fs.conf.f5": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "tn": 1,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "fs.conf.haproxy": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "tn": 1,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "fs.conf.netscaler": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "tn": 1,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "fs.conf.nginx": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "tn": 1,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "fs.conf.sshd": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "tn": 1,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "fs.db.crypto": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "tn": 1,
+      "precision": 1.0,
+      "recall": 1.0
+    }
+  },
+  "misclassified": [],
+  "cases": [
+    {
+      "id": "py-md5-real",
+      "probe": "code.ts.python",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "py-sha1-alias",
+      "probe": "code.ts.python",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "SHA1"
+      ],
+      "note": ""
+    },
+    {
+      "id": "py-rsa2048",
+      "probe": "code.ts.python",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "RSA-2048"
+      ],
+      "note": ""
+    },
+    {
+      "id": "py-des-real",
+      "probe": "code.ts.python",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "DES"
+      ],
+      "note": ""
+    },
+    {
+      "id": "py-ec-real",
+      "probe": "code.ts.python",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "EC-SECP256R1"
+      ],
+      "note": ""
+    },
+    {
+      "id": "py-comment-md5",
+      "probe": "code.ts.python",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "py-string-md5",
+      "probe": "code.ts.python",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "py-clean-sha256",
+      "probe": "code.ts.python",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "go-md5-real",
+      "probe": "code.ts.go",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "go-comment-md5",
+      "probe": "code.ts.go",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "go-string-md5",
+      "probe": "code.ts.go",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "go-clean-sha256",
+      "probe": "code.ts.go",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "java-md5-real",
+      "probe": "code.ts.java",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "java-des-real",
+      "probe": "code.ts.java",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "DES/ECB/PKCS5Padding"
+      ],
+      "note": ""
+    },
+    {
+      "id": "java-comment-md5",
+      "probe": "code.ts.java",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "java-string-md5",
+      "probe": "code.ts.java",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "js-md5-real",
+      "probe": "code.ts.javascript",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "js-comment-md5",
+      "probe": "code.ts.javascript",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "js-string-md5",
+      "probe": "code.ts.javascript",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "js-clean-sha256",
+      "probe": "code.ts.javascript",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "php-md5-real",
+      "probe": "code.ts.php",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "php-comment-md5",
+      "probe": "code.ts.php",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "php-string-md5",
+      "probe": "code.ts.php",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "rust-md5-real",
+      "probe": "code.ts.rust",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "rust-comment-md5",
+      "probe": "code.ts.rust",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "rust-string-md5",
+      "probe": "code.ts.rust",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "f5-weak",
+      "probe": "fs.conf.f5",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "TLSV1.3"
+      ],
+      "note": ""
+    },
+    {
+      "id": "f5-hardened",
+      "probe": "fs.conf.f5",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "netscaler-weak",
+      "probe": "fs.conf.netscaler",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "TLSV1.0"
+      ],
+      "note": ""
+    },
+    {
+      "id": "netscaler-cipher-weak",
+      "probe": "fs.conf.netscaler",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "RC4-MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "netscaler-hardened",
+      "probe": "fs.conf.netscaler",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "nginx-weak",
+      "probe": "fs.conf.nginx",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "TLSV1",
+        "TLSV1.1"
+      ],
+      "note": ""
+    },
+    {
+      "id": "nginx-hardened",
+      "probe": "fs.conf.nginx",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "haproxy-weak",
+      "probe": "fs.conf.haproxy",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "TLSV1.0"
+      ],
+      "note": ""
+    },
+    {
+      "id": "haproxy-hardened",
+      "probe": "fs.conf.haproxy",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "sshd-weak",
+      "probe": "fs.conf.sshd",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "DH-1024"
+      ],
+      "note": ""
+    },
+    {
+      "id": "sshd-hardened",
+      "probe": "fs.conf.sshd",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cert-rsa1024",
+      "probe": "fs.cert.x509",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "RSA-1024"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cert-mldsa65",
+      "probe": "fs.cert.x509",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "db-cert",
+      "probe": "fs.db.crypto",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "RSA-2048"
+      ],
+      "note": ""
+    },
+    {
+      "id": "db-clean",
+      "probe": "fs.db.crypto",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    }
+  ]
+}

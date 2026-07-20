@@ -1,0 +1,263 @@
+# Accuracy-benchmark corpus manifest.
+#
+# Each entry is one labelled case:
+#   id     — unique case id
+#   probe  — probe id under test (must resolve in default_registry())
+#   kind   — 'positive' (probe SHOULD fire) | 'negative' (probe should NOT fire)
+#   input  — path relative to benchmark/corpus/ (a file OR a directory)
+#   expect — optional, positive-only refinements:
+#              algorithm_contains — case-insensitive substring on a fired
+#                                    finding.algorithm
+#              min_severity       — at least one fired finding >= this severity
+#                                    (info<low<med<high<crit)
+#
+# "Fired" = the probe emitted at least one REAL detection, i.e. a finding whose
+# classification is one of {sangat-tinggi, tinggi, sederhana, rendah}. INFO /
+# ERROR / PQC_READY markers are platform/skip/ready notes, not detections, and
+# never count as a fire (see benchmark/README.md, "real detection" rule).
+#
+# Source-code probes (code.ts.*) walk a directory tree, so each code case is a
+# directory holding one source file. F5/NetScaler/nginx/haproxy/sshd config
+# probes and fs.db.crypto accept a single file directly.
+#
+# Probes deliberately NOT in the corpus: any probe that needs a live network
+# socket (net.*), a running daemon, or host-only artefacts (host.*) — they
+# cannot be pointed at a static fixture. This corpus targets the precision-
+# sensitive offline probes (AST/regex source scan, config parsers, cert/DB
+# parsers).
+
+# ---- code.ts.python (stdlib-ast engine) ---------------------------------
+- id: py-md5-real
+  probe: code.ts.python
+  kind: positive
+  input: cases/py-md5-real
+  expect:
+    algorithm_contains: MD5
+    min_severity: crit
+- id: py-sha1-alias
+  probe: code.ts.python
+  kind: positive
+  input: cases/py-sha1-alias
+  expect:
+    algorithm_contains: SHA1
+- id: py-rsa2048
+  probe: code.ts.python
+  kind: positive
+  input: cases/py-rsa2048
+  expect:
+    algorithm_contains: RSA
+    min_severity: crit
+- id: py-des-real
+  probe: code.ts.python
+  kind: positive
+  input: cases/py-des-real
+  expect:
+    algorithm_contains: DES
+- id: py-ec-real
+  probe: code.ts.python
+  kind: positive
+  input: cases/py-ec-real
+  expect:
+    algorithm_contains: EC
+- id: py-comment-md5      # weak token in a comment only
+  probe: code.ts.python
+  kind: negative
+  input: cases/py-comment-md5
+- id: py-string-md5       # weak token in a string literal only
+  probe: code.ts.python
+  kind: negative
+  input: cases/py-string-md5
+- id: py-clean-sha256     # strong hash — must not be flagged weak
+  probe: code.ts.python
+  kind: negative
+  input: cases/py-clean-sha256
+
+# ---- code.ts.go ----------------------------------------------------------
+- id: go-md5-real
+  probe: code.ts.go
+  kind: positive
+  input: cases/go-md5-real
+  expect:
+    algorithm_contains: MD5
+- id: go-comment-md5
+  probe: code.ts.go
+  kind: negative
+  input: cases/go-comment-md5
+- id: go-string-md5
+  probe: code.ts.go
+  kind: negative
+  input: cases/go-string-md5
+- id: go-clean-sha256
+  probe: code.ts.go
+  kind: negative
+  input: cases/go-clean-sha256
+
+# ---- code.ts.java --------------------------------------------------------
+- id: java-md5-real
+  probe: code.ts.java
+  kind: positive
+  input: cases/java-md5-real
+  expect:
+    algorithm_contains: MD5
+- id: java-des-real
+  probe: code.ts.java
+  kind: positive
+  input: cases/java-des-real
+  expect:
+    algorithm_contains: DES
+- id: java-comment-md5
+  probe: code.ts.java
+  kind: negative
+  input: cases/java-comment-md5
+- id: java-string-md5
+  probe: code.ts.java
+  kind: negative
+  input: cases/java-string-md5
+
+# ---- code.ts.javascript --------------------------------------------------
+- id: js-md5-real
+  probe: code.ts.javascript
+  kind: positive
+  input: cases/js-md5-real
+  expect:
+    algorithm_contains: MD5
+- id: js-comment-md5
+  probe: code.ts.javascript
+  kind: negative
+  input: cases/js-comment-md5
+- id: js-string-md5
+  probe: code.ts.javascript
+  kind: negative
+  input: cases/js-string-md5
+- id: js-clean-sha256
+  probe: code.ts.javascript
+  kind: negative
+  input: cases/js-clean-sha256
+
+# ---- code.ts.php ---------------------------------------------------------
+- id: php-md5-real
+  probe: code.ts.php
+  kind: positive
+  input: cases/php-md5-real
+  expect:
+    algorithm_contains: MD5
+- id: php-comment-md5
+  probe: code.ts.php
+  kind: negative
+  input: cases/php-comment-md5
+- id: php-string-md5
+  probe: code.ts.php
+  kind: negative
+  input: cases/php-string-md5
+
+# ---- code.ts.rust --------------------------------------------------------
+- id: rust-md5-real
+  probe: code.ts.rust
+  kind: positive
+  input: cases/rust-md5-real
+  expect:
+    algorithm_contains: MD5
+- id: rust-comment-md5
+  probe: code.ts.rust
+  kind: negative
+  input: cases/rust-comment-md5
+- id: rust-string-md5
+  probe: code.ts.rust
+  kind: negative
+  input: cases/rust-string-md5
+
+# ---- fs.conf.f5 ----------------------------------------------------------
+- id: f5-weak
+  probe: fs.conf.f5
+  kind: positive
+  input: cases/f5-weak.conf
+  expect:
+    algorithm_contains: TLSV1.3
+    min_severity: crit
+- id: f5-hardened
+  probe: fs.conf.f5
+  kind: negative
+  input: cases/f5-hardened.conf
+
+# ---- fs.conf.netscaler ---------------------------------------------------
+- id: netscaler-weak
+  probe: fs.conf.netscaler
+  kind: positive
+  input: cases/netscaler-weak.conf
+  expect:
+    algorithm_contains: TLSV1.0
+    min_severity: crit
+- id: netscaler-cipher-weak
+  probe: fs.conf.netscaler
+  kind: positive
+  input: cases/netscaler-cipher-weak.conf
+  expect:
+    algorithm_contains: RC4
+- id: netscaler-hardened
+  probe: fs.conf.netscaler
+  kind: negative
+  input: cases/netscaler-hardened.conf
+
+# ---- fs.conf.nginx -------------------------------------------------------
+- id: nginx-weak
+  probe: fs.conf.nginx
+  kind: positive
+  input: cases/nginx-weak.conf
+  expect:
+    algorithm_contains: TLSV1
+    min_severity: crit
+- id: nginx-hardened
+  probe: fs.conf.nginx
+  kind: negative
+  input: cases/nginx-hardened.conf
+
+# ---- fs.conf.haproxy -----------------------------------------------------
+- id: haproxy-weak
+  probe: fs.conf.haproxy
+  kind: positive
+  input: cases/haproxy-weak.cfg
+  expect:
+    algorithm_contains: TLSV1.0
+    min_severity: crit
+- id: haproxy-hardened
+  probe: fs.conf.haproxy
+  kind: negative
+  input: cases/haproxy-hardened.cfg
+
+# ---- fs.conf.sshd --------------------------------------------------------
+- id: sshd-weak
+  probe: fs.conf.sshd
+  kind: positive
+  input: cases/sshd-weak.conf
+  expect:
+    algorithm_contains: DH
+    min_severity: crit
+- id: sshd-hardened
+  probe: fs.conf.sshd
+  kind: negative
+  input: cases/sshd-hardened.conf
+
+# ---- fs.cert.x509 (certs generated at authoring time, committed as PEM) ---
+- id: cert-rsa1024
+  probe: fs.cert.x509
+  kind: positive
+  input: cases/cert-rsa1024
+  expect:
+    algorithm_contains: RSA
+    min_severity: crit
+- id: cert-mldsa65        # PQC cert — classified pqc-ready, not a weak finding
+  probe: fs.cert.x509
+  kind: negative
+  input: cases/cert-mldsa65
+
+# ---- fs.db.crypto (SQLite files built at authoring time, committed) -------
+- id: db-cert
+  probe: fs.db.crypto
+  kind: positive
+  input: cases/db-cert.db
+  expect:
+    algorithm_contains: RSA
+- id: db-clean
+  probe: fs.db.crypto
+  kind: negative
+  input: cases/db-clean.db
