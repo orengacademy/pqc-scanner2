@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.2] — 2026-07-20
+
+### Added — Certificate Transparency lookup + competitive landscape
+- **`net.ct.crtsh`** (164 probes) — Certificate Transparency inventory via
+  crt.sh. The live TLS probes see only the cert a host serves *now*; a CT
+  lookup reveals the full certificate + subdomain footprint an org has ever
+  issued, so the PQC migration scope isn't under-counted. Gated on a *domain*
+  target (skips bare IPs), one outbound request, wrapped so a scan never fails
+  on network error, medium confidence (CT metadata carries existence/expiry but
+  not the signature algorithm — it complements the live cert-chain probes).
+  This is the certificate-discovery surface peer tools cover
+  (open-quantum-secure's `ct-lookup`).
+- **`docs/COMPETITIVE-LANDSCAPE.md`** — the cross-referenced 2025-2026 PQC-
+  scanner catalog (open-source, commercial, academic, standards) from two deep-
+  research passes, documenting where pqcscan sits: the only tool unifying
+  network + host + filesystem + code + SBOM + container into one
+  CBOM+SARIF+compliance pipeline with per-finding confidence.
+
 ## [0.8.1] — 2026-07-20
 
 ### Added — accuracy: per-finding confidence + false-positive reduction
