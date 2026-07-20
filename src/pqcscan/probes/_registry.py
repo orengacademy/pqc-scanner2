@@ -114,6 +114,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.mq_mqtt_broker import MqMqttBroker
     from pqcscan.probes.mq_nats_tls import MqNatsTls
     from pqcscan.probes.mq_rabbitmq_tls import MqRabbitmqTls
+    from pqcscan.probes.net_ct_crtsh import NetCtCrtsh
     from pqcscan.probes.net_db_mongo_tls import NetDbMongoTls
     from pqcscan.probes.net_db_mysql_tls import NetDbMysqlTls
     from pqcscan.probes.net_db_postgres_tls import NetDbPostgresTls
@@ -305,6 +306,7 @@ def default_registry() -> Registry:
     # Plan B batch 15 — binary-protocol probes (live network handshakes).
     reg.register(NetSshHandshake())
     reg.register(NetIkeV1V2())
+    reg.register(NetCtCrtsh())
     reg.register(NetIkeTransforms())
     reg.register(NetKerberosEtypes())
     reg.register(NetTlsCertChainTls13())
