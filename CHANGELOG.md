@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.3] — 2026-07-20
+
+### Added — reporting & integration
+- **SARIF 2.1.0 renderer** (`renderers/sarif.py`, export slug `sarif`, API
+  `/api/scans/{id}/export/sarif`). Each probe becomes a SARIF `rule`; each
+  finding a `result` with the correct `level` (crit/high→error, med→warning,
+  low/info→note), a GitHub `security-severity` score, the PQC migration target
+  + deadline in the message and properties, and a `physicalLocation` when a
+  probe recorded an on-disk path. Unlocks GitHub Code Scanning.
+- **QRAMM compliance framework** (`compliance/frameworks/qramm.yaml`) — the
+  Quantum Readiness Assurance Maturity Model, mapping the cryptographic-posture
+  dimension onto compliant / at-risk / non-compliant verdicts (11 frameworks
+  total). Bundled into the frozen binary automatically.
+
 ## [0.7.2] — 2026-07-20
 
 ### Added — coverage wave (reverse-proxy / mesh + long-tail host posture)
@@ -63,7 +77,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Public-key health (`core/keyhealth.py`).** ROCA (CVE-2017-15361)
   fingerprint detection and small-modulus flagging over public moduli only —
   catches keys broken *today*, independent of the quantum threat.
-
 ## [0.6.10] — 2026-07-20
 
 ### Fixed

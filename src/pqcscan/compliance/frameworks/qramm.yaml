@@ -1,0 +1,76 @@
+framework: qramm
+title: Quantum Readiness Assurance Maturity Model (QRAMM)
+# QRAMM is a maturity model for post-quantum readiness (governance,
+# discovery, remediation, assurance). pqcscan maps its findings onto the
+# cryptographic-posture dimension: quantum-vulnerable primitives in active
+# use hold an organisation at a low maturity tier until they are migrated to
+# NIST-standardised PQC. Verdicts follow the shared engine vocabulary
+# (compliant / at-risk / non-compliant / advisory).
+rules:
+  # --- Broken / legacy: fails the baseline maturity gate outright. ---
+  - match: { algorithm: MD5 }
+    clause: QRAMM:CRYPTO-legacy-hash
+    verdict: non-compliant
+    note: "Legacy hash in use; remediate before PQC maturity can be assessed."
+  - match: { algorithm: SHA1 }
+    clause: QRAMM:CRYPTO-legacy-hash
+    verdict: non-compliant
+  - match: { algorithm: 3DES }
+    clause: QRAMM:CRYPTO-legacy-cipher
+    verdict: non-compliant
+  - match: { algorithm: RC4 }
+    clause: QRAMM:CRYPTO-legacy-cipher
+    verdict: non-compliant
+
+  # --- Quantum-vulnerable key establishment: highest-priority HNDL risk. ---
+  - match: { algorithm: RSA, key_size_lt: 3072 }
+    clause: QRAMM:CRYPTO-rsa-undersized
+    verdict: non-compliant
+    note: "RSA <3072 is both classically weak and quantum-vulnerable."
+  - match: { algorithm: RSA }
+    clause: QRAMM:CRYPTO-quantum-vulnerable-kex
+    verdict: at-risk
+    deadline: 2030-01-01
+    note: "Harvest-now-decrypt-later: migrate key establishment to ML-KEM first."
+  - match: { algorithm: DH }
+    clause: QRAMM:CRYPTO-quantum-vulnerable-kex
+    verdict: at-risk
+    deadline: 2030-01-01
+  - match: { algorithm: ECDH }
+    clause: QRAMM:CRYPTO-quantum-vulnerable-kex
+    verdict: at-risk
+    deadline: 2030-01-01
+
+  # --- Quantum-vulnerable signatures: forgeable in future, migrate by 2035. ---
+  - match: { algorithm: ECDSA }
+    clause: QRAMM:CRYPTO-quantum-vulnerable-sig
+    verdict: at-risk
+    deadline: 2035-01-01
+  - match: { algorithm: ED25519 }
+    clause: QRAMM:CRYPTO-quantum-vulnerable-sig
+    verdict: at-risk
+    deadline: 2035-01-01
+  - match: { algorithm: DSA }
+    clause: QRAMM:CRYPTO-quantum-vulnerable-sig
+    verdict: at-risk
+    deadline: 2035-01-01
+
+  # --- Symmetric: 128-bit is Grover-weakened, 256-bit clears the bar. ---
+  - match: { algorithm: AES-128 }
+    clause: QRAMM:CRYPTO-symmetric-headroom
+    verdict: advisory
+    note: "AES-128 acceptable short-term; prefer AES-256 for long-lived data."
+  - match: { algorithm: AES-256 }
+    clause: QRAMM:CRYPTO-symmetric-quantum-safe
+    verdict: compliant
+
+  # --- PQC in use: the target maturity state. ---
+  - match: { algorithm: ML-KEM }
+    clause: QRAMM:CRYPTO-pqc-kem
+    verdict: compliant
+  - match: { algorithm: ML-DSA }
+    clause: QRAMM:CRYPTO-pqc-sig
+    verdict: compliant
+  - match: { algorithm: SLH-DSA }
+    clause: QRAMM:CRYPTO-pqc-sig
+    verdict: compliant
