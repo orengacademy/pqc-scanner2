@@ -181,11 +181,15 @@
                class="finding-row row-hover px-5 py-3 flex items-start gap-4">
         <span class="band-pill mt-0.5" data-band="{{ fb }}"><span class="dot"></span>{{ fb }}</span>
         <div class="min-w-0 flex-1">
+          {% set _conf = (f.evidence or {}).get('confidence', 'high') %}
           <div class="flex items-center gap-2 flex-wrap">
             <code class="font-mono text-xs text-zinc-500">{{ f.probe_id }}</code>
             {% if f.algorithm and f.algorithm != 'N/A' %}
               <span class="text-zinc-700" aria-hidden="true">&middot;</span>
               <code class="font-mono text-xs text-amber-300">{{ f.algorithm }}</code>
+            {% endif %}
+            {% if _conf != 'high' %}
+              <span class="conf-chip" data-conf="{{ _conf }}" title="{{ t('conf.' ~ _conf) }}">{{ t('conf.' ~ _conf) }}</span>
             {% endif %}
           </div>
           <p class="mt-1 text-sm text-zinc-100 leading-snug font-mono">{{ f.title }}</p>

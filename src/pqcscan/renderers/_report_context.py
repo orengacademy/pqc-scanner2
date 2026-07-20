@@ -106,6 +106,9 @@ def build_report_context(repo: Repo, scan_id: int, lang: str = "en") -> dict[str
     hndl_count = sum(
         1 for f in findings if (f.remediation or {}).get("hndl")
     )
+    low_confidence_count = sum(
+        1 for f in findings if (f.evidence or {}).get("confidence") == "low"
+    )
 
     top_findings = sorted(
         (f for f in findings if f.severity in ("crit", "high")),
@@ -137,6 +140,7 @@ def build_report_context(repo: Repo, scan_id: int, lang: str = "en") -> dict[str
         "fw_summary": {k: dict(v) for k, v in fw_summary.items()},
         "priority": priority,
         "hndl_count": hndl_count,
+        "low_confidence_count": low_confidence_count,
         "top_findings": top_findings,
         "crit_probes": crit_probes,
         "total_findings": len(findings),

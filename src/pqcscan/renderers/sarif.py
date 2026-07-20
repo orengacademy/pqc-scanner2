@@ -65,6 +65,7 @@ def _result_for(f: Any) -> dict[str, Any]:
         if remediation.get("deadline"):
             message += f" by {remediation['deadline']}"
 
+    confidence = (f.evidence or {}).get("confidence", "high")
     result: dict[str, Any] = {
         "ruleId": f.probe_id,
         "level": level,
@@ -73,6 +74,7 @@ def _result_for(f: Any) -> dict[str, Any]:
             "algorithm": f.algorithm,
             "classification": str(f.classification),
             "security-severity": _SECURITY_SEVERITY.get(severity, "1.0"),
+            "confidence": confidence,
         },
     }
     if remediation.get("replacement"):

@@ -124,6 +124,9 @@
   {% if hndl_count %}
   <div class="callout">⚠ {{ t('exec.hndl_call').format(n=hndl_count) }}</div>
   {% endif %}
+  {% if low_confidence_count %}
+  <p class="small muted">ⓘ {{ t('conf.note').format(n=low_confidence_count) }}</p>
+  {% endif %}
 
   <h2>{{ t('sec.readiness') }}</h2>
   {% set b = bands %}
@@ -222,7 +225,8 @@
       {% if f.algorithm and f.algorithm != 'N/A' %}<code>{{ f.algorithm }}</code>{% endif %}
     </div>
     <div class="hd">{{ f.title }}</div>
-    <div class="where">{{ t('col.probe') }}: <code>{{ f.probe_id }}</code></div>
+    {% set _conf = (f.evidence or {}).get('confidence', 'high') %}
+    <div class="where">{{ t('col.probe') }}: <code>{{ f.probe_id }}</code>{% if _conf != 'high' %} · {{ t('conf.' ~ _conf) }}{% endif %}</div>
     {% if rem.get('replacement') %}
     <div class="rem">
       → {{ t('col.target') }} <strong>{{ rem.get('replacement') }}</strong>{% if rem.get('standard') %} ({{ rem.get('standard') }}){% endif %}{% if rem.get('deadline') %} · {{ t('col.deadline') }} {{ rem.get('deadline') }}{% endif %}{% if rem.get('hndl') %} · <span class="pill hndl">{{ t('priority.hndl') }}</span>{% endif %}
