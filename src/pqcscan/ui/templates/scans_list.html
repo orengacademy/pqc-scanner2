@@ -3,9 +3,9 @@
 
 <section class="mb-6 flex items-end justify-between gap-6 flex-wrap">
   <div>
-    <p class="text-xs font-mono uppercase tracking-[0.2em] text-zinc-500 mb-2">history</p>
+    <p class="text-xs font-mono uppercase tracking-[0.2em] text-zinc-500 mb-2">{{ t('common.history') }}</p>
     <h1 class="text-3xl font-semibold tracking-tight text-zinc-50">{{ t('scans.title') }}</h1>
-    <p class="mt-2 text-sm text-zinc-400">{{ scans|length }} scans recorded</p>
+    <p class="mt-2 text-sm text-zinc-400">{{ scans|length }} {{ t('scans.recorded') }}</p>
   </div>
   <button hx-post="/api/scans" hx-swap="none"
           class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white font-medium text-sm transition-colors shadow-[0_0_20px_-4px_rgb(59_130_246/0.6)]">
@@ -21,10 +21,10 @@
     <thead class="text-xs uppercase tracking-wider text-zinc-500">
       <tr class="border-b border-zinc-800/80">
         <th class="text-left font-medium py-3 px-5">#</th>
-        <th class="text-left font-medium py-3 px-5">Status</th>
-        <th class="text-left font-medium py-3 px-5">Mode</th>
-        <th class="text-left font-medium py-3 px-5">Started</th>
-        <th class="text-left font-medium py-3 px-5">Finished</th>
+        <th class="text-left font-medium py-3 px-5">{{ t('common.status') }}</th>
+        <th class="text-left font-medium py-3 px-5">{{ t('common.mode') }}</th>
+        <th class="text-left font-medium py-3 px-5">{{ t('common.started') }}</th>
+        <th class="text-left font-medium py-3 px-5">{{ t('common.finished') }}</th>
         <th class="py-3 px-5"></th>
       </tr>
     </thead>
@@ -41,7 +41,7 @@
           <td class="py-2.5 px-5 font-mono text-zinc-500 text-xs">{{ s.started_at }}</td>
           <td class="py-2.5 px-5 font-mono text-zinc-500 text-xs">{{ s.finished_at if s.finished_at else '—' }}</td>
           <td class="py-2.5 px-5 text-right">
-            <a href="/scans/{{ s.id }}" class="text-blue-400 hover:text-blue-300 text-xs">View &rarr;</a>
+            <a href="/scans/{{ s.id }}" class="text-blue-400 hover:text-blue-300 text-xs">{{ t('common.view') }} &rarr;</a>
           </td>
         </tr>
       {% else %}
