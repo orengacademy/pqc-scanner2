@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.7] — 2026-07-20
+
+### Added — measured accuracy: precision/recall benchmark harness
+Turns "accurate" from an asserted claim into a measured, regression-gated number.
+- **`benchmark/`** — a labelled fixture corpus (41 cases: 19 positive / 22
+  negative) across 13 offline probes, heavily targeting the comment/string
+  cases the v0.8.6 precision work fixes (Python AST + Go/Java/JS/PHP/Rust
+  suppressor), plus config/cert/DB probes.
+- **`benchmark/run_benchmark.py`** — scores each probe and overall for
+  **precision** (TP/(TP+FP)) and **recall** (TP/(TP+FN)); `--json`,
+  `--min-precision`, `--min-recall`; writes `benchmark/last_report.json`.
+- **`tests/benchmark/test_accuracy.py`** — CI gate asserting overall
+  **precision == 1.0** (zero false positives), recall ≥ 0.95, and that every
+  corpus input exists and every probe id resolves — so precision can never
+  silently regress as probes are added.
+- Current measured result: **precision 1.000, recall 1.000** (TP=19, FP=0,
+  FN=0, TN=22). Additive only — no scanner-code changes.
+
 ## [0.8.6] — 2026-07-20
 
 ### Added — precision & live sensing (closing the last two capability gaps)
