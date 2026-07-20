@@ -31,3 +31,4 @@ Thumbs.db
 *.egg
 *.dist-info/
 pyinstaller/
+.claude/worktrees/

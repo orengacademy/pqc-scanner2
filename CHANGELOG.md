@@ -21,6 +21,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (PQC, TLS, ML-KEM, SARIF, CBOM, HNDL, NIST, NACSA, SSE) are kept verbatim in
   both languages.
 
+### Changed — reports rebuilt (10/10 content + fully bilingual)
+- **Technical + executive reports rewritten** with a shared context builder
+  (`renderers/_report_context.py`) so the HTML and PDF paths never drift.
+  New content: a readiness gauge, four readiness-band cards with descriptions,
+  a **priority-remediation table that groups quantum-vulnerable assets by their
+  recommended NIST replacement** (most-affected / HNDL-first, with per-group
+  asset counts, standard, and deadline), an HNDL callout, a breakdown by
+  cryptographic surface, the full framework-compliance matrix, the NACSA
+  migration timeline with the current phase highlighted, and per-finding
+  human-readable remediation (target + FIPS standard + deadline) instead of a
+  raw-JSON dump.
+- **Full English + Bahasa Melayu** for both reports via
+  `renderers/_report_text.py` and a `lang` parameter threaded through the CLI
+  (`export --lang en|ms`), the daemon (`/export/{fmt}?lang=`), and the web
+  HTML-report routes (`/scans/{id}/report/tech?lang=`, follows the UI locale
+  cookie by default). The HTML reports need no WeasyPrint, so they render
+  identically in the frozen binary and print to PDF from any browser.
+
 ## [0.7.5] — 2026-07-20
 
 ### Added — findings UX

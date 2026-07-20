@@ -1,155 +1,253 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
   <meta charset="utf-8">
-  <title>pqcscan — Scan #{{ scan.id }}</title>
+  <title>pqcscan — {{ t('report.scan') }} #{{ scan.id }} — {{ t('tech.doc_title') }}</title>
   <style>
-    @page { size: A4; margin: 22mm 18mm; @bottom-right {
-      content: "Page " counter(page) " of " counter(pages);
-      font: 9pt sans-serif; color: #888;
-    } }
+    @page {
+      size: A4; margin: 20mm 16mm 18mm;
+      @bottom-left { content: "{{ t('report.confidential') }}"; font: 7.5pt sans-serif; color: #94a3b8; }
+      @bottom-right { content: "{{ t('report.scan') }} #{{ scan.id }} · " counter(page) " / " counter(pages);
+                      font: 7.5pt sans-serif; color: #94a3b8; }
+    }
+    * { box-sizing: border-box; }
     body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-           font-size: 10pt; color: #1a1a1a; line-height: 1.4; }
-    h1 { font-size: 22pt; margin: 0 0 8pt; color: #0f172a; }
-    h2 { font-size: 14pt; margin: 18pt 0 6pt; color: #0f172a;
-         border-bottom: 1pt solid #cbd5e1; padding-bottom: 2pt; }
-    h3 { font-size: 11pt; margin: 12pt 0 4pt; color: #334155; }
-    .meta { color: #64748b; font-size: 9pt; }
-    table { width: 100%; border-collapse: collapse; margin: 6pt 0; font-size: 9.5pt; }
-    th { text-align: left; background: #f1f5f9; padding: 4pt 6pt;
-         border-bottom: 1pt solid #cbd5e1; font-weight: 600; }
-    td { padding: 4pt 6pt; border-bottom: 1pt solid #e2e8f0;
-         vertical-align: top; word-break: break-word; }
-    .summary-grid { display: flex; gap: 8pt; margin: 8pt 0; }
-    .stat { flex: 1; border: 1pt solid #cbd5e1; border-radius: 4pt;
-            padding: 6pt 8pt; }
-    .stat .label { color: #64748b; font-size: 8pt; text-transform: uppercase;
-                   letter-spacing: 0.5pt; }
-    .stat .num { font-size: 20pt; font-weight: 700; color: #0f172a; }
-    .pill { display: inline-block; padding: 1pt 5pt; border-radius: 8pt;
-            font-size: 8pt; font-weight: 600; margin-right: 3pt; }
-    .pill.crit { background: #fee2e2; color: #991b1b; }
-    .pill.high { background: #fed7aa; color: #9a3412; }
-    .pill.med  { background: #fef3c7; color: #854d0e; }
-    .pill.low  { background: #dcfce7; color: #166534; }
+           font-size: 9.5pt; color: #1e293b; line-height: 1.45; margin: 0; }
+    h1 { font-size: 24pt; margin: 0; color: #0f172a; letter-spacing: -0.5pt; }
+    h2 { font-size: 13pt; margin: 20pt 0 8pt; color: #0f172a;
+         border-bottom: 1.5pt solid #f59e0b; padding-bottom: 3pt; }
+    h3 { font-size: 10.5pt; margin: 10pt 0 4pt; color: #334155; }
+    .muted { color: #64748b; }
+    .small { font-size: 8pt; }
+    code { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 8.5pt; }
+
+    /* Cover band */
+    .cover { border: 1pt solid #e2e8f0; border-left: 4pt solid #f59e0b;
+             border-radius: 6pt; padding: 16pt 18pt; margin-top: 6pt;
+             display: flex; justify-content: space-between; align-items: center; }
+    .cover .eyebrow { font-size: 8pt; text-transform: uppercase; letter-spacing: 1pt;
+                      color: #b45309; font-weight: 700; }
+    .cover .meta { color: #64748b; font-size: 8.5pt; margin-top: 6pt; }
+    .gauge-wrap { text-align: center; min-width: 120pt; }
+    .gauge-num { font-size: 30pt; font-weight: 800; line-height: 1; color: #0f172a; }
+    .gauge-cap { font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.6pt; color: #64748b; }
+
+    /* Band cards */
+    .cards { display: flex; gap: 8pt; margin: 10pt 0; }
+    .card { flex: 1; border: 1pt solid #e2e8f0; border-radius: 5pt; padding: 8pt 10pt; }
+    .card .n { font-size: 20pt; font-weight: 800; line-height: 1; }
+    .card .l { font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4pt; margin-top: 3pt; }
+    .card .d { font-size: 7.5pt; color: #64748b; margin-top: 3pt; line-height: 1.3; }
+    .card.green { border-color: #86efac; background: #f0fdf4; } .card.green .n { color: #16a34a; }
+    .card.yellow{ border-color: #fde68a; background: #fffbeb; } .card.yellow .n { color: #b45309; }
+    .card.red   { border-color: #fecaca; background: #fef2f2; } .card.red .n { color: #dc2626; }
+    .card.grey  { border-color: #e2e8f0; background: #f8fafc; } .card.grey .n { color: #64748b; }
+
+    table { width: 100%; border-collapse: collapse; margin: 6pt 0; font-size: 8.8pt; }
+    th { text-align: left; background: #f1f5f9; padding: 4pt 6pt; border-bottom: 1pt solid #cbd5e1;
+         font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.3pt; color: #475569; }
+    td { padding: 4pt 6pt; border-bottom: 0.75pt solid #e2e8f0; vertical-align: top; word-break: break-word; }
+    tr:nth-child(even) td { background: #fbfcfe; }
+    .num-col { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .pill { display: inline-block; padding: 1pt 6pt; border-radius: 8pt; font-size: 7.5pt; font-weight: 700; }
+    .pill.crit { background: #fee2e2; color: #991b1b; } .pill.high { background: #ffedd5; color: #9a3412; }
+    .pill.med  { background: #fef3c7; color: #854d0e; } .pill.low  { background: #dcfce7; color: #166534; }
     .pill.info { background: #e0e7ff; color: #3730a3; }
-    .pill.compliant     { background: #dcfce7; color: #166534; }
-    .pill.non-compliant { background: #fee2e2; color: #991b1b; }
-    .pill.at-risk       { background: #fed7aa; color: #9a3412; }
-    .pill.advisory      { background: #e0e7ff; color: #3730a3; }
-    .finding { page-break-inside: avoid; margin-bottom: 10pt;
-               border: 1pt solid #e2e8f0; border-radius: 3pt; padding: 6pt 8pt; }
-    .finding h3 { margin-top: 0; }
-    .finding .where { color: #64748b; font-size: 8pt; }
-    .ev { background: #f8fafc; font-family: "SF Mono", monospace;
-          font-size: 8pt; padding: 4pt 6pt; border-radius: 2pt;
-          white-space: pre-wrap; word-break: break-all; }
-    footer { margin-top: 16pt; color: #64748b; font-size: 8pt;
-             border-top: 1pt solid #cbd5e1; padding-top: 6pt; }
+    .pill.sangat-tinggi { background: #fee2e2; color: #991b1b; } .pill.tinggi { background: #ffedd5; color: #9a3412; }
+    .pill.sederhana { background: #fef3c7; color: #854d0e; } .pill.rendah { background: #dcfce7; color: #166534; }
+    .pill.pqc-ready { background: #dcfce7; color: #166534; } .pill.error { background: #f1f5f9; color: #475569; }
+    .pill.compliant { background: #dcfce7; color: #166534; } .pill.non-compliant { background: #fee2e2; color: #991b1b; }
+    .pill.at-risk { background: #ffedd5; color: #9a3412; } .pill.advisory { background: #e0e7ff; color: #3730a3; }
+    .pill.hndl { background: #7f1d1d; color: #fff; }
+    .pill.tgt { background: #ecfccb; color: #3f6212; }
+
+    .callout { border: 1pt solid #fecaca; background: #fef2f2; border-radius: 5pt;
+               padding: 8pt 10pt; margin: 8pt 0; color: #7f1d1d; font-size: 9pt; }
+    .lede { font-size: 10pt; color: #334155; margin: 6pt 0 2pt; }
+
+    /* Timeline */
+    .timeline { display: flex; gap: 4pt; margin: 8pt 0; }
+    .ph { flex: 1; border: 1pt solid #e2e8f0; border-radius: 4pt; padding: 6pt 7pt; font-size: 7.8pt; }
+    .ph.done { background: #f8fafc; } .ph.active { border-color: #f59e0b; background: #fffbeb; }
+    .ph .pn { font-weight: 800; color: #0f172a; } .ph .pd { color: #64748b; margin-top: 2pt; }
+    .ph .tag { font-size: 6.5pt; text-transform: uppercase; letter-spacing: 0.4pt; color: #b45309; font-weight: 700; }
+
+    .finding { page-break-inside: avoid; margin: 7pt 0; border: 0.75pt solid #e2e8f0;
+               border-left: 3pt solid #cbd5e1; border-radius: 3pt; padding: 6pt 9pt; }
+    .finding.crit { border-left-color: #dc2626; } .finding.high { border-left-color: #ea580c; }
+    .finding.med { border-left-color: #d97706; } .finding.low { border-left-color: #16a34a; }
+    .finding .hd { font-size: 9.5pt; font-weight: 700; color: #0f172a; margin: 2pt 0; }
+    .finding .where { color: #64748b; font-size: 7.5pt; }
+    .rem { background: #f0fdf4; border: 0.75pt solid #bbf7d0; border-radius: 3pt;
+           padding: 4pt 7pt; margin-top: 4pt; font-size: 8.3pt; color: #14532d; }
+    .ev { background: #f8fafc; font-family: "SF Mono", monospace; font-size: 7.3pt;
+          padding: 4pt 6pt; border-radius: 2pt; white-space: pre-wrap; word-break: break-all;
+          margin-top: 4pt; color: #475569; max-height: 60pt; overflow: hidden; }
+    footer { margin-top: 14pt; color: #64748b; font-size: 7.5pt; border-top: 1pt solid #e2e8f0; padding-top: 5pt; }
   </style>
 </head>
 <body>
-  <h1>pqcscan — Technical Scan Report</h1>
-  <p class="meta">
-    Scan #{{ scan.id }} · started {{ scan.started_at }}
-    {% if scan.finished_at %} · finished {{ scan.finished_at }}{% endif %}
-    · mode <strong>{{ scan.mode }}</strong>
-    · status <strong>{{ scan.status }}</strong>
-    {% if scan.host_fingerprint %} · host {{ scan.host_fingerprint }}{% endif %}
-    · pqcscan {{ version }}
-  </p>
+  {% set crit = class_counts.get('sangat-tinggi', 0) %}
+  {% set high = class_counts.get('tinggi', 0) %}
+  {% set ready = class_counts.get('pqc-ready', 0) %}
 
-  <h2>1. Headline numbers</h2>
-  <div class="summary-grid">
-    <div class="stat">
-      <div class="label">Total findings</div>
-      <div class="num">{{ total_findings }}</div>
+  <div class="cover">
+    <div>
+      <div class="eyebrow">pqcscan · {{ t('report.subtitle') }}</div>
+      <h1>{{ t('tech.doc_title') }}</h1>
+      <div class="meta">
+        {{ t('report.scan') }} #{{ scan.id }} ·
+        {{ t('report.started') }} {{ scan.started_at }}
+        {% if scan.finished_at %} · {{ t('report.finished') }} {{ scan.finished_at }}{% endif %}<br>
+        {{ t('report.mode') }} <strong>{{ scan.mode }}</strong> ·
+        {{ t('report.status') }} <strong>{{ scan.status }}</strong>
+        {% if scan.host_fingerprint %} · {{ t('report.host') }} {{ scan.host_fingerprint }}{% endif %} ·
+        {{ t('report.generated') }} {{ generated_on }} · pqcscan v{{ version }}
+      </div>
     </div>
-    <div class="stat">
-      <div class="label">Sangat Tinggi</div>
-      <div class="num" style="color:#dc2626">{{ class_counts.get('sangat-tinggi', 0) }}</div>
-    </div>
-    <div class="stat">
-      <div class="label">Tinggi</div>
-      <div class="num" style="color:#ea580c">{{ class_counts.get('tinggi', 0) }}</div>
-    </div>
-    <div class="stat">
-      <div class="label">PQC-Ready</div>
-      <div class="num" style="color:#16a34a">{{ class_counts.get('pqc-ready', 0) }}</div>
+    <div class="gauge-wrap">
+      {% set r = readiness or 0 %}
+      <svg viewBox="0 0 120 66" width="118">
+        <path d="M 10 60 A 50 50 0 0 1 110 60" fill="none" stroke="#e2e8f0" stroke-width="9" stroke-linecap="round"/>
+        <path d="M 10 60 A 50 50 0 0 1 110 60" fill="none"
+              stroke="{{ '#16a34a' if r >= 67 else '#d97706' if r >= 34 else '#dc2626' }}"
+              stroke-width="9" stroke-linecap="round" stroke-dasharray="{{ (r * 1.57)|round(1) }} 200"/>
+      </svg>
+      <div class="gauge-num">{{ r }}</div>
+      <div class="gauge-cap">{{ t('readiness.score') }} / 100</div>
     </div>
   </div>
 
-  <h2>2. Compliance verdicts by framework</h2>
-  {% if fw_summary %}
+  <h2>{{ t('sec.summary') }}</h2>
+  <p class="lede">{{ t('exec.narrative').format(crit=crit, high=high, ready=ready, score=readiness or 0) }}</p>
+  {% if hndl_count %}
+  <div class="callout">⚠ {{ t('exec.hndl_call').format(n=hndl_count) }}</div>
+  {% endif %}
+
+  <h2>{{ t('sec.readiness') }}</h2>
+  {% set b = bands %}
+  <div class="cards">
+    <div class="card green"><div class="n">{{ b.green }}</div><div class="l">{{ t('band.green') }}</div><div class="d">{{ t('band.green.desc') }}</div></div>
+    <div class="card yellow"><div class="n">{{ b.yellow }}</div><div class="l">{{ t('band.yellow') }}</div><div class="d">{{ t('band.yellow.desc') }}</div></div>
+    <div class="card red"><div class="n">{{ b.red }}</div><div class="l">{{ t('band.red') }}</div><div class="d">{{ t('band.red.desc') }}</div></div>
+    <div class="card grey"><div class="n">{{ b.grey }}</div><div class="l">{{ t('band.grey') }}</div><div class="d">{{ t('band.grey.desc') }}</div></div>
+  </div>
+
+  <h2>{{ t('sec.surfaces') }}</h2>
   <table>
     <thead><tr>
-      <th>Framework</th><th>Compliant</th><th>At-risk</th>
-      <th>Non-compliant</th><th>Advisory</th><th>Other</th>
+      <th>{{ t('col.surface') }}</th><th class="num-col">{{ t('col.total') }}</th>
+      <th class="num-col">{{ t('band.green') }}</th><th class="num-col">{{ t('band.yellow') }}</th>
+      <th class="num-col">{{ t('band.red') }}</th><th class="num-col">{{ t('band.grey') }}</th>
     </tr></thead>
     <tbody>
-      {% for fw, counts in fw_summary.items()|sort %}
+      {% for skey in surface_order %}{% set s = surfaces[skey] %}
       <tr>
-        <td><strong>{{ fw }}</strong></td>
-        <td>{{ counts.get('compliant', 0) }}</td>
-        <td>{{ counts.get('at-risk', 0) }}</td>
-        <td>{{ counts.get('non-compliant', 0) }}</td>
-        <td>{{ counts.get('advisory', 0) }}</td>
-        <td>{{ counts.values()|sum
-              - counts.get('compliant', 0) - counts.get('at-risk', 0)
-              - counts.get('non-compliant', 0) - counts.get('advisory', 0) }}</td>
+        <td><strong>{{ t('surface.' ~ skey) }}</strong></td>
+        <td class="num-col">{{ s.total }}</td>
+        <td class="num-col" style="color:#16a34a">{{ s.green }}</td>
+        <td class="num-col" style="color:#b45309">{{ s.yellow }}</td>
+        <td class="num-col" style="color:#dc2626">{{ s.red }}</td>
+        <td class="num-col" style="color:#64748b">{{ s.grey }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>{{ t('sec.priority') }}</h2>
+  {% if priority %}
+  <p class="small muted">{{ t('priority.intro') }}</p>
+  <table>
+    <thead><tr>
+      <th>{{ t('col.target') }}</th><th>{{ t('col.standard') }}</th>
+      <th class="num-col">{{ t('col.count') }}</th><th>{{ t('col.deadline') }}</th><th>{{ t('col.algorithm') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for g in priority %}
+      <tr>
+        <td><span class="pill tgt">{{ g.target }}</span>{% if g.hndl %} <span class="pill hndl">{{ t('priority.hndl') }}</span>{% endif %}</td>
+        <td>{{ g.standard or '—' }}</td>
+        <td class="num-col"><strong>{{ g.count }}</strong></td>
+        <td>{{ g.deadline or '—' }}</td>
+        <td class="small">{{ g.algorithms|join(', ') }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
   {% else %}
-  <p class="meta">No framework verdicts produced for this scan.</p>
+  <p class="muted">{{ t('priority.none') }}</p>
   {% endif %}
 
-  <h2>3. Findings ({{ total_findings }})</h2>
+  <h2>{{ t('sec.compliance') }}</h2>
+  {% if fw_summary %}
+  <table>
+    <thead><tr>
+      <th>{{ t('col.framework') }}</th><th class="num-col">{{ t('verdict.compliant') }}</th>
+      <th class="num-col">{{ t('verdict.at-risk') }}</th><th class="num-col">{{ t('verdict.non-compliant') }}</th>
+      <th class="num-col">{{ t('verdict.advisory') }}</th>
+    </tr></thead>
+    <tbody>
+      {% for fw, counts in fw_summary.items()|sort %}
+      <tr>
+        <td><strong>{{ fw }}</strong></td>
+        <td class="num-col">{{ counts.get('compliant', 0) }}</td>
+        <td class="num-col">{{ counts.get('at-risk', 0) }}</td>
+        <td class="num-col">{{ counts.get('non-compliant', 0) }}</td>
+        <td class="num-col">{{ counts.get('advisory', 0) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">{{ t('compliance.none') }}</p>{% endif %}
+
+  <h2>{{ t('sec.timeline') }}</h2>
+  <div class="timeline">
+    {% for ph in nacsa_phases %}
+    <div class="ph {{ 'active' if ph.n == nacsa_current else ('done' if ph.n < nacsa_current else '') }}">
+      <div class="pn">Fasa {{ ph.n }}{% if ph.n == nacsa_current %} <span class="tag">{{ t('timeline.now') }}</span>{% endif %}</div>
+      <div>{{ ph.ms if lang == 'ms' else ph.en }}</div>
+      <div class="pd">{{ ph.start.strftime('%b %Y') }}{% if ph.end %} – {{ ph.end.strftime('%b %Y') }}{% else %}+{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <h2>{{ t('sec.findings') }} ({{ total_findings }})</h2>
   {% for f in findings %}
-  <div class="finding">
-    <h3>
+  {% set rem = f.remediation or {} %}
+  <div class="finding {{ f.severity }}">
+    <div>
       <span class="pill {{ f.severity }}">{{ f.severity|upper }}</span>
-      <span class="pill {{ f.classification }}">{{ f.classification }}</span>
-      {{ f.algorithm }} — {{ f.title }}
-    </h3>
-    <div class="where">probe: <code>{{ f.probe_id }}</code> · created {{ f.created_at }}</div>
-    {% if f.evidence %}
-    <div style="margin-top:4pt"><strong>Evidence</strong></div>
-    <pre class="ev">{{ f.evidence|tojson(indent=2) }}</pre>
+      <span class="pill {{ f.classification }}">{{ t('cls.' ~ f.classification) }}</span>
+      {% if f.algorithm and f.algorithm != 'N/A' %}<code>{{ f.algorithm }}</code>{% endif %}
+    </div>
+    <div class="hd">{{ f.title }}</div>
+    <div class="where">{{ t('col.probe') }}: <code>{{ f.probe_id }}</code></div>
+    {% if rem.get('replacement') %}
+    <div class="rem">
+      → {{ t('col.target') }} <strong>{{ rem.get('replacement') }}</strong>{% if rem.get('standard') %} ({{ rem.get('standard') }}){% endif %}{% if rem.get('deadline') %} · {{ t('col.deadline') }} {{ rem.get('deadline') }}{% endif %}{% if rem.get('hndl') %} · <span class="pill hndl">{{ t('priority.hndl') }}</span>{% endif %}
+      {% if rem.get('snippet') %}<div class="small" style="margin-top:3pt"><code>{{ rem.get('snippet') }}</code></div>{% endif %}
+    </div>
     {% endif %}
-    {% if f.remediation %}
-    <div style="margin-top:4pt"><strong>Remediation</strong></div>
-    <pre class="ev">{{ f.remediation|tojson(indent=2) }}</pre>
-    {% endif %}
+    {% if f.evidence %}<pre class="ev">{{ f.evidence|tojson(indent=2) }}</pre>{% endif %}
     {% set verdicts = verdicts_by_finding.get(f.id, []) %}
     {% if verdicts %}
-    <div style="margin-top:4pt"><strong>Framework verdicts</strong></div>
-    <table>
-      <thead><tr>
-        <th>Framework</th><th>Clause</th><th>Verdict</th><th>Deadline</th>
-      </tr></thead>
+    <table style="margin-top:4pt">
+      <thead><tr><th>{{ t('col.framework') }}</th><th>{{ t('col.clause') }}</th><th>{{ t('col.verdict') }}</th><th>{{ t('col.deadline') }}</th></tr></thead>
       <tbody>
         {% for v in verdicts %}
-        <tr>
-          <td>{{ v.framework }}</td>
-          <td><code>{{ v.clause }}</code></td>
-          <td><span class="pill {{ v.verdict }}">{{ v.verdict }}</span></td>
-          <td>{% if v.deadline %}{{ v.deadline }}{% else %}—{% endif %}</td>
-        </tr>
+        <tr><td>{{ v.framework }}</td><td><code>{{ v.clause }}</code></td>
+            <td><span class="pill {{ v.verdict }}">{{ t('verdict.' ~ v.verdict) }}</span></td>
+            <td>{{ v.deadline or '—' }}</td></tr>
         {% endfor %}
       </tbody>
     </table>
     {% endif %}
   </div>
   {% else %}
-  <p class="meta">No findings recorded for this scan.</p>
+  <p class="muted">{{ t('findings.none') }}</p>
   {% endfor %}
 
-  <footer>
-    Generated by pqcscan v{{ version }}.
-    Scan ID {{ scan.id }} · {{ total_findings }} findings ·
-    {{ total_framework_views }} framework verdicts.
-  </footer>
+  <footer>{{ t('footer').format(version=version) }}</footer>
 </body>
 </html>
