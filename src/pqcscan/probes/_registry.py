@@ -69,11 +69,14 @@ def default_registry() -> Registry:
     from pqcscan.probes.fs_conf_apache import FsConfApache
     from pqcscan.probes.fs_conf_caddy import FsConfCaddy
     from pqcscan.probes.fs_conf_envoy import FsConfEnvoy
+    from pqcscan.probes.fs_conf_f5 import FsConfF5
     from pqcscan.probes.fs_conf_haproxy import FsConfHaproxy
+    from pqcscan.probes.fs_conf_netscaler import FsConfNetscaler
     from pqcscan.probes.fs_conf_nginx import FsConfNginx
     from pqcscan.probes.fs_conf_openssl_cnf import FsConfOpensslCnf
     from pqcscan.probes.fs_conf_sshd import FsConfSshd
     from pqcscan.probes.fs_conf_traefik import FsConfTraefik
+    from pqcscan.probes.fs_db_crypto import FsDbCrypto
     from pqcscan.probes.fs_keyref_cloud import FsKeyrefCloud
     from pqcscan.probes.fs_keystore_jks import FsKeystoreJks
     from pqcscan.probes.fs_keystore_pkcs12 import FsKeystorePkcs12
@@ -302,6 +305,9 @@ def default_registry() -> Registry:
     reg.register(CodeCryptoPrimitives())
     reg.register(SbomCryptoMap())
     reg.register(FsPcapCrypto())
+    reg.register(FsDbCrypto())
+    reg.register(FsConfF5())
+    reg.register(FsConfNetscaler())
     reg.register(CodeTsJava())
     reg.register(CodeTsPhp())
     reg.register(CodeTsRust())
