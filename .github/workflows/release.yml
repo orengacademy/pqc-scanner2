@@ -29,6 +29,10 @@ jobs:
             asset_suffix: macos-arm64
             bin_name: pqcscan
             shell: bash
+          - os: macos-13
+            asset_suffix: macos-x86_64
+            bin_name: pqcscan
+            shell: bash
           - os: windows-latest
             asset_suffix: windows-x86_64.exe
             bin_name: pqcscan.exe
