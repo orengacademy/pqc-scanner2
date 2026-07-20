@@ -77,6 +77,9 @@ LOCALES: dict[str, dict[str, str]] = {
         "diff.common": "unchanged",
         "diff.no_added": "No new findings introduced since the baseline.",
         "diff.no_removed": "No findings disappeared since the baseline.",
+        "conf.high": "high confidence",
+        "conf.medium": "medium confidence",
+        "conf.low": "low confidence",
         # ── shared / common ──
         "common.status": "Status",
         "common.mode": "Mode",
@@ -240,6 +243,9 @@ LOCALES: dict[str, dict[str, str]] = {
         "diff.common": "tidak berubah",
         "diff.no_added": "Tiada penemuan baru sejak garis dasar.",
         "diff.no_removed": "Tiada penemuan yang hilang sejak garis dasar.",
+        "conf.high": "keyakinan tinggi",
+        "conf.medium": "keyakinan sederhana",
+        "conf.low": "keyakinan rendah",
         # ── shared / common ──
         "common.status": "Status",
         "common.mode": "Mod",

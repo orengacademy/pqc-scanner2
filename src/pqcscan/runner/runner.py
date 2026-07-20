@@ -8,6 +8,7 @@ from pathlib import Path
 from loguru import logger
 
 from pqcscan.compliance.engine import ComplianceEngine
+from pqcscan.core.confidence import assess as assess_confidence
 from pqcscan.core.remediation import enrich as enrich_remediation
 from pqcscan.core.types import Capability, Classification, Finding, Severity
 from pqcscan.probes._base import OTTarget, Probe, ScanContext
@@ -97,6 +98,11 @@ class ProbeRunner:
             # finding carries a migration target + deadline without each probe
             # duplicating the mapping (probe-authored remediation is kept).
             enrich_remediation(f)
+            # Assign detection confidence (down-ranks regex-in-a-comment etc.)
+            # and persist it in evidence so it survives to reports/SARIF/CBOM
+            # (the findings table has no dedicated column).
+            f.confidence = assess_confidence(f.probe_id, f.evidence)
+            f.evidence = {**f.evidence, "confidence": f.confidence}
             finding_id = self.repo.record_finding(ctx.scan_id, f)
             for verdict in self.compliance.evaluate(f):
                 self.repo.record_framework_view(

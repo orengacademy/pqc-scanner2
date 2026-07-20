@@ -75,4 +75,7 @@ class Finding:
     component_purl: str | None = None
     evidence: dict[str, Any] = field(default_factory=dict)
     remediation: dict[str, Any] = field(default_factory=dict)
+    # Detection confidence: "high" | "medium" | "low". Assigned centrally by
+    # the runner (see core.confidence) unless a probe sets it explicitly.
+    confidence: str = "high"
     created_at: datetime = field(default_factory=datetime.utcnow)

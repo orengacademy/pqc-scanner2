@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] — 2026-07-20
+
+### Added — accuracy: per-finding confidence + false-positive reduction
+- **Per-finding detection confidence** (`core/confidence.py`), assigned
+  centrally in the runner: **high** for structured parses (X.509, config
+  directives, host-tool output, live handshakes), **medium** for regex/keyword
+  source matches and name/version inference (SBOM/CVE), **low** for heuristic
+  sniffs, advertised-but-not-negotiated observations, and — the key
+  false-positive fix — **source-code matches inside comments, test files, or
+  vendored trees** (`node_modules`, `site-packages`, `/tests/`, `*.spec.*`, …).
+  This is the technique the mature tools (cbomkit-theia executability
+  confidence, cryptoscan comment/test downgrade) use; no PQC vendor documents a
+  formal model, so it's a genuine differentiator.
+- Confidence is surfaced everywhere: a chip on the scan-detail findings
+  (EN/MS), a per-finding label + a "N low-confidence findings — verify before
+  acting" note in the reports (EN/MS), `properties.confidence` in the SARIF
+  export, and `pqcscan:confidence` + `evidence.occurrences` provenance in the
+  CycloneDX CBOM.
+
+### Fixed
+- TLS 1.3 AEAD cipher-suite names (`TLS_AES_256_GCM_SHA384`,
+  `TLS_CHACHA20_POLY1305_SHA256`, `TLS_AES_128_GCM_SHA256`) are now classified
+  by their symmetric strength (RENDAH / RENDAH / SEDERHANA) instead of falling
+  through to INFO (in TLS 1.3 the key-exchange is separate from the suite name).
+
 ## [0.8.0] — 2026-07-20
 
 ### Added — full bilingual web

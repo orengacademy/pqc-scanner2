@@ -100,6 +100,12 @@ _STRINGS: dict[str, dict[str, str]] = {
         "compliance.none": "No framework verdicts were produced for this scan.",
         "findings_word": "findings",
         "assets_word": "assets",
+        "conf.label": "confidence",
+        "conf.high": "high confidence",
+        "conf.medium": "medium confidence",
+        "conf.low": "low confidence",
+        "conf.note": "{n} finding(s) are low-confidence (regex/name matches, or "
+                     "hits inside comments / test files) — verify before acting.",
         # Executive narrative pieces
         "exec.narrative": "This assessment identified {crit} very-high-risk and "
                           "{high} high-risk cryptographic assets that are "
@@ -198,6 +204,12 @@ _STRINGS: dict[str, dict[str, str]] = {
         "compliance.none": "Tiada keputusan rangka kerja dihasilkan untuk imbasan ini.",
         "findings_word": "penemuan",
         "assets_word": "aset",
+        "conf.label": "keyakinan",
+        "conf.high": "keyakinan tinggi",
+        "conf.medium": "keyakinan sederhana",
+        "conf.low": "keyakinan rendah",
+        "conf.note": "{n} penemuan berkeyakinan rendah (padanan regex/nama, atau "
+                     "padanan dalam komen / fail ujian) — sahkan sebelum bertindak.",
         "exec.narrative": "Penilaian ini mengenal pasti {crit} aset kriptografi "
                           "berisiko sangat tinggi dan {high} berisiko tinggi yang "
                           "terdedah kepada komputer kuantum masa depan, di samping "

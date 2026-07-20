@@ -18,7 +18,9 @@ def build_cbom(repo: Repo, scan_id: int) -> dict[str, Any]:
     for f in findings:
         if f.algorithm == "N/A":
             continue
-        components.append({
+        ev = f.evidence or {}
+        confidence = ev.get("confidence", "high")
+        comp: dict[str, Any] = {
             "type": "cryptographic-asset",
             "bom-ref": f"finding-{f.id}",
             "name": f.algorithm,
@@ -32,7 +34,17 @@ def build_cbom(repo: Repo, scan_id: int) -> dict[str, Any]:
                     "nistQuantumSecurityLevel": _nist_level_for(f.classification),
                 },
             },
-        })
+            # Provenance: detection confidence + probe, so a downstream CBOM
+            # consumer can triage probabilistic (regex/name) detections.
+            "properties": [
+                {"name": "pqcscan:confidence", "value": confidence},
+                {"name": "pqcscan:probe", "value": f.probe_id},
+            ],
+        }
+        path = ev.get("path") or ev.get("file")
+        if isinstance(path, str) and path:
+            comp["evidence"] = {"occurrences": [{"location": path}]}
+        components.append(comp)
 
     return {
         "bomFormat": "CycloneDX",
