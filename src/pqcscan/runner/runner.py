@@ -7,6 +7,7 @@ from collections import defaultdict
 from loguru import logger
 
 from pqcscan.compliance.engine import ComplianceEngine
+from pqcscan.core.remediation import enrich as enrich_remediation
 from pqcscan.core.types import Capability, Classification, Finding, Severity
 from pqcscan.probes._base import Probe, ScanContext
 from pqcscan.probes._registry import Registry
@@ -82,6 +83,10 @@ class ProbeRunner:
             return
 
         def emit(f: Finding) -> None:
+            # Centrally attach typed PQC-replacement guidance so every stored
+            # finding carries a migration target + deadline without each probe
+            # duplicating the mapping (probe-authored remediation is kept).
+            enrich_remediation(f)
             finding_id = self.repo.record_finding(ctx.scan_id, f)
             for verdict in self.compliance.evaluate(f):
                 self.repo.record_framework_view(
