@@ -40,6 +40,31 @@ def test_start_scan_from_web(client):
     assert follow.status_code == 200
 
 
+def test_scan_detail_shows_remediation_and_search(client):
+    # Seed a scan with an enriched finding directly, then confirm the
+    # scan-detail page surfaces the PQC migration target + a search box.
+    from pqcscan.core.types import Classification, Finding, Severity
+    repo = client.app.state.repo
+    scan_id = repo.create_scan(mode="user", probe_versions={}, tool_versions={})
+    repo.record_finding(scan_id, Finding(
+        probe_id="net.tls.kex",
+        algorithm="RSA-2048",
+        classification=Classification.SANGAT_TINGGI,
+        severity=Severity.CRIT,
+        title="RSA-2048 key establishment",
+        remediation={"replacement": "ML-KEM-768", "standard": "FIPS 203",
+                     "deadline": "2030-01-01", "hndl": True},
+    ))
+    repo.finish_scan(scan_id, status="done")
+
+    r = client.get(f"/scans/{scan_id}")
+    assert r.status_code == 200
+    assert "remediation-chip" in r.text
+    assert "ML-KEM-768" in r.text
+    assert "2030-01-01" in r.text
+    assert 'id="find-search"' in r.text
+
+
 def test_static_htmx_served(client):
     r = client.get("/static/htmx-1.9.10.min.js")
     assert r.status_code == 200

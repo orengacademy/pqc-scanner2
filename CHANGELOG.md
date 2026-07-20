@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.5] — 2026-07-20
+
+### Added — findings UX
+- **Inline remediation on every finding.** The scan-detail rows now render the
+  PQC migration guidance produced by the classifier enrichment — a green
+  "→ migrate to ML-KEM-768 (FIPS 203)" chip, a deadline chip, and an **HNDL**
+  badge for harvest-now-decrypt-later exposure. What the scanner *recommends*
+  is now visible in the UI, not just in the SARIF/report exports.
+- **Findings text filter** — a search box narrows the list by probe id,
+  algorithm, or title, client-side, composing with the band chips.
+- **Live progress** — while a scan runs, a status pill consumes the SSE stream
+  to show a running finding count + current stage, and the page reloads on
+  completion.
+
 ## [0.7.4] — 2026-07-20
 
 ### Changed — web UI design system

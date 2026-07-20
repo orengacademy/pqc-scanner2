@@ -152,20 +152,33 @@
 
 {# Findings list #}
 <section>
-  <div class="flex items-end justify-between mb-3">
+  <div class="flex items-end justify-between mb-3 gap-4 flex-wrap">
     <h2 class="font-mono text-amber-400 font-semibold">Asset Inventory &amp; Findings</h2>
-    <span class="section-eyebrow">streamed via sse</span>
+    <div class="flex items-center gap-3">
+      {% if scan.status == 'running' %}
+        <span id="live-progress" class="status-pill" data-status="running">
+          <span class="pulse"></span><span id="live-count">{{ b.total }}</span> findings &middot; <span id="live-stage">scanning</span>
+        </span>
+      {% endif %}
+      <label class="relative">
+        <span class="sr-only">Search findings</span>
+        <input id="find-search" type="search" autocomplete="off" placeholder="Filter findings…"
+               oninput="pqcFilterFindings(this.value)"
+               class="w-56 bg-zinc-900/70 border border-zinc-700 rounded-md pl-3 pr-3 py-1.5 text-xs font-mono
+                      text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-amber-400/60">
+      </label>
+    </div>
   </div>
 
   <div id="findings"
        class="findings-list card divide-y divide-zinc-800/60 overflow-hidden"
-       data-bandfilter="all"
-       hx-ext="sse" sse-connect="/api/scans/{{ scan.id }}/events"
-       sse-swap="finding" hx-swap="afterbegin">
+       data-bandfilter="all">
     {% for f in findings %}
       {% set fb = band_of(f) %}
+      {% set rem = f.remediation or {} %}
       <article data-row-band="{{ fb }}"
-               class="row-hover px-5 py-3 flex items-start gap-4">
+               data-search="{{ (f.probe_id ~ ' ' ~ f.algorithm ~ ' ' ~ f.title) | lower }}"
+               class="finding-row row-hover px-5 py-3 flex items-start gap-4">
         <span class="band-pill mt-0.5" data-band="{{ fb }}"><span class="dot"></span>{{ fb }}</span>
         <div class="min-w-0 flex-1">
           <div class="flex items-center gap-2 flex-wrap">
@@ -176,6 +189,21 @@
             {% endif %}
           </div>
           <p class="mt-1 text-sm text-zinc-100 leading-snug font-mono">{{ f.title }}</p>
+          {% if rem.get('replacement') %}
+            <div class="mt-1.5 flex items-center gap-2 flex-wrap text-[11px] font-mono">
+              <span class="remediation-chip">
+                <svg class="w-3 h-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10.75 4.75a.75.75 0 00-1.5 0v5.19L6.3 6.99a.75.75 0 10-1.1 1.02l4.25 4.6a.75.75 0 001.1 0l4.25-4.6a.75.75 0 10-1.1-1.02l-2.95 2.95V4.75z"/></svg>
+                migrate to <strong>{{ rem.get('replacement') }}</strong>
+                {% if rem.get('standard') %}<span class="opacity-70">({{ rem.get('standard') }})</span>{% endif %}
+              </span>
+              {% if rem.get('deadline') %}
+                <span class="deadline-chip">by {{ rem.get('deadline') }}</span>
+              {% endif %}
+              {% if rem.get('hndl') %}
+                <span class="hndl-chip" title="Harvest-now-decrypt-later exposure">HNDL</span>
+              {% endif %}
+            </div>
+          {% endif %}
         </div>
       </article>
     {% else %}
@@ -188,6 +216,43 @@
       </div>
     {% endfor %}
   </div>
+  <p id="find-empty" class="hidden px-5 py-8 text-center text-sm text-zinc-500 font-mono">No findings match your filter.</p>
 </section>
+
+<script>
+  // Client-side text filter over the rendered findings (independent of the
+  // band chips, which use CSS). Empty query clears the filter.
+  function pqcFilterFindings(q) {
+    q = (q || '').trim().toLowerCase();
+    var rows = document.querySelectorAll('#findings .finding-row');
+    var shown = 0;
+    rows.forEach(function (r) {
+      var hit = !q || (r.dataset.search || '').indexOf(q) !== -1;
+      r.style.display = hit ? '' : 'none';
+      if (hit) shown++;
+    });
+    document.getElementById('find-empty').classList.toggle('hidden', shown !== 0);
+  }
+
+  // Live progress: while the scan runs, consume the JSON SSE stream to update
+  // a running finding count + current stage, and reload once it completes.
+  (function () {
+    var live = document.getElementById('live-progress');
+    if (!live || !window.EventSource) return;
+    var es = new EventSource('/api/scans/{{ scan.id }}/events');
+    var n = parseInt(document.getElementById('live-count').textContent, 10) || 0;
+    es.addEventListener('finding', function () {
+      n += 1;
+      document.getElementById('live-count').textContent = n;
+    });
+    es.addEventListener('stage_started', function (e) {
+      try { document.getElementById('live-stage').textContent = JSON.parse(e.data).stage; } catch (x) {}
+    });
+    es.addEventListener('scan_completed', function () {
+      es.close();
+      setTimeout(function () { location.reload(); }, 600);
+    });
+  })();
+</script>
 
 {% endblock %}
