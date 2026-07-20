@@ -518,3 +518,42 @@ html { font-family: var(--font-sans); }
 /* Scrollbar tracks follow the page colour. */
 :root[data-theme="light"] ::-webkit-scrollbar-track { background: rgb(244 244 245); }
 :root[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgb(212 212 216); border-color: rgb(244 244 245); }
+
+/* ── Remediation chips on findings rows (theme-aware, token-driven) ──── */
+.remediation-chip,
+.deadline-chip,
+.hndl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.remediation-chip {
+  background: var(--band-green-bg);
+  color: var(--band-green-fg);
+  box-shadow: inset 0 0 0 1px var(--band-green-ring);
+}
+.remediation-chip strong { font-weight: 600; }
+.deadline-chip {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.hndl-chip {
+  background: var(--sev-crit-bg);
+  color: var(--sev-crit-fg);
+  box-shadow: inset 0 0 0 1px var(--sev-crit-ring);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+:root[data-theme="light"] .remediation-chip { color: rgb(21 128 61); }
+:root[data-theme="light"] .hndl-chip { color: rgb(153 27 27); background: rgb(239 68 68 / 0.10); }
+
+/* Visually-hidden helper for input labels. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
