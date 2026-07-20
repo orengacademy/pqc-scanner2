@@ -11,7 +11,7 @@ from pqcscan.compliance.engine import ComplianceEngine
 from pqcscan.core.confidence import assess as assess_confidence
 from pqcscan.core.remediation import enrich as enrich_remediation
 from pqcscan.core.types import Capability, Classification, Finding, Severity
-from pqcscan.probes._base import OTTarget, Probe, ScanContext
+from pqcscan.probes._base import OTTarget, Probe, ScanContext, SniffConfig
 from pqcscan.probes._registry import Registry
 from pqcscan.runner.event_bus import (
     EventBus,
@@ -50,6 +50,7 @@ class ProbeRunner:
         scan_paths: list[Path] | None = None,
         server_target: str | None = None,
         ot_targets: list[OTTarget] | None = None,
+        sniff: SniffConfig | None = None,
     ) -> int:
         probe_versions = {p.id: p.version for p in self.registry.all()}
         scan_id = self.repo.create_scan(
@@ -64,6 +65,7 @@ class ProbeRunner:
             scan_paths=scan_paths or [],
             server_target=server_target,
             ot_targets=ot_targets or [],
+            sniff=sniff,
         )
 
         by_family: dict[str, list[Probe]] = defaultdict(list)

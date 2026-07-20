@@ -4,6 +4,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from pqcscan.core.srcstrip import code_finditer, strip_noncode
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._code_walker import walk_source
@@ -46,7 +47,8 @@ class CodeTsJava(Probe):
             self._scan(text, path, emit)
 
     def _scan(self, text: str, path: Path, emit: Emitter) -> None:
-        for m in _WEAK_DIGEST_RE.finditer(text):
+        scan_text = strip_noncode(text, "java")
+        for m in code_finditer(_WEAK_DIGEST_RE, text, scan_text):
             line_no = text[: m.start()].count("\n") + 1
             alg = m.group(1).upper()
             emit(Finding(
@@ -57,7 +59,7 @@ class CodeTsJava(Probe):
                 title=f"MessageDigest {alg} in {path}:{line_no}",
                 evidence={"path": str(path), "line": line_no},
             ))
-        for m in _CIPHER_RE.finditer(text):
+        for m in code_finditer(_CIPHER_RE, text, scan_text):
             spec = m.group(1)
             up = spec.upper()
             line_no = text[: m.start()].count("\n") + 1
@@ -76,7 +78,7 @@ class CodeTsJava(Probe):
                 title=f"Cipher.getInstance({spec!r}) in {path}:{line_no}",
                 evidence={"path": str(path), "line": line_no},
             ))
-        for m in _RSA_INIT_RE.finditer(text):
+        for m in code_finditer(_RSA_INIT_RE, text, scan_text):
             bits = int(m.group(1))
             line_no = text[: m.start()].count("\n") + 1
             cls = (Classification.SANGAT_TINGGI if bits < 3072
@@ -89,7 +91,7 @@ class CodeTsJava(Probe):
                 title=f"KeyPairGenerator RSA initialize({bits}) in {path}:{line_no}",
                 evidence={"path": str(path), "line": line_no},
             ))
-        for m in _DSA_INST_RE.finditer(text):
+        for m in code_finditer(_DSA_INST_RE, text, scan_text):
             line_no = text[: m.start()].count("\n") + 1
             emit(Finding(
                 probe_id=self.id,
