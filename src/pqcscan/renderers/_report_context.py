@@ -8,6 +8,7 @@ repo reads.
 from __future__ import annotations
 
 from collections import Counter, defaultdict
+from dataclasses import asdict
 from datetime import date
 from typing import Any
 
@@ -19,6 +20,8 @@ from pqcscan.core.bands import (
     readiness_score,
     surface_breakdown,
 )
+from pqcscan.core.exposure import build_register, tier_counts
+from pqcscan.core.migration_score import score_findings
 from pqcscan.core.mosca import MoscaInputs, assess, summary_lines
 from pqcscan.renderers._report_text import report_translator
 from pqcscan.store.repo import Repo
@@ -133,6 +136,14 @@ def build_report_context(
     for v in framework_views:
         fw_summary[v.framework][v.verdict] += 1
 
+    migration_readiness = asdict(score_findings(findings))
+    register = build_register(findings)
+    exposure = {
+        "rows": [asdict(r) for r in register[:20]],
+        "tier_counts": tier_counts(register),
+        "total": len(register),
+    }
+
     priority = _priority_groups(findings)
     hndl_count = sum(
         1 for f in findings if (f.remediation or {}).get("hndl")
@@ -168,6 +179,8 @@ def build_report_context(
         "surfaces": surfaces,
         "surface_order": SURFACE_ORDER,
         "readiness": score,
+        "migration_readiness": migration_readiness,
+        "exposure": exposure,
         "mosca": _mosca_context(findings, lang, mosca_inputs),
         "fw_summary": {k: dict(v) for k, v in fw_summary.items()},
         "priority": priority,

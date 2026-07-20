@@ -84,6 +84,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.fs_keystore_pkcs12 import FsKeystorePkcs12
     from pqcscan.probes.fs_pcap_crypto import FsPcapCrypto
     from pqcscan.probes.fs_ssh_host_keys import FsSshHostKeys
+    from pqcscan.probes.fs_zeek_logs import FsZeekLogs
     from pqcscan.probes.host_cloud_kms import HostCloudKms
     from pqcscan.probes.host_crypto_policies import HostCryptoPolicies
     from pqcscan.probes.host_gnupg_config import HostGnupgConfig
@@ -386,6 +387,8 @@ def default_registry() -> Registry:
     reg.register(HostOpenSSLVersion())
     # Coverage roadmap Phase 0 — on-disk SSH public key inventory.
     reg.register(FsSshHostKeys())
+    # Ingest crypto observations from Zeek/Suricata IDS logs (offline telemetry).
+    reg.register(FsZeekLogs())
     # Coverage roadmap Phase 1 — cloud KMS / Key Vault / PKCS#11 key references.
     reg.register(FsKeyrefCloud())
     # Coverage roadmap Phase 1 — cert/keystore parsers (PKCS#12, CSR, PKCS#7, expiry-HNDL).
