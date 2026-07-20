@@ -108,6 +108,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "col.total": "Total",
         "col.evidence": "Evidence",
         "col.remediation": "Remediation",
+        "fix.suggested": "Suggested fix",
         # Surfaces
         "surface.tls": "TLS endpoints",
         "surface.ssh": "SSH",
@@ -251,6 +252,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "col.total": "Jumlah",
         "col.evidence": "Bukti",
         "col.remediation": "Pembaikan",
+        "fix.suggested": "Cadangan pembetulan",
         "surface.tls": "Titik akhir TLS",
         "surface.ssh": "SSH",
         "surface.vpn": "VPN / IPsec / WireGuard",

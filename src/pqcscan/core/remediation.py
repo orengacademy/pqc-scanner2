@@ -20,7 +20,33 @@ from pqcscan.core.alg import (
     migration_deadline,
     normalise,
 )
+from pqcscan.core.remediation_snippets import snippet_for
 from pqcscan.core.types import Classification, Finding
+
+# code.ts.* probe ids carry the source language in the final segment. Only the
+# languages we have snippets for are mapped; anything else (php, rust, the
+# broad cross-language probe) infers None and falls back to generic guidance.
+_PROBE_LANG = {"python", "java", "go", "javascript"}
+
+
+def _lang_from_probe_id(probe_id: str) -> str | None:
+    """Infer the source language a code finding came from, or None."""
+    parts = probe_id.split(".")
+    if len(parts) >= 3 and parts[0] == "code":
+        tail = parts[-1]
+        if tail in _PROBE_LANG:
+            return tail
+    return None
+
+
+def _attach_snippet(finding: Finding) -> None:
+    """Add a code-level migration snippet, without overwriting one a probe
+    already set. No-op when the algorithm maps to no known snippet."""
+    if finding.remediation.get("snippet"):
+        return
+    snippet = snippet_for(finding.algorithm, _lang_from_probe_id(finding.probe_id))
+    if snippet is not None:
+        finding.remediation["snippet"] = snippet
 
 # Primitive → recommended PQC migration target. Signatures move to ML-DSA
 # (FIPS 204) for general use; firmware / long-lived roots that need a
@@ -100,7 +126,10 @@ def enrich(finding: Finding) -> Finding:
     without overwriting anything a probe already set. Returns the finding
     for chaining."""
     if finding.remediation.get("replacement"):
-        return finding  # probe already provided a specific target
+        # Probe already provided a specific target; still offer a code-level
+        # migration snippet if it hasn't set one.
+        _attach_snippet(finding)
+        return finding
     if finding.classification in (
         Classification.PQC_READY,
         Classification.INFO,
@@ -112,4 +141,5 @@ def enrich(finding: Finding) -> Finding:
         # Preserve probe-authored keys (e.g. a config snippet); add ours.
         merged = {**descriptor, **finding.remediation}
         finding.remediation = merged
+    _attach_snippet(finding)
     return finding
