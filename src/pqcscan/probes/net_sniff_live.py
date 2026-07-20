@@ -11,7 +11,14 @@ Because a normal scan leaves ``ctx.sniff`` None, this probe is inert on every
 ordinary run — it only wakes up for the dedicated ``pqcscan sniff`` command,
 which sets a ``SniffConfig``.
 
-What it reads off each TCP payload that starts a TLS handshake record (0x16):
+Captured frames are first grouped into directional TCP flows and reassembled in
+sequence order (``_reassemble_flows`` / ``_reassemble_stream``), so a handshake
+message fragmented across several TCP segments — or reordered / retransmitted on
+the wire — is rejoined before parsing. A large multi-certificate chain, which
+routinely spans many segments and TLS records, would be missed by a naive
+per-packet parse; reassembly is what makes the certificate signal reliable.
+
+What it reads off each reassembled flow's handshake stream:
 - ClientHello  — the ``supported_groups`` extension. Advertised KEX groups are
   a *low*-confidence signal (the client offered them; they may not be chosen).
 - ServerHello  — the negotiated ``cipher_suite`` and, in TLS 1.3, the selected
@@ -20,8 +27,8 @@ What it reads off each TCP payload that starts a TLS handshake record (0x16):
   already-present ``cryptography`` lib -> *high* confidence (structured parse).
 
 Parsing is delegated to the existing dependency-free helpers (``_pcap`` for the
-link/IP/TCP + TLS-hello decode, ``net_tls_cert_chain`` for the DER certificate
-extraction). Findings are de-duplicated per (src, dst, dport, alg, kind) and
+link/IP/TCP + TLS-hello decode, ``net_tls_cert_chain`` for the handshake-record
+and DER certificate reassembly). Findings are de-duplicated per (src, dst, dport, alg, kind) and
 capped so a busy link cannot emit thousands of identical rows. The blocking
 capture loop runs in a thread-pool executor so it never stalls the event loop,
 and nothing ever raises out of ``run()``.
@@ -30,8 +37,10 @@ from __future__ import annotations
 
 import asyncio
 import socket
+import struct
 import sys
 import time
+from collections import defaultdict
 from collections.abc import Callable, Iterable, Iterator
 
 from cryptography import x509
@@ -39,10 +48,15 @@ from cryptography import x509
 from pqcscan.core.alg import classify, normalise
 from pqcscan.core.types import Capability, Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext, SniffConfig
-from pqcscan.probes._pcap import decode_packet, parse_tls_handshake
+from pqcscan.probes._pcap import Segment, decode_packet, parse_tls_handshake
 from pqcscan.probes._severity import sev_for
 from pqcscan.probes.fs_pcap_crypto import _CIPHER_SUITES, _TLS_GROUPS, _classify_suite
-from pqcscan.probes.net_tls_cert_chain import extract_certificates
+from pqcscan.probes.net_tls_cert_chain import extract_certificates, reassemble_handshake
+
+# Per-flow reassembly bounds. A TLS handshake (incl. a multi-cert chain) fits
+# well under this; the cap stops a long-lived bulk-data flow from ballooning.
+_MAX_STREAM_BYTES = 262144  # 256 KiB reassembled per direction
+_SEQ_MASK = 0xFFFFFFFF      # TCP sequence numbers are 32-bit and wrap
 
 # Ethernet II is link-layer type 1 for _pcap.decode_packet; a raw AF_PACKET
 # ETH_P_ALL socket hands us full Ethernet frames.
@@ -140,10 +154,9 @@ class NetSniffLive(Probe):
         emitted = 0
         saw_crypto = False
         capped = False
-        for frame in frames:
-            seg = decode_packet(frame, _LINKTYPE_ETHERNET)
-            if seg is None or seg.proto != "tcp" or not seg.payload:
-                continue
+        # Reassemble each TCP flow's byte stream first, so a ClientHello or a
+        # multi-segment Certificate chain split across packets is parsed whole.
+        for seg in _reassemble_flows(frames):
             for kind, alg, cls, confidence, advertised in _analyze(seg.payload):
                 key = (seg.src_ip, seg.dst_ip, seg.dst_port, alg, kind)
                 if key in seen:
@@ -171,17 +184,99 @@ class NetSniffLive(Probe):
             ))
 
 
-def _analyze(payload: bytes) -> Iterator[_Observation]:
-    """Yield crypto observations from a single TCP payload's TLS handshake."""
-    tls = parse_tls_handshake(payload)
-    if tls is not None:
-        if tls["type"] == "client_hello":
-            yield from _client_hello_obs(tls)
-        elif tls["type"] == "server_hello":
-            yield from _server_hello_obs(tls)
-        return
-    # Not a hello — maybe a (cleartext, TLS<=1.2) Certificate message.
-    yield from _certificate_obs(payload)
+def _reassemble_flows(frames: Iterable[bytes]) -> Iterator[Segment]:
+    """Group TCP segments into directional flows and rebuild each flow's byte
+    stream in sequence order, so handshake messages fragmented across packets
+    (or reordered / retransmitted) are rejoined before parsing.
+
+    Yields one synthetic ``Segment`` per flow whose ``payload`` is the
+    reassembled stream and whose endpoints identify the flow.
+    """
+    # flow key = (src_ip, src_port, dst_ip, dst_port); client->server and
+    # server->client are separate flows (hellos and certs travel opposite ways).
+    flows: dict[tuple[str, int, str, int], list[tuple[int, bytes]]] = defaultdict(list)
+    for frame in frames:
+        seg = decode_packet(frame, _LINKTYPE_ETHERNET)
+        if seg is None or seg.proto != "tcp" or not seg.payload:
+            continue
+        flows[(seg.src_ip, seg.src_port, seg.dst_ip, seg.dst_port)].append(
+            (seg.seq, seg.payload)
+        )
+    for (src_ip, src_port, dst_ip, dst_port), segs in flows.items():
+        stream = _reassemble_stream(segs)
+        if stream:
+            yield Segment("tcp", src_ip, src_port, dst_ip, dst_port, stream)
+
+
+def _reassemble_stream(segs: list[tuple[int, bytes]]) -> bytes:
+    """Rebuild the contiguous byte prefix of one TCP flow from its
+    (seq, payload) segments. Reordering is fixed by sorting on the sequence
+    offset; retransmits/overlaps are trimmed; a gap ends the contiguous run
+    (the handshake lives at the start of the connection, so the prefix is what
+    matters). Bounded by ``_MAX_STREAM_BYTES``."""
+    if not segs:
+        return b""
+    base = min(seq for seq, _ in segs)  # earliest sequence number = stream start
+    ordered = sorted(segs, key=lambda sp: (sp[0] - base) & _SEQ_MASK)
+    buf = bytearray()
+    nxt = 0  # next contiguous offset expected (== len(buf))
+    for seq, payload in ordered:
+        off = (seq - base) & _SEQ_MASK
+        if off > nxt:
+            break  # gap — cannot extend the contiguous prefix
+        end = off + len(payload)
+        if end <= nxt:
+            continue  # wholly retransmitted / already have it
+        buf += payload[nxt - off:]  # append only the new tail (trims overlap)
+        nxt = end
+        if len(buf) >= _MAX_STREAM_BYTES:
+            return bytes(buf[:_MAX_STREAM_BYTES])
+    return bytes(buf)
+
+
+def _analyze(stream: bytes) -> Iterator[_Observation]:
+    """Yield crypto observations from a reassembled TCP flow stream."""
+    # Walk the rejoined handshake messages (across TLS-record boundaries) for
+    # ClientHello / ServerHello.
+    for msg_type, message in _iter_handshake_messages(stream):
+        if msg_type == 0x01:
+            wrapped = _wrap_record(message)
+            tls = parse_tls_handshake(wrapped)
+            if tls is not None and tls["type"] == "client_hello":
+                yield from _client_hello_obs(tls)
+        elif msg_type == 0x02:
+            wrapped = _wrap_record(message)
+            tls = parse_tls_handshake(wrapped)
+            if tls is not None and tls["type"] == "server_hello":
+                yield from _server_hello_obs(tls)
+    # Certificate message(s): extract_certificates reassembles the records and
+    # pulls the leaf DER itself, so hand it the whole stream.
+    yield from _certificate_obs(stream)
+
+
+def _iter_handshake_messages(stream: bytes) -> Iterator[tuple[int, bytes]]:
+    """Yield (msg_type, full_message_bytes) for each complete handshake message
+    in a reassembled stream. ``full_message_bytes`` includes the 4-byte
+    handshake header, so it can be re-wrapped into a TLS record for parsing."""
+    hs = reassemble_handshake(stream)
+    off = 0
+    while off + 4 <= len(hs):
+        msg_type = hs[off]
+        msg_len = int.from_bytes(hs[off + 1:off + 4], "big")
+        message = hs[off:off + 4 + msg_len]
+        if len(message) < 4 + msg_len:
+            break  # incomplete trailing message
+        yield msg_type, bytes(message)
+        off += 4 + msg_len
+
+
+def _wrap_record(message: bytes) -> bytes:
+    """Wrap a bare handshake message back into a single TLS 1.2 record so the
+    existing record-oriented ``parse_tls_handshake`` can read it. Hellos are
+    small; anything over a record's 16-bit length is skipped (not a hello)."""
+    if len(message) > 0xFFFF:
+        return b""
+    return b"\x16\x03\x03" + struct.pack(">H", len(message)) + message
 
 
 def _client_hello_obs(tls: dict) -> Iterator[_Observation]:

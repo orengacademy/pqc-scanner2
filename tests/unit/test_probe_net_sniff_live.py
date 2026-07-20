@@ -35,11 +35,12 @@ def _eth_ipv4_tcp(
     dst_ip: str = "93.184.216.34",
     sport: int = 44300,
     dport: int = 443,
+    seq: int = 1,
 ) -> bytes:
     """Wrap a TCP payload in Ethernet II + IPv4 + TCP headers."""
     tcp = (
         _u16(sport) + _u16(dport)
-        + struct.pack(">I", 1)         # seq
+        + struct.pack(">I", seq)       # seq
         + struct.pack(">I", 0)         # ack
         + bytes([0x50, 0x18])          # data offset (20B) | flags PSH+ACK
         + _u16(65535) + _u16(0) + _u16(0)  # window, checksum, urg
@@ -148,6 +149,77 @@ def test_certificate_rsa_leaf_high_confidence() -> None:
     assert f.evidence["confidence"] == "high"
     assert "RSA" in f.algorithm
     assert f.classification is Classification.TINGGI  # RSA sig — quantum-forgeable
+
+
+def _split(payload: bytes, at: int, *, base_seq: int = 1) -> list[tuple[int, bytes]]:
+    """Split a byte payload into two (seq, chunk) pieces at offset `at`."""
+    return [(base_seq, payload[:at]), (base_seq + at, payload[at:])]
+
+
+def test_multi_segment_client_hello_is_reassembled() -> None:
+    # A ClientHello split across two TCP segments: neither half parses alone,
+    # but the reassembled flow must yield the advertised-group finding.
+    hello = build_client_hello_tls12("example.com")
+    at = len(hello) // 2
+    pieces = _split(hello, at)
+    frames = [_eth_ipv4_tcp(chunk, seq=seq) for seq, chunk in pieces]
+    # sanity: the first half alone is NOT a parseable hello
+    assert not [
+        f for f in _run([_eth_ipv4_tcp(hello[:at])])
+        if f.evidence.get("record") == "client_hello"
+    ]
+    findings = _run(frames)
+    ch = [f for f in findings if f.evidence.get("record") == "client_hello"]
+    assert ch, "reassembled ClientHello should yield advertised-group findings"
+
+
+def test_multi_segment_certificate_chain_is_reassembled() -> None:
+    # A large Certificate record split across three TCP segments — the whole
+    # point of reassembly (cert chains routinely span many packets).
+    record = _certificate_record(_rsa_leaf_der())
+    third = len(record) // 3
+    pieces = [
+        (1, record[:third]),
+        (1 + third, record[third:2 * third]),
+        (1 + 2 * third, record[2 * third:]),
+    ]
+    frames = [_eth_ipv4_tcp(chunk, seq=seq) for seq, chunk in pieces]
+    findings = _run(frames)
+    certs = [f for f in findings if f.evidence.get("record") == "certificate"]
+    assert certs, "reassembled Certificate chain should yield a cert finding"
+    assert certs[0].evidence["confidence"] == "high"
+    assert "RSA" in certs[0].algorithm
+
+
+def test_reassembly_handles_out_of_order_and_retransmit() -> None:
+    # Segments delivered reversed, with a duplicate retransmit of the first —
+    # sequence-ordered reassembly must still rebuild the ClientHello.
+    hello = build_client_hello_tls12("example.com")
+    at = len(hello) // 2
+    (s0, c0), (s1, c1) = _split(hello, at)
+    frames = [
+        _eth_ipv4_tcp(c1, seq=s1),   # second half first
+        _eth_ipv4_tcp(c0, seq=s0),   # first half second
+        _eth_ipv4_tcp(c0, seq=s0),   # duplicate retransmit — must not corrupt
+    ]
+    findings = _run(frames)
+    ch = [f for f in findings if f.evidence.get("record") == "client_hello"]
+    assert ch, "out-of-order + retransmitted segments must still reassemble"
+
+
+def test_reassembly_stops_at_gap() -> None:
+    # A missing middle segment leaves only a partial prefix — the truncated
+    # ClientHello must NOT be mis-parsed into a finding (gap ends the run).
+    hello = build_client_hello_tls12("example.com")
+    third = len(hello) // 3
+    frames = [
+        _eth_ipv4_tcp(hello[:third], seq=1),
+        # middle segment (seq=1+third) is dropped
+        _eth_ipv4_tcp(hello[2 * third:], seq=1 + 2 * third),
+    ]
+    findings = _run(frames)
+    ch = [f for f in findings if f.evidence.get("record") == "client_hello"]
+    assert not ch, "a gap must prevent a partial/mis-parsed hello finding"
 
 
 def test_no_tls_emits_single_info() -> None:

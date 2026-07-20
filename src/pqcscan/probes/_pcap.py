@@ -134,6 +134,7 @@ class Segment:
     dst_ip: str
     dst_port: int
     payload: bytes
+    seq: int = 0  # TCP sequence number (0 for UDP); used for stream reassembly
 
     @property
     def src(self) -> str:
@@ -219,10 +220,11 @@ def _decode_l4(proto: int, src: str, dst: str, payload: bytes) -> Segment | None
         if len(payload) < 20:
             return None
         sport, dport = struct.unpack(">HH", payload[0:4])
+        seq = struct.unpack(">I", payload[4:8])[0]
         data_off = (payload[12] >> 4) * 4
         if data_off < 20 or len(payload) < data_off:
             return None
-        return Segment("tcp", src, sport, dst, dport, payload[data_off:])
+        return Segment("tcp", src, sport, dst, dport, payload[data_off:], seq=seq)
     if proto == 17:  # UDP
         if len(payload) < 8:
             return None
