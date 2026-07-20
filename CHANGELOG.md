@@ -58,6 +58,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   functions tested with recorded/constructed bytes; live network is gated on a
   target and wrapped so a scan never crashes.
 
+### Added — supply-chain, PCAP, and broadened code coverage
+- **`sbom.crypto_map`** — maps dependency-manifest components (PyPI, npm, Go,
+  Rust, Maven) to the cryptographic primitives / PQC support they ship, via a
+  curated 44-library corpus. Flags classical crypto libraries and recognises
+  PQC libraries (`pqcrypto`, `oqs`, CIRCL, BouncyCastle PQC…) as PQC-ready.
+- **`fs.pcap.crypto`** — passive packet-capture analysis. A dependency-free
+  pure-Python `.pcap` / `.pcapng` reader (`_pcap.py`, both byte orders + µs/ns;
+  Ethernet/VLAN/SLL → IPv4/IPv6 → TCP/UDP) extracts TLS ClientHello/ServerHello
+  (offered + negotiated cipher suites, versions, key-share groups) and SSH
+  KEXINIT, and classifies them (weak versions/ciphers, ECDHE HNDL, PQC hybrids).
+- **`code.crypto_primitives`** — a cross-language (13 languages) source probe
+  with a 31-pattern primitive corpus that complements the per-language
+  `code.ts.*` probes: named EC curves, Curve25519/Edwards, RSA padding
+  (PKCS1v15/OAEP/PSS), AEAD/modes (GCM/CBC/**ECB**/ChaCha20/3DES/RC4), in-code
+  hashes, RSA key sizes, and PQC-library usage. No native tree-sitter — keeps
+  the binary self-contained and any-OS.
+
 ## [0.7.5] — 2026-07-20
 
 ### Added — findings UX
