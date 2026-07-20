@@ -183,6 +183,15 @@ def classify(alg: str) -> Classification:
     ):
         return Classification.TINGGI
 
+    # TLS 1.3 AEAD cipher-suite names carry no key-exchange (that is separate
+    # in 1.3), so classify them by the symmetric strength they name rather than
+    # letting them fall through to INFO.
+    if a.startswith("TLS_"):
+        if "AES_256" in a or "CHACHA20" in a:
+            return Classification.RENDAH
+        if "AES_128" in a:
+            return Classification.SEDERHANA
+
     # Symmetric — Grover halves the effective key length.
     if a.startswith("AES-128") or a == "AES-128":
         # GCM/CCM AEAD at 128-bit still has a 64-bit quantum floor → weakened.

@@ -68,6 +68,12 @@ def test_aes128_cbc_is_tinggi():
     assert classify("AES-128-CBC") == Classification.TINGGI
 
 
+def test_tls13_suite_names_classified_by_strength():
+    assert classify("TLS_AES_256_GCM_SHA384") == Classification.RENDAH
+    assert classify("TLS_CHACHA20_POLY1305_SHA256") == Classification.RENDAH
+    assert classify("TLS_AES_128_GCM_SHA256") == Classification.SEDERHANA
+
+
 def test_chacha20_is_rendah():
     assert classify("ChaCha20-Poly1305") == Classification.RENDAH
 
