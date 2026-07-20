@@ -107,10 +107,24 @@ The two surfaces PQ Crypta had that we lacked are now closed:
 - **Network appliances (F5 BIG-IP / Citrix NetScaler)** — shipped
   `fs.conf.f5` + `fs.conf.netscaler`.
 
-Deliberately *not* adopted: **AST code detection** (sonar-cryptography /
-Cryptoscope) — native grammars ship platform-specific compiled artifacts that
-would break the any-OS self-contained binary; the confidence model down-ranks
-the regex false positives instead.
+The two remaining capability gaps versus the live-sensor and AST vendors are
+now closed too (v0.8.6), within the self-contained constraint:
+
+- **Live passive / SPAN sensing** (SandboxAQ, Palo Alto PAN-OS, Cyberzero) —
+  shipped **`net.sniff.live`** + `pqcscan sniff`: pure-stdlib `AF_PACKET` raw
+  capture, no libpcap/scapy. We now sense live traffic *and* keep the offline
+  `fs.pcap.crypto` path.
+- **Source-code precision** — **Python** now uses a real stdlib-`ast` engine
+  (`core/pyast.py`): comment/string-immune, import/alias-resolved. Go/Java/
+  JS/PHP/Rust gain a comment/string suppressor (`core/srcstrip.py`).
+
+Deliberately *not* adopted: **native multi-language AST** (sonar-cryptography /
+Cryptoscope grammars for non-Python) — they ship platform-specific compiled
+artifacts that would break the any-OS self-contained binary. Python AST is
+pure-stdlib so it *was* adopted; for the other languages the comment/string
+suppressor + confidence model down-rank the residual regex false positives.
+Managed CA-lifecycle / migration orchestration (Keyfactor, Venafi) is out of
+scope by design — pqcscan produces the inventory; it does not run the migration.
 
 ## Maintained vs dormant
 - **Active (2025-era):** PQCA CBOMkit, csnp/cryptoscan, anvilsecure/pqcscan,

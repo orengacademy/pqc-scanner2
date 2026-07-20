@@ -4,6 +4,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from pqcscan.core.srcstrip import code_finditer, strip_noncode
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._code_walker import walk_source
@@ -46,8 +47,8 @@ class CodeTsJavascript(Probe):
             self._scan(text, path, emit)
 
     def _scan(self, text: str, path: Path, emit: Emitter) -> None:
-        text.splitlines()
-        for m in _WEAK_HASH_RE.finditer(text):
+        scan_text = strip_noncode(text, "javascript")
+        for m in code_finditer(_WEAK_HASH_RE, text, scan_text):
             line_no = text[: m.start()].count("\n") + 1
             alg = m.group(1).upper()
             emit(Finding(
@@ -58,7 +59,7 @@ class CodeTsJavascript(Probe):
                 title=f"{alg} via crypto.createHash in {path}:{line_no}",
                 evidence={"path": str(path), "line": line_no},
             ))
-        for m in _WEAK_CIPHER_RE.finditer(text):
+        for m in code_finditer(_WEAK_CIPHER_RE, text, scan_text):
             line_no = text[: m.start()].count("\n") + 1
             cipher = m.group(1).upper()
             emit(Finding(
@@ -69,7 +70,7 @@ class CodeTsJavascript(Probe):
                 title=f"{cipher} cipher in {path}:{line_no}",
                 evidence={"path": str(path), "line": line_no},
             ))
-        for m in _RSA_GEN_RE.finditer(text):
+        for m in code_finditer(_RSA_GEN_RE, text, scan_text):
             bits = int(m.group(1))
             line_no = text[: m.start()].count("\n") + 1
             cls = (Classification.SANGAT_TINGGI if bits < 3072
@@ -82,7 +83,7 @@ class CodeTsJavascript(Probe):
                 title=f"crypto.generateKeyPair RSA modulusLength={bits} in {path}:{line_no}",
                 evidence={"path": str(path), "line": line_no},
             ))
-        for m in _JWT_HS_RE.finditer(text):
+        for m in code_finditer(_JWT_HS_RE, text, scan_text):
             alg = m.group(1)
             line_no = text[: m.start()].count("\n") + 1
             cls = (Classification.SANGAT_TINGGI if alg.lower() == "none"

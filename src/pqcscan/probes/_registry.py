@@ -132,6 +132,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.net_ports_udp import NetPortsUDP
     from pqcscan.probes.net_rdp_negotiation import NetRdpNegotiation
     from pqcscan.probes.net_smb_dialect import NetSmbDialect
+    from pqcscan.probes.net_sniff_live import NetSniffLive
     from pqcscan.probes.net_snmp_version import NetSnmpVersion
     from pqcscan.probes.net_ssh_handshake import NetSshHandshake
     from pqcscan.probes.net_starttls_ftp import NetStarttlsFtp
@@ -420,4 +421,6 @@ def default_registry() -> Registry:
     reg.register(HostPlatformInfo())
     reg.register(HostWindowsSchannel())
     reg.register(HostMacosKeychain())
+    # Live passive TLS sniffer — AF_PACKET raw capture (Linux, CAP_NET_RAW).
+    reg.register(NetSniffLive())
     return reg

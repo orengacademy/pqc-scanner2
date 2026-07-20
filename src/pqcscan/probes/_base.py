@@ -16,6 +16,20 @@ class OTTarget:
 
 
 @dataclass(slots=True)
+class SniffConfig:
+    """Config for the live passive TLS sniffer (net.sniff.live).
+
+    Its mere presence on a ScanContext is what activates live capture — a
+    normal scan leaves ScanContext.sniff None, so the sniffer never runs and
+    never opens a raw socket.
+    """
+
+    interface: str | None = None   # None = all interfaces
+    seconds: float = 15.0
+    max_packets: int = 20000
+
+
+@dataclass(slots=True)
 class ScanContext:
     scan_id: int
     mode: str  # "root" | "user"
@@ -23,6 +37,7 @@ class ScanContext:
     scan_paths: list[Path] = field(default_factory=list)
     server_target: str | None = None
     ot_targets: list[OTTarget] = field(default_factory=list)
+    sniff: SniffConfig | None = None
 
 
 Emitter = Callable[[Finding], None]

@@ -123,3 +123,89 @@ async def test_rust_flags_md5_and_des(tmp_path: Path):
     assert "MD5" in algs
     assert "DES" in algs
     assert "RSA-2048" in algs
+
+
+# --- Comment / string-literal false-positive suppression ---------------------
+# For each language: the same weak token that fires in real code must NOT fire
+# when it lives inside a comment or inside a string literal.
+
+
+async def _findings(probe_cls, tmp_path: Path, filename: str, source: str) -> list:
+    (tmp_path / filename).write_text(source)
+    found: list = []
+    p = probe_cls(roots=[tmp_path])
+    ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
+    await p.run(ctx, emit=lambda f: found.append(f))
+    return found
+
+
+@pytest.mark.asyncio
+async def test_javascript_ignores_comment_and_string(tmp_path: Path):
+    in_comment = await _findings(
+        CodeTsJavascript, tmp_path, "c.js",
+        "// crypto.createHash('md5') left in a comment\n"
+        "/* crypto.createHash('sha1') block */\n",
+    )
+    assert in_comment == []
+    in_string = await _findings(
+        CodeTsJavascript, tmp_path, "s.js",
+        "const doc = \"crypto.createHash('md5') mentioned in a string\";\n",
+    )
+    assert in_string == []
+
+
+@pytest.mark.asyncio
+async def test_go_ignores_comment_and_string(tmp_path: Path):
+    in_comment = await _findings(
+        CodeTsGo, tmp_path, "c.go",
+        "package main\n// md5.New() in a comment\nfunc f() {}\n",
+    )
+    assert in_comment == []
+    in_string = await _findings(
+        CodeTsGo, tmp_path, "s.go",
+        "package main\nvar s = \"md5.New() in a string\"\nvar r = `des.NewCipher raw`\n",
+    )
+    assert in_string == []
+
+
+@pytest.mark.asyncio
+async def test_java_ignores_comment_and_string(tmp_path: Path):
+    in_comment = await _findings(
+        CodeTsJava, tmp_path, "C.java",
+        "// MessageDigest.getInstance(\"MD5\") in a comment\n"
+        "/* Cipher.getInstance(\"DES/ECB/PKCS5Padding\") block */\n",
+    )
+    assert in_comment == []
+    in_string = await _findings(
+        CodeTsJava, tmp_path, "S.java",
+        "String s = \"MessageDigest.getInstance(\\\"MD5\\\") in a string\";\n",
+    )
+    assert in_string == []
+
+
+@pytest.mark.asyncio
+async def test_php_ignores_comment_and_string(tmp_path: Path):
+    in_comment = await _findings(
+        CodeTsPhp, tmp_path, "c.php",
+        "<?php\n// md5('x') in a comment\n# hash('sha1', 'x') hash comment\n",
+    )
+    assert in_comment == []
+    in_string = await _findings(
+        CodeTsPhp, tmp_path, "s.php",
+        "<?php\n$note = \"md5('x') and mcrypt_encrypt() inside a string\";\n",
+    )
+    assert in_string == []
+
+
+@pytest.mark.asyncio
+async def test_rust_ignores_comment_and_string(tmp_path: Path):
+    in_comment = await _findings(
+        CodeTsRust, tmp_path, "c.rs",
+        "// Des::new(&key) in a comment\n/* Rc4::new() block */\n",
+    )
+    assert in_comment == []
+    in_string = await _findings(
+        CodeTsRust, tmp_path, "s.rs",
+        "let s = \"Des::new(&key) inside a string\";\n",
+    )
+    assert in_string == []

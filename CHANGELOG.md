@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.6] — 2026-07-20
+
+### Added — precision & live sensing (closing the last two capability gaps)
+Closes the two honest gaps from the competitive analysis — both pure-stdlib, so
+the self-contained any-OS binary is unchanged:
+
+- **Live passive TLS sensing** — new probe **`net.sniff.live`** + `pqcscan sniff`
+  CLI. Opens a raw `AF_PACKET` socket (no libpcap/scapy), captures for a bounded
+  window, and classifies KEX / cipher / certificate crypto off the wire.
+  Linux-only, gated on `CAP_NET_RAW`, inert in normal scans (only runs when a
+  `SniffConfig` is supplied), imports cleanly off-Linux. Advertised groups →
+  low confidence, negotiated cipher → medium, parsed cert signature → high.
+  This is the passive/SPAN-sensing capability the field's live sensors have and
+  we previously only matched offline via `fs.pcap.crypto`.
+
+### Changed — source-code detection precision
+- **Python is now real AST** (stdlib `ast`, new `core/pyast.py`) instead of
+  regex: import/alias resolution (`import hashlib as h` → `h.md5()`), so matches
+  inside comments and string literals no longer produce false positives.
+  AST-confirmed findings are high confidence; a regex fallback still covers
+  syntax-error/Python-2 files at medium confidence.
+- **Go / Java / JavaScript / PHP / Rust** gain a comment/string-literal
+  suppressor (`core/srcstrip.py`): detection regexes no longer fire inside
+  comments or strings, while recall is preserved for algorithm-name-as-argument
+  patterns (`getInstance("MD5")`) via offset-anchor masking.
+- `pqcscan sniff` gives its runner a per-probe timeout that clears the capture
+  window, so long `--seconds` values aren't cut short by the default 30s cap.
+
 ## [0.8.5] — 2026-07-20
 
 ### Added — DB-column + network-appliance scanning (closing the last peer gaps)
