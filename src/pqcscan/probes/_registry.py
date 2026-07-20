@@ -38,6 +38,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.app_oauth_jwks import AppOauthJwks
     from pqcscan.probes.app_spring_properties import AppSpringProperties
     from pqcscan.probes.aux_clock_cert_validity import AuxClockCertValidity
+    from pqcscan.probes.code_crypto_primitives import CodeCryptoPrimitives
     from pqcscan.probes.code_semgrep_pqc import CodeSemgrepPqc
     from pqcscan.probes.code_ts_go import CodeTsGo
     from pqcscan.probes.code_ts_java import CodeTsJava
@@ -75,6 +76,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.fs_keyref_cloud import FsKeyrefCloud
     from pqcscan.probes.fs_keystore_jks import FsKeystoreJks
     from pqcscan.probes.fs_keystore_pkcs12 import FsKeystorePkcs12
+    from pqcscan.probes.fs_pcap_crypto import FsPcapCrypto
     from pqcscan.probes.fs_ssh_host_keys import FsSshHostKeys
     from pqcscan.probes.host_crypto_policies import HostCryptoPolicies
     from pqcscan.probes.host_gnupg_config import HostGnupgConfig
@@ -161,6 +163,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.pqc_kat_fips import PqcKatFips
     from pqcscan.probes.pqc_meta_nacsa_phase import PqcMetaNacsaPhase
     from pqcscan.probes.pqc_meta_oqs_status import PqcMetaOqsStatus
+    from pqcscan.probes.sbom_crypto_map import SbomCryptoMap
     from pqcscan.probes.sbom_lang_cargo import SbomLangCargo
     from pqcscan.probes.sbom_lang_composer import SbomLangComposer
     from pqcscan.probes.sbom_lang_gomod import SbomLangGomod
@@ -290,6 +293,9 @@ def default_registry() -> Registry:
     # Plan B batch 14 — source-code probes for JS/Go/Java/PHP/Rust.
     reg.register(CodeTsJavascript())
     reg.register(CodeTsGo())
+    reg.register(CodeCryptoPrimitives())
+    reg.register(SbomCryptoMap())
+    reg.register(FsPcapCrypto())
     reg.register(CodeTsJava())
     reg.register(CodeTsPhp())
     reg.register(CodeTsRust())
