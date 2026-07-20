@@ -77,6 +77,8 @@ def default_registry() -> Registry:
     from pqcscan.probes.fs_conf_sshd import FsConfSshd
     from pqcscan.probes.fs_conf_traefik import FsConfTraefik
     from pqcscan.probes.fs_db_crypto import FsDbCrypto
+    from pqcscan.probes.fs_iac_cloudformation import FsIacCloudformation
+    from pqcscan.probes.fs_iac_terraform import FsIacTerraform
     from pqcscan.probes.fs_keyref_cloud import FsKeyrefCloud
     from pqcscan.probes.fs_keystore_jks import FsKeystoreJks
     from pqcscan.probes.fs_keystore_pkcs12 import FsKeystorePkcs12
@@ -423,4 +425,6 @@ def default_registry() -> Registry:
     reg.register(HostMacosKeychain())
     # Live passive TLS sniffer — AF_PACKET raw capture (Linux, CAP_NET_RAW).
     reg.register(NetSniffLive())
+    reg.register(FsIacTerraform())
+    reg.register(FsIacCloudformation())
     return reg

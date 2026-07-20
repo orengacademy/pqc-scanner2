@@ -1,3 +1,5 @@
+import pytest
+
 from pqcscan.core.alg import classify, normalise
 from pqcscan.core.types import Classification
 
@@ -50,3 +52,66 @@ def test_classify_hybrid_is_pqc_ready():
 
 def test_classify_unknown_is_info():
     assert classify("totally-unknown-alg") == Classification.INFO
+
+
+# --- Composite / hybrid ML-DSA signatures ------------------------------------
+# LAMPS draft-ietf-lamps-pq-composite-sigs-19, IANA arc 1.3.6.1.5.5.7.6.{37..54}.
+# A cert already migrated to hybrid PQC must classify PQC_READY, not INFO.
+COMPOSITE_SIG_OIDS: list[tuple[str, str]] = [
+    ("1.3.6.1.5.5.7.6.37", "ML-DSA-44+RSA2048-PSS"),
+    ("1.3.6.1.5.5.7.6.38", "ML-DSA-44+RSA2048-PKCS15"),
+    ("1.3.6.1.5.5.7.6.39", "ML-DSA-44+Ed25519"),
+    ("1.3.6.1.5.5.7.6.40", "ML-DSA-44+ECDSA-P256"),
+    ("1.3.6.1.5.5.7.6.41", "ML-DSA-65+RSA3072-PSS"),
+    ("1.3.6.1.5.5.7.6.42", "ML-DSA-65+RSA3072-PKCS15"),
+    ("1.3.6.1.5.5.7.6.43", "ML-DSA-65+RSA4096-PSS"),
+    ("1.3.6.1.5.5.7.6.44", "ML-DSA-65+RSA4096-PKCS15"),
+    ("1.3.6.1.5.5.7.6.45", "ML-DSA-65+ECDSA-P256"),
+    ("1.3.6.1.5.5.7.6.46", "ML-DSA-65+ECDSA-P384"),
+    ("1.3.6.1.5.5.7.6.47", "ML-DSA-65+ECDSA-brainpoolP256r1"),
+    ("1.3.6.1.5.5.7.6.48", "ML-DSA-65+Ed25519"),
+    ("1.3.6.1.5.5.7.6.49", "ML-DSA-87+ECDSA-P384"),
+    ("1.3.6.1.5.5.7.6.50", "ML-DSA-87+ECDSA-brainpoolP384r1"),
+    ("1.3.6.1.5.5.7.6.51", "ML-DSA-87+Ed448"),
+    ("1.3.6.1.5.5.7.6.52", "ML-DSA-87+RSA3072-PSS"),
+    ("1.3.6.1.5.5.7.6.53", "ML-DSA-87+RSA4096-PSS"),
+    ("1.3.6.1.5.5.7.6.54", "ML-DSA-87+ECDSA-P521"),
+]
+
+
+@pytest.mark.parametrize(("oid", "name"), COMPOSITE_SIG_OIDS)
+def test_composite_sig_oid_normalises_to_name(oid: str, name: str) -> None:
+    assert normalise(oid) == name
+
+
+@pytest.mark.parametrize(("oid", "name"), COMPOSITE_SIG_OIDS)
+def test_composite_sig_oid_is_pqc_ready(oid: str, name: str) -> None:
+    # A hybrid ML-DSA signature is quantum-safe — the PQC half holds.
+    assert classify(oid) == Classification.PQC_READY
+
+
+# --- Pure SLH-DSA (FIPS 205) — NIST CSOR 2.16.840.1.101.3.4.3.{20..31} --------
+SLH_DSA_OIDS: list[tuple[str, str]] = [
+    ("2.16.840.1.101.3.4.3.20", "SLH-DSA-SHA2-128s"),
+    ("2.16.840.1.101.3.4.3.21", "SLH-DSA-SHA2-128f"),
+    ("2.16.840.1.101.3.4.3.22", "SLH-DSA-SHA2-192s"),
+    ("2.16.840.1.101.3.4.3.23", "SLH-DSA-SHA2-192f"),
+    ("2.16.840.1.101.3.4.3.24", "SLH-DSA-SHA2-256s"),
+    ("2.16.840.1.101.3.4.3.25", "SLH-DSA-SHA2-256f"),
+    ("2.16.840.1.101.3.4.3.26", "SLH-DSA-SHAKE-128s"),
+    ("2.16.840.1.101.3.4.3.27", "SLH-DSA-SHAKE-128f"),
+    ("2.16.840.1.101.3.4.3.28", "SLH-DSA-SHAKE-192s"),
+    ("2.16.840.1.101.3.4.3.29", "SLH-DSA-SHAKE-192f"),
+    ("2.16.840.1.101.3.4.3.30", "SLH-DSA-SHAKE-256s"),
+    ("2.16.840.1.101.3.4.3.31", "SLH-DSA-SHAKE-256f"),
+]
+
+
+@pytest.mark.parametrize(("oid", "name"), SLH_DSA_OIDS)
+def test_slh_dsa_oid_normalises_to_name(oid: str, name: str) -> None:
+    assert normalise(oid) == name
+
+
+@pytest.mark.parametrize(("oid", "name"), SLH_DSA_OIDS)
+def test_slh_dsa_oid_is_pqc_ready(oid: str, name: str) -> None:
+    assert classify(oid) == Classification.PQC_READY

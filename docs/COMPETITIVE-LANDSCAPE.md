@@ -90,14 +90,14 @@ whitespace the research confirmed no single open-source tool fills.
 > CBOM+SARIF+compliance pipeline."*
 
 pqcscan is that tool: all six surfaces + binary + cloud-KMS + CBOM + SARIF +
-11 compliance frameworks with CNSA-2.0/IR-8547 deadlines + **per-finding
+19 compliance frameworks with CNSA-2.0/IR-8547 deadlines + **per-finding
 confidence scoring** (which the research found *no vendor documents formally*)
 + bilingual EN/MS reports.
 
 The one genuine functional peer is the **commercial, closed-source PQ Crypta
 Discovery Agent** (offline on-host, multi-surface, CBOM). We match its design
 and add SBOM-dependency mapping, compiled-binary scanning, containers, SARIF,
-11-framework compliance, confidence, and bilingual reports — all open-source.
+19-framework compliance, confidence, and bilingual reports — all open-source.
 The two surfaces PQ Crypta had that we lacked are now closed:
 
 - **Certificate Transparency lookup** (crt.sh) — shipped `net.ct.crtsh`.

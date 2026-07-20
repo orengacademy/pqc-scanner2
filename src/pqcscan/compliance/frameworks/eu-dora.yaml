@@ -1,0 +1,45 @@
+framework: eu-dora
+title: EU DORA — Digital Operational Resilience Act (Reg. (EU) 2022/2554)
+# Regulation (EU) 2022/2554 (DORA) applies to EU financial entities since
+# 17 January 2025. Its RTS on ICT risk management framework — Commission
+# Delegated Regulation (EU) 2024/1774 (OJ 25 June 2024) — Article 6
+# (Encryption and cryptographic controls) requires financial entities to
+# develop and document a policy on encryption/cryptographic controls based on
+# data classification and ICT risk assessment, and (Art. 6) to include
+# provisions for updating or changing cryptographic technology based on
+# developments in cryptanalysis. Article 7 covers cryptographic key
+# lifecycle. No hard PQC deadline in the RTS, so classical-only constructions
+# are at-risk pending the documented cryptanalysis-driven update. Sources cited.
+rules:
+  - match: { algorithm: SHA-1 }
+    clause: DORA:RTS-2024-1774-Art6-weak-hash
+    verdict: non-compliant
+    deadline: 2025-01-17
+    note: "Not a leading-practice cryptographic technique under RTS Art. 6."
+  - match: { algorithm: MD5 }
+    clause: DORA:RTS-2024-1774-Art6-weak-hash
+    verdict: non-compliant
+    deadline: 2025-01-17
+  - match: { algorithm: RC4 }
+    clause: DORA:RTS-2024-1774-Art6-weak-cipher
+    verdict: non-compliant
+    deadline: 2025-01-17
+  - match: { algorithm: DES }
+    clause: DORA:RTS-2024-1774-Art6-weak-cipher
+    verdict: non-compliant
+    deadline: 2025-01-17
+  - match: { algorithm: 3DES }
+    clause: DORA:RTS-2024-1774-Art6-weak-cipher
+    verdict: non-compliant
+    deadline: 2025-01-17
+  - match: { algorithm: RSA, key_size_lt: 2048 }
+    clause: DORA:RTS-2024-1774-Art6-weak-key
+    verdict: non-compliant
+    deadline: 2025-01-17
+  - match: { classification: tinggi }
+    clause: DORA:RTS-2024-1774-Art6-cryptanalysis-update
+    verdict: at-risk
+    note: "RTS Art. 6 requires updating cryptographic technology per cryptanalysis developments (quantum); document a migration plan."
+  - match: { classification: pqc-ready }
+    clause: DORA:RTS-2024-1774-Art6-aligned
+    verdict: compliant

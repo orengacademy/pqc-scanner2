@@ -19,6 +19,7 @@ from pqcscan.core.bands import (
     readiness_score,
     surface_breakdown,
 )
+from pqcscan.core.mosca import MoscaInputs, assess, summary_lines
 from pqcscan.renderers._report_text import report_translator
 from pqcscan.store.repo import Repo
 
@@ -82,7 +83,37 @@ def _priority_groups(findings: list[Any]) -> list[dict[str, Any]]:
     return rows
 
 
-def build_report_context(repo: Repo, scan_id: int, lang: str = "en") -> dict[str, Any]:
+def _mosca_context(
+    findings: list[Any], lang: str, mosca_inputs: MoscaInputs | None
+) -> dict[str, Any]:
+    """Build the ``"mosca"`` context entry (Mosca X+Y>Z shelf-life analysis).
+
+    When ``mosca_inputs`` is None a default set is used so the calculator always
+    renders; ``assumed`` flags that so the template can label it an assumption.
+    ``vulnerable`` counts red+yellow findings (classical crypto still in use).
+    """
+    assumed = mosca_inputs is None
+    inputs = mosca_inputs or MoscaInputs(data_lifetime_years=10.0)
+    result = assess(inputs)
+    vulnerable = sum(1 for f in findings if classify_band(f) in ("red", "yellow"))
+    lines = summary_lines(result, vulnerable_count=vulnerable)
+    ctx = result.as_dict()
+    ctx.update(
+        assumed=assumed,
+        vulnerable=vulnerable,
+        summary=lines.get(lang) or lines["en"],
+        summary_en=lines["en"],
+        summary_ms=lines["ms"],
+    )
+    return ctx
+
+
+def build_report_context(
+    repo: Repo,
+    scan_id: int,
+    lang: str = "en",
+    mosca_inputs: MoscaInputs | None = None,
+) -> dict[str, Any]:
     scan = repo.get_scan(scan_id)
     if scan is None:
         raise ValueError(f"scan {scan_id} not found")
@@ -137,6 +168,7 @@ def build_report_context(repo: Repo, scan_id: int, lang: str = "en") -> dict[str
         "surfaces": surfaces,
         "surface_order": SURFACE_ORDER,
         "readiness": score,
+        "mosca": _mosca_context(findings, lang, mosca_inputs),
         "fw_summary": {k: dict(v) for k, v in fw_summary.items()},
         "priority": priority,
         "hndl_count": hndl_count,

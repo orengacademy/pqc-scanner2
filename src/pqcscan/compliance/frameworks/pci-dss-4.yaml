@@ -1,0 +1,45 @@
+framework: pci-dss-4
+title: PCI DSS 4.0 — Payment Card Industry Data Security Standard
+# PCI DSS v4.0 / v4.0.1 Requirement 12.3.3: cryptographic cipher suites and
+# protocols in use must be documented in an inventory and reviewed at least
+# once every 12 months, including monitoring industry trends for continued
+# viability and a documented response plan for cryptographic weaknesses.
+# 12.3.3 was a best practice until it became MANDATORY on 31 March 2025
+# (PCI SSC; see also req 4.2.1.1 for TLS/strong-cryptography evidence).
+# Weak/deprecated crypto in the CDE is non-compliant with the documented
+# inventory + migration-plan obligation. Sources cited in report.
+rules:
+  - match: { algorithm: SHA-1 }
+    clause: PCI-DSS-4:12.3.3-weak-hash
+    verdict: non-compliant
+    deadline: 2025-03-31
+    note: "SHA-1 is not strong cryptography; document removal in the 12.3.3 cipher/protocol inventory."
+  - match: { algorithm: MD5 }
+    clause: PCI-DSS-4:12.3.3-weak-hash
+    verdict: non-compliant
+    deadline: 2025-03-31
+  - match: { algorithm: RC4 }
+    clause: PCI-DSS-4:12.3.3-weak-cipher
+    verdict: non-compliant
+    deadline: 2025-03-31
+  - match: { algorithm: DES }
+    clause: PCI-DSS-4:12.3.3-weak-cipher
+    verdict: non-compliant
+    deadline: 2025-03-31
+  - match: { algorithm: 3DES }
+    clause: PCI-DSS-4:12.3.3-weak-cipher
+    verdict: non-compliant
+    deadline: 2025-03-31
+    note: "3DES/2TDEA no longer strong cryptography; inventory and plan replacement per 12.3.3."
+  - match: { algorithm: RSA, key_size_lt: 2048 }
+    clause: PCI-DSS-4:12.3.3-weak-key
+    verdict: non-compliant
+    deadline: 2025-03-31
+    note: "RSA <2048 below strong-cryptography threshold (SP 800-57)."
+  - match: { classification: tinggi }
+    clause: PCI-DSS-4:12.3.3-inventory-monitor
+    verdict: at-risk
+    note: "Include this cipher/protocol in the 12.3.3 inventory and monitor industry viability for quantum risk."
+  - match: { classification: pqc-ready }
+    clause: PCI-DSS-4:12.3.3-inventory-aligned
+    verdict: compliant

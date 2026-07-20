@@ -1,0 +1,52 @@
+framework: au-asd-ism
+title: Australian ASD ISM / PSPF — Post-Quantum Cryptography Transition
+# Australian Signals Directorate (ASD) Information Security Manual (ISM),
+# Guidelines for Cryptography (Dec 2024 update, controls ISM-1990..ISM-1995).
+# ASD recommends CEASING use of traditional asymmetric cryptography — RSA,
+# Diffie-Hellman (DH), ECDH and ECDSA — by the END OF 2030 (five years ahead
+# of comparable NIST timelines). Transition milestones: refined PQC plan by
+# end 2026, commence transition of critical systems by end 2028, full
+# transition by end 2030. Approved PQC: ML-KEM, ML-DSA, SLH-DSA (selected
+# parameter sets). Sources cited in report.
+rules:
+  - match: { algorithm: SHA-1 }
+    clause: ASD-ISM:hash-disallowed
+    verdict: non-compliant
+    note: "SHA-1 not an ASD-approved cryptographic algorithm."
+  - match: { algorithm: MD5 }
+    clause: ASD-ISM:hash-disallowed
+    verdict: non-compliant
+  - match: { algorithm: 3DES }
+    clause: ASD-ISM:cipher-disallowed
+    verdict: non-compliant
+  - match: { algorithm: RSA }
+    clause: ASD-ISM:asymmetric-cease-2030
+    verdict: at-risk
+    deadline: 2030-12-31
+    note: "ASD: cease traditional asymmetric crypto (RSA) by end 2030; migrate to ML-KEM/ML-DSA."
+  - match: { algorithm: ECDSA }
+    clause: ASD-ISM:asymmetric-cease-2030
+    verdict: at-risk
+    deadline: 2030-12-31
+  - match: { algorithm: ECDH }
+    clause: ASD-ISM:asymmetric-cease-2030
+    verdict: at-risk
+    deadline: 2030-12-31
+  - match: { algorithm: DH }
+    clause: ASD-ISM:asymmetric-cease-2030
+    verdict: at-risk
+    deadline: 2030-12-31
+  - match: { algorithm: DSA }
+    clause: ASD-ISM:asymmetric-cease-2030
+    verdict: at-risk
+    deadline: 2030-12-31
+  - match: { algorithm: ML-KEM }
+    clause: ASD-ISM:PQC-approved
+    verdict: compliant
+    note: "ML-KEM is ASD-approved (ISM-1990..1995)."
+  - match: { algorithm: ML-DSA }
+    clause: ASD-ISM:PQC-approved
+    verdict: compliant
+  - match: { algorithm: SLH-DSA }
+    clause: ASD-ISM:PQC-approved
+    verdict: compliant

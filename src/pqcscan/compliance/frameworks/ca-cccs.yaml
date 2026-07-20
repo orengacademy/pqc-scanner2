@@ -1,0 +1,51 @@
+framework: ca-cccs
+title: Canada CCCS — PQC Migration Roadmap (ITSM.40.001 / ITSP.40.111)
+# Canadian Centre for Cyber Security (CCCS). "Roadmap for the migration to
+# post-quantum cryptography for the Government of Canada" (ITSM.40.001, 2025)
+# milestones: initial departmental PQC migration plans by April 2026;
+# completion of PQC migration of HIGH-PRIORITY systems by end of 2031;
+# completion of migration of REMAINING systems by end of 2035. Approved PQC
+# algorithms per ITSP.40.111 (Version 4, effective March 2025): ML-KEM
+# (FIPS 203), ML-DSA (FIPS 204), SLH-DSA (FIPS 205). Scope: GC non-classified
+# systems (UNCLASSIFIED..PROTECTED B). Sources cited in report.
+rules:
+  - match: { algorithm: SHA-1 }
+    clause: CCCS:ITSP40.111-hash-disallowed
+    verdict: non-compliant
+    note: "SHA-1 not permitted by ITSP.40.111."
+  - match: { algorithm: MD5 }
+    clause: CCCS:ITSP40.111-hash-disallowed
+    verdict: non-compliant
+  - match: { algorithm: 3DES }
+    clause: CCCS:ITSP40.111-cipher-disallowed
+    verdict: non-compliant
+  - match: { algorithm: RSA, key_size_lt: 2048 }
+    clause: CCCS:ITSP40.111-weak-key
+    verdict: non-compliant
+  - match: { algorithm: RSA }
+    clause: CCCS:PQC-roadmap-high-priority
+    verdict: at-risk
+    deadline: 2031-12-31
+    note: "ITSM.40.001: migrate high-priority systems off quantum-vulnerable RSA by end 2031, remainder by 2035."
+  - match: { algorithm: ECDSA }
+    clause: CCCS:PQC-roadmap-high-priority
+    verdict: at-risk
+    deadline: 2031-12-31
+  - match: { algorithm: ECDH }
+    clause: CCCS:PQC-roadmap-high-priority
+    verdict: at-risk
+    deadline: 2031-12-31
+  - match: { algorithm: DSA }
+    clause: CCCS:PQC-roadmap-remaining
+    verdict: at-risk
+    deadline: 2035-12-31
+    note: "Remaining systems complete PQC migration by end 2035."
+  - match: { algorithm: ML-KEM }
+    clause: CCCS:ITSP40.111-PQC-approved
+    verdict: compliant
+  - match: { algorithm: ML-DSA }
+    clause: CCCS:ITSP40.111-PQC-approved
+    verdict: compliant
+  - match: { algorithm: SLH-DSA }
+    clause: CCCS:ITSP40.111-PQC-approved
+    verdict: compliant

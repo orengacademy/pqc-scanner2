@@ -87,6 +87,25 @@
   <p class="lede">{{ t('exec.narrative').format(crit=crit, high=high, ready=ready, score=r) }}</p>
   {% if hndl_count %}<div class="callout">⚠ {{ t('exec.hndl_call').format(n=hndl_count) }}</div>{% endif %}
 
+  {% if mosca %}
+  <h2>{{ t('sec.mosca') }}</h2>
+  <div class="cards">
+    <div class="card grey"><div class="n">{{ mosca.x|round(1) }}</div><div class="l">{{ t('mosca.x') }} · {{ t('mosca.years') }}</div></div>
+    <div class="card grey"><div class="n">{{ mosca.y|round(1) }}</div><div class="l">{{ t('mosca.y') }} · {{ t('mosca.years') }}</div></div>
+    <div class="card grey"><div class="n">{{ mosca.z|round(1) }}</div><div class="l">{{ t('mosca.z') }} · {{ t('mosca.years') }}</div></div>
+    <div class="card {{ 'red' if mosca.at_risk else 'green' }}">
+      <div class="n">{{ mosca.gap_years|round(1) }}</div>
+      <div class="l">{{ t('mosca.gap') }} · {{ t('mosca.years') }}</div>
+    </div>
+  </div>
+  {% if mosca.at_risk %}
+  <div class="callout">⚠ <span class="pill crit">{{ t('verdict.at-risk') }}</span> {{ mosca.summary }}</div>
+  {% else %}
+  <p class="lede"><span class="pill pqc-ready">{{ t('verdict.compliant') }}</span> {{ mosca.summary }}</p>
+  {% endif %}
+  {% if mosca.assumed %}<p class="muted" style="font-size:8.5pt">{{ t('mosca.assumed') }}</p>{% endif %}
+  {% endif %}
+
   <h2>{{ t('sec.priority') }}</h2>
   {% if priority %}
   <table>

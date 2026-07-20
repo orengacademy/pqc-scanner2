@@ -38,6 +38,29 @@ _OID_MAP: dict[str, str] = {
     "1.3.6.1.4.1.2.267.7.4.4": "ML-DSA-44",
     "1.3.6.1.4.1.2.267.7.6.5": "ML-DSA-65",
     "1.3.6.1.4.1.2.267.7.8.7": "ML-DSA-87",
+    # Composite / hybrid ML-DSA signatures (LAMPS
+    # draft-ietf-lamps-pq-composite-sigs-19, IANA "SMI Security for PKIX
+    # Algorithms" arc 1.3.6.1.5.5.7.6.{37..54}). A cert bearing one of these
+    # has already migrated to hybrid PQC, so the readable name keeps the
+    # "ML-DSA" token and lands in PQC_READY via _PQC_READY_PREFIXES.
+    "1.3.6.1.5.5.7.6.37": "ML-DSA-44+RSA2048-PSS",
+    "1.3.6.1.5.5.7.6.38": "ML-DSA-44+RSA2048-PKCS15",
+    "1.3.6.1.5.5.7.6.39": "ML-DSA-44+Ed25519",
+    "1.3.6.1.5.5.7.6.40": "ML-DSA-44+ECDSA-P256",
+    "1.3.6.1.5.5.7.6.41": "ML-DSA-65+RSA3072-PSS",
+    "1.3.6.1.5.5.7.6.42": "ML-DSA-65+RSA3072-PKCS15",
+    "1.3.6.1.5.5.7.6.43": "ML-DSA-65+RSA4096-PSS",
+    "1.3.6.1.5.5.7.6.44": "ML-DSA-65+RSA4096-PKCS15",
+    "1.3.6.1.5.5.7.6.45": "ML-DSA-65+ECDSA-P256",
+    "1.3.6.1.5.5.7.6.46": "ML-DSA-65+ECDSA-P384",
+    "1.3.6.1.5.5.7.6.47": "ML-DSA-65+ECDSA-brainpoolP256r1",
+    "1.3.6.1.5.5.7.6.48": "ML-DSA-65+Ed25519",
+    "1.3.6.1.5.5.7.6.49": "ML-DSA-87+ECDSA-P384",
+    "1.3.6.1.5.5.7.6.50": "ML-DSA-87+ECDSA-brainpoolP384r1",
+    "1.3.6.1.5.5.7.6.51": "ML-DSA-87+Ed448",
+    "1.3.6.1.5.5.7.6.52": "ML-DSA-87+RSA3072-PSS",
+    "1.3.6.1.5.5.7.6.53": "ML-DSA-87+RSA4096-PSS",
+    "1.3.6.1.5.5.7.6.54": "ML-DSA-87+ECDSA-P521",
     # SLH-DSA (FIPS 205) — NIST OIDs 2.16.840.1.101.3.4.3.{20..35}
     "2.16.840.1.101.3.4.3.20": "SLH-DSA-SHA2-128s",
     "2.16.840.1.101.3.4.3.21": "SLH-DSA-SHA2-128f",
