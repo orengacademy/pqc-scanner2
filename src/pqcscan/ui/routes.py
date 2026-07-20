@@ -162,6 +162,59 @@ async def scans_list(request: Request) -> HTMLResponse:
     )
 
 
+@router.post("/scans/new")
+async def start_scan(
+    request: Request,
+    target: str | None = Form(None),
+    paths: str | None = Form(None),
+    ot_targets: str | None = Form(None),
+) -> RedirectResponse:
+    """Trigger a scan from the web UI, optionally against a pasted target.
+
+    `paths` / `ot_targets` are newline- or comma-separated. The scan runs in
+    a background thread (its own event loop) so it outlives the request, then
+    we redirect to the scan-detail page.
+    """
+    import asyncio
+    import threading
+
+    from pqcscan.runner.capabilities import current_mode, detect_capabilities
+    from pqcscan.runner.targets import parse_scan_inputs
+
+    runner = request.app.state.runner
+    repo = request.app.state.repo
+
+    def _split(raw: str | None) -> list[str]:
+        if not raw:
+            return []
+        return [p.strip() for p in raw.replace(",", "\n").splitlines() if p.strip()]
+
+    scan_paths, server_target, ot_list = parse_scan_inputs(
+        target=target, paths=_split(paths), ot=_split(ot_targets),
+    )
+    mode = current_mode()
+    caps = detect_capabilities()
+
+    def _thread_target() -> None:
+        asyncio.run(runner.run(
+            mode=mode, available_capabilities=caps,
+            scan_paths=scan_paths, server_target=server_target,
+            ot_targets=ot_list,
+        ))
+
+    before = repo.list_scans()
+    before_ids = {s.id for s in before}
+    threading.Thread(target=_thread_target, daemon=True).start()
+
+    # Wait briefly for the scan row to appear so we can deep-link to it.
+    for _ in range(100):
+        for s in repo.list_scans():
+            if s.id not in before_ids:
+                return RedirectResponse(f"/scans/{s.id}", status_code=303)
+        await asyncio.sleep(0.02)
+    return RedirectResponse("/scans", status_code=303)
+
+
 @router.get("/scans/{scan_id}/risk", response_class=HTMLResponse)
 async def risk_assessment(request: Request, scan_id: int) -> HTMLResponse:
     """Web view of BUKUKERJA Lampiran A Item B (Penilaian Risiko dan

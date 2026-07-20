@@ -16,6 +16,28 @@
   </button>
 </section>
 
+{# ─────────────  Run a scan  ───────────── #}
+<section class="card p-5 mb-8">
+  <form action="/scans/new" method="post" class="flex flex-wrap items-end gap-3">
+    <div class="flex-1 min-w-[16rem]">
+      <label for="scan-target" class="section-eyebrow block mb-1">Network target (optional)</label>
+      <input id="scan-target" name="target" type="text" autocomplete="off"
+             placeholder="example.com or example.com:8443"
+             class="w-full bg-zinc-900/70 border border-zinc-700 rounded-md px-3 py-2 text-sm font-mono
+                    text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-amber-400/60">
+    </div>
+    <div class="flex-1 min-w-[16rem]">
+      <label for="scan-paths" class="section-eyebrow block mb-1">Filesystem paths (optional, comma-separated)</label>
+      <input id="scan-paths" name="paths" type="text" autocomplete="off"
+             placeholder="/etc/ssl, /opt/app"
+             class="w-full bg-zinc-900/70 border border-zinc-700 rounded-md px-3 py-2 text-sm font-mono
+                    text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-amber-400/60">
+    </div>
+    <button type="submit" class="btn-primary">Run scan</button>
+  </form>
+  <p class="section-eyebrow mt-2">Leave blank to scan the local host. A network target activates the TLS/STARTTLS probes; paths activate certificate/key/code probes.</p>
+</section>
+
 {# ─────────────  About callout  ───────────── #}
 <aside id="about-card" class="card p-5 mb-6 hidden border-l-2 border-l-amber-400/60">
   <div class="flex items-start justify-between mb-3">

@@ -12,6 +12,7 @@ from pqcscan.probes._registry import Registry, default_registry
 from pqcscan.runner.capabilities import current_mode, detect_capabilities
 from pqcscan.runner.event_bus import EventBus
 from pqcscan.runner.runner import ProbeRunner
+from pqcscan.runner.targets import parse_scan_inputs
 from pqcscan.store.repo import Repo
 from pqcscan.store.schema import Scan
 
@@ -38,15 +39,26 @@ def create_app(*, db_path: Path, registry: Registry | None = None) -> FastAPI:
         return {"version": __version__}
 
     @app.post("/api/scans", status_code=202)
-    async def post_scan() -> dict:
+    async def post_scan(body: dict = Body(default=None)) -> dict:
         mode = current_mode()
         caps = detect_capabilities()
+
+        body = body or {}
+        scan_paths, server_target, ot_targets = parse_scan_inputs(
+            target=body.get("target"),
+            paths=body.get("paths"),
+            ot=body.get("ot_targets"),
+        )
 
         # Run in a real OS thread with its own asyncio event loop so the scan
         # outlives the request-handler's loop (FastAPI TestClient and ASGI
         # workers both tear down per-request loops on completion).
         def _thread_target() -> None:
-            asyncio.run(runner.run(mode=mode, available_capabilities=caps))
+            asyncio.run(runner.run(
+                mode=mode, available_capabilities=caps,
+                scan_paths=scan_paths, server_target=server_target,
+                ot_targets=ot_targets,
+            ))
 
         import threading
         thread = threading.Thread(target=_thread_target, daemon=True)

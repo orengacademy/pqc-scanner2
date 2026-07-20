@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] — 2026-07-20
+
+### Added
+- **Target/domain scanning.** Scans can now be pointed at real endpoints, not
+  just the local host. `pqcscan scan --target host[:port]` activates the
+  TLS/STARTTLS probe family; `--path` (repeatable) activates the
+  certificate/key/code probes; `--ot host:port[:proto]` (repeatable) activates
+  the OT/ICS probes. The runner threads `scan_paths`/`server_target`/
+  `ot_targets` into every `ScanContext`, so the ~30 network probes and OT
+  family — previously dormant because nothing ever set a target — now fire.
+- `POST /api/scans` accepts an optional JSON body
+  (`{"target": ..., "paths": [...], "ot_targets": [...]}`).
+- Web UI: a "Run a scan" form on the dashboard (`POST /scans/new`) triggers a
+  scan against a pasted host/paths and deep-links to the scan-detail page.
+- `pqcscan/runner/targets.py` centralises target parsing (URL-scheme stripping,
+  OT default-port table) so CLI, API, and web form interpret targets identically.
+
 ## [0.7.0] — 2026-07-20
 
 ### Added

@@ -11,6 +11,7 @@ from pqcscan.probes._registry import default_registry
 from pqcscan.runner.capabilities import current_mode, detect_capabilities
 from pqcscan.runner.event_bus import EventBus
 from pqcscan.runner.runner import ProbeRunner
+from pqcscan.runner.targets import parse_scan_inputs
 from pqcscan.store.repo import Repo
 from pqcscan.util.paths import default_db_path
 
@@ -19,8 +20,31 @@ from pqcscan.util.paths import default_db_path
 @click.option("--db", type=click.Path(path_type=Path), default=None)
 @click.option("--json", "as_json", is_flag=True, help="Emit JSON to stdout.")
 @click.option("--watch", is_flag=True, help="Stream events to stderr while scanning.")
-def scan_cmd(db: Path | None, as_json: bool, watch: bool) -> None:
-    """Run a scan in-process; persist to SQLite."""
+@click.option(
+    "--target", default=None,
+    help="Network endpoint host[:port] for TLS/STARTTLS probes "
+         "(e.g. example.com or example.com:8443).",
+)
+@click.option(
+    "--path", "paths", multiple=True,
+    type=click.Path(),
+    help="Filesystem path to scan for certs/keys/code (repeatable).",
+)
+@click.option(
+    "--ot", "ot", multiple=True,
+    help="OT/ICS endpoint host:port[:proto] (repeatable), "
+         "e.g. plc.local:502:modbus.",
+)
+def scan_cmd(
+    db: Path | None, as_json: bool, watch: bool,
+    target: str | None, paths: tuple[str, ...], ot: tuple[str, ...],
+) -> None:
+    """Run a scan in-process; persist to SQLite.
+
+    With no --target/--path/--ot the scan covers the local host only.
+    Supplying targets activates the network, filesystem, and OT probe
+    families against those endpoints.
+    """
     db_path = db or default_db_path()
     db_path.parent.mkdir(parents=True, exist_ok=True)
     repo = Repo(db_path)
@@ -28,6 +52,10 @@ def scan_cmd(db: Path | None, as_json: bool, watch: bool) -> None:
     bus = EventBus()
     registry = default_registry()
     runner = ProbeRunner(registry=registry, repo=repo, bus=bus)
+
+    scan_paths, server_target, ot_targets = parse_scan_inputs(
+        target=target, paths=list(paths), ot=list(ot),
+    )
 
     async def _go() -> int:
         watcher_task = None
@@ -39,6 +67,9 @@ def scan_cmd(db: Path | None, as_json: bool, watch: bool) -> None:
         scan_id = await runner.run(
             mode=current_mode(),
             available_capabilities=detect_capabilities(),
+            scan_paths=scan_paths,
+            server_target=server_target,
+            ot_targets=ot_targets,
         )
         if watcher_task:
             watcher_task.cancel()

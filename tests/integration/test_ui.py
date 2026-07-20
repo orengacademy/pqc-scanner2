@@ -23,6 +23,23 @@ def test_scans_list_page(client):
     assert "<table" in r.text
 
 
+def test_dashboard_has_scan_form(client):
+    r = client.get("/")
+    assert 'action="/scans/new"' in r.text
+    assert 'name="target"' in r.text
+
+
+def test_start_scan_from_web(client):
+    # Posting the form runs a scan (local host, fast registry) and redirects
+    # to a real scan-detail page.
+    r = client.post("/scans/new", data={"target": "", "paths": ""},
+                    follow_redirects=False)
+    assert r.status_code == 303
+    assert r.headers["location"].startswith("/scans/")
+    follow = client.get(r.headers["location"])
+    assert follow.status_code == 200
+
+
 def test_static_htmx_served(client):
     r = client.get("/static/htmx-1.9.10.min.js")
     assert r.status_code == 200
