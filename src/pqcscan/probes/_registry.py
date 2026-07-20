@@ -65,9 +65,13 @@ def default_registry() -> Registry:
     from pqcscan.probes.fs_cert_sniff import FsCertSniff
     from pqcscan.probes.fs_cert_x509 import FsCertX509
     from pqcscan.probes.fs_conf_apache import FsConfApache
+    from pqcscan.probes.fs_conf_caddy import FsConfCaddy
+    from pqcscan.probes.fs_conf_envoy import FsConfEnvoy
+    from pqcscan.probes.fs_conf_haproxy import FsConfHaproxy
     from pqcscan.probes.fs_conf_nginx import FsConfNginx
     from pqcscan.probes.fs_conf_openssl_cnf import FsConfOpensslCnf
     from pqcscan.probes.fs_conf_sshd import FsConfSshd
+    from pqcscan.probes.fs_conf_traefik import FsConfTraefik
     from pqcscan.probes.fs_keyref_cloud import FsKeyrefCloud
     from pqcscan.probes.fs_keystore_jks import FsKeystoreJks
     from pqcscan.probes.fs_keystore_pkcs12 import FsKeystorePkcs12
@@ -86,8 +90,11 @@ def default_registry() -> Registry:
     from pqcscan.probes.host_openssl_groups import HostOpenSSLGroups
     from pqcscan.probes.host_openssl_oqs_provider import HostOpenSSLOqsProvider
     from pqcscan.probes.host_openssl_version import HostOpenSSLVersion
+    from pqcscan.probes.host_pam_hashing import HostPamHashing
+    from pqcscan.probes.host_rng_config import HostRngConfig
     from pqcscan.probes.host_ssh_binary_caps import HostSshBinaryCaps
     from pqcscan.probes.host_ssh_client_config import HostSshClientConfig
+    from pqcscan.probes.host_ssh_moduli import HostSshModuli
     from pqcscan.probes.host_ssh_server_config import HostSshServerConfig
     from pqcscan.probes.host_tpm_sealed_keys import HostTpmSealedKeys
     from pqcscan.probes.hw_pkcs11_modules import HwPkcs11Modules
@@ -374,4 +381,12 @@ def default_registry() -> Registry:
     reg.register(FsCertSniff())
     reg.register(FsCertRevocation())
     reg.register(HostTpmSealedKeys())
+    # Coverage wave — reverse-proxy / mesh TLS config + long-tail host posture.
+    reg.register(FsConfHaproxy())
+    reg.register(FsConfEnvoy())
+    reg.register(FsConfTraefik())
+    reg.register(FsConfCaddy())
+    reg.register(HostRngConfig())
+    reg.register(HostPamHashing())
+    reg.register(HostSshModuli())
     return reg

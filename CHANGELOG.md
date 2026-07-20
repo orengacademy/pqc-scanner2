@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.2] — 2026-07-20
+
+### Added — coverage wave (reverse-proxy / mesh + long-tail host posture)
+- **`fs.conf.haproxy`** — HAProxy `ssl-default-bind-ciphers(uites)`, `ssl-min-ver`,
+  and force/no-tls options.
+- **`fs.conf.envoy`** — Envoy `tls_params` (min/max version, `cipher_suites`,
+  `ecdh_curves`) across YAML/JSON.
+- **`fs.conf.traefik`** — Traefik `tls.options` (`minVersion`, `cipherSuites`,
+  `curvePreferences`) across YAML/TOML.
+- **`fs.conf.caddy`** — Caddyfile / Caddy-JSON explicit TLS weakenings
+  (`protocols`, `cipher_suites`, `curves`, `key_type`).
+- **`host.rng.config`** — kernel entropy pool + hardware-RNG / entropy-daemon
+  posture (weak RNG → weak keys).
+- **`host.pam.hashing`** — system password-hash algorithm (`ENCRYPT_METHOD`,
+  `pam_unix`, `/etc/shadow` prefixes); flags DES/MD5 crypt.
+- **`host.ssh.moduli`** — flags `/etc/ssh/moduli` DH-GEX groups < 3072 bits.
+
 ## [0.7.1] — 2026-07-20
 
 ### Added
