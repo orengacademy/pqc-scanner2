@@ -279,22 +279,33 @@ def _parse_client_hello(body: bytes) -> dict | None:
     ciphers = [struct.unpack(">H", cs_raw[i:i + 2])[0] for i in range(0, len(cs_raw) - 1, 2)]
     if len(body) < off + 1:
         return {"type": "client_hello", "legacy_version": legacy_version,
-                "cipher_suites": ciphers, "versions": [], "groups": []}
+                "cipher_suites": ciphers, "versions": [], "groups": [],
+                "key_share_groups": []}
     comp_len = body[off]
     off += 1 + comp_len
     versions: list[int] = []
-    groups: list[int] = []
+    supported_groups: list[int] = []
+    key_share_groups: list[int] = []
     if len(body) >= off + 2:
         ext_total = struct.unpack(">H", body[off:off + 2])[0]
         off += 2
-        versions, groups = _parse_client_extensions(body[off:off + ext_total])
+        versions, supported_groups, key_share_groups = _parse_client_extensions(
+            body[off:off + ext_total])
+    # "groups" stays the order-preserving, deduped union (supported_groups
+    # first, then any key_share-only group) for backward compatibility;
+    # "key_share_groups" is the subset for which the client actually sent a
+    # key_share — a stronger "actively negotiating this group" signal than a
+    # bare supported_groups listing.
+    groups = list(dict.fromkeys(supported_groups + key_share_groups))
     return {"type": "client_hello", "legacy_version": legacy_version,
-            "cipher_suites": ciphers, "versions": versions, "groups": groups}
+            "cipher_suites": ciphers, "versions": versions, "groups": groups,
+            "key_share_groups": key_share_groups}
 
 
-def _parse_client_extensions(exts: bytes) -> tuple[list[int], list[int]]:
+def _parse_client_extensions(exts: bytes) -> tuple[list[int], list[int], list[int]]:
     versions: list[int] = []
-    groups: list[int] = []
+    supported_groups: list[int] = []
+    key_share_groups: list[int] = []
     i = 0
     while i + 4 <= len(exts):
         et = struct.unpack(">H", exts[i:i + 2])[0]
@@ -307,11 +318,12 @@ def _parse_client_extensions(exts: bytes) -> tuple[list[int], list[int]]:
         elif et == 0x000A and len(ev) >= 2:  # supported_groups: u16 list length + u16 groups
             n = struct.unpack(">H", ev[0:2])[0]
             gv = ev[2:2 + n]
-            groups += [struct.unpack(">H", gv[j:j + 2])[0] for j in range(0, len(gv) - 1, 2)]
+            supported_groups += [struct.unpack(">H", gv[j:j + 2])[0]
+                                 for j in range(0, len(gv) - 1, 2)]
         elif et == 0x0033 and len(ev) >= 2:  # key_share: u16 list length + entries
             n = struct.unpack(">H", ev[0:2])[0]
-            groups += _parse_key_share_groups(ev[2:2 + n])
-    return versions, groups
+            key_share_groups += _parse_key_share_groups(ev[2:2 + n])
+    return versions, supported_groups, key_share_groups
 
 
 def _parse_key_share_groups(entries: bytes) -> list[int]:
