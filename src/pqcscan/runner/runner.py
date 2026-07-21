@@ -89,7 +89,8 @@ class ProbeRunner:
                 classification=Classification.INFO,
                 severity=Severity.INFO,
                 title=f"skipped: probe requires {sorted(c.value for c in probe.requires)}",
-                evidence={"reason": "skipped_privilege"},
+                evidence={"reason": "skipped_privilege", "confidence": "high"},
+                confidence="high",
             ))
             return
         if not await probe.applies(ctx):

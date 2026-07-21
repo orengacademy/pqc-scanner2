@@ -2,13 +2,13 @@
 
 | | |
 |---|---|
-| **Date** | 2026-07-20 |
+| **Date** | 2026-07-21 |
 | **Branch / commit** | `main` |
-| **Version** | `0.8.0` |
+| **Version** | `0.9.4` |
 | **Probes** | 174 registered across 15 families |
 | **Frameworks** | 19 compliance YAMLs |
-| **Tests** | 826 passed / 1 skipped (Python 3.11) |
-| **Status** | Design-doc target shipped, plus two loops (§7 coverage+UX, §8 deferred-items + bilingual + any-OS). Every roadmap item is now done — deferred backend items (TLS 1.3 chain, Kerberos etypes, IKE transforms, PCAP, SBOM-crypto-map, code depth) all shipped; reports + web fully bilingual EN/MS; runs on any OS. |
+| **Tests** | see CI on latest PR (Python 3.11) |
+| **Status** | Design-doc target shipped, plus three loops (§7 coverage+UX, §8 deferred-items + bilingual + any-OS, §9 the 0.8.x–0.9.x precision/decision loop). See `CHANGELOG.md` for the authoritative per-version record — it is kept current every release; this file is a coarser resume guide. |
 
 ## 1. TL;DR
 
@@ -207,6 +207,26 @@ specific compiled artifacts would break the any-OS self-contained binary — the
 regex/keyword probes cover the ground instead); the `macos-13` (x86_64) release-
 matrix line is prepared but needs a `workflow`-scoped token to push.
 
+## 9. 2026-07-21 continuation — 0.8.x hardening → 0.9.x precision + decision loop
+
+Shipped as PRs #53–#69 (see `CHANGELOG.md` 0.8.1–0.9.4 for full detail). Highlights:
+
+- **0.8.x** — DB-column + F5/NetScaler appliance scanning, source-code AST
+  precision, live passive TLS sensing (`net.sniff.live`) with TCP stream
+  reassembly, an accuracy benchmark harness with a CI precision/recall gate.
+- **0.9.0** — coverage + interop + agility expansion (172 probes, 19 frameworks).
+- **0.9.1** — reachability/executability confirmation: ELF `.dynsym`
+  intersection proves linked crypto is actually *invoked*; linked-only hits are
+  down-ranked to low confidence.
+- **0.9.2** — Zeek/Suricata IDS-log ingestion (`fs.zeek.logs`, 174th probe),
+  migration-readiness score, multi-axis exposure register.
+- **0.9.3** — per-language remediation snippets (before→after fixes, projected
+  into SARIF), `--fail-on` CI/CD gate, reusable GitHub composite Action,
+  `docs/CICD.md`.
+- **0.9.4** — `fs.binary.crypto` runs on a plain scan (default system
+  executable roots + magic-bytes pre-read guard); skipped-privilege notes carry
+  explicit high confidence.
+
 ---
 
-_Last updated: 2026-07-20. Update this file at the end of any session that ships meaningful work._
+_Last updated: 2026-07-21. Update this file at the end of any session that ships meaningful work._

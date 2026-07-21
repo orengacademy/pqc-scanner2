@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.4] — 2026-07-21
+
+### Changed — binary-crypto inventory on by default
+- **`fs.binary.crypto` now runs on a plain scan** (no `--path` needed): with no
+  explicit scope it scans the standard system executable dirs (`/usr/bin`,
+  `/usr/sbin`, `/bin`, `/sbin`, `/usr/local/{bin,sbin}`, `/opt`), so the
+  compiled-binary crypto inventory *and* its v0.9.1 reachability layer surface
+  out of the box — matching how the `host.*` / `fs.cert.*` probes treat system
+  paths. `--path` still overrides; explicit constructor roots still win.
+  ~5 s / 80 findings on a stock Ubuntu host.
+- **Magic-bytes pre-check before full file read** in `fs.binary.crypto` — only
+  files whose first 4 bytes are ELF/PE/Mach-O magic get the full (up to 96 MB)
+  read. Keeps the new default sweep cheap even when `/opt` holds multi-GB
+  non-binary files.
+- **Default-sweep file budget** — the implicit default scan (no `--path`) stops
+  after 50 000 files with a logged truncation note, so a huge `/opt` tree
+  (CI runners' `/opt/hostedtoolcache`, `/opt/homebrew`) can't stall a plain
+  scan. System bin dirs are visited first; `--path` scans are never budgeted.
+
+### Fixed
+- Skipped-privilege notes (`skipped_privilege`) now carry `confidence: high` in
+  their evidence — they bypass the central confidence pipeline in `emit()`, so
+  reports/SARIF no longer show them with a missing/implicit confidence.
+
 ## [0.9.3] — 2026-07-21
 
 ### Added — actionable remediation + CI/CD gate

@@ -22,7 +22,12 @@ def test_scan_then_export_cbom(tmp_path: Path):
     db = tmp_path / "db.sqlite"
     env = {"PQCSCAN_DB_PATH": str(db)}
 
-    p1 = _run("scan", "--json", env=env)
+    # Scope the scan to an empty temp dir: this test asserts on the export
+    # pipeline/format, not on host findings. Scoping keeps it fast and
+    # deterministic instead of inventorying the CI host's whole /usr/bin.
+    scan_dir = tmp_path / "scan_root"
+    scan_dir.mkdir()
+    p1 = _run("scan", "--json", "--path", str(scan_dir), env=env)
     assert p1.returncode in (0, 1), p1.stderr
     scan_id = json.loads(p1.stdout)["scan_id"]
 
@@ -43,7 +48,9 @@ def test_scan_then_export_sarif(tmp_path: Path):
     db = tmp_path / "db.sqlite"
     env = {"PQCSCAN_DB_PATH": str(db)}
 
-    p1 = _run("scan", "--json", env=env)
+    scan_dir = tmp_path / "scan_root"
+    scan_dir.mkdir()
+    p1 = _run("scan", "--json", "--path", str(scan_dir), env=env)
     assert p1.returncode in (0, 1), p1.stderr
     scan_id = json.loads(p1.stdout)["scan_id"]
 
@@ -64,7 +71,9 @@ def test_scan_then_export_pdf_technical(tmp_path: Path):
     db = tmp_path / "db.sqlite"
     env = {"PQCSCAN_DB_PATH": str(db)}
 
-    p1 = _run("scan", "--json", env=env)
+    scan_dir = tmp_path / "scan_root"
+    scan_dir.mkdir()
+    p1 = _run("scan", "--json", "--path", str(scan_dir), env=env)
     assert p1.returncode in (0, 1), p1.stderr
     scan_id = json.loads(p1.stdout)["scan_id"]
 

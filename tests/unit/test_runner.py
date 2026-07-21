@@ -73,6 +73,9 @@ async def test_root_only_probe_skipped_in_user_mode(tmp_db_path):
     assert len(findings) == 1
     assert findings[0].classification == "info"
     assert "skipped" in findings[0].title.lower()
+    # Skip notes bypass the emit() confidence pipeline, so the confidence must
+    # be stamped explicitly — a definite fact, not a detection heuristic.
+    assert findings[0].evidence["confidence"] == "high"
 
 
 @pytest.mark.asyncio

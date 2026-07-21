@@ -429,6 +429,46 @@ async def test_applies_true_with_scan_paths(tmp_path: Path):
 
 
 @pytest.mark.asyncio
-async def test_applies_false_without_scan_paths():
+async def test_applies_falls_back_to_default_system_roots(monkeypatch, tmp_path: Path):
+    # With no --path, the probe scans the standard system executable dirs so
+    # binary-crypto + reachability surface on a plain host scan.
+    import pqcscan.probes.fs_binary_crypto as m
     ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
+    monkeypatch.setattr(m, "_DEFAULT_BINARY_ROOTS", [tmp_path])          # exists
+    assert await FsBinaryCrypto().applies(ctx) is True
+    monkeypatch.setattr(m, "_DEFAULT_BINARY_ROOTS", [tmp_path / "nope"])  # absent
     assert await FsBinaryCrypto().applies(ctx) is False
+
+
+@pytest.mark.asyncio
+async def test_applies_false_with_explicit_empty_roots():
+    ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
+    assert await FsBinaryCrypto(roots=[]).applies(ctx) is False
+
+
+@pytest.mark.asyncio
+async def test_default_sweep_is_bounded_by_file_budget(monkeypatch, tmp_path: Path):
+    # The implicit default sweep must stop after _MAX_DEFAULT_FILES files (so a
+    # huge /opt tool cache can't hang a plain scan) and say so honestly.
+    import pqcscan.probes.fs_binary_crypto as m
+    for i in range(5):
+        (tmp_path / f"f{i}.bin").write_bytes(b"not-a-binary")
+    monkeypatch.setattr(m, "_DEFAULT_BINARY_ROOTS", [tmp_path])
+    monkeypatch.setattr(m, "_MAX_DEFAULT_FILES", 3)
+    ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
+    found: list = []
+    await FsBinaryCrypto().run(ctx, emit=found.append)
+    notes = [f for f in found if "file budget" in f.title]
+    assert len(notes) == 1
+    assert notes[0].evidence["file_budget"] == 3
+
+
+@pytest.mark.asyncio
+async def test_explicit_path_scan_is_not_budget_limited(monkeypatch, tmp_path: Path):
+    # An explicit --path scans everything asked for — no default file budget.
+    import pqcscan.probes.fs_binary_crypto as m
+    for i in range(5):
+        (tmp_path / f"f{i}.bin").write_bytes(b"not-a-binary")
+    monkeypatch.setattr(m, "_MAX_DEFAULT_FILES", 3)
+    found = await _run(tmp_path)  # _ctx() sets scan_paths=[tmp_path]
+    assert not [f for f in found if "file budget" in f.title]

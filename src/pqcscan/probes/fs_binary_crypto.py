@@ -35,6 +35,7 @@ capped per scan; when the cap is hit a truncation note is emitted.
 """
 from __future__ import annotations
 
+import asyncio
 import re
 import struct
 from collections.abc import Iterator
@@ -165,6 +166,22 @@ def _cstr(buf: bytes, start: int, end: int | None = None) -> str:
 
 
 # --- ELF ------------------------------------------------------------------
+
+# Standard system executable directories scanned by default (no --path given),
+# so compiled-binary crypto detection + reachability surface on a plain scan.
+# Ordered so the flat, bounded system bin dirs are visited before /opt, which
+# on some hosts (CI runners' /opt/hostedtoolcache, /opt/homebrew) is a huge
+# tree — the visit budget below stops the sweep before it walks all of it.
+_DEFAULT_BINARY_ROOTS = [
+    Path("/usr/bin"), Path("/usr/sbin"), Path("/bin"), Path("/sbin"),
+    Path("/usr/local/bin"), Path("/usr/local/sbin"), Path("/opt"),
+]
+
+# Files-examined budget for the *implicit* default sweep only. An explicit
+# --path (or constructor roots) scans everything the caller asked for; the
+# default sweep must not walk an unbounded tree (e.g. multi-GB tool caches
+# under /opt), so it stops after this many files with a logged truncation note.
+_MAX_DEFAULT_FILES = 50_000
 
 _SHT_DYNAMIC = 6
 _DT_NEEDED = 1
@@ -545,16 +562,44 @@ class FsBinaryCrypto(Probe):
     def __init__(self, roots: list[Path] | None = None):
         self.roots = roots
 
+    def _effective_roots(self, ctx: ScanContext) -> list[Path]:
+        # Explicit roots (tests / callers) win; else the user's --path scope;
+        # else the standard system executable dirs so a default host scan still
+        # inventories compiled-binary crypto (and its reachability) out of the
+        # box, matching how the host.* / fs.cert.* probes scan system paths.
+        if self.roots is not None:
+            return self.roots
+        if ctx.scan_paths:
+            return list(ctx.scan_paths)
+        return [r for r in _DEFAULT_BINARY_ROOTS if r.exists()]
+
     async def applies(self, ctx: ScanContext) -> bool:
-        return bool(ctx.scan_paths)
+        return bool(self._effective_roots(ctx))
 
     async def run(self, ctx: ScanContext, emit: Emitter) -> None:
-        roots = self.roots if self.roots is not None else ctx.scan_paths
+        roots = self._effective_roots(ctx)
+        # The implicit default sweep (no explicit roots, no --path) is bounded
+        # by a files-examined budget so it can't walk a huge /opt tool cache;
+        # an explicit scope scans everything the caller asked for.
+        default_sweep = self.roots is None and not ctx.scan_paths
+        visit_budget = _MAX_DEFAULT_FILES if default_sweep else None
         emitted = 0
+        visited = 0
         capped = False
+        visits_truncated = False
         for path in _iter_files(roots):
             if capped:
                 break
+            if visit_budget is not None and visited >= visit_budget:
+                visits_truncated = True
+                break
+            visited += 1
+            # The scan body is synchronous blocking I/O; yield periodically so
+            # the runner's per-probe wall-clock timeout can actually preempt a
+            # sweep of a pathologically large tree (otherwise the event loop is
+            # blocked and the timeout never fires).
+            if visited % 512 == 0:
+                await asyncio.sleep(0)
             try:
                 hits = self._scan_file(path)
             except Exception:  # pragma: no cover — defensive backstop, never raise
@@ -574,13 +619,29 @@ class FsBinaryCrypto(Probe):
                 title=f"finding cap ({_MAX_FINDINGS}) reached — binary crypto output truncated",
                 evidence={"cap": _MAX_FINDINGS},
             ))
+        if visits_truncated:
+            emit(Finding(
+                probe_id=self.id,
+                algorithm="N/A",
+                classification=Classification.INFO,
+                severity=sev_for(Classification.INFO),
+                title=f"default-scan file budget ({_MAX_DEFAULT_FILES}) reached — "
+                      "pass --path to scan a specific tree exhaustively",
+                evidence={"file_budget": _MAX_DEFAULT_FILES, "roots":
+                          [str(r) for r in roots]},
+            ))
 
     def _scan_file(self, path: Path) -> list[_Hit]:
+        # Magic-check the first 4 bytes before committing to a full read — the
+        # default roots include /opt, where non-binary files can be multi-GB.
+        head = _read(path, limit=4)
+        if head is None or _detect_format(head) is None:
+            return []
         data = _read(path)
         if data is None:
             return []
         fmt = _detect_format(data)
-        if fmt is None:  # not a binary we recognise — skip (no banner scan)
+        if fmt is None:  # pragma: no cover — magic checked above
             return []
 
         try:
@@ -676,10 +737,10 @@ def _finding(probe_id: str, path: Path, hit: _Hit) -> Finding:
     )
 
 
-def _read(path: Path) -> bytes | None:
+def _read(path: Path, limit: int = _MAX_FILE_BYTES) -> bytes | None:
     try:
         with path.open("rb") as fh:
-            return fh.read(_MAX_FILE_BYTES)
+            return fh.read(limit)
     except OSError:
         return None
 
