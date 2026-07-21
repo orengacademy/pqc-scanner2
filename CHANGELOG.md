@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.10] — 2026-07-21
+
+### Added — s2n-tls / AWS-LC binary recognition (FOSS completeness sweep)
+From a registry-anchored completeness sweep (Santander PQCTools CADI/PQCI +
+awesome-post-quantum + GitHub `cryptographic-inventory`) cross-checked against
+pqcscan's probes.
+- **`fs.binary.crypto` now recognizes `s2n-tls` and `AWS-LC`** — increasingly
+  deployed across the AWS ecosystem and both PQC-capable. `s2n-tls` matches by
+  its distinct `libs2n` soname; `AWS-LC` ships its libcrypto under the OpenSSL
+  soname, so it's disambiguated by the `AWS-LC` version banner. Both wired into
+  the `.dynsym` reachability layer (`s2n_` prefix; AWS-LC uses OpenSSL API names).
+
+### Docs — completeness-sweep verdict
+- `docs/COMPETITIVE-LANDSCAPE.md` — the sweep confirmed pqcscan covers **every
+  FOSS discovery modality** in the authoritative registry, and that six requested
+  categories (IPsec/IKEv2/VPN, TPM/HSM/PKCS#11, K8s/mesh, DKIM/email, Semgrep-PQC,
+  QUIC) have **zero FOSS tools** — pqcscan has probes for five of them. The one
+  genuine whitespace nobody covers is **QUIC PQC probing** (added to `TODO.md`,
+  deferred: needs QUIC Initial-packet crypto).
+
 ## [0.9.9] — 2026-07-21
 
 ### Fixed — cert PQC recognition recall + centralization
