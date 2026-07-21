@@ -1,14 +1,11 @@
-"""fs.cert.pqc_x509 — detect ML-DSA / SLH-DSA / Falcon X.509 certs (Plan I.7.c).
+"""fs.cert.pqc_x509 — detect ML-DSA / SLH-DSA / Falcon / composite X.509 certs.
 
-Walks ctx.scan_paths for X.509 cert files (.pem, .crt, .cer, .der), parses
-each via `cryptography.x509`, and emits a Finding when signature_algorithm_oid
-matches a NIST FIPS 204 (ML-DSA) / FIPS 205 (SLH-DSA) / Falcon-assigned OID.
-
-NIST OID assignments under 2.16.840.1.101.3.4.3:
-- .17 — ML-DSA-44
-- .18 — ML-DSA-65
-- .19 — ML-DSA-87
-- .20-.31 — SLH-DSA-* (SHA2/SHAKE x 128/192/256 x small/fast)
+Walks ctx.scan_paths for X.509 cert files (.pem, .crt, .cer, .der), parses each
+via `cryptography.x509`, and emits a Finding when the cert's signature algorithm
+is post-quantum. Recognition is centralized in `core.alg` (a single OID table),
+so every standardized PQC signature OID is covered: pure ML-DSA / SLH-DSA (FIPS
+204/205), the pre-hash HashML-DSA / HashSLH-DSA variants (CSOR .32-.46), the
+LAMPS composite ML-DSA hybrids, and Falcon — not just the pure .17-.31 arc.
 """
 from __future__ import annotations
 
@@ -17,29 +14,9 @@ from pathlib import Path
 from cryptography import x509
 from cryptography.hazmat.primitives.serialization import Encoding
 
+from pqcscan.core.alg import classify, normalise
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
-
-_PQC_OIDS: dict[str, str] = {
-    "2.16.840.1.101.3.4.3.17": "ML-DSA-44",
-    "2.16.840.1.101.3.4.3.18": "ML-DSA-65",
-    "2.16.840.1.101.3.4.3.19": "ML-DSA-87",
-    "2.16.840.1.101.3.4.3.20": "SLH-DSA-SHA2-128s",
-    "2.16.840.1.101.3.4.3.21": "SLH-DSA-SHA2-128f",
-    "2.16.840.1.101.3.4.3.22": "SLH-DSA-SHA2-192s",
-    "2.16.840.1.101.3.4.3.23": "SLH-DSA-SHA2-192f",
-    "2.16.840.1.101.3.4.3.24": "SLH-DSA-SHA2-256s",
-    "2.16.840.1.101.3.4.3.25": "SLH-DSA-SHA2-256f",
-    "2.16.840.1.101.3.4.3.26": "SLH-DSA-SHAKE-128s",
-    "2.16.840.1.101.3.4.3.27": "SLH-DSA-SHAKE-128f",
-    "2.16.840.1.101.3.4.3.28": "SLH-DSA-SHAKE-192s",
-    "2.16.840.1.101.3.4.3.29": "SLH-DSA-SHAKE-192f",
-    "2.16.840.1.101.3.4.3.30": "SLH-DSA-SHAKE-256s",
-    "2.16.840.1.101.3.4.3.31": "SLH-DSA-SHAKE-256f",
-    # Falcon (OQS-assigned, draft-ietf-lamps-pq-composite-sigs may reassign).
-    "1.3.9999.3.6": "Falcon-512",
-    "1.3.9999.3.9": "Falcon-1024",
-}
 
 _DEFAULT_GLOBS = ("*.pem", "*.crt", "*.cer", "*.der")
 
@@ -83,9 +60,12 @@ class FsCertPqcX509(Probe):
                         sig_oid = cert.signature_algorithm_oid.dotted_string
                     except AttributeError:
                         continue
-                    if sig_oid not in _PQC_OIDS:
+                    # Centralized recognition: PQC iff core.alg classifies the
+                    # signature OID as quantum-ready (covers pure + pre-hash +
+                    # composite + Falcon).
+                    if classify(sig_oid) is not Classification.PQC_READY:
                         continue
-                    alg = _PQC_OIDS[sig_oid]
+                    alg = normalise(sig_oid)
                     try:
                         subject = cert.subject.rfc4514_string()
                     except Exception:
