@@ -238,7 +238,7 @@ Actionable, verified take-aways:
 | Network TLS/SSH probe | pqcscan(anvil)/testssl.sh/QuantaSeek | `net.tls.*` incl. live handshake + KEX groups | ✅ covered |
 | **Binary linkage** | Keyfactor AgileSec | `fs.binary.crypto` (ELF/PE/Mach-O) + **`.dynsym` reachability** | ✅ + reachability (rare) |
 | **Runtime call tracing** | **SandboxAQ AQtive Guard** | static `.dynsym` proxy only | ⚠️ **the one tier above us** — runtime hooks break self-contained/any-OS premise |
-| Binary crypto **constants** (S-box/YARA) | capa/find-crypt (generic) | linkage + symbols, not constant sigs | candidate: statically-linked/stripped binaries |
+| Binary crypto **constants** (S-box/YARA) | capa/find-crypt (generic) | ✅ `_crypto_constants.py` (v0.9.6) — 16 sigs, gated on no-linkage | ✅ covered (catches static Go/Rust/stripped) |
 | Passive PCAP | SandboxAQ, `fs.pcap.crypto` | `fs.pcap.crypto` + `net.sniff.live` | ✅ covered |
 | **JA3/JA4 PQC ClientHello fingerprint** | (emerging, rare in FOSS) | not done | candidate: passive PQC-handshake fingerprinting |
 | Cert/PKI PQC | CryptoScan, zlint | `fs.cert.*` + `net.ct.crtsh` | ✅ covered |
@@ -252,10 +252,11 @@ Actionable, verified take-aways:
 
 **Net:** the only capabilities the *verified* field has that pqcscan lacks are
 (1) **runtime call tracing** (SandboxAQ) — fundamentally incompatible with the
-self-contained/any-OS binary premise, so a deliberate non-goal; (2) **binary
-crypto-constant signatures** for stripped/static binaries; (3) **JA3/JA4 PQC
-handshake fingerprinting**; (4) **native-vs-OQS OpenSSL version awareness**.
-(2)–(4) are the concrete, self-contained-compatible coverage candidates.
+self-contained/any-OS binary premise, so a deliberate non-goal; ~~(2) binary
+crypto-constant signatures for stripped/static binaries~~ **— shipped v0.9.6**
+(`_crypto_constants.py`); (3) **JA3/JA4 PQC handshake fingerprinting**; and
+(4) **native-vs-OQS OpenSSL version awareness**. (3)–(4) are the remaining
+concrete, self-contained-compatible coverage candidates.
 
 ## Maintained vs dormant
 - **Active (2025-era):** PQCA CBOMkit, csnp/cryptoscan, anvilsecure/pqcscan,

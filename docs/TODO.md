@@ -46,10 +46,10 @@ These are the only self-contained-compatible techniques the *verified* field has
 that pqcscan lacks (runtime call-tracing à la SandboxAQ is a deliberate non-goal
 — it breaks the any-OS self-contained binary).
 
-- [ ] **Binary crypto-constant signatures** — detect statically-linked/stripped
-      binaries by S-box / magic-constant matching (capa / find-crypt style),
-      complementing the current `.dynsym` linkage detection which misses static
-      builds. Pure-data YARA-like constant table; fits the self-contained model.
+- [x] **Binary crypto-constant signatures** — `probes/_crypto_constants.py`
+      (v0.9.6): 16 signatures (AES S-boxes, SHA/MD/Keccak round constants,
+      ChaCha sigma, Blowfish P-array) detect static/stripped binaries the
+      `.dynsym` linkage detection misses. Gated on "no library detected". ✅
 - [ ] **JA3/JA4 PQC ClientHello fingerprinting** — passive fingerprint of PQC
       key-share/hybrid-group offers in TLS ClientHellos (extends `net.sniff.live`
       / `fs.pcap.crypto`). Emerging technique, rare in FOSS — a differentiator.
