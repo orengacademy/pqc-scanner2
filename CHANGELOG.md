@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.9] — 2026-07-21
+
+### Fixed — cert PQC recognition recall + centralization
+- **`fs.cert.pqc_x509` recognized far fewer PQC certs than the classifier knew.**
+  It carried its *own* local OID table (only pure ML-DSA/SLH-DSA `.17-.31` +
+  Falcon), so a cert signed with a **pre-hash** (HashML-DSA/HashSLH-DSA) or
+  **composite** ML-DSA algorithm was silently missed. Recognition is now
+  centralized in `core.alg` (`classify(sig_oid) == PQC_READY`), so the probe
+  covers the full standardized surface — pure + pre-hash (CSOR .32-.46) +
+  composite + Falcon — with no duplicate table to drift.
+- **Added the Falcon/FN-DSA OQS OIDs** (`1.3.9999.3.6/.9`) to the central
+  `core.alg` table.
+- **Added the probe's first test suite** (it had none) — parametrized recognition
+  across pure/pre-hash/composite/Falcon + classical-cert rejection.
+
 ## [0.9.8] — 2026-07-21
 
 ### Added — OpenSSL PQC provenance (native vs oqs-provider)

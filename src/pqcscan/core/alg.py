@@ -97,6 +97,10 @@ _OID_MAP: dict[str, str] = {
     "2.16.840.1.101.3.4.4.1": "ML-KEM-512",
     "2.16.840.1.101.3.4.4.2": "ML-KEM-768",
     "2.16.840.1.101.3.4.4.3": "ML-KEM-1024",
+    # Falcon / FN-DSA (FIPS 206 draft) — OQS-assigned OIDs seen in interop certs
+    # (draft-ietf-lamps-pq-composite-sigs may reassign under the NIST arc).
+    "1.3.9999.3.6": "Falcon-512",
+    "1.3.9999.3.9": "Falcon-1024",
     # Hash algorithms (bare)
     "1.3.14.3.2.26": "SHA-1",
     "2.16.840.1.101.3.4.2.1": "SHA-256",
