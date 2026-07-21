@@ -8,6 +8,53 @@ checkpqc.app, wiz.io/pqc-tester, pqscan.io, et al.).
 We already cover the majority of what they do; the items below are the
 gaps worth filling, ranked by leverage.
 
+## Roadmap — post-v0.9.11 (2026-07-21)
+
+**Detection coverage is done.** Five deep-research passes (see
+`docs/COMPETITIVE-LANDSCAPE.md`) confirm pqcscan covers every FOSS discovery
+modality, five categories the FOSS field leaves empty, and QUIC that no other
+FOSS/verified-commercial tool reads. So the next frontiers are **maturity,
+external validation, and staying current — not more probes.** Adding niche
+probes now is busywork; build detection only when a real user need pulls it.
+
+### Tier 1 — highest leverage
+- [ ] **Cut a 1.0.** The tool is feature-complete, comprehensively verified, and
+      shipping cross-platform binaries. A `1.0` with an explicit **stability
+      contract** — probe IDs, the CycloneDX CBOM schema, SARIF output, and CLI
+      exit codes — signals maturity and lets CI/downstream depend on it.
+- [ ] **Standards-tracking (standing discipline).** The landscape still moves and
+      drives the tool: **NIST IR 8547** is an *initial public draft* (2030/2035
+      dates may shift); **HQC** (selected Mar 2025) and **FIPS 206 / FN-DSA**
+      aren't final — when they get OIDs, `core/alg.py` + the deadline logic must
+      follow. Low effort per update, high accuracy value.
+- [ ] **Publish a discovery precision/recall corpus (field-first).** No FOSS
+      crypto-*discovery* benchmark exists (CryptoAPI-Bench targets misuse). We
+      already have the accuracy harness (#64) + the 51-OID oracle; a labeled,
+      multi-surface ground-truth corpus turns "we believe it's accurate" into
+      measured, reproducible proof — a real contribution to the field.
+
+### Tier 2 — self-contained-compatible extensions (demand-driven)
+- [ ] **Live QUIC sniffing** — QUIC Initial decryption exists for PCAP
+      (`_quic.py`); extend `net.sniff.live` to do it on live UDP.
+- [ ] **Binary crypto-constant expansion** — more S-boxes (DES SP-boxes,
+      Camellia, SM4) + PQC NTT/Keccak constants for *static PQC* binaries.
+- [ ] **pkilint-level cert profile validation** — FIPS key-size / key-usage
+      checks beyond OID recognition (needs raw-SPKI DER parsing; `cryptography`
+      won't parse PQC public keys) + IETF pqc-certificates DER vectors as e2e.
+
+### Tier 3 — beyond the current mission (needs a design decision)
+- [ ] **Migration assistance.** The tool *inventories*, it does not orchestrate
+      migration (a deliberate boundary vs Keyfactor/Venafi). Moving into
+      remediation execution is a scope change to decide, not drift into.
+- [ ] **Continuous monitoring / trend view** — baselines + diff already exist; a
+      time-series posture dashboard would operationalize them.
+
+### Housekeeping
+- [ ] Optional: back-fill git tags for v0.9.4–v0.9.10 (only v0.9.3 and v0.9.11
+      are tagged/released; the v0.9.11 rollup covers the span).
+
+---
+
 ## High-leverage
 
 - [ ] **SARIF renderer** (`renderers/sarif.py` + `cli/export.py` slug
