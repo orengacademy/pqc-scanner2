@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.5] — 2026-07-21
+
+### Added — coverage expansion (cleartext protocols + PQC on-ramp algorithms)
+Closes the concrete gaps surfaced by a 3-pass competitive/FOSS research review
+(see `docs/COMPETITIVE-LANDSCAPE.md`). Pure-stdlib.
+- **`net.telnet.plaintext`** (176th probe) — detects a cleartext **Telnet**
+  service (TCP 23) by its RFC 854 IAC option negotiation. Telnet has no
+  transport encryption at all (the crypto-posture floor: nothing to be
+  quantum-vulnerable because nothing is protected) → classified SANGAT_TINGGI.
+- **`net.tftp.service`** (177th probe) — detects a **TFTP** service (UDP 69, no
+  auth/no encryption) via an RRQ→ERROR/DATA exchange → TINGGI. Both probes
+  default to localhost like the other host-service probes but honor `--target`.
+- **NIST additional-signature on-ramp algorithm recognition** — `core/alg.py`
+  now classifies **MAYO, SNOVA, CROSS, UOV, HAWK, SQIsign** as PQC-ready (were
+  falling through to INFO/"unknown"), matching the oqs-provider algorithm set.
+  A variant-specific `CROSSRSDP`/`CROSS-RSDP` prefix avoids false-matching the
+  X.509 "cross-signed" cert relationship.
+
+### Docs
+- `docs/COMPETITIVE-LANDSCAPE.md` — appended verified 2026-07-21 research:
+  standards convergence, the three CBOM-accuracy obstacles, a commercial-vendor
+  table (SandboxAQ/IBM/Keyfactor/Qinsight), a FOSS coverage checklist, and a
+  pqcscan-vs-field coverage/gap matrix. `docs/TODO.md` — tracked coverage
+  candidates (binary crypto-constant sigs, JA3/JA4 PQC fingerprinting,
+  native-vs-OQS OpenSSL awareness).
+
 ## [0.9.4] — 2026-07-21
 
 ### Changed — binary-crypto inventory on by default

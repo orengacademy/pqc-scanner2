@@ -50,6 +50,22 @@ def test_classify_hybrid_is_pqc_ready():
     assert classify("X25519MLKEM768") == Classification.PQC_READY
 
 
+@pytest.mark.parametrize("alg", [
+    "MAYO-2", "SNOVA_24_5_4", "CROSSrsdp128small", "cross-rsdp-128-small",
+    "HAWK-512", "SQIsign", "UOV-Ip",
+])
+def test_classify_onramp_signature_candidates_are_pqc_ready(alg):
+    # NIST additional-signature on-ramp candidates shipped by oqs-provider.
+    assert classify(alg) == Classification.PQC_READY
+
+
+@pytest.mark.parametrize("alg", ["cross-signed-chain", "CROSS-SIGNED"])
+def test_cross_signed_cert_terminology_is_not_pqc(alg):
+    # Guard: the X.509 "cross-signed" relationship must not match CROSS the
+    # PQC signature scheme (bare "CROSS" prefix would; the variant prefix won't).
+    assert classify(alg) != Classification.PQC_READY
+
+
 def test_classify_unknown_is_info():
     assert classify("totally-unknown-alg") == Classification.INFO
 
