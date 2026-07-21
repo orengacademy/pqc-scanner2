@@ -36,7 +36,12 @@ def test_help():
 
 def test_scan_in_process_writes_to_db(tmp_path):
     db = tmp_path / "test.db"
-    p = _run("scan", "--json", env={"PQCSCAN_DB_PATH": str(db)})
+    # Scope to an empty dir — this test asserts the scan writes to the DB, not
+    # what it finds; scoping avoids inventorying the CI host's whole /usr/bin.
+    scan_dir = tmp_path / "scan_root"
+    scan_dir.mkdir()
+    p = _run("scan", "--json", "--path", str(scan_dir),
+             env={"PQCSCAN_DB_PATH": str(db)})
     assert p.returncode in (0, 1), p.stderr
     out = json.loads(p.stdout)
     assert "scan_id" in out

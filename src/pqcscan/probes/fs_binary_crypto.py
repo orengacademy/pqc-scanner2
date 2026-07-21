@@ -35,6 +35,7 @@ capped per scan; when the cap is hit a truncation note is emitted.
 """
 from __future__ import annotations
 
+import asyncio
 import re
 import struct
 from collections.abc import Iterator
@@ -593,6 +594,12 @@ class FsBinaryCrypto(Probe):
                 visits_truncated = True
                 break
             visited += 1
+            # The scan body is synchronous blocking I/O; yield periodically so
+            # the runner's per-probe wall-clock timeout can actually preempt a
+            # sweep of a pathologically large tree (otherwise the event loop is
+            # blocked and the timeout never fires).
+            if visited % 512 == 0:
+                await asyncio.sleep(0)
             try:
                 hits = self._scan_file(path)
             except Exception:  # pragma: no cover — defensive backstop, never raise
