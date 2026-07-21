@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.8] — 2026-07-21
+
+### Added — OpenSSL PQC provenance (native vs oqs-provider)
+- **`host.openssl.pqc_provenance`** (178th probe) — `host.openssl.version` and
+  `host.openssl.oqs_provider` report their signals separately, so an OpenSSL 3.3
+  host *with* oqs-provider loaded read as "classical; needs oqs-provider" despite
+  being PQC-capable today. The 2025 UMBC crypto-library survey flags
+  distinguishing native OpenSSL 3.5 PQC from oqs-provider-on-3.x as a required
+  capability. This probe synthesizes `openssl version` + `openssl list
+  -providers` into one **provenance** verdict — `native` (≥3.5) / `oqs-provider`
+  (3.0–3.4 + add-on loaded) / `none` — with `pqc_provenance` / `native_pqc` /
+  `oqs_provider_loaded` in evidence so add-on hosts can be filtered for migration
+  to native.
+
 ## [0.9.7] — 2026-07-21
 
 ### Added — PQC-detection precision & accuracy

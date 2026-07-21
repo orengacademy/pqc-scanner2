@@ -247,7 +247,7 @@ Actionable, verified take-aways:
 | Dep/CVE→crypto | CryptoDeps, Grype/Trivy | `sbom.*`, `cve.osv_offline` | ✅ covered |
 | Compliance mapping | sbom-tools (2 frameworks) | **19 frameworks** | ✅ ahead |
 | On-ramp algo recognition | oqs-provider list | `core/alg.py` (incl. MAYO/SNOVA/CROSS/UOV as of today) | ✅ now covered |
-| Native-vs-OQS OpenSSL distinction | UMBC survey requirement | not version-aware | ⚠️ candidate |
+| Native-vs-OQS OpenSSL distinction | UMBC survey requirement | ✅ `host.openssl.pqc_provenance` (v0.9.8) — native/oqs-provider/none verdict | ✅ covered |
 | Discovery precision benchmark | none in FOSS (CryptoAPI-Bench is misuse) | own harness (#64) | ✅ ahead; could publish a corpus |
 
 **Net:** the only capability the *verified* field has that pqcscan lacks and
@@ -327,12 +327,12 @@ detection CISA flagged as hard (`fs.binary.crypto` + v0.9.6 constants).
 - ✅ ~~Cert PQC recognition accuracy~~ — **v0.9.7** added the 15 missing FIPS 204/205
   pre-hash OIDs (HashML-DSA/HashSLH-DSA, NIST-CSOR-verified) + a 51-OID ground-truth
   recall oracle (the field's first measured PQC-discovery accuracy baseline).
-1. **Native-vs-OQS OpenSSL version awareness** (OpenSSL ≥3.5 native vs
-   `oqs-provider`-on-3.x) — now the top remaining candidate.
-2. **Deeper cert PQC *profile* validation** (pkilint-level key-size/key-usage
+- ✅ ~~Native-vs-OQS OpenSSL version awareness~~ — **v0.9.8**
+  (`host.openssl.pqc_provenance`).
+1. **Deeper cert PQC *profile* validation** (pkilint-level key-size/key-usage
    checks in `fs.cert.pqc_x509`, beyond OID recognition) + adopt the **IETF
-   pqc-certificates** DER vectors as an end-to-end ground-truth test.
-3. **JA4/JA4X fingerprint emission** for observed TLS (correlation/inventory).
+   pqc-certificates** DER vectors as an end-to-end ground-truth test — now top.
+2. **JA4/JA4X fingerprint emission** for observed TLS (correlation/inventory).
 
 ## Maintained vs dormant
 - **Active (2025-era):** PQCA CBOMkit, csnp/cryptoscan, anvilsecure/pqcscan,

@@ -58,11 +58,10 @@ that pqcscan lacks (runtime call-tracing à la SandboxAQ is a deliberate non-goa
 - [x] **Cert PQC recognition accuracy** — **v0.9.7** added the 15 missing FIPS
       204/205 pre-hash OIDs (HashML-DSA/HashSLH-DSA, NIST-CSOR-verified) + a
       51-OID ground-truth recall oracle. ✅
-- [ ] **[TOP] Native-vs-OQS OpenSSL version awareness** — distinguish native PQC
-      (OpenSSL ≥3.5, Apr 2025) from `oqs-provider`-on-3.x add-on, per the UMBC
-      survey requirement. Version-aware linkage classification in
-      `fs.binary.crypto` / host lib detection. Now the top remaining candidate.
-- [ ] **Deeper cert PQC *profile* validation + end-to-end vectors** — pkilint
+- [x] **Native-vs-OQS OpenSSL version awareness** — `host.openssl.pqc_provenance`
+      (v0.9.8) synthesizes `openssl version` + `list -providers` into a native /
+      oqs-provider / none provenance verdict, per the UMBC survey requirement. ✅
+- [ ] **[TOP] Deeper cert PQC *profile* validation + end-to-end vectors** — pkilint
       (DigiCert) does FIPS 203/204/205 key-size/key-usage validation *beyond* our
       OID recognition in `fs.cert.pqc_x509`; adopt the **IETF-Hackathon/
       pqc-certificates** ML-DSA/ML-KEM/SLH-DSA/composite DER corpus as an
