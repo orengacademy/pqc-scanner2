@@ -374,18 +374,22 @@ them:
 | Kubernetes / service-mesh PQC | ✅ `k8s.mesh.mtls/policy`, `k8s.ingress.tls` |
 | DKIM / email posture | ✅ `email.dkim_selectors`, `email.smime_certs` |
 | Semgrep PQC ruleset | ✅ `code.semgrep_pqc` (we ship one) |
-| **QUIC PQC probing** | ⚠️ **not covered — the one genuine whitespace** (no FOSS tool either) |
+| **QUIC PQC probing** | ✅ **v0.9.11** — `fs.pcap.crypto` decrypts the QUIC Initial (RFC 9001) to read the ClientHello's offered PQC groups; **no other FOSS tool does this** |
 
 **Shipped from this sweep (v0.9.10):** `s2n-tls` (soname) + `AWS-LC` (banner-
 disambiguated — it ships libcrypto under the OpenSSL soname) added to
 `fs.binary.crypto` library recognition, both increasingly deployed across the
 AWS ecosystem and PQC-capable.
 
-**Deferred — QUIC PQC probing:** the only category *no one* (FOSS or pqcscan)
-covers. Real work: parse the QUIC Initial packet, derive the version-specific
-initial secrets (HKDF), AEAD-decrypt the CRYPTO frame to reach the TLS
-ClientHello, then read `supported_groups`. A genuine future differentiator, but
-a standalone feature (Initial-packet crypto), not a batch-in increment.
+**QUIC PQC probing — SHIPPED (v0.9.11).** The last whitespace is closed:
+`_quic.py` parses the QUIC Initial packet, derives the version-specific initial
+keys via HKDF (RFC 9001 v1 + RFC 9369 v2, verified against the RFC 9001 A.1 test
+vector), removes header protection, AEAD-decrypts (AES-128-GCM) the CRYPTO
+frame, and reassembles the TLS ClientHello — wired into `fs.pcap.crypto` so QUIC
+`supported_groups`/`key_share` (offered PQC/hybrid groups) are inventoried from
+capture files, tagged `quic`. **No other FOSS tool — and no verified commercial
+one — reads PQC posture out of QUIC.** With this, pqcscan covers every discovery
+surface surfaced across all research passes.
 
 ## Maintained vs dormant
 - **Active (2025-era):** PQCA CBOMkit, csnp/cryptoscan, anvilsecure/pqcscan,

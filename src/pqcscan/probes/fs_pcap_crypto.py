@@ -9,6 +9,10 @@ pulls the cryptography that was negotiated on the wire out of the handshakes:
           classified for post-quantum exposure.
 - SSH    — the SSH-2.0 banner + SSH_MSG_KEXINIT name-lists (kex_algorithms,
           server_host_key_algorithms).
+- QUIC   — the client Initial packet (UDP) is decrypted (RFC 9001 keys derived
+          from the on-the-wire DCID) to reach the TLS ClientHello inside its
+          CRYPTO frame, then its offered (PQC/hybrid) groups are inventoried —
+          a surface no other FOSS scanner reads. See `_quic`.
 
 Parsing is delegated to `_pcap` (a hand-rolled, dependency-free pcap/pcapng +
 TLS/SSH reader — no scapy/dpkt/pyshark). Everything is guarded: a truncated,
@@ -20,6 +24,7 @@ identical rows; when the cap is hit a note is added.
 """
 from __future__ import annotations
 
+import struct
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -33,6 +38,7 @@ from pqcscan.probes._pcap import (
     parse_ssh_kexinit,
     parse_tls_handshake,
 )
+from pqcscan.probes._quic import extract_client_hello
 from pqcscan.probes._severity import classify_cipher_token, sev_for
 
 # Cap findings per file so a huge capture with the same repeated handshake does
@@ -202,9 +208,9 @@ class FsPcapCrypto(Probe):
         try:
             for frame, linktype in iter_packets(data):
                 seg = decode_packet(frame, linktype)
-                if seg is None or seg.proto != "tcp" or not seg.payload:
+                if seg is None or seg.proto not in ("tcp", "udp") or not seg.payload:
                     continue
-                for proto, alg, cls in self._analyze(seg.payload):
+                for proto, alg, cls in self._analyze(seg.payload, seg.proto):
                     endpoint = f"{seg.src}->{seg.dst}"
                     key = (proto, endpoint, alg)
                     if key in seen:
@@ -230,7 +236,20 @@ class FsPcapCrypto(Probe):
                 evidence={"file": str(path), "cap": _MAX_FINDINGS_PER_FILE},
             ))
 
-    def _analyze(self, payload: bytes) -> Iterator[tuple[str, str, Classification]]:
+    def _analyze(
+        self, payload: bytes, proto: str = "tcp",
+    ) -> Iterator[tuple[str, str, Classification]]:
+        if proto == "udp":
+            # QUIC: decrypt the Initial packet to reach the TLS ClientHello and
+            # inventory its offered (PQC/hybrid) groups — a surface no other FOSS
+            # scanner reads. Tagged "quic" so it's distinguishable from TLS/TCP.
+            ch = extract_client_hello(payload)
+            if ch is not None:
+                tls = parse_tls_handshake(_wrap_tls_record(ch))
+                if tls is not None:
+                    for _p, alg, cls in _analyze_tls(tls):
+                        yield "quic", alg, cls
+            return
         tls = parse_tls_handshake(payload)
         if tls is not None:
             yield from _analyze_tls(tls)
@@ -238,6 +257,12 @@ class FsPcapCrypto(Probe):
         ssh = parse_ssh_kexinit(payload)
         if ssh is not None:
             yield from _analyze_ssh(ssh)
+
+
+def _wrap_tls_record(handshake: bytes) -> bytes:
+    """Wrap a bare TLS handshake message (from a QUIC CRYPTO frame) in a TLS 1.2
+    record so the record-oriented ``parse_tls_handshake`` can read it."""
+    return b"\x16\x03\x03" + struct.pack(">H", len(handshake)) + handshake
 
 
 def _analyze_tls(tls: dict) -> Iterator[tuple[str, str, Classification]]:
