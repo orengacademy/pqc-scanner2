@@ -25,6 +25,18 @@ link no `libcrypto`. Pure-stdlib.
   **medium** confidence (proves presence, not invocation). Validated against
   real libcrypto/libgcrypt/libsodium/ssh with zero false positives.
 
+### Docs — competitive-landscape gap-closing research
+- `docs/COMPETITIVE-LANDSCAPE.md` — appended two targeted research passes closing
+  the commercial-vendor half (DigiCert/CyberArk/Palo Alto×2/Quantum Xchange
+  verified; Entrust/Wiz/Qualys/Tenable/Microsoft/AppViewX/Utimaco unverifiable)
+  and four FOSS categories (binary/firmware matchers, cert/PKI incl. the
+  PQC-aware **pkilint**, passive **JA4/Zeek** analysis, SBOM/CVE mappers). Key
+  outcomes: (a) no verified commercial vendor except SandboxAQ (binary/runtime)
+  and IBM (CBOM) matches our surface breadth; (b) **passive PQC
+  key_share/supported_groups fingerprinting is a genuine whitespace no FOSS tool
+  fills** — JA4 records extension *type* only, Zeek logs only the negotiated
+  curve — now the top-ranked coverage candidate in `docs/TODO.md`.
+
 ## [0.9.5] — 2026-07-21
 
 ### Added — coverage expansion (cleartext protocols + PQC on-ramp algorithms)

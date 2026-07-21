@@ -50,13 +50,21 @@ that pqcscan lacks (runtime call-tracing à la SandboxAQ is a deliberate non-goa
       (v0.9.6): 16 signatures (AES S-boxes, SHA/MD/Keccak round constants,
       ChaCha sigma, Blowfish P-array) detect static/stripped binaries the
       `.dynsym` linkage detection misses. Gated on "no library detected". ✅
-- [ ] **JA3/JA4 PQC ClientHello fingerprinting** — passive fingerprint of PQC
-      key-share/hybrid-group offers in TLS ClientHellos (extends `net.sniff.live`
-      / `fs.pcap.crypto`). Emerging technique, rare in FOSS — a differentiator.
+- [ ] **[TOP] Passive PQC ClientHello group fingerprinting** — parse the TLS
+      ClientHello `supported_groups`/`key_share` in `net.sniff.live` to flag
+      which PQC/hybrid groups (X25519MLKEM768, …) an endpoint offers. **The
+      2026-07-21 gap pass confirmed NO FOSS tool does this**: JA4 records only
+      the extension *type* code, not contents; Zeek `ssl.log` logs only the
+      *negotiated* curve. Genuine whitespace + top differentiator.
 - [ ] **Native-vs-OQS OpenSSL version awareness** — distinguish native PQC
       (OpenSSL ≥3.5, Apr 2025) from `oqs-provider`-on-3.x add-on, per the UMBC
       survey requirement. Version-aware linkage classification in
       `fs.binary.crypto` / host lib detection.
+- [ ] **Deeper cert PQC profile validation + ground-truth vectors** — pkilint
+      (DigiCert) does FIPS 203/204/205 key-size/key-usage validation beyond our
+      OID recognition in `fs.cert.pqc_x509`; adopt the **IETF-Hackathon/
+      pqc-certificates** ML-DSA/ML-KEM/SLH-DSA/composite test corpus as a
+      ground-truth accuracy test.
 - [x] **On-ramp signature algorithm recognition** — MAYO/SNOVA/CROSS/UOV/HAWK/
       SQIsign added to `core/alg.py` PQC-ready set (were classified INFO). ✅
 - [ ] **Publish a discovery precision/recall corpus** — no FOSS ground-truth

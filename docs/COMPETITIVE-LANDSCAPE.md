@@ -240,7 +240,7 @@ Actionable, verified take-aways:
 | **Runtime call tracing** | **SandboxAQ AQtive Guard** | static `.dynsym` proxy only | ⚠️ **the one tier above us** — runtime hooks break self-contained/any-OS premise |
 | Binary crypto **constants** (S-box/YARA) | capa/find-crypt (generic) | ✅ `_crypto_constants.py` (v0.9.6) — 16 sigs, gated on no-linkage | ✅ covered (catches static Go/Rust/stripped) |
 | Passive PCAP | SandboxAQ, `fs.pcap.crypto` | `fs.pcap.crypto` + `net.sniff.live` | ✅ covered |
-| **JA3/JA4 PQC ClientHello fingerprint** | (emerging, rare in FOSS) | not done | candidate: passive PQC-handshake fingerprinting |
+| **Passive PQC key_share/supported_groups fingerprint** | **nobody** — JA4 records ext *type* only (`000a`/`0033`), not contents; Zeek `ssl.log` logs only the negotiated curve | not done | **genuine whitespace** — extend `net.sniff.live` to parse ClientHello offered groups |
 | Cert/PKI PQC | CryptoScan, zlint | `fs.cert.*` + `net.ct.crtsh` | ✅ covered |
 | CBOM output | CBOMkit (1.6) | CycloneDX **1.7** | ✅ ahead |
 | SARIF / CI gate | CryptoScan | SARIF 2.1.0 + `--fail-on` + Action | ✅ covered |
@@ -250,13 +250,86 @@ Actionable, verified take-aways:
 | Native-vs-OQS OpenSSL distinction | UMBC survey requirement | not version-aware | ⚠️ candidate |
 | Discovery precision benchmark | none in FOSS (CryptoAPI-Bench is misuse) | own harness (#64) | ✅ ahead; could publish a corpus |
 
-**Net:** the only capabilities the *verified* field has that pqcscan lacks are
-(1) **runtime call tracing** (SandboxAQ) — fundamentally incompatible with the
-self-contained/any-OS binary premise, so a deliberate non-goal; ~~(2) binary
-crypto-constant signatures for stripped/static binaries~~ **— shipped v0.9.6**
-(`_crypto_constants.py`); (3) **JA3/JA4 PQC handshake fingerprinting**; and
-(4) **native-vs-OQS OpenSSL version awareness**. (3)–(4) are the remaining
-concrete, self-contained-compatible coverage candidates.
+**Net:** the only capability the *verified* field has that pqcscan lacks and
+can't adopt is **runtime call tracing** (SandboxAQ) — incompatible with the
+self-contained/any-OS binary premise, so a deliberate non-goal. Binary
+crypto-constant signatures shipped v0.9.6. The self-contained-compatible
+coverage candidates that remain are ranked in the gap-closing pass below
+(passive PQC group fingerprinting is the top one — a whitespace no FOSS tool
+fills).
+
+## 2026-07-21 gap-closing passes (commercial + FOSS categories)
+
+Two targeted follow-up passes closed the categories the earlier passes left
+unverified. (The FOSS pass's final synthesis agent returned placeholder text —
+findings below were recovered from the run journal; all are 3-0 verified claims
+against primary sources.)
+
+### Commercial — the previously-unverified vendors
+| Vendor | Modality (verified) | CBOM | Binary/runtime? | Orchestration? |
+|---|---|---|---|---|
+| **DigiCert Trust Lifecycle Manager** | Certificate/PKI discovery (network/cloud/endpoint scan, CT logs, CA import) | ✗ none documented | No | **Yes** — PQC migration flows (Premium) |
+| **CyberArk (Venafi) Machine Identity Security** | Certificate/PKI lifecycle discovery | ✗ | No | Cert lifecycle |
+| **Palo Alto PAN-OS PQC Decryption** | Inline TLS ClientHello `supported_groups` inspection (detect/block/log) | ✗ | No (inline network) | Detect + enforce |
+| **Palo Alto Quantum-Safe Security** (Jan 2026) | Passive telemetry aggregation (NGFW/Prisma/EDR logs) + Cipher Translation Proxy (live re-encrypt to ML-KEM) | ✗ | No | **Yes** — proxy remediation |
+| **Quantum Xchange CipherInsights** | Passive network listener — cert + protocol discovery | **claims CBOM** (format unconfirmed) | No | Discovery |
+| PQShield | — (crypto *implementation IP*, not a scanner) | — | — | — |
+| Thales CipherTrust DDC | Sensitive-**data** (PII/PHI) discovery — **not** crypto-asset | — | — | — |
+| Cisco / Cloudflare | Transport-layer PQC hardening — **not** discovery | — | — | — |
+
+**No verifiable capability detail** (marketing-only / unreachable): Entrust, Wiz,
+Qualys, Tenable, Microsoft (Purview/SymCrypt), AppViewX, Utimaco, ISARA,
+DigiCert Device Trust Manager.
+
+**Decisive cross-vendor finding:** across *both* commercial passes, only
+**SandboxAQ** does binary/runtime analysis and only **IBM** emits standard
+CycloneDX CBOM. Every other verified commercial vendor is passive-network or
+static/certificate-based, and none was confirmed to emit CycloneDX CBOM.
+pqcscan does **binary analysis + CBOM + all discovery surfaces + 19 frameworks**
+in open source — a combination no single verified vendor matches.
+
+### FOSS — the four gap categories
+- **Binary/firmware constant matchers** — **FindCrypt-Ghidra** (122-constant DB,
+  discontinued 2020) and **Yara-Rules `crypto_signatures.yar`** (AES S-box +
+  MD5/SHA init-word matching, legacy 2014–16) use *exactly* pqcscan's v0.9.6
+  technique but are **classical-only (zero PQC)** and unmaintained. **capa**
+  (import/API + some constants, PE/ELF/.NET) and **binwalk** (entropy, not
+  constants) round it out — also no PQC. → our `_crypto_constants.py` matches
+  the state of the art and adds Keccak/SHA-3 (the one PQC-adjacent signal).
+- **Cert/PKI** — **pkilint** (DigiCert, Python) is the standout: **PQC-aware
+  since v0.12.6 (Jan 2025)** with FIPS 203/204/205 ASN.1 modules + ML-DSA/
+  SLH-DSA/ML-KEM key-usage validation — deeper *profile* validation than our
+  `fs.cert.pqc_x509` OID recognition. **zlint** (Go) has no PQC. **IETF-Hackathon/
+  pqc-certificates** ships a **PQC/composite cert test-vector corpus** — usable
+  as ground-truth to validate our recognition (accuracy). **certstream-server**
+  = live CT-log WebSocket (inventory infra, no sig-alg analysis).
+- **Passive / JA4** — the key gap: **JA4+** records extension *type* codes
+  (`supported_groups 000a`, `key_share 0033`) but **not their contents**, and
+  **Zeek base `ssl.log`** logs only the *negotiated* curve, not the ClientHello
+  offered groups. So **no FOSS tool passively fingerprints which PQC groups
+  (X25519MLKEM768) an endpoint offers.** (JA4 *does* capture `signature_algorithms`
+  contents, so PQC sig-algs would show.) → extending `net.sniff.live` to parse
+  ClientHello `supported_groups`/`key_share` is genuine whitespace.
+- **SBOM/CVE mappers** — **Syft, Trivy, osv-scanner, Dependency-Track** are all
+  **crypto-blind** (package-level, no CBOM). Only **cdxgen** (CBOM from JS/TS
+  *source* via constant propagation) and **sbom-tools** (CycloneDX 1.6/1.7
+  cryptoProperties *grader*, CNSA 2.0 + IR 8547 PASS/FAIL) touch CBOM. pqcscan
+  generates a CBOM from *all* surfaces, not just source.
+
+**CISA ACDI taxonomy** (2024) names four discovery types — network, filesystem,
+database, software-package — and calls **embedded/binary crypto detection
+"unproven / immature."** pqcscan spans all four *and* ships the embedded-binary
+detection CISA flagged as hard (`fs.binary.crypto` + v0.9.6 constants).
+
+### Updated remaining coverage candidates (ranked)
+1. **Passive PQC ClientHello group fingerprinting** in `net.sniff.live` — the
+   one confirmed whitespace *no* FOSS tool fills. Top differentiator.
+2. **Native-vs-OQS OpenSSL version awareness** (OpenSSL ≥3.5 native vs
+   `oqs-provider`-on-3.x).
+3. **Deeper cert PQC profile validation** (pkilint-level key-size/key-usage
+   checks in `fs.cert.pqc_x509`) + adopt **IETF pqc-certificates** vectors as a
+   ground-truth accuracy test.
+4. **JA4/JA4X fingerprint emission** for observed TLS (correlation/inventory).
 
 ## Maintained vs dormant
 - **Active (2025-era):** PQCA CBOMkit, csnp/cryptoscan, anvilsecure/pqcscan,
