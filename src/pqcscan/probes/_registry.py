@@ -101,6 +101,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.host_openssl_fips_state import HostOpenSSLFipsState
     from pqcscan.probes.host_openssl_groups import HostOpenSSLGroups
     from pqcscan.probes.host_openssl_oqs_provider import HostOpenSSLOqsProvider
+    from pqcscan.probes.host_openssl_pqc_provenance import HostOpenSSLPqcProvenance
     from pqcscan.probes.host_openssl_version import HostOpenSSLVersion
     from pqcscan.probes.host_pam_hashing import HostPamHashing
     from pqcscan.probes.host_platform_info import HostPlatformInfo
@@ -367,6 +368,7 @@ def default_registry() -> Registry:
     reg.register(OTCoapDtls())
     # Plan I.7.a — OQS active validation foundation.
     reg.register(HostOpenSSLOqsProvider())
+    reg.register(HostOpenSSLPqcProvenance())
     reg.register(PqcMetaOqsStatus())
     # Plan I.7.b — active hybrid-KEX TLS probe.
     reg.register(NetTlsPqcHandshake())
