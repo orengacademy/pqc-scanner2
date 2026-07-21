@@ -108,6 +108,11 @@ LOCALES: dict[str, dict[str, str]] = {
         "dashboard.heading": "Post-Quantum Cryptography (PQC) Readiness",
         "dashboard.subtitle": "pqcscan  —  nist-aligned crypto posture assessment",
         "dashboard.about": "About",
+        "dashboard.release.badge": "New release",
+        "dashboard.release.headline": "is now available",
+        "dashboard.release.blurb": ("QUIC PQC probing, multi-modal binary scanning, and verified "
+                                    "full FOSS coverage — 177 probes across 15 families."),
+        "dashboard.release.view": "View release notes",
         "dashboard.about_heading": "How to read this page.",
         "dashboard.about_eyebrow": "aegis-style traffic-light readiness",
         "dashboard.about_intro": ("Each finding is bucketed into a traffic-light band based on "
@@ -274,6 +279,11 @@ LOCALES: dict[str, dict[str, str]] = {
         "dashboard.heading": "Kesediaan Kriptografi Pasca-Kuantum (PQC)",
         "dashboard.subtitle": "pqcscan  —  penilaian postur kripto sejajar-nist",
         "dashboard.about": "Perihal",
+        "dashboard.release.badge": "Keluaran baharu",
+        "dashboard.release.headline": "kini tersedia",
+        "dashboard.release.blurb": ("Pengesanan PQC QUIC, imbasan binari pelbagai mod, dan liputan "
+                                    "FOSS penuh yang disahkan — 177 prob merentasi 15 keluarga."),
+        "dashboard.release.view": "Lihat nota keluaran",
         "dashboard.about_heading": "Cara membaca halaman ini.",
         "dashboard.about_eyebrow": "kesediaan lampu-isyarat gaya-aegis",
         "dashboard.about_intro": ("Setiap penemuan dikelaskan ke dalam jalur lampu-isyarat "

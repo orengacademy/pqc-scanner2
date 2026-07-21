@@ -17,6 +17,22 @@ def test_dashboard_page(client):
     assert "scan now" in r.text.lower()
 
 
+def test_dashboard_release_banner(client):
+    # The release banner announces the current version and links to its release,
+    # both driven by __version__ so they stay correct across releases.
+    r = client.get("/")
+    assert 'id="release-banner"' in r.text
+    assert f"pqcscan v{__version__}" in r.text          # version is dynamic
+    assert "releases/latest" in r.text                  # robust link (never a dead tag)
+
+
+def test_dashboard_release_banner_translated(client):
+    client.cookies.set("pqcscan_locale", "ms")
+    body = client.get("/").text
+    assert "Keluaran baharu" in body          # "New release" in Bahasa Melayu
+    assert f"pqcscan v{__version__}" in body
+
+
 def test_scans_list_page(client):
     r = client.get("/scans")
     assert r.status_code == 200

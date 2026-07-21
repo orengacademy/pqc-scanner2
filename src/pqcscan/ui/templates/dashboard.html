@@ -1,6 +1,49 @@
 {% extends "base.html" %}
 {% block body %}
 
+{# ─────────────  Release announcement  ───────────── #}
+<section id="release-banner" class="card p-4 mb-6 border-l-2 border-l-emerald-400/70">
+  <div class="flex items-start justify-between gap-4">
+    <div class="flex items-start gap-3">
+      <span class="section-eyebrow shrink-0 mt-0.5 px-2 py-0.5 rounded
+                   bg-emerald-400/10 text-emerald-300 border border-emerald-400/30">
+        {{ t('dashboard.release.badge') }}
+      </span>
+      <div>
+        <h2 class="font-mono text-emerald-400 font-semibold">
+          pqcscan v{{ pqc_version }} — {{ t('dashboard.release.headline') }}
+        </h2>
+        <p class="section-eyebrow mt-1">{{ t('dashboard.release.blurb') }}</p>
+        <a href="https://github.com/orengacademy/pqc-scanner2/releases/latest"
+           target="_blank" rel="noopener"
+           class="inline-flex items-center gap-1 mt-2 text-sm text-emerald-400 hover:text-emerald-300 font-medium">
+          {{ t('dashboard.release.view') }} →
+        </a>
+      </div>
+    </div>
+    <button type="button" onclick="dismissReleaseBanner()"
+            class="text-zinc-500 hover:text-zinc-200 shrink-0" aria-label="{{ t('common.close') }}">
+      <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/>
+      </svg>
+    </button>
+  </div>
+</section>
+<script>
+  // Dismissed state is keyed by version, so a *new* release re-announces itself.
+  (function () {
+    try {
+      if (localStorage.getItem('pqcscan_seen_release_v{{ pqc_version }}')) {
+        document.getElementById('release-banner').classList.add('hidden');
+      }
+    } catch (e) { /* localStorage unavailable — just show the banner */ }
+  })();
+  function dismissReleaseBanner() {
+    try { localStorage.setItem('pqcscan_seen_release_v{{ pqc_version }}', '1'); } catch (e) {}
+    document.getElementById('release-banner').classList.add('hidden');
+  }
+</script>
+
 {# ─────────────  Page header  ───────────── #}
 <section class="mb-8 flex items-end justify-between gap-6 flex-wrap">
   <div>
