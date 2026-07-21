@@ -4,11 +4,11 @@
 |---|---|
 | **Date** | 2026-07-21 |
 | **Branch / commit** | `main` |
-| **Version** | `0.9.4` |
+| **Version** | `0.9.11` |
 | **Probes** | 177 registered across 15 families |
 | **Frameworks** | 19 compliance YAMLs |
-| **Tests** | see CI on latest PR (Python 3.11) |
-| **Status** | Design-doc target shipped, plus three loops (§7 coverage+UX, §8 deferred-items + bilingual + any-OS, §9 the 0.8.x–0.9.x precision/decision loop). See `CHANGELOG.md` for the authoritative per-version record — it is kept current every release; this file is a coarser resume guide. |
+| **Tests** | 1226 passed / 1 skipped locally (Python 3.11) |
+| **Status** | Design-doc target shipped, plus four loops (§7 coverage+UX, §8 deferred-items + bilingual + any-OS, §9 the 0.8.x–0.9.4 precision/decision loop, §10 the 0.9.5–0.9.11 coverage-completeness + FOSS-verification loop). See `CHANGELOG.md` for the authoritative per-version record — it is kept current every release; this file is a coarser resume guide. |
 
 ## 1. TL;DR
 
@@ -226,6 +226,60 @@ Shipped as PRs #53–#69 (see `CHANGELOG.md` 0.8.1–0.9.4 for full detail). Hig
 - **0.9.4** — `fs.binary.crypto` runs on a plain scan (default system
   executable roots + magic-bytes pre-read guard); skipped-privilege notes carry
   explicit high confidence.
+
+## 10. 2026-07-21 loop — coverage-completeness + FOSS verification (0.9.5 → 0.9.11)
+
+An autonomous engineering loop that closed the remaining coverage candidates
+surfaced by **three deep-research passes** (a commercial-vendor pass, two FOSS
+passes incl. a registry-anchored completeness sweep against **Santander
+PQCTools** CADI/PQCI). Shipped as PRs #70–#79. The recurring goal — "cover
+EVERYTHING, precise, accurate, reliable" — is met with **no open frontier**.
+
+- **0.9.5** (#71) — `net.telnet.plaintext` + `net.tftp.service` (cleartext-
+  protocol probes) + **on-ramp signature recognition** (MAYO/SNOVA/CROSS/UOV/
+  HAWK/SQIsign added to `core.alg`, were classified INFO).
+- **0.9.6** (#72) — **binary crypto-constant signatures** (`_crypto_constants.py`):
+  16 sigs (AES S-boxes, SHA/MD/Keccak round constants, ChaCha sigma, Blowfish
+  P-array) detect static/stripped binaries that `.dynsym` linkage misses. Gated
+  on "no library detected". (Also fixed a real regression from 0.9.4: bounded the
+  default sweep with a file budget + `await asyncio.sleep(0)` so the runner's
+  30 s per-probe timeout can preempt; scoped the e2e integration scans to `--path`.)
+- **0.9.7** (#73) — **passive PQC key_share grading** (`net.sniff.live` now scores
+  a key_share offer above a bare supported_groups advertisement); **FIPS 204/205
+  pre-hash OIDs** (HashML-DSA/HashSLH-DSA, CSOR .32–.46, NIST-CSOR-verified); a
+  **51-OID ground-truth recall oracle** (measured PQC-discovery accuracy — no FOSS
+  benchmark exists); fixed the unsatisfiable `[active]` liboqs pin.
+- **0.9.8** (#74) — `host.openssl.pqc_provenance`: synthesizes `openssl version` +
+  `list -providers` into a **native / oqs-provider / none** verdict (UMBC-survey
+  requirement).
+- **0.9.9** (#75) — centralized `fs.cert.pqc_x509` recognition on `core.alg`
+  (was a stale local table) → now recognizes **pre-hash + composite + Falcon**
+  certs; added the probe's first test suite. Audit confirmed no other probe
+  carries a drifting OID table.
+- **0.9.10** (#78) — `fs.binary.crypto` recognizes **s2n-tls** (soname) + **AWS-LC**
+  (banner-disambiguated). Docs: completeness-sweep verdict — pqcscan covers every
+  FOSS discovery modality **and five categories the entire FOSS field leaves
+  empty** (IKE/VPN, TPM/HSM/PKCS#11, K8s/mesh, DKIM/email, Semgrep-PQC).
+- **0.9.11** (#79) — **QUIC PQC probing** (`_quic.py`): decrypts the QUIC Initial
+  packet (client keys via HKDF from the DCID, v1/RFC 9001 + v2/RFC 9369, verified
+  against the RFC 9001 A.1 vector; AES-128-ECB header protection + AES-128-GCM),
+  reassembles the CRYPTO-frame ClientHello, and inventories its offered PQC groups
+  via `fs.pcap.crypto`. **The one surface no other FOSS — or verified commercial —
+  tool covers.** Pure `cryptography` + stdlib.
+- Housekeeping: #76 (candidate close-out docs), #77 (probe count corrected to 177).
+
+**Deferred (documented rationale, not gaps):** JA4/JA4X emission (a client-
+correlation fingerprint with no PQC signal — JA4 records only the extension
+*type*); publishing a labeled discovery precision/recall corpus (a data/release
+task; the 51-OID oracle + benchmark harness are the start). See `docs/TODO.md`
+and `docs/COMPETITIVE-LANDSCAPE.md` (2026-07-21 completeness sweep) for the full
+FOSS/commercial cross-check.
+
+**CI note:** releases in this loop were admin-merged on local-green + ruff-clean
+(the full suite is the gate; the ~60-min GitHub CI — dominated by the
+`net.ct.crtsh` external call + PDF-render + subprocess-scan tests — validates
+asynchronously on push). The full suite runs in ~2.5 min locally
+(`PYTHONPATH=src .venv/bin/python -m pytest -q`).
 
 ---
 
