@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.11] — 2026-07-21
+
+### Added — QUIC PQC probing (the last uncovered surface)
+Closes the one category the FOSS completeness sweep found *nobody* covers —
+FOSS or commercial.
+- **`_quic.py` — QUIC Initial-packet decryption.** QUIC runs the TLS 1.3
+  handshake, but the ClientHello lives in a CRYPTO frame inside an AEAD-protected
+  Initial packet keyed off the (public, on-the-wire) Destination Connection ID.
+  This derives the client Initial keys via HKDF (**QUIC v1 / RFC 9001** +
+  **v2 / RFC 9369**, verified against the **RFC 9001 Appendix A.1** test vector),
+  removes header protection (AES-128-ECB), AEAD-decrypts (AES-128-GCM), and
+  reassembles the ClientHello. Passive observation — the keys are public.
+- **Wired into `fs.pcap.crypto`:** UDP QUIC Initial packets in a capture now have
+  their ClientHello `supported_groups`/`key_share` inventoried for offered
+  PQC/hybrid groups, tagged `quic`. **No other FOSS tool reads PQC posture out of
+  QUIC.** Pure `cryptography` + stdlib; reuses the project's TLS 1.3 HKDF.
+
 ## [0.9.10] — 2026-07-21
 
 ### Added — s2n-tls / AWS-LC binary recognition (FOSS completeness sweep)

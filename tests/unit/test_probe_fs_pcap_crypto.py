@@ -76,6 +76,17 @@ def _eth_ipv4_tcp(payload: bytes, sport: int = 40000, dport: int = 443) -> bytes
     return eth + ip + tcp
 
 
+def _eth_ipv4_udp(payload: bytes, sport: int = 40000, dport: int = 443) -> bytes:
+    udp = struct.pack(">HHHH", sport, dport, 8 + len(payload), 0) + payload
+    total = 20 + len(udp)
+    ip = struct.pack(
+        ">BBHHHBBH4s4s", 0x45, 0, total, 0, 0, 64, 17, 0,   # proto 17 = UDP
+        socket.inet_aton("10.0.0.1"), socket.inet_aton("10.0.0.2"),
+    )
+    eth = b"\x11" * 6 + b"\x22" * 6 + b"\x08\x00"
+    return eth + ip + udp
+
+
 def _classic_pcap(frames: list[bytes], linktype: int = 1) -> bytes:
     out = struct.pack("<IHHIIII", 0xA1B2C3D4, 2, 4, 0, 0, 65535, linktype)
     for f in frames:
@@ -177,6 +188,21 @@ async def test_pcqc_key_share_group_is_pqc_ready(tmp_path: Path):
     _write(tmp_path, "pqc.pcap", _classic_pcap([frame]))
     found = await _run(tmp_path)
     assert any(f.classification is Classification.PQC_READY for f in found)
+
+
+@pytest.mark.asyncio
+async def test_quic_initial_pqc_group_extracted(tmp_path: Path):
+    # A QUIC Initial packet (UDP) whose encrypted ClientHello offers the hybrid
+    # X25519MLKEM768 group — the probe decrypts the Initial and inventories it.
+    from tests.unit.test_quic import _client_hello, build_quic_initial
+    quic = build_quic_initial(_client_hello([0x001D, 0x11EC], [0x11EC]))
+    frame = _eth_ipv4_udp(quic)
+    _write(tmp_path, "quic.pcap", _classic_pcap([frame]))
+    found = await _run(tmp_path)
+    pqc = [f for f in found if f.algorithm == "X25519MLKEM768"]
+    assert pqc, "expected the PQC group from the QUIC ClientHello"
+    assert pqc[0].classification is Classification.PQC_READY
+    assert pqc[0].evidence.get("proto") == "quic"
 
 
 @pytest.mark.asyncio
