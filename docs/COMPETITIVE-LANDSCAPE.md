@@ -391,6 +391,33 @@ capture files, tagged `quic`. **No other FOSS tool — and no verified commercia
 one — reads PQC posture out of QUIC.** With this, pqcscan covers every discovery
 surface surfaced across all research passes.
 
+### Fifth-pass delta hunt (2026-07-21) — the FOSS field is exhausted
+
+A final novelty-only pass mined the sources the earlier passes hadn't: the
+**Santander PQCTools PQCI half** (`PQC_Implementation.md`) and the remaining
+awesome-lists. **Net-new verdict: no previously-unseen FOSS discovery *technique*.**
+- **PQCI half** = implementation-only (AnkaSecure, ExeQuantum, OQS-OpenSSH,
+  crystals-kyber-js, QPKI) — **no dual-use discovery tool**. Both halves of the
+  authoritative registry are now fully mined.
+- **`qtonicquantum/pqc-readiness-cli`** — the one genuinely net-new *tool* (Python,
+  v0.1.0 May 2026, MIT). Technique = local PEM/DER cert parsing → CycloneDX 1.7
+  CBOM via NIST CSOR OID matching — **exactly what `fs.cert.pqc_x509` + our CBOM
+  export already do** (its README even disclaims network/binary/source scanning).
+  New tool, not a new technique. Nascent (0★, 6 commits).
+- **Cryptoscope** (IBM Research, arXiv 2503.19531, 2025) — source-level
+  compiler-based data-flow *linkage* (crypto op ↔ its key/nonce/random material).
+  A precision refinement of static source analysis, but a **research prototype
+  with no public FOSS repo**, and full compiler data-flow is the same heavy,
+  self-containment-breaking bucket as CodeQL / sonar-cryptography grammars —
+  **deliberately not adopted** (our `.dynsym` reachability is the self-contained
+  analog of "is this crypto actually used").
+- awesome-cbom / gauravfs-14 lists = empty scaffolds / paper indexes → zero
+  net-new.
+
+**Conclusion after five passes:** the FOSS PQC-discovery field is exhaustively
+swept. pqcscan covers every discovery *modality* it contains, plus categories no
+FOSS tool addresses. Further passes are confirmatory, not expansionary.
+
 ## Maintained vs dormant
 - **Active (2025-era):** PQCA CBOMkit, csnp/cryptoscan, anvilsecure/pqcscan,
   QuantaSeek, open-quantum-secure, IBM Quantum Safe Explorer, Keyfactor stack.
