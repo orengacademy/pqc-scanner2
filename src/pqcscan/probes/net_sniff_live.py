@@ -68,7 +68,8 @@ _MAX_FINDINGS = 500
 
 # A single decoded crypto observation: (record_kind, algorithm, classification,
 # confidence, advertised).
-_Observation = tuple[str, str, Classification, str, bool]
+# (record_kind, algorithm, classification, confidence, advertised, key_share)
+_Observation = tuple[str, str, Classification, str, bool, bool]
 
 FrameSource = Callable[[SniffConfig], Iterable[bytes]]
 
@@ -157,7 +158,7 @@ class NetSniffLive(Probe):
         # Reassemble each TCP flow's byte stream first, so a ClientHello or a
         # multi-segment Certificate chain split across packets is parsed whole.
         for seg in _reassemble_flows(frames):
-            for kind, alg, cls, confidence, advertised in _analyze(seg.payload):
+            for kind, alg, cls, confidence, advertised, key_share in _analyze(seg.payload):
                 key = (seg.src_ip, seg.dst_ip, seg.dst_port, alg, kind)
                 if key in seen:
                     continue
@@ -166,7 +167,8 @@ class NetSniffLive(Probe):
                 if emitted >= _MAX_FINDINGS:
                     capped = True
                     break
-                emit(_finding(self.id, seg, kind, alg, cls, confidence, advertised))
+                emit(_finding(self.id, seg, kind, alg, cls, confidence,
+                              advertised, key_share))
                 emitted += 1
             if capped:
                 break
@@ -280,14 +282,23 @@ def _wrap_record(message: bytes) -> bytes:
 
 
 def _client_hello_obs(tls: dict) -> Iterator[_Observation]:
-    # supported_groups are ADVERTISED — a low-confidence signal.
-    for code in tls["groups"]:
+    # A group the client sent a key_share for is ACTIVELY OFFERED (it generated
+    # and transmitted a key for it) — a stronger signal than a bare
+    # supported_groups listing, which is merely ADVERTISED willingness. Emit each
+    # group once at the strongest evidence seen: key_share offer -> medium,
+    # advertised-only -> low. (This is the passive PQC-negotiation signal that
+    # JA4/Zeek can't produce — JA4 records only the extension type, Zeek only the
+    # negotiated curve.)
+    key_share = set(tls.get("key_share_groups") or ())
+    for code in tls["groups"]:  # already order-preserving deduped in the parser
         info = _TLS_GROUPS.get(code)
         if info is None:  # unknown / GREASE — don't emit noise
             continue
         name, is_pqc = info
         cls = Classification.PQC_READY if is_pqc else Classification.TINGGI
-        yield "client_hello", name, cls, "low", True
+        offered = code in key_share
+        confidence = "medium" if offered else "low"
+        yield "client_hello", name, cls, confidence, True, offered
 
 
 def _server_hello_obs(tls: dict) -> Iterator[_Observation]:
@@ -296,7 +307,7 @@ def _server_hello_obs(tls: dict) -> Iterator[_Observation]:
     if name is not None:
         cls = _classify_suite(name)
         if cls is not Classification.INFO:
-            yield "server_hello", name, cls, "medium", False
+            yield "server_hello", name, cls, "medium", False, False
     # TLS 1.3 selected key_share group.
     group = tls["group"]
     if group is not None:
@@ -304,7 +315,7 @@ def _server_hello_obs(tls: dict) -> Iterator[_Observation]:
         if info is not None:
             gname, is_pqc = info
             gcls = Classification.PQC_READY if is_pqc else Classification.TINGGI
-            yield "server_hello", gname, gcls, "medium", False
+            yield "server_hello", gname, gcls, "medium", False, False
 
 
 def _certificate_obs(payload: bytes) -> Iterator[_Observation]:
@@ -318,7 +329,7 @@ def _certificate_obs(payload: bytes) -> Iterator[_Observation]:
     oid = leaf.signature_algorithm_oid.dotted_string
     alg = normalise(oid)
     # A structured DER parse is the strongest signal -> high confidence.
-    yield "certificate", alg, classify(alg), "high", False
+    yield "certificate", alg, classify(alg), "high", False, False
 
 
 def _finding(
@@ -329,6 +340,7 @@ def _finding(
     cls: Classification,
     confidence: str,
     advertised: bool,
+    key_share: bool = False,
 ) -> Finding:
     src = getattr(seg, "src", "?")
     dst = getattr(seg, "dst", "?")
@@ -341,9 +353,21 @@ def _finding(
         "algorithm": alg,
         "confidence": confidence,
     }
-    if advertised:
+    # A key_share offer is a stronger signal than a bare supported_groups
+    # advertisement, so it is NOT tagged "advertised" (which the confidence
+    # model down-ranks to low) — it keeps its medium confidence.
+    if advertised and not key_share:
         evidence["advertised"] = True
-    verb = "advertised" if advertised else "negotiated" if kind == "server_hello" else "served"
+    if key_share:
+        evidence["key_share_offered"] = True
+    if key_share:
+        verb = "offered key_share for"
+    elif advertised:
+        verb = "advertised"
+    elif kind == "server_hello":
+        verb = "negotiated"
+    else:
+        verb = "served"
     return Finding(
         probe_id=probe_id,
         algorithm=alg,

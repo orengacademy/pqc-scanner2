@@ -131,3 +131,71 @@ def test_slh_dsa_oid_normalises_to_name(oid: str, name: str) -> None:
 @pytest.mark.parametrize(("oid", "name"), SLH_DSA_OIDS)
 def test_slh_dsa_oid_is_pqc_ready(oid: str, name: str) -> None:
     assert classify(oid) == Classification.PQC_READY
+
+
+# --- Pre-hash FIPS 204/205 — HashML-DSA / HashSLH-DSA, CSOR arc .32-.46 -------
+# Certs signed in pre-hash ("external-hash") mode carry these; a PQC-discovery
+# scanner must recognize them as PQC just like their pure counterparts.
+PREHASH_OIDS: list[tuple[str, str]] = [
+    ("2.16.840.1.101.3.4.3.32", "HashML-DSA-44"),
+    ("2.16.840.1.101.3.4.3.33", "HashML-DSA-65"),
+    ("2.16.840.1.101.3.4.3.34", "HashML-DSA-87"),
+    ("2.16.840.1.101.3.4.3.35", "HashSLH-DSA-SHA2-128s"),
+    ("2.16.840.1.101.3.4.3.36", "HashSLH-DSA-SHA2-128f"),
+    ("2.16.840.1.101.3.4.3.37", "HashSLH-DSA-SHA2-192s"),
+    ("2.16.840.1.101.3.4.3.38", "HashSLH-DSA-SHA2-192f"),
+    ("2.16.840.1.101.3.4.3.39", "HashSLH-DSA-SHA2-256s"),
+    ("2.16.840.1.101.3.4.3.40", "HashSLH-DSA-SHA2-256f"),
+    ("2.16.840.1.101.3.4.3.41", "HashSLH-DSA-SHAKE-128s"),
+    ("2.16.840.1.101.3.4.3.42", "HashSLH-DSA-SHAKE-128f"),
+    ("2.16.840.1.101.3.4.3.43", "HashSLH-DSA-SHAKE-192s"),
+    ("2.16.840.1.101.3.4.3.44", "HashSLH-DSA-SHAKE-192f"),
+    ("2.16.840.1.101.3.4.3.45", "HashSLH-DSA-SHAKE-256s"),
+    ("2.16.840.1.101.3.4.3.46", "HashSLH-DSA-SHAKE-256f"),
+]
+
+# Pure ML-DSA / ML-KEM — completes the standardized universe below.
+ML_DSA_OIDS: list[tuple[str, str]] = [
+    ("2.16.840.1.101.3.4.3.17", "ML-DSA-44"),
+    ("2.16.840.1.101.3.4.3.18", "ML-DSA-65"),
+    ("2.16.840.1.101.3.4.3.19", "ML-DSA-87"),
+]
+ML_KEM_OIDS: list[tuple[str, str]] = [
+    ("2.16.840.1.101.3.4.4.1", "ML-KEM-512"),
+    ("2.16.840.1.101.3.4.4.2", "ML-KEM-768"),
+    ("2.16.840.1.101.3.4.4.3", "ML-KEM-1024"),
+]
+
+
+@pytest.mark.parametrize(("oid", "name"), PREHASH_OIDS)
+def test_prehash_oid_normalises_to_name(oid: str, name: str) -> None:
+    assert normalise(oid) == name
+
+
+@pytest.mark.parametrize(("oid", "name"), PREHASH_OIDS)
+def test_prehash_oid_is_pqc_ready(oid: str, name: str) -> None:
+    assert classify(oid) == Classification.PQC_READY
+
+
+# --- Ground-truth accuracy oracle --------------------------------------------
+# The complete set of standardized post-quantum algorithm OIDs a certificate can
+# carry (FIPS 203/204/205 pure + pre-hash + LAMPS composite). This list is the
+# independent oracle: 100% must classify PQC_READY. A miss here is a real recall
+# regression — a PQC cert the scanner would wrongly report as quantum-vulnerable.
+ALL_STANDARDIZED_PQC_OIDS: list[tuple[str, str]] = (
+    ML_DSA_OIDS + SLH_DSA_OIDS + PREHASH_OIDS + ML_KEM_OIDS + COMPOSITE_SIG_OIDS
+)
+
+
+def test_pqc_oid_universe_size() -> None:
+    # 3 ML-DSA + 12 SLH-DSA + 15 pre-hash + 3 ML-KEM + 18 composite = 51.
+    assert len(ALL_STANDARDIZED_PQC_OIDS) == 51
+    assert len({o for o, _ in ALL_STANDARDIZED_PQC_OIDS}) == 51  # no dup OIDs
+
+
+@pytest.mark.parametrize(("oid", "name"), ALL_STANDARDIZED_PQC_OIDS)
+def test_every_standardized_pqc_oid_is_recognized(oid: str, name: str) -> None:
+    # Recognition (OID -> name) and classification (-> PQC_READY) must both hold
+    # for every standardized PQC OID — the measured recall baseline.
+    assert normalise(oid) == name
+    assert classify(oid) == Classification.PQC_READY

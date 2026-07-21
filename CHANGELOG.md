@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.7] — 2026-07-21
+
+### Added — PQC-detection precision & accuracy
+- **Passive PQC key_share grading** — `net.sniff.live` already recognizes offered
+  PQC/hybrid groups (X25519MLKEM768, …) in the TLS ClientHello — a passive signal
+  JA4 (records only the extension *type*) and Zeek (only the negotiated curve)
+  can't produce. It now distinguishes a **key_share offer** (the client actually
+  generated+sent a key → *actively negotiating* PQC → medium confidence +
+  `key_share_offered`) from a bare **supported_groups advertisement** (low). The
+  parser (`_pcap`) exposes `key_share_groups` separately and dedupes so the
+  strongest signal wins.
+- **FIPS 204/205 pre-hash OID recognition** — the 15 HashML-DSA (CSOR .32-.34)
+  and HashSLH-DSA (CSOR .35-.46) OIDs, verified against the NIST CSOR registry.
+  A cert signed in pre-hash mode was previously mis-classified INFO/unknown; it
+  now classifies PQC-ready like its pure counterpart.
+- **Ground-truth accuracy oracle** — a 51-OID independent list of the complete
+  standardized PQC universe (ML-DSA + SLH-DSA + pre-hash + ML-KEM + LAMPS
+  composite) asserting 100% recognition/PQC-ready classification — a measured
+  recall baseline (no FOSS crypto-*discovery* benchmark otherwise exists).
+
+### Fixed
+- **`[active]` extra install** — `liboqs-python>=0.10,<0.12` was unsatisfiable
+  (PyPI yanked <0.14), breaking `pip install .[active]`; bumped to `>=0.12`.
+  No CI impact (CI installs `.[dev,render]`; the KAT probe is exception-guarded).
+
+### Docs
+- `docs/COMPETITIVE-LANDSCAPE.md` — corrected the coverage/gap matrix: passive
+  PQC group fingerprinting is **already covered** (now graded), and cert PQC
+  recognition accuracy is now measured. Native-vs-OQS OpenSSL awareness is the
+  top remaining candidate.
+
 ## [0.9.6] — 2026-07-21
 
 ### Added — statically-linked/stripped crypto detection (precision + coverage)

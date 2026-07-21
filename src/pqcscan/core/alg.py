@@ -61,7 +61,7 @@ _OID_MAP: dict[str, str] = {
     "1.3.6.1.5.5.7.6.52": "ML-DSA-87+RSA3072-PSS",
     "1.3.6.1.5.5.7.6.53": "ML-DSA-87+RSA4096-PSS",
     "1.3.6.1.5.5.7.6.54": "ML-DSA-87+ECDSA-P521",
-    # SLH-DSA (FIPS 205) — NIST OIDs 2.16.840.1.101.3.4.3.{20..35}
+    # SLH-DSA (FIPS 205) — NIST OIDs 2.16.840.1.101.3.4.3.{20..31}
     "2.16.840.1.101.3.4.3.20": "SLH-DSA-SHA2-128s",
     "2.16.840.1.101.3.4.3.21": "SLH-DSA-SHA2-128f",
     "2.16.840.1.101.3.4.3.22": "SLH-DSA-SHA2-192s",
@@ -74,6 +74,25 @@ _OID_MAP: dict[str, str] = {
     "2.16.840.1.101.3.4.3.29": "SLH-DSA-SHAKE-192f",
     "2.16.840.1.101.3.4.3.30": "SLH-DSA-SHAKE-256s",
     "2.16.840.1.101.3.4.3.31": "SLH-DSA-SHAKE-256f",
+    # Pre-hash ("external-hash") variants — HashML-DSA (FIPS 204) and
+    # HashSLH-DSA (FIPS 205), verified against the NIST CSOR arc .32-.46. A cert
+    # signed in pre-hash mode carries one of these; they must classify PQC-ready
+    # just like their pure counterparts.
+    "2.16.840.1.101.3.4.3.32": "HashML-DSA-44",
+    "2.16.840.1.101.3.4.3.33": "HashML-DSA-65",
+    "2.16.840.1.101.3.4.3.34": "HashML-DSA-87",
+    "2.16.840.1.101.3.4.3.35": "HashSLH-DSA-SHA2-128s",
+    "2.16.840.1.101.3.4.3.36": "HashSLH-DSA-SHA2-128f",
+    "2.16.840.1.101.3.4.3.37": "HashSLH-DSA-SHA2-192s",
+    "2.16.840.1.101.3.4.3.38": "HashSLH-DSA-SHA2-192f",
+    "2.16.840.1.101.3.4.3.39": "HashSLH-DSA-SHA2-256s",
+    "2.16.840.1.101.3.4.3.40": "HashSLH-DSA-SHA2-256f",
+    "2.16.840.1.101.3.4.3.41": "HashSLH-DSA-SHAKE-128s",
+    "2.16.840.1.101.3.4.3.42": "HashSLH-DSA-SHAKE-128f",
+    "2.16.840.1.101.3.4.3.43": "HashSLH-DSA-SHAKE-192s",
+    "2.16.840.1.101.3.4.3.44": "HashSLH-DSA-SHAKE-192f",
+    "2.16.840.1.101.3.4.3.45": "HashSLH-DSA-SHAKE-256s",
+    "2.16.840.1.101.3.4.3.46": "HashSLH-DSA-SHAKE-256f",
     # ML-KEM (FIPS 203)
     "2.16.840.1.101.3.4.4.1": "ML-KEM-512",
     "2.16.840.1.101.3.4.4.2": "ML-KEM-768",
@@ -142,6 +161,9 @@ _PQC_READY_PREFIXES: tuple[str, ...] = (
     "ML-KEM", "ML-DSA", "SLH-DSA", "FN-DSA", "FALCON", "SPHINCS",
     "DILITHIUM", "KYBER", "FRODOKEM", "NTRU", "CLASSIC-MCELIECE",
     "BIKE", "HQC", "XMSS", "LMS",
+    # Pre-hash FIPS 204/205 variants (HashML-DSA / HashSLH-DSA) — the "Hash"
+    # prefix means a bare "ML-DSA"/"SLH-DSA" startswith won't match.
+    "HASHML-DSA", "HASHSLH-DSA",
     # NIST additional-signature "on-ramp" candidates (Round 2, 2024) and other
     # post-quantum schemes shipped by liboqs / oqs-provider. Not yet FIPS-final
     # (like FN-DSA/Falcon above), but quantum-resistant by design, so a system

@@ -240,7 +240,7 @@ Actionable, verified take-aways:
 | **Runtime call tracing** | **SandboxAQ AQtive Guard** | static `.dynsym` proxy only | ⚠️ **the one tier above us** — runtime hooks break self-contained/any-OS premise |
 | Binary crypto **constants** (S-box/YARA) | capa/find-crypt (generic) | ✅ `_crypto_constants.py` (v0.9.6) — 16 sigs, gated on no-linkage | ✅ covered (catches static Go/Rust/stripped) |
 | Passive PCAP | SandboxAQ, `fs.pcap.crypto` | `fs.pcap.crypto` + `net.sniff.live` | ✅ covered |
-| **Passive PQC key_share/supported_groups fingerprint** | **nobody** — JA4 records ext *type* only (`000a`/`0033`), not contents; Zeek `ssl.log` logs only the negotiated curve | not done | **genuine whitespace** — extend `net.sniff.live` to parse ClientHello offered groups |
+| **Passive PQC key_share/supported_groups fingerprint** | **nobody** — JA4 records ext *type* only (`000a`/`0033`), not contents; Zeek `ssl.log` logs only the negotiated curve | ✅ **`net.sniff.live` + `fs.pcap.crypto`** already parse ClientHello `supported_groups`+`key_share` and flag offered PQC/hybrid groups; **v0.9.7** grades a `key_share` offer (actively negotiating → medium) above a bare advertisement (low) | ✅ covered — **ahead of the whole field** |
 | Cert/PKI PQC | CryptoScan, zlint | `fs.cert.*` + `net.ct.crtsh` | ✅ covered |
 | CBOM output | CBOMkit (1.6) | CycloneDX **1.7** | ✅ ahead |
 | SARIF / CI gate | CryptoScan | SARIF 2.1.0 + `--fail-on` + Action | ✅ covered |
@@ -253,10 +253,10 @@ Actionable, verified take-aways:
 **Net:** the only capability the *verified* field has that pqcscan lacks and
 can't adopt is **runtime call tracing** (SandboxAQ) — incompatible with the
 self-contained/any-OS binary premise, so a deliberate non-goal. Binary
-crypto-constant signatures shipped v0.9.6. The self-contained-compatible
-coverage candidates that remain are ranked in the gap-closing pass below
-(passive PQC group fingerprinting is the top one — a whitespace no FOSS tool
-fills).
+crypto-constant signatures shipped v0.9.6; passive PQC group fingerprinting
+turned out to be **already covered** (`net.sniff.live`/`fs.pcap.crypto`) and was
+*sharpened* in v0.9.7 (key_share offers graded above advertisements) — a
+whitespace no FOSS tool fills. The remaining candidates are ranked below.
 
 ## 2026-07-21 gap-closing passes (commercial + FOSS categories)
 
@@ -322,14 +322,17 @@ database, software-package — and calls **embedded/binary crypto detection
 detection CISA flagged as hard (`fs.binary.crypto` + v0.9.6 constants).
 
 ### Updated remaining coverage candidates (ranked)
-1. **Passive PQC ClientHello group fingerprinting** in `net.sniff.live` — the
-   one confirmed whitespace *no* FOSS tool fills. Top differentiator.
-2. **Native-vs-OQS OpenSSL version awareness** (OpenSSL ≥3.5 native vs
-   `oqs-provider`-on-3.x).
-3. **Deeper cert PQC profile validation** (pkilint-level key-size/key-usage
-   checks in `fs.cert.pqc_x509`) + adopt **IETF pqc-certificates** vectors as a
-   ground-truth accuracy test.
-4. **JA4/JA4X fingerprint emission** for observed TLS (correlation/inventory).
+- ✅ ~~Passive PQC ClientHello group fingerprinting~~ — already covered; **v0.9.7**
+  grades key_share offers above advertisements (the whitespace no FOSS tool fills).
+- ✅ ~~Cert PQC recognition accuracy~~ — **v0.9.7** added the 15 missing FIPS 204/205
+  pre-hash OIDs (HashML-DSA/HashSLH-DSA, NIST-CSOR-verified) + a 51-OID ground-truth
+  recall oracle (the field's first measured PQC-discovery accuracy baseline).
+1. **Native-vs-OQS OpenSSL version awareness** (OpenSSL ≥3.5 native vs
+   `oqs-provider`-on-3.x) — now the top remaining candidate.
+2. **Deeper cert PQC *profile* validation** (pkilint-level key-size/key-usage
+   checks in `fs.cert.pqc_x509`, beyond OID recognition) + adopt the **IETF
+   pqc-certificates** DER vectors as an end-to-end ground-truth test.
+3. **JA4/JA4X fingerprint emission** for observed TLS (correlation/inventory).
 
 ## Maintained vs dormant
 - **Active (2025-era):** PQCA CBOMkit, csnp/cryptoscan, anvilsecure/pqcscan,
