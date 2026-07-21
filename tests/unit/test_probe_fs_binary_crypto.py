@@ -477,7 +477,10 @@ async def test_explicit_path_scan_is_not_budget_limited(monkeypatch, tmp_path: P
 # --- tests: embedded crypto-constant signatures (static/stripped binaries) --
 
 from pqcscan.probes._crypto_constants import (  # noqa: E402
-    _AES_SBOX, _MD5_T, _SHA1_K, _le,
+    _AES_SBOX,
+    _MD5_T,
+    _SHA1_K,
+    _le,
 )
 
 
