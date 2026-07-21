@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   files whose first 4 bytes are ELF/PE/Mach-O magic get the full (up to 96 MB)
   read. Keeps the new default sweep cheap even when `/opt` holds multi-GB
   non-binary files.
+- **Default-sweep file budget** — the implicit default scan (no `--path`) stops
+  after 50 000 files with a logged truncation note, so a huge `/opt` tree
+  (CI runners' `/opt/hostedtoolcache`, `/opt/homebrew`) can't stall a plain
+  scan. System bin dirs are visited first; `--path` scans are never budgeted.
 
 ### Fixed
 - Skipped-privilege notes (`skipped_privilege`) now carry `confidence: high` in

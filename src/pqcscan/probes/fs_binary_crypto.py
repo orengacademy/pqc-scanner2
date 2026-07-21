@@ -168,10 +168,19 @@ def _cstr(buf: bytes, start: int, end: int | None = None) -> str:
 
 # Standard system executable directories scanned by default (no --path given),
 # so compiled-binary crypto detection + reachability surface on a plain scan.
+# Ordered so the flat, bounded system bin dirs are visited before /opt, which
+# on some hosts (CI runners' /opt/hostedtoolcache, /opt/homebrew) is a huge
+# tree — the visit budget below stops the sweep before it walks all of it.
 _DEFAULT_BINARY_ROOTS = [
     Path("/usr/bin"), Path("/usr/sbin"), Path("/bin"), Path("/sbin"),
     Path("/usr/local/bin"), Path("/usr/local/sbin"), Path("/opt"),
 ]
+
+# Files-examined budget for the *implicit* default sweep only. An explicit
+# --path (or constructor roots) scans everything the caller asked for; the
+# default sweep must not walk an unbounded tree (e.g. multi-GB tool caches
+# under /opt), so it stops after this many files with a logged truncation note.
+_MAX_DEFAULT_FILES = 50_000
 
 _SHT_DYNAMIC = 6
 _DT_NEEDED = 1
@@ -568,11 +577,22 @@ class FsBinaryCrypto(Probe):
 
     async def run(self, ctx: ScanContext, emit: Emitter) -> None:
         roots = self._effective_roots(ctx)
+        # The implicit default sweep (no explicit roots, no --path) is bounded
+        # by a files-examined budget so it can't walk a huge /opt tool cache;
+        # an explicit scope scans everything the caller asked for.
+        default_sweep = self.roots is None and not ctx.scan_paths
+        visit_budget = _MAX_DEFAULT_FILES if default_sweep else None
         emitted = 0
+        visited = 0
         capped = False
+        visits_truncated = False
         for path in _iter_files(roots):
             if capped:
                 break
+            if visit_budget is not None and visited >= visit_budget:
+                visits_truncated = True
+                break
+            visited += 1
             try:
                 hits = self._scan_file(path)
             except Exception:  # pragma: no cover — defensive backstop, never raise
@@ -591,6 +611,17 @@ class FsBinaryCrypto(Probe):
                 severity=sev_for(Classification.INFO),
                 title=f"finding cap ({_MAX_FINDINGS}) reached — binary crypto output truncated",
                 evidence={"cap": _MAX_FINDINGS},
+            ))
+        if visits_truncated:
+            emit(Finding(
+                probe_id=self.id,
+                algorithm="N/A",
+                classification=Classification.INFO,
+                severity=sev_for(Classification.INFO),
+                title=f"default-scan file budget ({_MAX_DEFAULT_FILES}) reached — "
+                      "pass --path to scan a specific tree exhaustively",
+                evidence={"file_budget": _MAX_DEFAULT_FILES, "roots":
+                          [str(r) for r in roots]},
             ))
 
     def _scan_file(self, path: Path) -> list[_Hit]:
