@@ -104,14 +104,24 @@ xdg-open http://127.0.0.1:8765
 
 ## 5. Recommended next steps
 
-1. **Cut a release tag** (e.g. `git tag v0.1.0 && git push origin v0.1.0`) — the `release.yml` workflow will produce binaries for Linux x86_64, macOS arm64, and Windows x86_64 and attach them to a GitHub Release with auto-generated notes.
-2. **FOSS-tool probe migrations** — propagate `resolve_or_none()` to the 11 remaining FOSS-tool probes listed in §3. Pure mechanical (~3 lines per probe) but unblocks `$PQCSCAN_OFFLINE_PACK` for all of them.
-3. **Plan F batch 4 — Grype-DB snapshot bundling.** Decide where to host the snapshot (release artifact vs. a separate CDN) and extend `scripts/fetch-offline-tools.sh` to download it. Then `grype` works fully offline.
-4. **Range-aware PyPI matching** in `cve.osv_offline` — pull in the `packaging` lib and treat each `requirements.txt` line's `SpecifierSet` as a constraint to overlap-check against OSV's `affected[].ranges`. Adds ~50 LOC, real-world coverage jumps significantly.
-5. **Probe deepening** — current probes are solid but file-scan / regex-heavy. Consider:
-   - Expanding `code.ts.*` from regex to real tree-sitter parsing.
-   - Deep ASN.1 parsing for the Kerberos AS-REQ probe.
-   - More OSV ecosystems (Hackage, OPAM, Conan, CRAN, Swift Packages).
+**Detection coverage is done** (five research passes; see §10 and
+`docs/COMPETITIVE-LANDSCAPE.md`). The roadmap is now maturity / validation /
+currency, **not** more probes. Full ranked list in
+[`docs/TODO.md` → Roadmap](TODO.md#roadmap--post-v0911-2026-07-21); in short:
+
+1. **Cut a 1.0** — the tool is feature-complete + released; add a stability
+   contract (probe IDs, CBOM schema, SARIF, exit codes) and tag `v1.0.0`.
+2. **Standards-tracking (standing discipline)** — NIST IR 8547 will finalize
+   (dates may shift); HQC + FIPS 206/FN-DSA will get OIDs → update `core/alg.py`
+   + the deadline logic when they land.
+3. **Publish a discovery precision/recall corpus** — the field's first (no FOSS
+   crypto-*discovery* benchmark exists); we already have the harness + 51-OID
+   oracle.
+4. *(demand-driven)* live QUIC sniffing · binary crypto-constant expansion ·
+   pkilint-level cert profile validation.
+5. *(design decision)* migration assistance is a deliberate non-goal today
+   (we inventory, not orchestrate); continuous-monitoring/trend view builds on
+   the existing baselines + diff.
 
 ## 6. Pointers
 
