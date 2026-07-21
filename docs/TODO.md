@@ -50,26 +50,29 @@ that pqcscan lacks (runtime call-tracing à la SandboxAQ is a deliberate non-goa
       (v0.9.6): 16 signatures (AES S-boxes, SHA/MD/Keccak round constants,
       ChaCha sigma, Blowfish P-array) detect static/stripped binaries the
       `.dynsym` linkage detection misses. Gated on "no library detected". ✅
-- [ ] **[TOP] Passive PQC ClientHello group fingerprinting** — parse the TLS
-      ClientHello `supported_groups`/`key_share` in `net.sniff.live` to flag
-      which PQC/hybrid groups (X25519MLKEM768, …) an endpoint offers. **The
-      2026-07-21 gap pass confirmed NO FOSS tool does this**: JA4 records only
-      the extension *type* code, not contents; Zeek `ssl.log` logs only the
-      *negotiated* curve. Genuine whitespace + top differentiator.
-- [ ] **Native-vs-OQS OpenSSL version awareness** — distinguish native PQC
+- [x] **Passive PQC ClientHello group fingerprinting** — `net.sniff.live` +
+      `fs.pcap.crypto` already flag offered PQC/hybrid groups (X25519MLKEM768,…);
+      **v0.9.7** grades a `key_share` offer (actively negotiating → medium) above
+      a bare `supported_groups` advertisement (low). No FOSS tool does this —
+      JA4 records only the ext *type*, Zeek only the negotiated curve. ✅
+- [x] **Cert PQC recognition accuracy** — **v0.9.7** added the 15 missing FIPS
+      204/205 pre-hash OIDs (HashML-DSA/HashSLH-DSA, NIST-CSOR-verified) + a
+      51-OID ground-truth recall oracle. ✅
+- [ ] **[TOP] Native-vs-OQS OpenSSL version awareness** — distinguish native PQC
       (OpenSSL ≥3.5, Apr 2025) from `oqs-provider`-on-3.x add-on, per the UMBC
       survey requirement. Version-aware linkage classification in
-      `fs.binary.crypto` / host lib detection.
-- [ ] **Deeper cert PQC profile validation + ground-truth vectors** — pkilint
-      (DigiCert) does FIPS 203/204/205 key-size/key-usage validation beyond our
+      `fs.binary.crypto` / host lib detection. Now the top remaining candidate.
+- [ ] **Deeper cert PQC *profile* validation + end-to-end vectors** — pkilint
+      (DigiCert) does FIPS 203/204/205 key-size/key-usage validation *beyond* our
       OID recognition in `fs.cert.pqc_x509`; adopt the **IETF-Hackathon/
-      pqc-certificates** ML-DSA/ML-KEM/SLH-DSA/composite test corpus as a
-      ground-truth accuracy test.
+      pqc-certificates** ML-DSA/ML-KEM/SLH-DSA/composite DER corpus as an
+      end-to-end ground-truth accuracy test.
 - [x] **On-ramp signature algorithm recognition** — MAYO/SNOVA/CROSS/UOV/HAWK/
       SQIsign added to `core/alg.py` PQC-ready set (were classified INFO). ✅
 - [ ] **Publish a discovery precision/recall corpus** — no FOSS ground-truth
       benchmark exists for crypto *discovery* (CryptoAPI-Bench targets misuse).
-      Our accuracy harness (#64) + a labeled corpus would be a field first.
+      Our accuracy harness (#64) + the 51-OID recall oracle (v0.9.7) are a start;
+      a labeled multi-surface corpus would be a field first.
 
 ## Low-leverage
 
