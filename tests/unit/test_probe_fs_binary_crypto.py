@@ -260,6 +260,26 @@ async def test_elf_libssl_maps_to_openssl(tmp_path: Path):
     assert any(f.evidence.get("library") == "openssl" for f in found)
 
 
+@pytest.mark.asyncio
+async def test_elf_libs2n_maps_to_s2n_tls(tmp_path: Path):
+    # AWS s2n-tls has a distinct soname, so linkage detection catches it.
+    _write(tmp_path, "app_s2n.elf", _elf64_with_needed(b"libs2n.so.1"))
+    found = await _run(tmp_path)
+    assert any(f.evidence.get("library") == "s2n-tls" for f in found)
+
+
+@pytest.mark.asyncio
+async def test_aws_lc_disambiguated_by_banner(tmp_path: Path):
+    # AWS-LC ships libcrypto (detected as openssl by soname); the "AWS-LC"
+    # version banner is what identifies it.
+    blob = _elf64_with_needed(b"libcrypto.so.3") + b"AWS-LC 1.36.0\x00"
+    _write(tmp_path, "app_awslc.elf", blob)
+    found = await _run(tmp_path)
+    awslc = [f for f in found if f.evidence.get("library") == "aws-lc"]
+    assert awslc, "expected an aws-lc finding from the AWS-LC banner"
+    assert awslc[0].evidence.get("version") == "1.36.0"
+
+
 # --- tests: ELF .dynsym reachability --------------------------------------
 
 

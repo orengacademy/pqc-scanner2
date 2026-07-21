@@ -84,6 +84,7 @@ _LIB_RULES: tuple[tuple[str, str], ...] = (
     ("mbedtls", "mbedtls"),
     ("libwolfssl", "wolfssl"),
     ("wolfssl", "wolfssl"),
+    ("libs2n", "s2n-tls"),         # AWS s2n-tls (distinct soname libs2n.so)
     ("libgcrypt", "libgcrypt"),
     ("libbotan", "botan"),
     ("botan", "botan"),
@@ -115,6 +116,9 @@ _BANNER_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("libsodium", re.compile(r"libsodium(?:[ /]?(\d+\.\d+\.\d+))?")),
     ("mbedtls", re.compile(r"[Mm]bed ?TLS(?:[ /]?(\d+\.\d+\.\d+))?")),
     ("wolfssl", re.compile(r"wolfSSL(?:[ /]?(\d+\.\d+\.\d+))?")),
+    # AWS-LC ships its libcrypto under the OpenSSL soname, so linkage detection
+    # sees only "openssl" — the "AWS-LC" version banner is the disambiguator.
+    ("aws-lc", re.compile(r"AWS-LC(?:[ /]?(\d+\.\d+\.\d+))?")),
 )
 
 
@@ -216,6 +220,8 @@ _CRYPTO_SYMBOL_PREFIXES: dict[str, tuple[str, ...]] = {
     "libsodium": ("crypto_",),
     "mbedtls": ("mbedtls_",),
     "wolfssl": ("wolfSSL_", "wc_"),
+    "s2n-tls": ("s2n_",),
+    "aws-lc": _OPENSSL_SYMBOL_PREFIXES,   # AWS-LC keeps the OpenSSL API names
 }
 
 

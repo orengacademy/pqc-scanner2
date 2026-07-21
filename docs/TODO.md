@@ -70,6 +70,11 @@ that pqcscan lacks (runtime call-tracing à la SandboxAQ is a deliberate non-goa
       worthwhile but self-contained follow-up.
 - [x] **On-ramp signature algorithm recognition** — MAYO/SNOVA/CROSS/UOV/HAWK/
       SQIsign added to `core/alg.py` PQC-ready set (were classified INFO). ✅
+- [ ] **QUIC PQC probing** — the one category *no FOSS tool* covers (2026-07-21
+      completeness sweep) and pqcscan doesn't either. Parse the QUIC Initial
+      packet → derive version-specific initial secrets (HKDF) → AEAD-decrypt the
+      CRYPTO frame → read the TLS ClientHello `supported_groups`. A genuine
+      differentiator; standalone feature (Initial-packet crypto), not a quick add.
 - [ ] **JA4/JA4X TLS fingerprint emission** — *deferred, low priority.* A client-
       *correlation* fingerprint, not a PQC signal: our 2026-07-21 research
       confirmed JA4 records only the extension **type** code, so it adds no PQC-

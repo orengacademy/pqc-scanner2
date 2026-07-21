@@ -342,6 +342,51 @@ that remain are deferred with rationale:
    **no PQC signal** (JA4 records only the extension *type*; we already extract
    the PQC groups directly), and correctness needs the reference spec's vectors.
 
+## 2026-07-21 completeness sweep (registry-anchored)
+
+A final verification pass anchored on the authoritative **Santander PQCTools**
+registry (CADI = discovery/inventory, PQCI = implementation) + `veorq/awesome-
+post-quantum` + the GitHub `cryptographic-inventory` topic, cross-checked against
+pqcscan's actual probes.
+
+**Verdict: pqcscan covers every FOSS *discovery modality* in the registry**, and
+the newly-surfaced FOSS tools all use techniques we already implement:
+- **CryptoMon** (Santander, eBPF passive TLS+SSH capture) / **Cisco Mercury**
+  (AF_PACKET passive fingerprint) → `net.sniff.live` (pure-stdlib AF_PACKET) +
+  `fs.pcap.crypto`.
+- **cryptobom-forge** (CodeQL MRVA→CBOM) / **CBOMkit-action** (v2.2.0, Feb 2026) /
+  **CodeQL `shared/quantum`** (v0.0.31) → our `code.*` family (regex + Python AST;
+  CodeQL/sonar grammars deliberately not adopted — they break the self-contained
+  binary).
+- **SCANOSS Crypto Insights** (OSS-dep crypto) → `sbom.crypto_map` + `cve.osv_offline`.
+- **ssh-audit** PQC-KEX detection (mlkem768x25519, sntrup761x25519, + v3.9.0's
+  mlkem768nistp256/mlkem1024nistp384, HNDL warnings) → `_classify_ssh_kex` already
+  flags `sntrup`/`mlkem`/`kyber` PQC-ready and classical SSH KEX HNDL-exposed;
+  `host.ssh.binary_caps` checks `ssh -Q kex`. Full parity.
+
+**The gap verdict was overwhelmingly a validation:** six requested categories
+yielded **NO verified FOSS tool at all** — and pqcscan has probes for five of
+them:
+| Category with zero FOSS tools | pqcscan |
+|---|---|
+| IPsec/IKEv2 (+ WireGuard/OpenVPN/Tailscale VPN) | ✅ `net.ike.*`, `vpn.wireguard/openvpn/tailscale` |
+| Hardware/TPM/HSM/PKCS#11 PQC | ✅ `hw.pkcs11_modules`, `hw.tpm_algorithms`, `host.tpm_sealed_keys`, `hw.smartcard_readers` |
+| Kubernetes / service-mesh PQC | ✅ `k8s.mesh.mtls/policy`, `k8s.ingress.tls` |
+| DKIM / email posture | ✅ `email.dkim_selectors`, `email.smime_certs` |
+| Semgrep PQC ruleset | ✅ `code.semgrep_pqc` (we ship one) |
+| **QUIC PQC probing** | ⚠️ **not covered — the one genuine whitespace** (no FOSS tool either) |
+
+**Shipped from this sweep (v0.9.10):** `s2n-tls` (soname) + `AWS-LC` (banner-
+disambiguated — it ships libcrypto under the OpenSSL soname) added to
+`fs.binary.crypto` library recognition, both increasingly deployed across the
+AWS ecosystem and PQC-capable.
+
+**Deferred — QUIC PQC probing:** the only category *no one* (FOSS or pqcscan)
+covers. Real work: parse the QUIC Initial packet, derive the version-specific
+initial secrets (HKDF), AEAD-decrypt the CRYPTO frame to reach the TLS
+ClientHello, then read `supported_groups`. A genuine future differentiator, but
+a standalone feature (Initial-packet crypto), not a batch-in increment.
+
 ## Maintained vs dormant
 - **Active (2025-era):** PQCA CBOMkit, csnp/cryptoscan, anvilsecure/pqcscan,
   QuantaSeek, open-quantum-secure, IBM Quantum Safe Explorer, Keyfactor stack.
