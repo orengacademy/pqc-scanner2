@@ -31,8 +31,10 @@ The only thing protecting it out of the box is the default `127.0.0.1` bind.
 ## 1. Install the binary
 
 ```bash
-VERSION=v0.8.5
-SHA256=30b57e9056c2d9048d91219c8658501a7f9d1dc333934485474e2724131109df
+# The SHA256 is per-release — copy the current one from the release page:
+# https://github.com/orengacademy/pqc-scanner2/releases
+VERSION=v0.9.11
+SHA256=9c1811922ca3954460bcb222aa2019a326e9283eca504a1eb426209c58d934aa
 
 curl -fsSL -o /usr/local/bin/pqcscan \
   "https://github.com/orengacademy/pqc-scanner2/releases/download/${VERSION}/pqcscan-linux-x86_64"
@@ -61,7 +63,7 @@ finding always records what was scanned.
 
 | Platform | Release asset | Floor | Notes |
 |---|---|---|---|
-| Linux x86_64 | `pqcscan-linux-x86_64` | **glibc ≥ 2.17** | RHEL / Oracle Linux **7.9**, 8, 9; Debian 8+; Ubuntu 14.04+; SLES 12+. Built in a manylinux2014 container. **Verified: v0.8.5 boots on OL 7.9 (glibc 2.17) — daemon serves `/api/health`, full 169-probe scan runs.** |
+| Linux x86_64 | `pqcscan-linux-x86_64` | **glibc ≥ 2.17** | RHEL / Oracle Linux **7.9**, 8, 9; Debian 8+; Ubuntu 14.04+; SLES 12+. Built in a manylinux2014 container. **Verified: boots on OL 7.9 (glibc 2.17) — daemon serves `/api/health`, a full 177-probe scan runs.** |
 | macOS arm64 | `pqcscan-macos-arm64` | macOS 11+ | Apple Silicon. |
 | Windows x86_64 | `pqcscan-windows-x86_64.exe` | Windows 8 / Server 2012+ | PyInstaller onefile. |
 | macOS x86_64 (Intel) | _from source_ | macOS 10.15+ | GitHub's Intel (`macos-13`) runners are deprecated/unschedulable, so no pre-built asset. Run `pip install -e .` — pqcscan is pure-Python + `cryptography`, so it works on any Intel Mac. |

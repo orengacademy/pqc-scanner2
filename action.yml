@@ -10,9 +10,9 @@ branding:
 
 inputs:
   version:
-    description: "Release tag of pqcscan to download (e.g. v0.9.2)."
+    description: "Release tag of pqcscan to download (e.g. v0.9.11)."
     required: false
-    default: "v0.9.2"
+    default: "v0.9.11"
   path:
     description: "Filesystem path to scan for certs/keys/code."
     required: false

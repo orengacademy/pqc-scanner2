@@ -31,7 +31,7 @@ src/pqcscan/
 ├── core/         types, alg classifier
 ├── runner/       async runner, capabilities, event bus
 ├── store/        SQLite schema + Repo
-├── probes/       109 probes; one file per probe; _registry.py wires them up
+├── probes/       177 probes; one file per probe; _registry.py wires them up
 ├── compliance/   engine + framework YAMLs
 ├── renderers/    PDF + XLSX
 ├── cbom/         CycloneDX 1.6 builder
