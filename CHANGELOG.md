@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.9.8] — 2026-07-21
 
 ### Added — OpenSSL PQC provenance (native vs oqs-provider)
-- **`host.openssl.pqc_provenance`** (178th probe) — `host.openssl.version` and
+- **`host.openssl.pqc_provenance`** (177th probe) — `host.openssl.version` and
   `host.openssl.oqs_provider` report their signals separately, so an OpenSSL 3.3
   host *with* oqs-provider loaded read as "classical; needs oqs-provider" despite
   being PQC-capable today. The 2025 UMBC crypto-library survey flags
