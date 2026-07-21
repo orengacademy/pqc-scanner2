@@ -5,16 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.6] — 2026-07-21
+
+### Added — statically-linked/stripped crypto detection (precision + coverage)
+Closes the top coverage gap from the 2026-07-21 research review: `.dynsym` /
+import-table linkage detection misses binaries that compile a crypto
+implementation *in* — static Go/Rust/musl builds, stripped firmware — which
+link no `libcrypto`. Pure-stdlib.
+- **Crypto-constant signatures** (`probes/_crypto_constants.py`) — 16 signatures
+  matching embedded algorithm constant tables: **AES** (S-box + inverse),
+  **SHA-1/256/512** and **MD5** round constants, the **Blowfish** P-array, the
+  **ChaCha20/Salsa20** sigma string, and **Keccak/SHA-3** round constants. Word
+  constants are matched in both endiannesses; needles are ≥16 bytes (≈2⁻¹²⁸
+  coincidental-match probability).
+- Wired into `fs.binary.crypto` as a **fallback gated on "no crypto library
+  detected"**, so it targets exactly the static/stripped case without flooding
+  dynamically-linked binaries with redundant findings. Constant hits classify
+  by **algorithm** (embedded MD5/SHA-1 surface as broken → SANGAT_TINGGI) at
+  **medium** confidence (proves presence, not invocation). Validated against
+  real libcrypto/libgcrypt/libsodium/ssh with zero false positives.
+
+### Docs — competitive-landscape gap-closing research
+- `docs/COMPETITIVE-LANDSCAPE.md` — appended two targeted research passes closing
+  the commercial-vendor half (DigiCert/CyberArk/Palo Alto×2/Quantum Xchange
+  verified; Entrust/Wiz/Qualys/Tenable/Microsoft/AppViewX/Utimaco unverifiable)
+  and four FOSS categories (binary/firmware matchers, cert/PKI incl. the
+  PQC-aware **pkilint**, passive **JA4/Zeek** analysis, SBOM/CVE mappers). Key
+  outcomes: (a) no verified commercial vendor except SandboxAQ (binary/runtime)
+  and IBM (CBOM) matches our surface breadth; (b) **passive PQC
+  key_share/supported_groups fingerprinting is a genuine whitespace no FOSS tool
+  fills** — JA4 records extension *type* only, Zeek logs only the negotiated
+  curve — now the top-ranked coverage candidate in `docs/TODO.md`.
+
 ## [0.9.5] — 2026-07-21
 
 ### Added — coverage expansion (cleartext protocols + PQC on-ramp algorithms)
 Closes the concrete gaps surfaced by a 3-pass competitive/FOSS research review
 (see `docs/COMPETITIVE-LANDSCAPE.md`). Pure-stdlib.
-- **`net.telnet.plaintext`** (176th probe) — detects a cleartext **Telnet**
+- **`net.telnet.plaintext`** (175th probe) — detects a cleartext **Telnet**
   service (TCP 23) by its RFC 854 IAC option negotiation. Telnet has no
   transport encryption at all (the crypto-posture floor: nothing to be
   quantum-vulnerable because nothing is protected) → classified SANGAT_TINGGI.
-- **`net.tftp.service`** (177th probe) — detects a **TFTP** service (UDP 69, no
+- **`net.tftp.service`** (176th probe) — detects a **TFTP** service (UDP 69, no
   auth/no encryption) via an RRQ→ERROR/DATA exchange → TINGGI. Both probes
   default to localhost like the other host-service probes but honor `--target`.
 - **NIST additional-signature on-ramp algorithm recognition** — `core/alg.py`

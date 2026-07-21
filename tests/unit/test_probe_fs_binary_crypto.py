@@ -472,3 +472,66 @@ async def test_explicit_path_scan_is_not_budget_limited(monkeypatch, tmp_path: P
     monkeypatch.setattr(m, "_MAX_DEFAULT_FILES", 3)
     found = await _run(tmp_path)  # _ctx() sets scan_paths=[tmp_path]
     assert not [f for f in found if "file budget" in f.title]
+
+
+# --- tests: embedded crypto-constant signatures (static/stripped binaries) --
+
+from pqcscan.probes._crypto_constants import (  # noqa: E402
+    _AES_SBOX,
+    _MD5_T,
+    _SHA1_K,
+    _le,
+)
+
+
+def _elf_with_constants(*blobs: bytes) -> bytes:
+    """A valid-magic ELF that carries no DT_NEEDED crypto lib, only the given
+    constant blobs — so the library scan finds nothing and the constant
+    fallback fires."""
+    return b"\x7fELF" + bytes([2, 1, 1]) + b"\x00" * 200 + b"".join(blobs)
+
+
+@pytest.mark.asyncio
+async def test_constant_detection_finds_static_crypto(tmp_path: Path):
+    # No library linkage, but embedded AES S-box + MD5 T-table constants.
+    _write(tmp_path, "static.bin",
+           _elf_with_constants(_AES_SBOX, b"\xff" * 40, _le(_MD5_T, 4)))
+    found = await _run(tmp_path)
+    by_alg = {f.algorithm: f for f in found}
+    assert "AES" in by_alg and "MD5" in by_alg
+    md5 = by_alg["MD5"]
+    assert md5.evidence["detection"] == "constant-signature"
+    assert md5.evidence["signature"].startswith("MD5 T-table")
+    assert md5.confidence == "medium"
+    # MD5 is quantum-irrelevant but classically broken — must be top severity.
+    assert md5.classification is Classification.SANGAT_TINGGI
+
+
+@pytest.mark.asyncio
+async def test_constant_detection_flags_embedded_sha1(tmp_path: Path):
+    _write(tmp_path, "s1.bin", _elf_with_constants(_le(_SHA1_K, 4)))
+    found = await _run(tmp_path)
+    sha1 = [f for f in found if f.algorithm == "SHA-1"]
+    assert sha1 and sha1[0].classification is Classification.SANGAT_TINGGI
+
+
+@pytest.mark.asyncio
+async def test_constant_scan_suppressed_when_library_linked(tmp_path: Path):
+    # A dynamically-linked binary (DT_NEEDED libcrypto) that ALSO embeds an AES
+    # S-box must NOT emit a redundant constant finding — the constant fallback
+    # is gated on "no library detected".
+    blob = _elf64_with_needed(b"libcrypto.so.3") + _AES_SBOX
+    _write(tmp_path, "linked.so", blob)
+    found = await _run(tmp_path)
+    assert any(f.evidence.get("library") == "openssl" for f in found)
+    assert not [f for f in found
+                if f.evidence.get("detection") == "constant-signature"]
+
+
+@pytest.mark.asyncio
+async def test_constant_scan_no_false_positive_on_plain_binary(tmp_path: Path):
+    _write(tmp_path, "plain.bin",
+           _elf_with_constants(b"just some strings and \x00 bytes, no crypto"))
+    found = await _run(tmp_path)
+    assert not [f for f in found
+                if f.evidence.get("detection") == "constant-signature"]

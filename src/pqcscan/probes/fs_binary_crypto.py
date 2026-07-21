@@ -42,8 +42,10 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
+from pqcscan.core.alg import classify
 from pqcscan.core.types import Classification, Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._crypto_constants import scan_crypto_constants
 from pqcscan.probes._severity import sev_for
 
 # Cap total findings so a directory full of binaries can't emit unbounded rows.
@@ -118,10 +120,15 @@ _BANNER_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 
 @dataclass(slots=True)
 class _Hit:
+    # For a library hit `library` is the crypto-library id (origin
+    # linked/embedded); for a constant hit (kind="constant", origin="constant")
+    # it holds the detected *algorithm* name and `detail` holds the matched
+    # constant's description.
     library: str
     fmt: str
-    origin: str          # "linked" | "embedded"
+    origin: str          # "linked" | "embedded" | "constant"
     confidence: str      # "high" | "medium"
+    kind: str = "library"   # "library" | "constant"
     version: str | None = None
     detail: str | None = None   # the raw soname/DLL/dylib that matched
     # ELF .dynsym reachability: "invoked" (crypto API symbols imported),
@@ -691,10 +698,51 @@ class FsBinaryCrypto(Probe):
                 continue
             hits[lib_id] = _Hit(library=lib_id, fmt=fmt, origin="embedded",
                                 confidence="medium", version=version)
+
+        # Static / stripped fallback: if no crypto library was detected at all,
+        # the binary may still compile crypto *in* (static Go/Rust builds,
+        # stripped firmware) — detect it by its embedded constant tables. Gated
+        # on "no library" so dynamically-linked binaries aren't flooded with
+        # redundant constant findings for crypto the linkage already explained.
+        if not hits:
+            try:
+                for algo, note in scan_crypto_constants(data):
+                    hits[f"const:{algo}"] = _Hit(
+                        library=algo, fmt=fmt, origin="constant",
+                        confidence="medium", kind="constant", detail=note)
+            except Exception:  # pragma: no cover — defensive
+                pass
         return list(hits.values())
 
 
+def _constant_finding(probe_id: str, path: Path, hit: _Hit) -> Finding:
+    """Finding for an algorithm detected by its embedded constant table.
+
+    Classified by the *algorithm* (so broken embedded crypto — MD5/SHA-1 — is
+    flagged), at medium confidence (presence, not proven invocation)."""
+    cls = classify(hit.library)
+    return Finding(
+        probe_id=probe_id,
+        algorithm=hit.library,
+        classification=cls,
+        severity=sev_for(cls),
+        title=f"{path.name}: embedded {hit.library} constant "
+              f"({hit.detail}) — statically-linked/stripped crypto",
+        evidence={
+            "path": str(path),
+            "format": hit.fmt,
+            "detection": "constant-signature",
+            "algorithm": hit.library,
+            "signature": hit.detail,
+            "confidence": "medium",
+        },
+        confidence="medium",
+    )
+
+
 def _finding(probe_id: str, path: Path, hit: _Hit) -> Finding:
+    if hit.kind == "constant":
+        return _constant_finding(probe_id, path, hit)
     cls, note = _classify_lib(hit.library, hit.version)
     algorithm = f"pkg:generic/{hit.library}@{hit.version}" if hit.version is not None else hit.library
     purl = (f"pkg:generic/{hit.library}@{hit.version}"
