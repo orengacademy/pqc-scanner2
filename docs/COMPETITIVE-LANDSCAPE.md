@@ -126,6 +126,137 @@ suppressor + confidence model down-rank the residual regex false positives.
 Managed CA-lifecycle / migration orchestration (Keyfactor, Venafi) is out of
 scope by design — pqcscan produces the inventory; it does not run the migration.
 
+## 2026-07-21 research refresh (verified deltas)
+
+A third deep-research pass (19 sources, 25 claims adversarially verified 3-0,
+0 refuted). Additive to the tables above; nothing below contradicts them.
+
+### Standards have converged — this is now the stable substrate
+- **Output format:** CycloneDX **CBOM is standardized as ECMA-424**. Crypto
+  assets became first-class in **1.6 (2024)**; **1.7 adds a Cryptography
+  Registry** to resolve algorithm-name synonyms. pqcscan already emits **1.7**,
+  ahead of the reference generator (CBOMkit, still 1.6).
+- **Regulatory clock — NIST IR 8547** (initial public draft): 112-bit
+  public-key crypto (RSA, ECDSA, DH/ECDH, RSA-KEM) **deprecated after 2030,
+  disallowed after 2035**; all quantum-vulnerable public-key crypto disallowed
+  after 2035. Targets: exactly three finalized standards — **FIPS 203 ML-KEM,
+  204 ML-DSA, 205 SLH-DSA** (FIPS 206/FN-DSA + HQC still pending). pqcscan's
+  `core/remediation.py` deadline logic already encodes this.
+- **HNDL is the policy driver:** NIST states it will **prioritize migrating
+  key-establishment in interactive protocols (TLS, IKE)**, potentially *before*
+  the 2035 date. This validates HNDL-weighted prioritization + readiness
+  scoring (pqcscan's HNDL flags, `core/migration_score.py`, QRAMM).
+
+### The three CBOM-accuracy obstacles (IBM, Eurocrypt 2026) — and our answer
+Accurate crypto discovery is bounded by three documented obstacles. They are
+exactly the false-positive sources a precise scanner must attack:
+1. **Naming ambiguities** → CycloneDX 1.7 Registry; pqcscan normalizes via
+   `core/alg.py` OID/name table.
+2. **Configuration-driven cryptography** (crypto is a runtime outcome of
+   negotiation) → pqcscan's live `net.sniff.live` + handshake probes observe
+   what is *actually* negotiated, not just what source declares.
+3. **Provision vs consumption** (present ≠ used) → **this is the field's #1
+   unsolved obstacle, and pqcscan's v0.9.1 reachability layer
+   (`fs.binary.crypto` `.dynsym` invoked/linked-only) is a direct attack on
+   it.** No verified OSS tool addresses this. Lead with it in positioning.
+
+### New tools / facts from this pass
+| Tool | Category | Delta |
+|---|---|---|
+| **sbom-tools** (github.com/sbom-tool/sbom-tools) | CBOM **grader** (consumer, Rust) | Parses CycloneDX 1.6/1.7 cryptoProperties → PASS/FAIL vs **CNSA 2.0 + NIST IR 8547** + 8-category CBOM quality score. Grades inventories; doesn't generate them. Analog to pqcscan's compliance engine. |
+| **sslyze** | TLS prober | **Measured PQC blind spot:** arXiv 2605.02978 ("Observability for PQ TLS Readiness") — sslyze detected **0 hybrid targets vs 70** via dual-probe. Concrete evidence that classical TLS graders miss PQC. |
+| **testssl.sh** | TLS prober | PQC support **landed in v3.2** (6 KEMs + ML-DSA); more in 3.3dev. The classic scanner is now PQC-aware — parity pressure on the `net.tls.*` family. |
+
+### Reference frameworks worth mapping our coverage against
+- **IETF draft-liu-cadi** — Cryptographic Asset Discovery & Inventory: an
+  emerging **taxonomy of discovery methods** (static/SAST, binary/image,
+  network probe, passive). Good external checklist for "do we cover every
+  method." (pqcscan spans all four.)
+- **CISA** *Strategy for Migrating to Automated PQC Discovery and Inventory
+  Tools* (2024) — the buyer-side requirements doc; useful for framing README.
+
+### Commercial vendors — verified primary-source detail (2026-07-21 pass)
+A dedicated commercial pass. Of ~20 named vendors, only **four** produced claims
+that survived adversarial verification against primary sources; the rest had no
+verifiable primary detail (marketing-only). **No pricing was verifiable for any
+vendor.**
+
+| Vendor | Modalities (verified) | CBOM | Runtime/binary? | Orchestration? |
+|---|---|---|---|---|
+| **SandboxAQ AQtive Guard** (absorbed Cryptosense) | 9 named sensors: Java/Python/.NET/OpenSSL/PKCS#11 **runtime tracers**, Filesystem Scanner, **Java Bytecode Scanner**, Network Analyzer (**live + PCAP upload**), PKCS#11 Fuzzer | **Ingests** CycloneDX 1.4/1.6 (export format unconfirmed) | **Yes — genuine runtime reachability** (live crypto-lib call tracing in production) | **Yes — full**: key rotation, algo/protocol switching, blast-radius simulation, JIRA/GitHub remediation. Maps CNSA 2.0 + FIPS 203/204/205 (not IR 8547/BSI/ANSSI on page). |
+| **IBM Quantum Safe Explorer** | Source-code SAST (Sonar Cryptography plugin / CBOMkit-hyperion) | **Exports CycloneDX** (IBM upstreamed its CBOM model into 1.6/ECMA-424) | No (source-centric) | Discovery/posture |
+| **Keyfactor AgileSec** (= acquired InfoSec Global AgileSec Analytics) | **Compiled-binary analysis** of 3rd-party/OS binaries w/o source + multi-modality via lightweight sensors | (not confirmed) | **Yes — binary** | Discovery + CA lifecycle |
+| **Qinsight Atlas** | Cloud + code + endpoint sensors + API | CBOM (**format unspecified** — likely proprietary) | No passive-net/PCAP/binary | Posture |
+
+**No surviving verified claims** for: PQShield, Venafi/CyberArk Machine Identity,
+DigiCert Trust Lifecycle/Device Trust, Quantum Xchange CipherInsights, Entrust,
+Thales CipherTrust, IBM Guardium Quantum Safe, Wiz, Qualys, Tenable, Palo Alto,
+Cisco, Cloudflare, ISARA, Utimaco, AppViewX, Microsoft crypto-agility. (Absence
+of *verified* claims ≠ absence of product; it means no primary detail survived.)
+
+**Competitive read:** SandboxAQ AQtive Guard is the most capable verified
+platform — and the only one doing **runtime reachability via live call tracing**,
+a strictly deeper answer to provision-vs-consumption than pqcscan's *static*
+`.dynsym` reachability. That's the one capability tier above us. Everything else
+(multi-surface discovery, CBOM, compliance breadth) we match or exceed in the
+open, and no verified vendor matches our surface breadth + 19 frameworks +
+bilingual reports + self-contained any-OS binary.
+
+### FOSS coverage checklist — what a "complete" scanner fingerprints (2026-07-21 pass)
+An exhaustive-FOSS pass (partial: verification budget covered SAST + network +
+precision technique; binary/firmware, cert/PKI, PCAP/JA4, SBOM/CVE-mapper
+categories were not re-confirmed — the tables above already cover those).
+Actionable, verified take-aways:
+
+- **PQC-library presence signals** a readiness scanner should fingerprint
+  (oqs-provider ALGORITHMS.md): KEMs **ML-KEM, FrodoKEM, BIKE, HQC**; signatures
+  **ML-DSA, Falcon, SLH-DSA, MAYO, CROSS, SNOVA, UOV**; hybrids **X25519MLKEM768,
+  SecP256r1MLKEM768, SecP384r1MLKEM1024**. → pqcscan's `core/alg.py` now
+  recognizes all of these including the on-ramp signatures (MAYO/SNOVA/CROSS/
+  UOV/HAWK/SQIsign added 2026-07-21); TLS hybrid groups covered in
+  `net.tls.kex_groups`.
+- **Native OpenSSL 3.5 PQC vs OQS-provider-on-3.x** is a required distinction
+  (native landed Apr 2025; OQS since 2022). *Coverage idea:* version-aware
+  detection so an OpenSSL-3.5+ linkage counts as native PQC-capable vs a
+  `liboqs`/`oqsprovider` linkage as add-on. **Not yet done — candidate.**
+- **CSNP CryptoDeps** (github.com/csnp/cryptodeps) — a new dep-analysis (SCA)
+  tool classifying deps VULNERABLE/PARTIAL/SAFE → SARIF/CBOM. Analog to our
+  `sbom.*`/`cve.osv_offline` path.
+- **Precision technique + benchmark (the accuracy story):** the academic
+  **CryptoGuard** (flow/context/field-sensitive forward-backward slicing) cut
+  false alerts 76–80% and hit **98.61% precision** on 46 Apache projects, and
+  open-sourced **CryptoAPI-Bench** (112→171 ground-truth cases) — the only FOSS
+  ground-truth corpus, though it targets crypto-API-*misuse*, not *discovery*.
+  **There is NO discovery/inventory precision-recall benchmark in FOSS** — a
+  genuine field gap. pqcscan's own accuracy-benchmark harness (PR #64) is ahead
+  of the field here; publishing a labeled discovery corpus would be a first.
+
+### Coverage / gap matrix — pqcscan vs the union of the field
+| Technique | Best-in-field | pqcscan | Gap? |
+|---|---|---|---|
+| Source SAST (AST) | CBOMkit (Java/Py/Go AST), CryptoGuard (slicing) | Python real `ast`; others regex+string-strip+confidence | Native multi-lang AST deliberately not adopted (breaks self-contained binary) |
+| Network TLS/SSH probe | pqcscan(anvil)/testssl.sh/QuantaSeek | `net.tls.*` incl. live handshake + KEX groups | ✅ covered |
+| **Binary linkage** | Keyfactor AgileSec | `fs.binary.crypto` (ELF/PE/Mach-O) + **`.dynsym` reachability** | ✅ + reachability (rare) |
+| **Runtime call tracing** | **SandboxAQ AQtive Guard** | static `.dynsym` proxy only | ⚠️ **the one tier above us** — runtime hooks break self-contained/any-OS premise |
+| Binary crypto **constants** (S-box/YARA) | capa/find-crypt (generic) | linkage + symbols, not constant sigs | candidate: statically-linked/stripped binaries |
+| Passive PCAP | SandboxAQ, `fs.pcap.crypto` | `fs.pcap.crypto` + `net.sniff.live` | ✅ covered |
+| **JA3/JA4 PQC ClientHello fingerprint** | (emerging, rare in FOSS) | not done | candidate: passive PQC-handshake fingerprinting |
+| Cert/PKI PQC | CryptoScan, zlint | `fs.cert.*` + `net.ct.crtsh` | ✅ covered |
+| CBOM output | CBOMkit (1.6) | CycloneDX **1.7** | ✅ ahead |
+| SARIF / CI gate | CryptoScan | SARIF 2.1.0 + `--fail-on` + Action | ✅ covered |
+| Dep/CVE→crypto | CryptoDeps, Grype/Trivy | `sbom.*`, `cve.osv_offline` | ✅ covered |
+| Compliance mapping | sbom-tools (2 frameworks) | **19 frameworks** | ✅ ahead |
+| On-ramp algo recognition | oqs-provider list | `core/alg.py` (incl. MAYO/SNOVA/CROSS/UOV as of today) | ✅ now covered |
+| Native-vs-OQS OpenSSL distinction | UMBC survey requirement | not version-aware | ⚠️ candidate |
+| Discovery precision benchmark | none in FOSS (CryptoAPI-Bench is misuse) | own harness (#64) | ✅ ahead; could publish a corpus |
+
+**Net:** the only capabilities the *verified* field has that pqcscan lacks are
+(1) **runtime call tracing** (SandboxAQ) — fundamentally incompatible with the
+self-contained/any-OS binary premise, so a deliberate non-goal; (2) **binary
+crypto-constant signatures** for stripped/static binaries; (3) **JA3/JA4 PQC
+handshake fingerprinting**; (4) **native-vs-OQS OpenSSL version awareness**.
+(2)–(4) are the concrete, self-contained-compatible coverage candidates.
+
 ## Maintained vs dormant
 - **Active (2025-era):** PQCA CBOMkit, csnp/cryptoscan, anvilsecure/pqcscan,
   QuantaSeek, open-quantum-secure, IBM Quantum Safe Explorer, Keyfactor stack.

@@ -144,6 +144,8 @@ def default_registry() -> Registry:
     from pqcscan.probes.net_starttls_ldap import NetStarttlsLdap
     from pqcscan.probes.net_starttls_pop3 import NetStarttlsPop3
     from pqcscan.probes.net_starttls_smtp import NetStarttlsSmtp
+    from pqcscan.probes.net_telnet_plaintext import NetTelnetPlaintext
+    from pqcscan.probes.net_tftp_service import NetTftpService
     from pqcscan.probes.net_tls_cert_chain import NetTlsCertChain
     from pqcscan.probes.net_tls_cert_chain_tls13 import NetTlsCertChainTls13
     from pqcscan.probes.net_tls_https import NetTlsHttps
@@ -329,6 +331,8 @@ def default_registry() -> Registry:
     reg.register(NetSmbDialect())
     reg.register(NetSnmpVersion())
     reg.register(NetKerberosAsreq())
+    reg.register(NetTelnetPlaintext())
+    reg.register(NetTftpService())
     # Plan G batch 1 — DB at-rest TDE config (deferred per spec §13.1).
     reg.register(DbPgPgcrypto())
     reg.register(DbMysqlKeyring())

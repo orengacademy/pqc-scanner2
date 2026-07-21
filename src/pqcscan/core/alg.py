@@ -142,6 +142,14 @@ _PQC_READY_PREFIXES: tuple[str, ...] = (
     "ML-KEM", "ML-DSA", "SLH-DSA", "FN-DSA", "FALCON", "SPHINCS",
     "DILITHIUM", "KYBER", "FRODOKEM", "NTRU", "CLASSIC-MCELIECE",
     "BIKE", "HQC", "XMSS", "LMS",
+    # NIST additional-signature "on-ramp" candidates (Round 2, 2024) and other
+    # post-quantum schemes shipped by liboqs / oqs-provider. Not yet FIPS-final
+    # (like FN-DSA/Falcon above), but quantum-resistant by design, so a system
+    # advertising them is PQC-ready — recognizing them keeps such findings out
+    # of the INFO/"unknown" bucket. Names per oqs-provider ALGORITHMS.md.
+    # CROSS uses its variant prefix (not bare "CROSS") to avoid matching the
+    # X.509 "cross-signed" cert relationship; UOV covers the family name.
+    "MAYO", "SNOVA", "CROSSRSDP", "CROSS-RSDP", "HAWK", "SQISIGN", "UOV",
 )
 _PQC_HYBRID_FRAGMENTS: tuple[str, ...] = ("MLKEM", "MLDSA", "ML-KEM", "ML-DSA")
 

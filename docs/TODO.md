@@ -40,6 +40,29 @@ gaps worth filling, ranked by leverage.
       etc.). LiuYuancheng's tool does this end-to-end. Adds `pyshark`
       or `scapy` dep. ~2 days.
 
+## Coverage candidates (from 2026-07-21 3-pass research — see COMPETITIVE-LANDSCAPE.md)
+
+These are the only self-contained-compatible techniques the *verified* field has
+that pqcscan lacks (runtime call-tracing à la SandboxAQ is a deliberate non-goal
+— it breaks the any-OS self-contained binary).
+
+- [ ] **Binary crypto-constant signatures** — detect statically-linked/stripped
+      binaries by S-box / magic-constant matching (capa / find-crypt style),
+      complementing the current `.dynsym` linkage detection which misses static
+      builds. Pure-data YARA-like constant table; fits the self-contained model.
+- [ ] **JA3/JA4 PQC ClientHello fingerprinting** — passive fingerprint of PQC
+      key-share/hybrid-group offers in TLS ClientHellos (extends `net.sniff.live`
+      / `fs.pcap.crypto`). Emerging technique, rare in FOSS — a differentiator.
+- [ ] **Native-vs-OQS OpenSSL version awareness** — distinguish native PQC
+      (OpenSSL ≥3.5, Apr 2025) from `oqs-provider`-on-3.x add-on, per the UMBC
+      survey requirement. Version-aware linkage classification in
+      `fs.binary.crypto` / host lib detection.
+- [x] **On-ramp signature algorithm recognition** — MAYO/SNOVA/CROSS/UOV/HAWK/
+      SQIsign added to `core/alg.py` PQC-ready set (were classified INFO). ✅
+- [ ] **Publish a discovery precision/recall corpus** — no FOSS ground-truth
+      benchmark exists for crypto *discovery* (CryptoAPI-Bench targets misuse).
+      Our accuracy harness (#64) + a labeled corpus would be a field first.
+
 ## Low-leverage
 
 - [ ] **SCTP / DCCP / RTP / Telnet / TFTP probes** — only LiuYuancheng
