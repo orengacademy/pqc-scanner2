@@ -61,17 +61,24 @@ that pqcscan lacks (runtime call-tracing à la SandboxAQ is a deliberate non-goa
 - [x] **Native-vs-OQS OpenSSL version awareness** — `host.openssl.pqc_provenance`
       (v0.9.8) synthesizes `openssl version` + `list -providers` into a native /
       oqs-provider / none provenance verdict, per the UMBC survey requirement. ✅
-- [ ] **[TOP] Deeper cert PQC *profile* validation + end-to-end vectors** — pkilint
-      (DigiCert) does FIPS 203/204/205 key-size/key-usage validation *beyond* our
-      OID recognition in `fs.cert.pqc_x509`; adopt the **IETF-Hackathon/
-      pqc-certificates** ML-DSA/ML-KEM/SLH-DSA/composite DER corpus as an
-      end-to-end ground-truth accuracy test.
+- [~] **Cert PQC recognition recall** — `fs.cert.pqc_x509` now recognizes the full
+      standardized surface (pure + pre-hash + composite + Falcon) via centralized
+      `core.alg` (v0.9.9). *Remaining sub-item, deferred:* deeper **profile**
+      validation (pkilint-level FIPS 203/204/205 key-size / key-usage checks)
+      needs raw-SPKI DER parsing (`cryptography` won't parse PQC public keys) and
+      the IETF-Hackathon/pqc-certificates DER corpus as end-to-end vectors — a
+      worthwhile but self-contained follow-up.
 - [x] **On-ramp signature algorithm recognition** — MAYO/SNOVA/CROSS/UOV/HAWK/
       SQIsign added to `core/alg.py` PQC-ready set (were classified INFO). ✅
-- [ ] **Publish a discovery precision/recall corpus** — no FOSS ground-truth
-      benchmark exists for crypto *discovery* (CryptoAPI-Bench targets misuse).
-      Our accuracy harness (#64) + the 51-OID recall oracle (v0.9.7) are a start;
-      a labeled multi-surface corpus would be a field first.
+- [ ] **JA4/JA4X TLS fingerprint emission** — *deferred, low priority.* A client-
+      *correlation* fingerprint, not a PQC signal: our 2026-07-21 research
+      confirmed JA4 records only the extension **type** code, so it adds no PQC-
+      group info (which `net.sniff.live` already extracts directly). Correctness
+      also requires matching the reference JA4 spec byte-for-byte with vectors.
+- [ ] **Publish a discovery precision/recall corpus** — *deferred, data/release
+      task (not code).* No FOSS ground-truth benchmark exists for crypto
+      *discovery*; our accuracy harness (#64) + the 51-OID recall oracle (v0.9.7,
+      now also exercising `fs.cert.pqc_x509`) are a start.
 
 ## Low-leverage
 

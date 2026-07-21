@@ -329,10 +329,18 @@ detection CISA flagged as hard (`fs.binary.crypto` + v0.9.6 constants).
   recall oracle (the field's first measured PQC-discovery accuracy baseline).
 - ✅ ~~Native-vs-OQS OpenSSL version awareness~~ — **v0.9.8**
   (`host.openssl.pqc_provenance`).
-1. **Deeper cert PQC *profile* validation** (pkilint-level key-size/key-usage
-   checks in `fs.cert.pqc_x509`, beyond OID recognition) + adopt the **IETF
-   pqc-certificates** DER vectors as an end-to-end ground-truth test — now top.
-2. **JA4/JA4X fingerprint emission** for observed TLS (correlation/inventory).
+- ✅ ~~Cert PQC recognition recall~~ — **v0.9.9** centralized `fs.cert.pqc_x509`
+  on `core.alg`, so it recognizes pre-hash + composite + Falcon certs (was only
+  pure `.17-.31`); audit confirmed no other probe carries a stale OID table.
+
+**Every high/medium-value research-derived candidate is now shipped.** The two
+that remain are deferred with rationale:
+1. **Deeper cert PQC *profile* validation** (pkilint-level key-size/key-usage) —
+   needs raw-SPKI DER parsing + the IETF pqc-certificates DER vectors; a
+   self-contained follow-up, higher effort than the recall fix already shipped.
+2. **JA4/JA4X fingerprint emission** — a client-*correlation* fingerprint with
+   **no PQC signal** (JA4 records only the extension *type*; we already extract
+   the PQC groups directly), and correctness needs the reference spec's vectors.
 
 ## Maintained vs dormant
 - **Active (2025-era):** PQCA CBOMkit, csnp/cryptoscan, anvilsecure/pqcscan,
