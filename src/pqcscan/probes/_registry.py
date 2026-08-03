@@ -31,7 +31,7 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — 178 probes (see docs/STATUS.md for the family map)."""
+    """Built-in probe set — 179 probes (see docs/STATUS.md for the family map)."""
     from pqcscan.probes.app_crypto_lib_pqc_support import AppCryptoLibPqcSupport
     from pqcscan.probes.app_jwt_env_alg import AppJwtEnvAlg
     from pqcscan.probes.app_nginx_jwt_validation import AppNginxJwtValidation
@@ -40,6 +40,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.aux_clock_cert_validity import AuxClockCertValidity
     from pqcscan.probes.code_crypto_primitives import CodeCryptoPrimitives
     from pqcscan.probes.code_semgrep_pqc import CodeSemgrepPqc
+    from pqcscan.probes.code_ts_csharp import CodeTsCsharp
     from pqcscan.probes.code_ts_go import CodeTsGo
     from pqcscan.probes.code_ts_java import CodeTsJava
     from pqcscan.probes.code_ts_javascript import CodeTsJavascript
@@ -319,6 +320,7 @@ def default_registry() -> Registry:
     reg.register(FsConfF5())
     reg.register(FsConfNetscaler())
     reg.register(CodeTsJava())
+    reg.register(CodeTsCsharp())
     reg.register(CodeTsPhp())
     reg.register(CodeTsRust())
     # Plan B batch 15 — binary-protocol probes (live network handshakes).

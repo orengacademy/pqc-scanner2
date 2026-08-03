@@ -68,6 +68,9 @@ _LINE_HASH = r"#[^\n]*"
 _BACKTICK = r"`[^`]*`"
 # Rust raw string: r"...", r#"..."#, br"..."# — hash count matched via backref.
 _RUST_RAW = r'(?:b?r)(?P<rrhash>#*)"[\s\S]*?"(?P=rrhash)'
+# C# verbatim string: @"..." where an embedded quote is written "". Spans
+# newlines, so it must precede _DQ in the alternation (matched at the '@').
+_CSHARP_VERBATIM = r'@"(?:""|[^"])*"'
 
 # Per-language alternation members.  Order is immaterial for correctness (the
 # left-to-right scan disambiguates by start position; block vs line comments
@@ -78,6 +81,7 @@ _LANG_FORMS: dict[str, tuple[str, ...]] = {
     "javascript": (_BLOCK, _LINE_SLASH, _BACKTICK, _DQ, _SQ_STR),
     "php": (_BLOCK, _LINE_SLASH, _LINE_HASH, _DQ, _SQ_STR),
     "rust": (_BLOCK, _LINE_SLASH, _RUST_RAW, _DQ, _CHAR),
+    "csharp": (_BLOCK, _LINE_SLASH, _CSHARP_VERBATIM, _DQ, _CHAR),
 }
 
 

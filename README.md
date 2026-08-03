@@ -2,7 +2,7 @@
 
 Post-Quantum Cryptography (PQC) readiness scanner. Single Python process. Bundled web UI + headless CLI. Runs locally on Linux, Windows, macOS.
 
-> **Status: 178 probes · 19 compliance frameworks · SARIF + CBOM + PDF + XLSX exports · light/dark web UI — see [docs/STATUS.md](docs/STATUS.md).**
+> **Status: 179 probes · 19 compliance frameworks · SARIF + CBOM + PDF + XLSX exports · light/dark web UI — see [docs/STATUS.md](docs/STATUS.md).**
 > Scans point at the local host **or** a network endpoint (`--target`), filesystem paths (`--path`), or an OT/ICS endpoint (`--ot`). Every finding carries a typed PQC migration target + deadline, surfaced inline in the UI and in the SARIF export. See `docs/superpowers/specs/2026-04-29-pqcscan-v2-design.md` for the full design.
 
 ---
@@ -134,7 +134,7 @@ flowchart LR
 
     subgraph proc["pqcscan single process"]
         direction TB
-        REG["probe registry<br/>(default_registry, 178 probes)"]
+        REG["probe registry<br/>(default_registry, 179 probes)"]
         RUN["async runner<br/>(asyncio.gather per family,<br/>per-probe timeout)"]
         BUS["event bus<br/>(SSE-friendly)"]
         REPO[("SQLite store<br/>scans · findings ·<br/>baselines · framework_views")]
@@ -295,7 +295,7 @@ sequenceDiagram
 
 ## Probe families
 
-**178 probes across 14 families.** Each probe is a small `Probe` subclass that
+**179 probes across 14 families.** Each probe is a small `Probe` subclass that
 declares an `id`, a `family`, and `framework_tags` for the compliance engine.
 Current breakdown (verify any time with the snippet below):
 
@@ -307,7 +307,7 @@ Current breakdown (verify any time with the snippet below):
 | **STORAGE** | 18 | disk: `luks`·`bitlocker`·`zfs`·`dmcrypt`·`fscrypt` · db-TDE: `pg.pgcrypto`·`mysql.keyring`·`mssql.tde` · MQ: `kafka`·`rabbitmq`·`nats`·`mqtt` · HW: `tpm_algorithms`·`pkcs11_modules`·`smartcard_readers` |
 | **SBOM** | 15 | `os.{dpkg,rpm,apk,…}` · `lang.{pip,npm,gomod,cargo,maven,…}` · `syft`·`grype`·`trivy` · `crypto_map` · `cve.osv_offline` |
 | **OT** | 15 | industrial-protocol crypto exposure: `modbus`·`dnp3`·`opcua`·`bacnet`·… |
-| **CODE** | 8 | `ts.{python,javascript,go,java,php,rust}` · `crypto_primitives` · `semgrep.pqc` |
+| **CODE** | 9 | `ts.{python,javascript,go,java,php,rust}` · ★`ts.csharp` (.NET/ASP.NET Core) · `crypto_primitives` · `semgrep.pqc` |
 | **CONTAINER** | 7 | `runtime.detect` · `image.sbom` · `k8s.{ingress,secrets,helm,mesh_mtls,mesh_policy}` |
 | **APP** | 5 | `jwt.env_alg` · `oauth.jwks` · `spring.properties` · `nginx.jwt_validation` · `crypto_lib_pqc_support` |
 | **SIGN** | 5 | `gpg.keyrings` · `repo.aptdnf_keys` · `code.authenticode` · `git.signing_keys` · `image.cosign` |
@@ -346,7 +346,7 @@ flowchart LR
     DETAIL["/scans/{id}<br/>live SSE feed +<br/>findings table +<br/>'Mark as baseline' form"]
     FRAMEWORKS["/frameworks<br/>19 framework YAMLs"]
     FW_DET["/frameworks/{slug}<br/>rules · clauses · verdicts"]
-    PROBES["/probes<br/>178 probes by family"]
+    PROBES["/probes<br/>179 probes by family"]
     BASELINES["/baselines<br/>list + diff form"]
     DIFF["/baselines/diff<br/>added · removed · common"]
     SETTINGS["/settings<br/>version · python · platform ·<br/>privilege mode · DB · capabilities"]
