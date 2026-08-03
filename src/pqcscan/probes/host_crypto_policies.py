@@ -13,21 +13,9 @@ import asyncio
 import shutil
 from pathlib import Path
 
-from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
+from pqcscan.core.types import Classification, Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
-
-
-def _severity(classification: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[classification]
-
+from pqcscan.probes._severity import sev_for
 
 # base policy name -> (classification, human note)
 _BASE_POLICY: dict[str, tuple[Classification, str]] = {
@@ -101,7 +89,7 @@ class HostCryptoPolicies(Probe):
             probe_id=self.id,
             algorithm=f"crypto-policies/{base}",
             classification=classification,
-            severity=_severity(classification),
+            severity=sev_for(classification),
             title=f"System crypto-policy is {policy} ({source})",
             evidence={
                 "policy": policy,

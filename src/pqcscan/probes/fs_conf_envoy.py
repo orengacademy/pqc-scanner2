@@ -10,6 +10,7 @@ import yaml
 from pqcscan.core.alg import classify, normalise
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 _SUFFIXES = (".yaml", ".yml", ".json")
 _TLS_PARAMS_KEYS = {"tls_params", "tlsParams", "TlsParameters"}
@@ -79,7 +80,7 @@ class FsConfEnvoy(Probe):
                     probe_id=self.id,
                     algorithm=normalise(token),
                     classification=cls,
-                    severity=_sev(cls),
+                    severity=sev_for(cls),
                     title=f"envoy cipher_suites includes {token}",
                     evidence={"path": str(path), "directive": "cipher_suites"},
                 ))
@@ -96,7 +97,7 @@ class FsConfEnvoy(Probe):
                 probe_id=self.id,
                 algorithm=normalise(mapped),
                 classification=cls,
-                severity=_sev(cls),
+                severity=sev_for(cls),
                 title=f"envoy ecdh_curves includes {token}",
                 evidence={"path": str(path), "directive": "ecdh_curves"},
                 remediation={"snippet": "ecdh_curves: [X25519MLKEM768, X25519]"},
@@ -135,13 +136,3 @@ def _tokens(value: object) -> list[str]:
     return [t for t in (i.strip() for i in items) if t]
 
 
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]

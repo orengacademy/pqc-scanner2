@@ -5,6 +5,61 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.12] — 2026-08-03
+
+### Added — coverage: SQL Server + C#/.NET (179 probes)
+- **`net.db.mssql_tls` — SQL Server TDS PRELOGIN + TLS-in-TDS probe.** SQL
+  Server tunnels TLS inside TDS `PRELOGIN` packets (MS-TDS §2.2.6.5), so the OS
+  `ssl` stack can't read it. Reads the server's encryption stance
+  (off/on/not-supported/required) and, when it encrypts, tunnels a raw TLS 1.3
+  ClientHello (empty key_share, hybrid groups first) through TDS to read the
+  *selected* KEX group — PQC-hybrid → `pqc-ready`, classical → `sederhana` +
+  HNDL. Pure `struct`, no TDS driver dependency. Closes the SQL-Server-in-transit
+  gap the Postgres/MySQL TLS probes left open.
+- **`code.ts.csharp` — C#/.NET source crypto probe.** Detects RSA/DSA/EC key
+  generation, weak hashes/ciphers, and ECB/CBC mode in `.cs` sources, anchored
+  on the .NET crypto API identifier so string/comment blanking never hides a
+  call. Adds a C# verbatim-string (`@"..."`) lexer to `srcstrip` and excludes
+  `bin/`/`obj/`. Closes the ASP.NET Core source gap for .NET back-ends.
+
+### Fixed — runner / daemon / store robustness
+- **`applies()` could abort a whole scan.** It ran outside the per-probe
+  timeout/error envelope, so a raising or hanging `applies()` propagated through
+  the bare `asyncio.gather` and left the scan stuck non-`done`. Now wrapped like
+  `run()` → probe-error row, scan still finishes.
+- **EventBus cross-loop delivery.** The daemon runs scans in a background thread
+  with its own loop while SSE subscribers await on the server loop; `asyncio.Queue`
+  is not loop-safe. Foreign-loop delivery now goes through `call_soon_threadsafe`,
+  the subscriber list is guarded by a `threading.Lock`, and every event carries
+  `scan_id`.
+- **`POST /api/scans` returned a stale id** when the DB already held scans; the
+  new scan row is now claimed atomically (`begin_scan_if_idle`) under a process
+  lock, closing the check-then-start race and returning the correct id.
+- **One manual scan at a time** enforced (API `409`, UI redirect) instead of
+  unbounded concurrent scan threads / SQLite writers.
+- **SQLite `WAL` + `busy_timeout=5000`** so the background-thread writer coexists
+  with request readers instead of `database is locked`.
+- **Stale-scan reconciliation on startup** — scans left `running` by a crash are
+  swept to `interrupted` so the one-scan guard can't wedge.
+- **SSE stream now filters to its own `scan_id`** and emits a `: keepalive` when
+  idle so proxies don't drop long-lived connections.
+- **`net.tls.https` now honours `--target`** (was hardcoded `127.0.0.1`).
+- **`fs.cert.x509` wires in `core/keyhealth`** — ROCA (CVE-2017-15361) and
+  sub-1024-bit RSA moduli now emit `sangat-tinggi` findings (was dead code).
+- **Dashboard trend uses one bulk query** instead of one DB session per scan.
+- **Compliance `key_size_lt`/`key_size_ge`** now take the largest integer in the
+  algorithm name, so `SHA-3-512` reads as 512, not the leading `3`.
+- **`pqcscan scan`** internal failures now exit `2` as documented.
+
+### Changed
+- Removed dead code: unused `Component` dataclass and the `SECRETS` probe family
+  (never had a probe). Deduplicated a byte-identical `Classification → Severity`
+  map across 48 probe modules into the shared `_severity.sev_for`. Replaced
+  deprecated `datetime.utcnow()` with a tz-naive `util.clock.utcnow()`. CBOM
+  export message corrected to "CycloneDX 1.7"; `action.yml` exports the scan id
+  captured from `--json` output instead of a hardcoded `--scan 1`; CI
+  `liboqs-python` pin aligned to `>=0.12`.
+
 ## [0.9.11] — 2026-07-21
 
 ### Added — QUIC PQC probing (the last uncovered surface)

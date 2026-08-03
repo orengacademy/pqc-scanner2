@@ -12,8 +12,9 @@ import asyncio
 import shutil
 from pathlib import Path
 
-from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
+from pqcscan.core.types import Classification, Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 
 class HostOpenSSLFipsState(Probe):
@@ -53,7 +54,7 @@ class HostOpenSSLFipsState(Probe):
                 probe_id=self.id,
                 algorithm="fips-140-classical",
                 classification=Classification.SEDERHANA,
-                severity=_sev(Classification.SEDERHANA),
+                severity=sev_for(Classification.SEDERHANA),
                 title="FIPS 140 mode active (classical crypto — quantum-vulnerable)",
                 evidence=evidence,
                 remediation={
@@ -69,7 +70,7 @@ class HostOpenSSLFipsState(Probe):
                 probe_id=self.id,
                 algorithm="fips-140-classical",
                 classification=Classification.INFO,
-                severity=_sev(Classification.INFO),
+                severity=sev_for(Classification.INFO),
                 title="FIPS mode not enabled",
                 evidence=evidence,
             ))
@@ -104,13 +105,3 @@ class HostOpenSSLFipsState(Probe):
         return "fips" in lowered or "openssl fips provider" in lowered
 
 
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]

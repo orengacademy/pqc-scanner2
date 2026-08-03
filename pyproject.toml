@@ -117,6 +117,9 @@ check_untyped_defs = true
 [[tool.mypy.overrides]]
 # Optional/native deps that ship without type info: PyYAML and openpyxl
 # have separate `types-*` packages we don't pull in for v0.1; weasyprint
-# has no stubs at all (Cairo bindings).
-module = ["yaml", "openpyxl", "openpyxl.styles", "weasyprint"]
+# has no stubs at all (Cairo bindings). liboqs-python (`oqs`) ships no
+# py.typed, and is absent entirely unless the [active] extra is installed —
+# so mypy sees import-not-found or import-untyped depending on the host; this
+# silences both deterministically.
+module = ["yaml", "openpyxl", "openpyxl.styles", "weasyprint", "oqs"]
 ignore_missing_imports = true

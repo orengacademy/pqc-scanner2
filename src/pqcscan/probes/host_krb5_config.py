@@ -12,6 +12,7 @@ from pathlib import Path
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 _DES = ("DES", Classification.SANGAT_TINGGI)
 _3DES = ("3DES", Classification.TINGGI)
@@ -34,18 +35,6 @@ _ENCTYPE_DIRECTIVES = (
 )
 
 _DEFAULT_PATHS = [Path("/etc/krb5.conf")]
-
-
-def _severity(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]
 
 
 class HostKrb5Config(Probe):
@@ -113,7 +102,7 @@ class HostKrb5Config(Probe):
                 probe_id=self.id,
                 algorithm=canonical,
                 classification=cls,
-                severity=_severity(cls),
+                severity=sev_for(cls),
                 title=f"krb5.conf permits weak Kerberos enctype {tok} ({canonical})",
                 evidence={"path": src, "enctype": tok},
                 remediation={

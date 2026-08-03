@@ -43,6 +43,76 @@ def test_post_scan_creates_and_runs(client):
     assert s is not None and s["status"] == "done"
 
 
+def _wait_done(client, scan_id):
+    for _ in range(3000):
+        if client.get(f"/api/scans/{scan_id}").json()["status"] == "done":
+            return
+        time.sleep(0.1)
+    raise AssertionError(f"scan {scan_id} never finished")
+
+
+def test_post_scan_returns_the_new_scan_id(client, monkeypatch):
+    """With a pre-existing scan in the DB, POST /api/scans must return the id
+    of the scan it just started — not whatever list_scans()[0] happens to be
+    before the background thread commits the new row."""
+    from pqcscan.store.repo import Repo
+
+    first = client.post("/api/scans").json()["id"]
+    _wait_done(client, first)
+
+    orig = Repo.create_scan
+
+    def slow_create(self, **kwargs):
+        time.sleep(0.15)  # let the handler's poll loop run before the commit
+        return orig(self, **kwargs)
+
+    monkeypatch.setattr(Repo, "create_scan", slow_create)
+    second = client.post("/api/scans").json()["id"]
+    assert second != first
+    _wait_done(client, second)
+
+
+def _slow_registry():
+    import asyncio as _asyncio
+
+    from pqcscan.core.types import ProbeFamily
+    from pqcscan.probes._base import Probe
+    from pqcscan.probes._registry import Registry
+
+    class _SlowProbe(Probe):
+        id = "test.slow"
+        family = ProbeFamily.AUX
+
+        async def run(self, ctx, emit):
+            await _asyncio.sleep(1.0)
+
+    reg = Registry()
+    reg.register(_SlowProbe())
+    return reg
+
+
+def test_post_scan_409_while_another_scan_runs(tmp_db_path):
+    app = create_app(db_path=tmp_db_path, registry=_slow_registry())
+    client = TestClient(app)
+    first = client.post("/api/scans")
+    assert first.status_code == 202
+    second = client.post("/api/scans")
+    assert second.status_code == 409
+    _wait_done(client, first.json()["id"])
+
+
+def test_ui_scan_redirects_to_running_scan(tmp_db_path):
+    app = create_app(db_path=tmp_db_path, registry=_slow_registry())
+    client = TestClient(app)
+    first = client.post("/scans/new", follow_redirects=False)
+    assert first.status_code == 303
+    running = first.headers["location"]
+    second = client.post("/scans/new", follow_redirects=False)
+    assert second.status_code == 303
+    assert second.headers["location"] == running
+    _wait_done(client, int(running.rsplit("/", 1)[1]))
+
+
 def test_list_scans(client):
     client.post("/api/scans")
     r = client.get("/api/scans")

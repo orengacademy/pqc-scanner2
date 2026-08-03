@@ -43,7 +43,7 @@ def _is_low_signal_source(evidence: dict) -> bool:
 def assess(probe_id: str, evidence: dict | None = None) -> str:
     """Return the detection confidence for a finding.
 
-    Central so the ~160 probes don't each duplicate the logic; a probe may
+    Central so the probes don't each duplicate the logic; a probe may
     still override by setting `evidence["confidence"]` itself.
     """
     ev = evidence or {}

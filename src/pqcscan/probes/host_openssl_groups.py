@@ -3,8 +3,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
+from pqcscan.core.types import Classification, Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 _DEFAULT_PATHS = [
     Path("/etc/ssl/openssl.cnf"),
@@ -89,7 +90,7 @@ class HostOpenSSLGroups(Probe):
                 probe_id=self.id,
                 algorithm="TLS-protocol-floor",
                 classification=Classification.SEDERHANA,
-                severity=_sev(Classification.SEDERHANA),
+                severity=sev_for(Classification.SEDERHANA),
                 title=f"Weak MinProtocol {shown} in {path}",
                 evidence={"path": str(path), "minprotocol": minproto},
                 remediation={
@@ -105,7 +106,7 @@ class HostOpenSSLGroups(Probe):
                 probe_id=self.id,
                 algorithm="openssl-SECLEVEL",
                 classification=Classification.TINGGI,
-                severity=_sev(Classification.TINGGI),
+                severity=sev_for(Classification.TINGGI),
                 title=f"Permissive @SECLEVEL={seclevel} in {path}",
                 evidence={"path": str(path), "cipherstring": cipherstring, "seclevel": seclevel},
                 remediation={
@@ -121,7 +122,7 @@ class HostOpenSSLGroups(Probe):
                     probe_id=self.id,
                     algorithm="TLS-key-exchange-groups",
                     classification=Classification.PQC_READY,
-                    severity=_sev(Classification.PQC_READY),
+                    severity=sev_for(Classification.PQC_READY),
                     title=f"PQC hybrid groups configured in {path}",
                     evidence={"path": str(path), "groups": groups},
                 ))
@@ -130,7 +131,7 @@ class HostOpenSSLGroups(Probe):
                     probe_id=self.id,
                     algorithm="TLS-key-exchange-groups",
                     classification=Classification.SEDERHANA,
-                    severity=_sev(Classification.SEDERHANA),
+                    severity=sev_for(Classification.SEDERHANA),
                     title=f"No PQC groups configured in {path}",
                     evidence={"path": str(path), "groups": groups},
                     remediation={
@@ -139,13 +140,3 @@ class HostOpenSSLGroups(Probe):
                 ))
 
 
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]

@@ -12,21 +12,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
+from pqcscan.core.types import Classification, Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
-
-
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]
-
+from pqcscan.probes._severity import sev_for
 
 # ENCRYPT_METHOD value -> classification; safe methods are omitted (no finding).
 _LOGIN_DEFS_WEAK: dict[str, Classification] = {
@@ -89,7 +77,7 @@ class HostPamHashing(Probe):
                 probe_id=self.id,
                 algorithm=f"crypt/{method}",
                 classification=classification,
-                severity=_sev(classification),
+                severity=sev_for(classification),
                 title=f"login.defs ENCRYPT_METHOD is {method}",
                 evidence={"path": str(self.login_defs), "encrypt_method": method},
                 remediation={"snippet": "ENCRYPT_METHOD YESCRYPT   # or SHA512"},
@@ -116,7 +104,7 @@ class HostPamHashing(Probe):
                         probe_id=self.id,
                         algorithm="crypt/MD5",
                         classification=Classification.SANGAT_TINGGI,
-                        severity=_sev(Classification.SANGAT_TINGGI),
+                        severity=sev_for(Classification.SANGAT_TINGGI),
                         title=f"pam_unix.so uses md5 password hashing in {path.name}",
                         evidence={"path": str(path), "module": "pam_unix.so", "option": "md5"},
                         remediation={
@@ -145,7 +133,7 @@ class HostPamHashing(Probe):
                 probe_id=self.id,
                 algorithm=f"crypt/{name}",
                 classification=classification,
-                severity=_sev(classification),
+                severity=sev_for(classification),
                 title=f"shadow contains {name}-crypt password hashes",
                 evidence={"path": str(self.shadow), "scheme": name, "accounts": seen},
                 remediation={

@@ -6,6 +6,7 @@ from pathlib import Path
 from pqcscan.core.alg import classify, normalise
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 # NetScaler stores config as flat CLI lines, one directive per line, e.g.
 #   set ssl vserver vs1 -ssl3 ENABLED -tls1 ENABLED -tls13 DISABLED
@@ -132,19 +133,9 @@ class FsConfNetscaler(Probe):
                 probe_id=self.id,
                 algorithm=normalise(name),
                 classification=cls,
-                severity=_sev(cls),
+                severity=sev_for(cls),
                 title=f"NetScaler ssl {kind} {entity} binds cipher {name}",
                 evidence={"path": str(path), "entity": entity, "directive": "cipherName"},
             ))
 
 
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]

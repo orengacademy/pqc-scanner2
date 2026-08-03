@@ -5,6 +5,8 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
+from pqcscan.util.clock import utcnow
+
 
 class Capability(StrEnum):
     ROOT = "root"
@@ -28,7 +30,6 @@ class ProbeFamily(StrEnum):
     DNS_EMAIL = "dns_email"
     PQC_META = "pqc_meta"
     AUX = "aux"
-    SECRETS = "secrets"
     OT = "ot"
 
 
@@ -55,17 +56,6 @@ class Severity(StrEnum):
 
 
 @dataclass(slots=True)
-class Component:
-    purl: str
-    type: str  # os-pkg | lib | service | cert | key | file | app | container
-    name: str
-    version: str | None = None
-    location: str = ""
-    discovered_by: str = ""
-    attributes: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass(slots=True)
 class Finding:
     probe_id: str
     algorithm: str
@@ -78,4 +68,4 @@ class Finding:
     # Detection confidence: "high" | "medium" | "low". Assigned centrally by
     # the runner (see core.confidence) unless a probe sets it explicitly.
     confidence: str = "high"
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=utcnow)

@@ -32,6 +32,7 @@ from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X
 from pqcscan.core.alg import classify, normalise
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 from pqcscan.probes._tls13_keyschedule import (
     CIPHER_SUITES,
     aead_open,
@@ -250,18 +251,6 @@ def _worst(a: Classification, b: Classification) -> Classification:
     return a if order[a] >= order[b] else b
 
 
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]
-
-
 def recover_handshake(
     client_hello_record: bytes, client_private: X25519PrivateKey, server_data: bytes
 ) -> dict | None:
@@ -392,7 +381,7 @@ class NetTlsCertChainTls13(Probe):
                 probe_id=self.id,
                 algorithm=normalise(key_alg),
                 classification=cls,
-                severity=_sev(cls),
+                severity=sev_for(cls),
                 title=(f"{host}:{port} TLS 1.3 served-chain {role} cert: "
                        f"{key_alg} signed with {sig or 'unknown'}"),
                 evidence={
@@ -412,7 +401,7 @@ class NetTlsCertChainTls13(Probe):
                 probe_id=self.id,
                 algorithm=normalise(alg) if alg else pretty,
                 classification=cls,
-                severity=_sev(cls),
+                severity=sev_for(cls),
                 title=(f"{host}:{port} TLS 1.3 CertificateVerify signed with "
                        f"{pretty}"),
                 evidence={

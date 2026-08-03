@@ -6,7 +6,8 @@ from collections.abc import Iterable, Iterator
 from pathlib import Path
 
 from pqcscan.core.alg import classify, normalise
-from pqcscan.core.types import Classification, Finding, Severity
+from pqcscan.core.types import Finding
+from pqcscan.probes._severity import sev_for
 
 SSH_ALG_ALIASES: dict[str, str] = {
     "diffie-hellman-group1-sha1": "DH-1024",
@@ -57,7 +58,7 @@ def parse_ssh_config(text: str, path: Path, probe_id: str) -> Iterator[Finding]:
                     probe_id=probe_id,
                     algorithm=canonical,
                     classification=cls,
-                    severity=_sev(cls),
+                    severity=sev_for(cls),
                     title=f"{path.name} {kw} contains {token}",
                     evidence={
                         "path": str(path),
@@ -83,13 +84,3 @@ def parse_paths(paths: Iterable[Path], probe_id: str) -> Iterator[Finding]:
         yield from parse_ssh_config(text, path, probe_id)
 
 
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]

@@ -26,7 +26,7 @@ from pqcscan.util.paths import default_db_path
     type=click.Choice(["ms", "en"], case_sensitive=False),
     default="ms",
     show_default=True,
-    help="Output language (currently honoured by xlsx-bukukerja).",
+    help="Output language for the PDF and BUKUKERJA XLSX reports.",
 )
 def export_cmd(
     scan_id: int, fmt: str, out: Path, db: Path | None, lang: str,
@@ -45,7 +45,7 @@ def export_cmd(
         from pqcscan.cbom.builder import build_cbom
         doc = build_cbom(repo, scan_id)
         out.write_text(json.dumps(doc, indent=2))
-        click.echo(f"wrote CycloneDX 1.6 CBOM -> {out}")
+        click.echo(f"wrote CycloneDX 1.7 CBOM -> {out}")
     elif f == "sarif":
         from pqcscan.renderers.sarif import render_sarif
         render_sarif(repo, scan_id, out)

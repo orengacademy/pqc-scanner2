@@ -8,8 +8,9 @@ from cryptography import x509
 from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, rsa
 from cryptography.utils import CryptographyDeprecationWarning
 
-from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
+from pqcscan.core.types import Classification, Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 _EXTS = (".pem", ".crt", ".cer")
 
@@ -81,7 +82,7 @@ class FsCertExpiryHorizon(Probe):
             probe_id=self.id,
             algorithm=_key_algorithm(cert.public_key()),
             classification=cls,
-            severity=_sev(cls),
+            severity=sev_for(cls),
             title=f"{path.name}: classical cert valid until {not_after.isoformat()} ({label})",
             evidence={
                 "path": str(path),
@@ -152,13 +153,3 @@ def _key_algorithm(pk: object) -> str:
     return type(pk).__name__
 
 
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]

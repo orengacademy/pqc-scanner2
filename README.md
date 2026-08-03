@@ -2,15 +2,15 @@
 
 Post-Quantum Cryptography (PQC) readiness scanner. Single Python process. Bundled web UI + headless CLI. Runs locally on Linux, Windows, macOS.
 
-> **Status: 177 probes · 19 compliance frameworks · SARIF + CBOM + PDF + XLSX exports · light/dark web UI — see [docs/STATUS.md](docs/STATUS.md).**
+> **Status: 179 probes · 19 compliance frameworks · SARIF + CBOM + PDF + XLSX exports · light/dark web UI — see [docs/STATUS.md](docs/STATUS.md).**
 > Scans point at the local host **or** a network endpoint (`--target`), filesystem paths (`--path`), or an OT/ICS endpoint (`--ot`). Every finding carries a typed PQC migration target + deadline, surfaced inline in the UI and in the SARIF export. See `docs/superpowers/specs/2026-04-29-pqcscan-v2-design.md` for the full design.
 
 ---
 
-## Latest release — v0.9.11
+## Latest release — v0.9.12
 
 Grab a **self-contained binary** — no Python, no `pip`, nothing else required on
-the host — from the [**v0.9.11 release**](https://github.com/orengacademy/pqc-scanner2/releases/tag/v0.9.11):
+the host — from the [**v0.9.12 release**](https://github.com/orengacademy/pqc-scanner2/releases/tag/v0.9.12):
 
 | Platform | Asset | Floor |
 |---|---|---|
@@ -20,28 +20,28 @@ the host — from the [**v0.9.11 release**](https://github.com/orengacademy/pqc-
 
 ```bash
 curl -fsSLo pqcscan \
-  https://github.com/orengacademy/pqc-scanner2/releases/download/v0.9.11/pqcscan-linux-x86_64
+  https://github.com/orengacademy/pqc-scanner2/releases/download/v0.9.12/pqcscan-linux-x86_64
 chmod +x pqcscan
-./pqcscan version          # -> pqcscan 0.9.11
+./pqcscan version          # -> pqcscan 0.9.12
 ./pqcscan scan --json      # scan the local host, print a JSON summary
 ```
 
-**What v0.9.11 brings** (the full 0.9.x arc is in [`CHANGELOG.md`](CHANGELOG.md)
+**What v0.9.12 brings** (the full 0.9.x arc is in [`CHANGELOG.md`](CHANGELOG.md)
 and [`docs/STATUS.md` §10](docs/STATUS.md)):
 
-- **QUIC PQC probing** — decrypts the QUIC Initial packet (RFC 9001/9369) to read
-  the TLS ClientHello's offered PQC groups. *No other FOSS — or verified
-  commercial — tool reads PQC posture out of QUIC.*
-- **Multi-modal binary scanning** — linked-library detection **+** `.dynsym`
-  reachability ("is this crypto actually invoked?") **+** crypto-constant
-  signatures (AES S-boxes, SHA/Keccak constants…) for **static/stripped** binaries.
-- **Active *and* passive network sensing** — live handshake probing, live
-  `AF_PACKET` sniffing, PCAP ingestion, Zeek/Suricata log ingestion, and OpenSSL
-  **PQC provenance** (native ≥3.5 vs oqs-provider add-on vs none).
-- **Precision & accuracy** — a per-finding **confidence** model, a **51-OID
-  ground-truth recall oracle** over the full standardized PQC universe, HNDL /
-  Mosca "harvest-now-decrypt-later" exposure scoring, and a migration-readiness
-  score.
+- **SQL Server + C#/.NET coverage (179 probes)** — `net.db.mssql_tls` reads PQC
+  posture out of the TDS-tunnelled TLS handshake the OS `ssl` stack can't see,
+  and `code.ts.csharp` finds quantum-vulnerable crypto in ASP.NET Core sources.
+- **Runner/daemon hardening** — a raising `applies()` no longer aborts a scan;
+  cross-loop-safe SSE with idle keepalives; race-free single-scan guard; SQLite
+  WAL + busy_timeout; stale-scan reconciliation on startup.
+- **Correctness** — `fs.cert.x509` now flags ROCA / sub-1024-bit RSA keys;
+  `net.tls.https` honours `--target`; compliance key-size matching reads the
+  modulus, not a stray version digit.
+- Still shipping the 0.9.11 headline capabilities: **QUIC PQC probing**,
+  multi-modal binary scanning (linkage + `.dynsym` reachability + crypto-constant
+  signatures), active + passive network sensing, and the per-finding confidence /
+  51-OID recall-oracle / HNDL-Mosca precision stack.
 
 Three independent deep-research passes (against the authoritative *Santander
 PQCTools* registry and the wider FOSS/commercial field) confirm pqcscan covers
@@ -55,7 +55,7 @@ Prefer to run from source, or want the systemd/production deployment? See
 
 ## Table of contents
 
-- [Latest release](#latest-release--v0911)
+- [Latest release](#latest-release--v0912)
 - [What it detects](#what-it-detects)
 - [Architecture](#architecture)
 - [Install (development)](#install-development)
@@ -134,7 +134,7 @@ flowchart LR
 
     subgraph proc["pqcscan single process"]
         direction TB
-        REG["probe registry<br/>(default_registry, 177 probes)"]
+        REG["probe registry<br/>(default_registry, 179 probes)"]
         RUN["async runner<br/>(asyncio.gather per family,<br/>per-probe timeout)"]
         BUS["event bus<br/>(SSE-friendly)"]
         REPO[("SQLite store<br/>scans · findings ·<br/>baselines · framework_views")]
@@ -246,8 +246,8 @@ upload to the code-scanning tab*; see [`docs/CICD.md`](docs/CICD.md).
 Exit codes:
 - `0` — scan completed; nothing at/above the `--fail-on` band.
 - `1` — scan completed; a finding at/above the `--fail-on` band is present.
-- `2` — scan failed.
-- `3` — invalid arguments.
+- `2` — scan failed, or invalid arguments (click usage error).
+- `3` — unknown scan id (`status` / `export`).
 
 ---
 
@@ -295,19 +295,19 @@ sequenceDiagram
 
 ## Probe families
 
-**177 probes across 15 families.** Each probe is a small `Probe` subclass that
+**179 probes across 14 families.** Each probe is a small `Probe` subclass that
 declares an `id`, a `family`, and `framework_tags` for the compliance engine.
 Current breakdown (verify any time with the snippet below):
 
 | Family | # | Representative probes (★ = newer / notable) |
 |---|--:|---|
-| **NETWORK** | 41 | `tls.{https,imaps,smtps,ldaps,mqtts}` · `starttls.*` · `db.*_tls` · `tls.kex_groups` · `tls.pqc_handshake` · `ike.{v1v2,transforms}` · `ssh.handshake` · `kerberos.{asreq,etypes}` · `rdp` · `smb` · `snmp` · ★`telnet.plaintext` · ★`tftp.service` · ★`sniff.live` (passive) · `ct.crtsh` |
+| **NETWORK** | 42 | `tls.{https,imaps,smtps,ldaps,mqtts}` · `starttls.*` · `db.*_tls` (incl. ★`db.mssql_tls`, TDS-tunnelled TLS) · `tls.kex_groups` · `tls.pqc_handshake` · `ike.{v1v2,transforms}` · `ssh.handshake` · `kerberos.{asreq,etypes}` · `rdp` · `smb` · `snmp` · ★`telnet.plaintext` · ★`tftp.service` · ★`sniff.live` (passive) · `ct.crtsh` |
 | **HOST** | 25 | `openssl.{version,ciphers,config,groups,fips_state,oqs_provider}` · ★`openssl.pqc_provenance` · `libcrypto_pqc_features` · `ssh.{server,client}_config` · `java.security` · `crypto_policies` · `cloud_kms` · `windows.schannel` · `macos.keychain` |
 | **FILESYSTEM** | 24 | `cert.{x509,chain,csr,pkcs7,privkey,pqc_x509}` · ★`binary.crypto` (linkage + reachability + constants) · ★`pcap.crypto` (incl. **QUIC**) · ★`zeek.logs` · `conf.{nginx,apache,sshd,haproxy,envoy,f5,netscaler}` · `db.crypto` · `iac.{terraform,cloudformation}` |
 | **STORAGE** | 18 | disk: `luks`·`bitlocker`·`zfs`·`dmcrypt`·`fscrypt` · db-TDE: `pg.pgcrypto`·`mysql.keyring`·`mssql.tde` · MQ: `kafka`·`rabbitmq`·`nats`·`mqtt` · HW: `tpm_algorithms`·`pkcs11_modules`·`smartcard_readers` |
 | **SBOM** | 15 | `os.{dpkg,rpm,apk,…}` · `lang.{pip,npm,gomod,cargo,maven,…}` · `syft`·`grype`·`trivy` · `crypto_map` · `cve.osv_offline` |
 | **OT** | 15 | industrial-protocol crypto exposure: `modbus`·`dnp3`·`opcua`·`bacnet`·… |
-| **CODE** | 8 | `ts.{python,javascript,go,java,php,rust}` · `crypto_primitives` · `semgrep.pqc` |
+| **CODE** | 9 | `ts.{python,javascript,go,java,php,rust}` · ★`ts.csharp` (.NET/ASP.NET Core) · `crypto_primitives` · `semgrep.pqc` |
 | **CONTAINER** | 7 | `runtime.detect` · `image.sbom` · `k8s.{ingress,secrets,helm,mesh_mtls,mesh_policy}` |
 | **APP** | 5 | `jwt.env_alg` · `oauth.jwks` · `spring.properties` · `nginx.jwt_validation` · `crypto_lib_pqc_support` |
 | **SIGN** | 5 | `gpg.keyrings` · `repo.aptdnf_keys` · `code.authenticode` · `git.signing_keys` · `image.cosign` |
@@ -346,7 +346,7 @@ flowchart LR
     DETAIL["/scans/{id}<br/>live SSE feed +<br/>findings table +<br/>'Mark as baseline' form"]
     FRAMEWORKS["/frameworks<br/>19 framework YAMLs"]
     FW_DET["/frameworks/{slug}<br/>rules · clauses · verdicts"]
-    PROBES["/probes<br/>177 probes by family"]
+    PROBES["/probes<br/>179 probes by family"]
     BASELINES["/baselines<br/>list + diff form"]
     DIFF["/baselines/diff<br/>added · removed · common"]
     SETTINGS["/settings<br/>version · python · platform ·<br/>privilege mode · DB · capabilities"]

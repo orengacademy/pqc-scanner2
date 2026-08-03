@@ -12,8 +12,9 @@ import base64
 import struct
 from pathlib import Path
 
-from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
+from pqcscan.core.types import Classification, Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 _DEFAULT_ROOTS = [Path("/etc/ssh")]
 _KEY_FILENAMES = ("authorized_keys", "authorized_keys2")
@@ -28,18 +29,6 @@ _ECDSA_CURVE = {
     "ecdsa-sha2-nistp521": "ECDSA-P521",
     "sk-ecdsa-sha2-nistp256@openssh.com": "FIDO-ECDSA-P256",
 }
-
-
-def _severity(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]
 
 
 def _is_key_type(token: str) -> bool:
@@ -131,7 +120,7 @@ class FsSshHostKeys(Probe):
                 probe_id=self.id,
                 algorithm=algorithm,
                 classification=cls,
-                severity=_severity(cls),
+                severity=sev_for(cls),
                 title=f"SSH public key in {path.name}: {key_type} ({label})",
                 evidence={
                     "path": str(path),

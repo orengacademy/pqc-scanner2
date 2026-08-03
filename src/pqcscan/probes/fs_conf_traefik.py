@@ -9,6 +9,7 @@ import yaml
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 _YAML_SUFFIXES = (".yml", ".yaml")
 _TOML_SUFFIXES = (".toml",)
@@ -72,7 +73,7 @@ class FsConfTraefik(Probe):
                     probe_id=self.id,
                     algorithm=suite,
                     classification=cls,
-                    severity=_sev(cls),
+                    severity=sev_for(cls),
                     title=f"traefik tls option {name} includes {suite}",
                     evidence={"path": str(path), "option": name, "directive": "cipherSuites"},
                 ))
@@ -131,13 +132,3 @@ def _suite_classification(suite: str) -> Classification | None:
     return None
 
 
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]

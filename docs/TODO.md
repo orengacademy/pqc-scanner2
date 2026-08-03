@@ -55,37 +55,27 @@ probes now is busywork; build detection only when a real user need pulls it.
 
 ---
 
-## High-leverage
+## High-leverage (all shipped)
 
-- [ ] **SARIF renderer** (`renderers/sarif.py` + `cli/export.py` slug
-      `sarif`). Unlocks GitHub Code Scanning integration so findings
-      surface natively on PRs. ~2h. Has parity with csnp/cryptoscan,
-      Hacker21-punk/pqscan, pqaudit.
+- [x] **SARIF renderer** — shipped as `renderers/sarif.py` + the `sarif`
+      export slug; wired into `action.yml` for GitHub Code Scanning. ✅
+- [x] **Domain-input web flow** — shipped: `--target` CLI option, the
+      dashboard scan form's target field, and `ctx.server_target` plumbing
+      through the network probes. ✅
+- [x] **Per-finding remediation snippets** — shipped: typed PQC-replacement
+      descriptors in `core/remediation.py` + per-language before/after
+      snippets in `core/remediation_snippets.py`. ✅
 
-- [ ] **Domain-input web flow** — let a user paste `example.com` on the
-      dashboard and run network probes against that target (instead of
-      always scanning the local host). Mirrors checkpqc, wiz pqc-tester,
-      pqscan.io. New route + `--target` CLI option. ~1 day.
+## Medium-leverage (all shipped)
 
-- [ ] **Per-finding remediation snippets** — currently `Finding.remediation`
-      is free-form. Add an enum-tagged "PQC-replacement" field
-      (e.g. RSA-2048 → ML-KEM-768; ECDSA-P256 → ML-DSA-65). pqaudit and
-      cryptoscan both ship this. ~1 day.
-
-## Medium-leverage
-
-- [ ] **Reverse-proxy / service-mesh config probes** — Apache, Envoy,
-      Istio, HAProxy, Traefik. Same pattern as `app.nginx.jwt_validation`.
-      Hacker21-punk/pqscan covers all of these. ~1 day for 5 probes.
-
-- [ ] **QRAMM compliance YAML** (`compliance/frameworks/qramm.yaml`).
-      Quantum Readiness Assurance Maturity Model — referenced by
-      csnp/cryptoscan. Pure data work, no Python. ~4h.
-
-- [ ] **Wireshark .cap / pcapng ingestion** — read packet captures
-      offline and emit findings (TLS handshake → cipher suite, SSH KEX,
-      etc.). LiuYuancheng's tool does this end-to-end. Adds `pyshark`
-      or `scapy` dep. ~2 days.
+- [x] **Reverse-proxy / service-mesh config probes** — shipped:
+      `fs.conf.{apache,envoy,haproxy,traefik,caddy,f5,netscaler}` +
+      `k8s.mesh_{mtls,policy}`. ✅
+- [x] **QRAMM compliance YAML** — shipped:
+      `compliance/frameworks/qramm.yaml` (16 rules). ✅
+- [x] **PCAP / pcapng ingestion** — shipped dependency-free as
+      `probes/_pcap.py` + `fs.pcap.crypto` (incl. QUIC Initial decryption);
+      no pyshark/scapy needed. ✅
 
 ## Coverage candidates (from 2026-07-21 3-pass research — see COMPETITIVE-LANDSCAPE.md)
 

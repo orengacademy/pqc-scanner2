@@ -12,8 +12,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
+from pqcscan.core.types import Classification, Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 _DEFAULT_PATHS = [
     Path("/etc/crypto-policies/back-ends/gnutls.config"),
@@ -31,18 +32,6 @@ _WEAK_PRIMITIVE_RE = re.compile(
 
 # A configured PQC key-exchange group (ML-KEM / Kyber).
 _PQC_GROUP_RE = re.compile(r"\+GROUP-\S*(?:MLKEM|KYBER)", re.IGNORECASE)
-
-
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]
 
 
 class HostGnutlsConfig(Probe):
@@ -83,7 +72,7 @@ class HostGnutlsConfig(Probe):
                 probe_id=self.id,
                 algorithm="gnutls/legacy-protocols",
                 classification=Classification.TINGGI,
-                severity=_sev(Classification.TINGGI),
+                severity=sev_for(Classification.TINGGI),
                 title=f"GnuTLS priority enables legacy protocols in {path}",
                 evidence={"path": str(path), "tokens": legacy},
                 remediation={
@@ -97,7 +86,7 @@ class HostGnutlsConfig(Probe):
                 probe_id=self.id,
                 algorithm="gnutls/weak-primitives",
                 classification=Classification.TINGGI,
-                severity=_sev(Classification.TINGGI),
+                severity=sev_for(Classification.TINGGI),
                 title=f"GnuTLS priority permits weak primitives in {path}",
                 evidence={"path": str(path), "tokens": weak},
                 remediation={
@@ -110,7 +99,7 @@ class HostGnutlsConfig(Probe):
                 probe_id=self.id,
                 algorithm="gnutls/no-pqc-groups",
                 classification=Classification.SEDERHANA,
-                severity=_sev(Classification.SEDERHANA),
+                severity=sev_for(Classification.SEDERHANA),
                 title=f"No PQC groups in GnuTLS priority in {path}",
                 evidence={"path": str(path), "note": "no PQC groups in GnuTLS priority"},
                 remediation={

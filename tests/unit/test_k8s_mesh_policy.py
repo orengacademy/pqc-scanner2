@@ -6,10 +6,10 @@ import pytest
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import ScanContext
+from pqcscan.probes._severity import sev_for as _sev
 from pqcscan.probes.k8s_mesh_policy import (
     K8sMeshPolicy,
     _load_documents,
-    _sev,
     _split_documents,
 )
 

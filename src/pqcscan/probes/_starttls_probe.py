@@ -11,6 +11,7 @@ from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, r
 
 from pqcscan.core.alg import classify, normalise
 from pqcscan.core.types import Classification, Finding, Severity
+from pqcscan.probes._severity import sev_for
 
 
 @dataclass(frozen=True, slots=True)
@@ -171,7 +172,7 @@ async def run_starttls_probe(
             probe_id=probe_id,
             algorithm=normalise(cname),
             classification=cls,
-            severity=_sev(cls),
+            severity=sev_for(cls),
             title=f"STARTTLS({protocol.name}) {tlsver} negotiated cipher {cname}",
             evidence={"endpoint": f"{host}:{port}", "version": tlsver,
                       "protocol": protocol.name},
@@ -191,7 +192,7 @@ async def run_starttls_probe(
             probe_id=probe_id,
             algorithm=alg,
             classification=cls,
-            severity=_sev(cls),
+            severity=sev_for(cls),
             title=f"STARTTLS({protocol.name}) server cert uses {alg}",
             evidence={
                 "endpoint": f"{host}:{port}",
@@ -216,13 +217,3 @@ def _key_algorithm(pk: object) -> str:
     return type(pk).__name__
 
 
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]

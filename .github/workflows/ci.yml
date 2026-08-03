@@ -25,7 +25,7 @@ jobs:
             libgdk-pixbuf2.0-0 shared-mime-info \
             liboqs-dev || true
       - name: Install
-        run: pip install -e ".[dev,render]" && pip install "liboqs-python>=0.10,<0.12" || true
+        run: pip install -e ".[dev,render]" && pip install "liboqs-python>=0.12" || true
       - name: Lint
         run: ruff check src/ tests/
       - name: Type-check

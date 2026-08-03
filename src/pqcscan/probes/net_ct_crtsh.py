@@ -22,6 +22,7 @@ from typing import Any
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.util.clock import utcnow
 
 _IP_RE = re.compile(r"^\d{1,3}(\.\d{1,3}){3}$")
 
@@ -79,7 +80,7 @@ class NetCtCrtsh(Probe):
 
         names: set[str] = set()
         expired = 0
-        now = datetime.utcnow()
+        now = utcnow()
         for e in entries:
             for nv in str(e.get("name_value", "")).splitlines():
                 nv = nv.strip().lower().lstrip("*.")

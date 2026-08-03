@@ -11,8 +11,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
+from pqcscan.core.types import Classification, Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 _DEFAULT_PATH = Path("/proc/crypto")
 
@@ -27,18 +28,6 @@ _WEAK_TOKENS = (
     "rc4",
     "arc4",
 )
-
-
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]
 
 
 def _is_weak(name: str) -> bool:
@@ -91,7 +80,7 @@ class HostKernelCryptoRegistry(Probe):
                 probe_id=self.id,
                 algorithm=name,
                 classification=Classification.TINGGI,
-                severity=_sev(Classification.TINGGI),
+                severity=sev_for(Classification.TINGGI),
                 title=f"Kernel crypto registry exposes legacy algorithm {name}",
                 evidence={
                     "name": name,

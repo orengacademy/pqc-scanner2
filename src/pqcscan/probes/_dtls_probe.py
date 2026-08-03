@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 from pqcscan.core.alg import classify, normalise
 from pqcscan.core.types import Classification, Finding, Severity
+from pqcscan.probes._severity import sev_for
 
 _CIPHER_RE = re.compile(r"^\s*Cipher\s*:\s*(\S+)", re.MULTILINE)
 _VERSION_RE = re.compile(r"^\s*Protocol\s*:\s*(\S+)", re.MULTILINE)
@@ -49,18 +50,6 @@ def _parse_dtls_handshake(text: str) -> DTLSHandshakeResult:
         version=version, cipher=cipher, peer_cert_subject=subject,
         raw=text, algorithms=algos,
     )
-
-
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]
 
 
 async def run_dtls_probe(
@@ -135,7 +124,7 @@ async def run_dtls_probe(
             probe_id=probe_id,
             algorithm=normalise(alg),
             classification=cls,
-            severity=_sev(cls),
+            severity=sev_for(cls),
             title=f"DTLS {parsed.version or version} cipher {parsed.cipher} -> {alg}",
             evidence={
                 "endpoint": f"udp://{host}:{port}",

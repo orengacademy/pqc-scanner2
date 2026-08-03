@@ -6,7 +6,7 @@ name it returns the NIST-standardised post-quantum replacement, the FIPS
 standard that defines it, the migration deadline, and a one-line rationale.
 
 The runner calls `enrich()` centrally so every stored finding carries this
-guidance without each of the 147 probes having to duplicate the mapping. A
+guidance without each registered probe having to duplicate the mapping. A
 probe that already set `remediation["replacement"]` keeps its own value —
 enrichment only fills gaps.
 """

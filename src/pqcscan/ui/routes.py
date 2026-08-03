@@ -121,16 +121,19 @@ async def dashboard(request: Request) -> HTMLResponse:
         surfaces = surface_breakdown(findings)
         score = readiness_score(bands)
 
-    # Last 30-day trend: take up to 30 most recent done-or-running scans
-    # in chronological order so the sparkline reads left-to-right.
-    trend = []
-    for s in reversed(scans[:30]):
-        s_bands = count_bands(repo.list_findings(s.id))
-        trend.append({
+    # Last 30-day trend: take up to 30 most recent scans in chronological
+    # order so the sparkline reads left-to-right. One bulk query (not one
+    # per scan) keeps the dashboard O(1) in DB round-trips.
+    recent = list(reversed(scans[:30]))
+    findings_by_scan = repo.list_findings_bulk([s.id for s in recent])
+    trend = [
+        {
             "id": s.id,
-            "score": readiness_score(s_bands),
+            "score": readiness_score(count_bands(findings_by_scan[s.id])),
             "started_at": s.started_at,
-        })
+        }
+        for s in recent
+    ]
 
     today = date.today()
     nacsa_fasa = {
@@ -185,6 +188,12 @@ async def start_scan(
 
     runner = request.app.state.runner
     repo = request.app.state.repo
+
+    # One manual scan at a time: if one is already running, deep-link to it
+    # instead of piling up concurrent scan threads / SQLite writers.
+    running = next((s for s in repo.list_scans() if s.status == "running"), None)
+    if running is not None:
+        return RedirectResponse(f"/scans/{running.id}", status_code=303)
 
     def _split(raw: str | None) -> list[str]:
         if not raw:

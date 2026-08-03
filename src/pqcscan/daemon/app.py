@@ -7,7 +7,7 @@ from fastapi import Body, FastAPI, HTTPException, Response
 from fastapi.responses import StreamingResponse
 
 from pqcscan import __version__
-from pqcscan.daemon.sse import event_to_sse
+from pqcscan.daemon.sse import sse_stream
 from pqcscan.probes._registry import Registry, default_registry
 from pqcscan.runner.capabilities import current_mode, detect_capabilities
 from pqcscan.runner.event_bus import EventBus
@@ -21,14 +21,22 @@ def create_app(*, db_path: Path, registry: Registry | None = None) -> FastAPI:
     app = FastAPI(title="pqcscan", version=__version__)
     repo = Repo(db_path)
     repo.init_schema()
+    # Sweep scans left 'running' by a previous crash/restart so the
+    # one-scan-at-a-time guard isn't wedged by a dead scan.
+    repo.reconcile_running_scans()
     bus = EventBus()
     if registry is None:
         registry = default_registry()
     runner = ProbeRunner(registry=registry, repo=repo, bus=bus)
 
+    import threading
+
     app.state.repo = repo
     app.state.bus = bus
     app.state.runner = runner
+    # Serialises the check-and-claim of a new scan across concurrent requests
+    # (single uvicorn process → a threading.Lock is sufficient).
+    app.state.scan_lock = threading.Lock()
 
     @app.get("/api/health")
     async def health() -> dict:
@@ -50,6 +58,14 @@ def create_app(*, db_path: Path, registry: Registry | None = None) -> FastAPI:
             ot=body.get("ot_targets"),
         )
 
+        # Claim the scan row synchronously under a process lock: the check for
+        # a running scan and the insert of the new 'running' row happen as one
+        # atomic step, so two near-simultaneous POSTs can't both start.
+        with app.state.scan_lock:
+            scan_id = runner.begin_scan_if_idle(mode=mode)
+        if scan_id is None:
+            raise HTTPException(409, "a scan is already running")
+
         # Run in a real OS thread with its own asyncio event loop so the scan
         # outlives the request-handler's loop (FastAPI TestClient and ASGI
         # workers both tear down per-request loops on completion).
@@ -57,19 +73,12 @@ def create_app(*, db_path: Path, registry: Registry | None = None) -> FastAPI:
             asyncio.run(runner.run(
                 mode=mode, available_capabilities=caps,
                 scan_paths=scan_paths, server_target=server_target,
-                ot_targets=ot_targets,
+                ot_targets=ot_targets, scan_id=scan_id,
             ))
 
         import threading
-        thread = threading.Thread(target=_thread_target, daemon=True)
-        thread.start()
-
-        for _ in range(50):
-            scans = repo.list_scans()
-            if scans:
-                return {"id": scans[0].id}
-            await asyncio.sleep(0.02)
-        raise HTTPException(500, "scan failed to start")
+        threading.Thread(target=_thread_target, daemon=True).start()
+        return {"id": scan_id}
 
     @app.get("/api/scans")
     async def list_scans() -> list[dict]:
@@ -100,10 +109,9 @@ def create_app(*, db_path: Path, registry: Registry | None = None) -> FastAPI:
 
     @app.get("/api/scans/{scan_id}/events")
     async def stream_events(scan_id: int) -> StreamingResponse:
-        async def gen():
-            async for ev in bus.subscribe():
-                yield event_to_sse(ev)
-        return StreamingResponse(gen(), media_type="text/event-stream")
+        return StreamingResponse(
+            sse_stream(bus, scan_id), media_type="text/event-stream",
+        )
 
     @app.post("/api/baselines", status_code=201)
     async def post_baseline(body: dict = Body(...)) -> dict:
