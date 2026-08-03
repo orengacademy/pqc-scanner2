@@ -110,20 +110,24 @@ def scan_cmd(
     window the harvested-now data is exposed before migration completes.
 
     Exit codes: 0 = clean (no finding at/above --fail-on), 1 = gate tripped,
-    3 = internal error. Use --fail-on to tune the CI threshold; the default
+    2 = scan failed. Use --fail-on to tune the CI threshold; the default
     ('high') fails the build on any high or critical finding.
     """
-    db_path = db or default_db_path()
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    repo = Repo(db_path)
-    repo.init_schema()
-    bus = EventBus()
-    registry = default_registry()
-    runner = ProbeRunner(registry=registry, repo=repo, bus=bus)
+    try:
+        db_path = db or default_db_path()
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        repo = Repo(db_path)
+        repo.init_schema()
+        bus = EventBus()
+        registry = default_registry()
+        runner = ProbeRunner(registry=registry, repo=repo, bus=bus)
 
-    scan_paths, server_target, ot_targets = parse_scan_inputs(
-        target=target, paths=list(paths), ot=list(ot),
-    )
+        scan_paths, server_target, ot_targets = parse_scan_inputs(
+            target=target, paths=list(paths), ot=list(ot),
+        )
+    except Exception as e:  # documented "scan failed" exit
+        click.echo(f"scan failed: {e}", err=True)
+        sys.exit(2)
 
     async def _go() -> int:
         watcher_task = None
@@ -143,7 +147,11 @@ def scan_cmd(
             watcher_task.cancel()
         return scan_id
 
-    scan_id = asyncio.run(_go())
+    try:
+        scan_id = asyncio.run(_go())
+    except Exception as e:  # documented "scan failed" exit
+        click.echo(f"scan failed: {e}", err=True)
+        sys.exit(2)
     findings = repo.list_findings(scan_id)
     fail_on = fail_on.lower()
     high_or_crit = [f for f in findings if f.severity in {"high", "crit"}]

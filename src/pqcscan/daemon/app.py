@@ -7,7 +7,7 @@ from fastapi import Body, FastAPI, HTTPException, Response
 from fastapi.responses import StreamingResponse
 
 from pqcscan import __version__
-from pqcscan.daemon.sse import event_to_sse
+from pqcscan.daemon.sse import event_for_scan, event_to_sse
 from pqcscan.probes._registry import Registry, default_registry
 from pqcscan.runner.capabilities import current_mode, detect_capabilities
 from pqcscan.runner.event_bus import EventBus
@@ -40,6 +40,8 @@ def create_app(*, db_path: Path, registry: Registry | None = None) -> FastAPI:
 
     @app.post("/api/scans", status_code=202)
     async def post_scan(body: dict = Body(default=None)) -> dict:
+        if repo.has_running_scan():
+            raise HTTPException(409, "a scan is already running")
         mode = current_mode()
         caps = detect_capabilities()
 
@@ -61,13 +63,18 @@ def create_app(*, db_path: Path, registry: Registry | None = None) -> FastAPI:
             ))
 
         import threading
+
+        # Snapshot existing ids first: with prior scans in the DB,
+        # list_scans()[0] is the *previous* scan until the background thread
+        # commits the new row — we must wait for a genuinely new id.
+        before_ids = {s.id for s in repo.list_scans()}
         thread = threading.Thread(target=_thread_target, daemon=True)
         thread.start()
 
-        for _ in range(50):
-            scans = repo.list_scans()
-            if scans:
-                return {"id": scans[0].id}
+        for _ in range(100):
+            for s in repo.list_scans():
+                if s.id not in before_ids:
+                    return {"id": s.id}
             await asyncio.sleep(0.02)
         raise HTTPException(500, "scan failed to start")
 
@@ -102,7 +109,8 @@ def create_app(*, db_path: Path, registry: Registry | None = None) -> FastAPI:
     async def stream_events(scan_id: int) -> StreamingResponse:
         async def gen():
             async for ev in bus.subscribe():
-                yield event_to_sse(ev)
+                if event_for_scan(ev, scan_id):
+                    yield event_to_sse(ev)
         return StreamingResponse(gen(), media_type="text/event-stream")
 
     @app.post("/api/baselines", status_code=201)

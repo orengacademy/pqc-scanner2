@@ -31,7 +31,7 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — 122 probes (Plan H + Plan I.7 + Plan I.2 minimal)."""
+    """Built-in probe set — 178 probes (see docs/STATUS.md for the family map)."""
     from pqcscan.probes.app_crypto_lib_pqc_support import AppCryptoLibPqcSupport
     from pqcscan.probes.app_jwt_env_alg import AppJwtEnvAlg
     from pqcscan.probes.app_nginx_jwt_validation import AppNginxJwtValidation
@@ -126,6 +126,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.mq_rabbitmq_tls import MqRabbitmqTls
     from pqcscan.probes.net_ct_crtsh import NetCtCrtsh
     from pqcscan.probes.net_db_mongo_tls import NetDbMongoTls
+    from pqcscan.probes.net_db_mssql_tls import NetDbMssqlTls
     from pqcscan.probes.net_db_mysql_tls import NetDbMysqlTls
     from pqcscan.probes.net_db_postgres_tls import NetDbPostgresTls
     from pqcscan.probes.net_db_redis_tls import NetDbRedisTls
@@ -254,6 +255,7 @@ def default_registry() -> Registry:
     reg.register(NetPortsTcp())
     reg.register(NetPortsUDP())  # Plan H.2 — UDP scan
     reg.register(NetDbPostgresTls())
+    reg.register(NetDbMssqlTls())
     reg.register(NetDbMongoTls())
     reg.register(NetDbRedisTls())
     reg.register(NetDbMysqlTls())

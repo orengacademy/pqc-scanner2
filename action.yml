@@ -46,14 +46,23 @@ runs:
         chmod +x pqcscan
 
     - name: Run pqcscan scan
+      id: scan
       shell: bash
       run: |
-        set -euo pipefail
-        args=(scan --path "${{ inputs.path }}" --fail-on "${{ inputs.fail-on }}" --db ./pqcscan.db)
+        set -uo pipefail
+        args=(scan --json --path "${{ inputs.path }}" --fail-on "${{ inputs.fail-on }}" --db ./pqcscan.db)
         if [ -n "${{ inputs.target }}" ]; then
           args+=(--target "${{ inputs.target }}")
         fi
-        ./pqcscan "${args[@]}"
+        # Capture the JSON summary so the export step targets the scan this
+        # run created (never a hard-coded id), while preserving the gate's
+        # exit code for the job verdict.
+        out="$(./pqcscan "${args[@]}")"
+        rc=$?
+        echo "${out}"
+        scan_id="$(printf '%s' "${out}" | sed -n 's/.*"scan_id": *\([0-9][0-9]*\).*/\1/p' | head -n1)"
+        echo "scan_id=${scan_id:-1}" >> "$GITHUB_OUTPUT"
+        exit "${rc}"
 
     - name: Export SARIF
       id: export
@@ -61,5 +70,5 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        ./pqcscan export --scan 1 --format sarif -o pqcscan.sarif --db ./pqcscan.db
+        ./pqcscan export --scan "${{ steps.scan.outputs.scan_id }}" --format sarif -o pqcscan.sarif --db ./pqcscan.db
         echo "sarif=pqcscan.sarif" >> "$GITHUB_OUTPUT"

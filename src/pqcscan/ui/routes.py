@@ -186,6 +186,12 @@ async def start_scan(
     runner = request.app.state.runner
     repo = request.app.state.repo
 
+    # One manual scan at a time: if one is already running, deep-link to it
+    # instead of piling up concurrent scan threads / SQLite writers.
+    running = next((s for s in repo.list_scans() if s.status == "running"), None)
+    if running is not None:
+        return RedirectResponse(f"/scans/{running.id}", status_code=303)
+
     def _split(raw: str | None) -> list[str]:
         if not raw:
             return []

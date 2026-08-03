@@ -28,7 +28,6 @@ class ProbeFamily(StrEnum):
     DNS_EMAIL = "dns_email"
     PQC_META = "pqc_meta"
     AUX = "aux"
-    SECRETS = "secrets"
     OT = "ot"
 
 
@@ -52,17 +51,6 @@ class Severity(StrEnum):
     @property
     def numeric(self) -> int:
         return {"info": 0, "low": 1, "med": 2, "high": 3, "crit": 4}[self.value]
-
-
-@dataclass(slots=True)
-class Component:
-    purl: str
-    type: str  # os-pkg | lib | service | cert | key | file | app | container
-    name: str
-    version: str | None = None
-    location: str = ""
-    discovered_by: str = ""
-    attributes: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(slots=True)

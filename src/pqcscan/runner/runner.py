@@ -73,9 +73,9 @@ class ProbeRunner:
             by_family[p.family.value].append(p)
 
         for family_name, probes in by_family.items():
-            await self.bus.publish(StageStarted(stage=family_name))
+            await self.bus.publish(StageStarted(scan_id=scan_id, stage=family_name))
             await asyncio.gather(*(self._run_one(p, ctx) for p in probes))
-            await self.bus.publish(StageCompleted(stage=family_name))
+            await self.bus.publish(StageCompleted(scan_id=scan_id, stage=family_name))
 
         self.repo.finish_scan(scan_id, status="done")
         await self.bus.publish(ScanCompleted(scan_id=scan_id))
@@ -93,7 +93,22 @@ class ProbeRunner:
                 confidence="high",
             ))
             return
-        if not await probe.applies(ctx):
+        # applies() runs inside the same timeout/error envelope as run(): a
+        # raising or hanging applies() must degrade to a probe-error row, not
+        # abort the whole scan out of the bare asyncio.gather above.
+        try:
+            if not await asyncio.wait_for(probe.applies(ctx), timeout=self.timeout):
+                return
+        except TimeoutError:
+            self.repo.record_probe_error(
+                ctx.scan_id, probe_id=probe.id, message="applies() timeout"
+            )
+            return
+        except Exception as e:
+            logger.exception("probe {} applies() crashed", probe.id)
+            self.repo.record_probe_error(
+                ctx.scan_id, probe_id=probe.id, message=f"applies() failed: {e}"
+            )
             return
 
         def emit(f: Finding) -> None:
@@ -116,6 +131,7 @@ class ProbeRunner:
                     deadline=verdict.deadline,
                 )
             task = asyncio.create_task(self.bus.publish(FindingDiscovered(
+                scan_id=ctx.scan_id,
                 probe_id=f.probe_id, title=f.title, algorithm=f.algorithm,
                 classification=f.classification.value, severity=f.severity.value,
             )))

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from pathlib import Path
 
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, event, select
 from sqlalchemy.orm import Session
 
 from pqcscan.core.types import Finding
@@ -21,6 +21,16 @@ class Repo:
             future=True,
             connect_args={"check_same_thread": False},
         )
+
+        # WAL lets the daemon's background-thread writer coexist with request
+        # readers; busy_timeout turns writer contention into a short wait
+        # instead of an immediate "database is locked" error.
+        @event.listens_for(self.engine, "connect")
+        def _set_sqlite_pragmas(dbapi_conn, _record) -> None:
+            cursor = dbapi_conn.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA busy_timeout=5000")
+            cursor.close()
 
     def init_schema(self) -> None:
         migrations.apply(self.engine)
@@ -45,6 +55,11 @@ class Repo:
             s.add(scan)
             s.commit()
             return scan.id
+
+    def has_running_scan(self) -> bool:
+        with Session(self.engine) as s:
+            stmt = select(Scan.id).where(Scan.status == "running").limit(1)
+            return s.execute(stmt).first() is not None
 
     def finish_scan(self, scan_id: int, *, status: str) -> None:
         with Session(self.engine) as s:

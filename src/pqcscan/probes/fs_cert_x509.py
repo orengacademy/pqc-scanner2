@@ -6,6 +6,7 @@ from cryptography import x509
 from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, rsa
 
 from pqcscan.core.alg import classify
+from pqcscan.core.keyhealth import analyze_rsa_modulus
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 
@@ -70,6 +71,24 @@ class FsCertX509(Probe):
                 else cert.not_valid_after.isoformat(),
             },
         ))
+        # Classical key-health checks on public material only: a ROCA
+        # (CVE-2017-15361) or sub-1024-bit modulus is exploitable today,
+        # independent of the quantum timeline.
+        if isinstance(pk, rsa.RSAPublicKey):
+            health = analyze_rsa_modulus(pk.public_numbers().n, pk.key_size)
+            for issue in health.issues:
+                emit(Finding(
+                    probe_id=self.id,
+                    algorithm=alg,
+                    classification=Classification.SANGAT_TINGGI,
+                    severity=Severity.CRIT,
+                    title=f"{path.name}: classically weak RSA public key",
+                    evidence={
+                        "path": str(path),
+                        "keyhealth": issue,
+                        "verified": True,
+                    },
+                ))
 
 
 def _key_algorithm(pk: object) -> str:

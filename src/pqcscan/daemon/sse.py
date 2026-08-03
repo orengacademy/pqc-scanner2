@@ -12,6 +12,14 @@ from pqcscan.runner.event_bus import (
 )
 
 
+def event_for_scan(event: Event, scan_id: int) -> bool:
+    """True when `event` belongs to the given scan.
+
+    Every bus event carries the scan_id it was published under, so per-scan
+    SSE streams can drop events from concurrent scans."""
+    return getattr(event, "scan_id", None) == scan_id
+
+
 def event_to_sse(event: Event) -> str:
     """Encode an event as a single Server-Sent Events message."""
     if isinstance(event, StageStarted):
