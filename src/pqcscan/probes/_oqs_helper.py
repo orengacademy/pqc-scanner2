@@ -14,7 +14,9 @@ from typing import Any
 _oqs: Any = None
 _OQS_IMPORT_ERROR: BaseException | None = None
 try:
-    import oqs as _oqs  # type: ignore[import-not-found,no-redef]
+    # Missing-import codes are handled by the mypy `oqs` override; only the
+    # re-binding of the `_oqs: Any = None` sentinel needs suppressing here.
+    import oqs as _oqs  # type: ignore[no-redef]
 except (ImportError, OSError) as e:
     _OQS_IMPORT_ERROR = e
 
