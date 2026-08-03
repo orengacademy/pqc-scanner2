@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Date** | 2026-07-21 |
+| **Date** | 2026-08-03 |
 | **Branch / commit** | `main` |
-| **Version** | `0.9.11` |
+| **Version** | `0.9.12` |
 | **Probes** | 179 registered across 14 families |
 | **Frameworks** | 19 compliance YAMLs |
 | **Tests** | 1226 passed / 1 skipped locally (Python 3.11) |

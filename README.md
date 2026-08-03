@@ -7,10 +7,10 @@ Post-Quantum Cryptography (PQC) readiness scanner. Single Python process. Bundle
 
 ---
 
-## Latest release — v0.9.11
+## Latest release — v0.9.12
 
 Grab a **self-contained binary** — no Python, no `pip`, nothing else required on
-the host — from the [**v0.9.11 release**](https://github.com/orengacademy/pqc-scanner2/releases/tag/v0.9.11):
+the host — from the [**v0.9.12 release**](https://github.com/orengacademy/pqc-scanner2/releases/tag/v0.9.12):
 
 | Platform | Asset | Floor |
 |---|---|---|
@@ -20,28 +20,28 @@ the host — from the [**v0.9.11 release**](https://github.com/orengacademy/pqc-
 
 ```bash
 curl -fsSLo pqcscan \
-  https://github.com/orengacademy/pqc-scanner2/releases/download/v0.9.11/pqcscan-linux-x86_64
+  https://github.com/orengacademy/pqc-scanner2/releases/download/v0.9.12/pqcscan-linux-x86_64
 chmod +x pqcscan
-./pqcscan version          # -> pqcscan 0.9.11
+./pqcscan version          # -> pqcscan 0.9.12
 ./pqcscan scan --json      # scan the local host, print a JSON summary
 ```
 
-**What v0.9.11 brings** (the full 0.9.x arc is in [`CHANGELOG.md`](CHANGELOG.md)
+**What v0.9.12 brings** (the full 0.9.x arc is in [`CHANGELOG.md`](CHANGELOG.md)
 and [`docs/STATUS.md` §10](docs/STATUS.md)):
 
-- **QUIC PQC probing** — decrypts the QUIC Initial packet (RFC 9001/9369) to read
-  the TLS ClientHello's offered PQC groups. *No other FOSS — or verified
-  commercial — tool reads PQC posture out of QUIC.*
-- **Multi-modal binary scanning** — linked-library detection **+** `.dynsym`
-  reachability ("is this crypto actually invoked?") **+** crypto-constant
-  signatures (AES S-boxes, SHA/Keccak constants…) for **static/stripped** binaries.
-- **Active *and* passive network sensing** — live handshake probing, live
-  `AF_PACKET` sniffing, PCAP ingestion, Zeek/Suricata log ingestion, and OpenSSL
-  **PQC provenance** (native ≥3.5 vs oqs-provider add-on vs none).
-- **Precision & accuracy** — a per-finding **confidence** model, a **51-OID
-  ground-truth recall oracle** over the full standardized PQC universe, HNDL /
-  Mosca "harvest-now-decrypt-later" exposure scoring, and a migration-readiness
-  score.
+- **SQL Server + C#/.NET coverage (179 probes)** — `net.db.mssql_tls` reads PQC
+  posture out of the TDS-tunnelled TLS handshake the OS `ssl` stack can't see,
+  and `code.ts.csharp` finds quantum-vulnerable crypto in ASP.NET Core sources.
+- **Runner/daemon hardening** — a raising `applies()` no longer aborts a scan;
+  cross-loop-safe SSE with idle keepalives; race-free single-scan guard; SQLite
+  WAL + busy_timeout; stale-scan reconciliation on startup.
+- **Correctness** — `fs.cert.x509` now flags ROCA / sub-1024-bit RSA keys;
+  `net.tls.https` honours `--target`; compliance key-size matching reads the
+  modulus, not a stray version digit.
+- Still shipping the 0.9.11 headline capabilities: **QUIC PQC probing**,
+  multi-modal binary scanning (linkage + `.dynsym` reachability + crypto-constant
+  signatures), active + passive network sensing, and the per-finding confidence /
+  51-OID recall-oracle / HNDL-Mosca precision stack.
 
 Three independent deep-research passes (against the authoritative *Santander
 PQCTools* registry and the wider FOSS/commercial field) confirm pqcscan covers
@@ -55,7 +55,7 @@ Prefer to run from source, or want the systemd/production deployment? See
 
 ## Table of contents
 
-- [Latest release](#latest-release--v0911)
+- [Latest release](#latest-release--v0912)
 - [What it detects](#what-it-detects)
 - [Architecture](#architecture)
 - [Install (development)](#install-development)

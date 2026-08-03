@@ -33,7 +33,7 @@ The only thing protecting it out of the box is the default `127.0.0.1` bind.
 ```bash
 # The SHA256 is per-release — copy the current one from the release page:
 # https://github.com/orengacademy/pqc-scanner2/releases
-VERSION=v0.9.11
+VERSION=v0.9.12
 SHA256=9c1811922ca3954460bcb222aa2019a326e9283eca504a1eb426209c58d934aa
 
 curl -fsSL -o /usr/local/bin/pqcscan \
