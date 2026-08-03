@@ -9,8 +9,9 @@ from cryptography.hazmat.primitives.serialization import pkcs7
 from cryptography.utils import CryptographyDeprecationWarning
 
 from pqcscan.core.alg import classify, normalise
-from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
+from pqcscan.core.types import Classification, Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 _EXTS = (".p7b", ".p7c", ".p7s")
 
@@ -71,7 +72,7 @@ class FsCertPkcs7(Probe):
             probe_id=self.id,
             algorithm=normalise(key_alg),
             classification=cls,
-            severity=_sev(cls),
+            severity=sev_for(cls),
             title=f"{path.name}: {subject} ({key_alg})",
             evidence={
                 "path": str(path),
@@ -131,13 +132,3 @@ def _signature_algorithm(cert: x509.Certificate) -> str | None:
     return name
 
 
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]

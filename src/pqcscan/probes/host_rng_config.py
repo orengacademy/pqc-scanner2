@@ -11,8 +11,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
+from pqcscan.core.types import Classification, Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 # Below this the kernel pool is considered starved (fully-seeded is 256+).
 _ENTROPY_FLOOR = 256
@@ -21,18 +22,6 @@ _DEFAULT_DAEMON_PATHS = [
     Path("/usr/sbin/rngd"),
     Path("/usr/sbin/haveged"),
 ]
-
-
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]
 
 
 class HostRngConfig(Probe):
@@ -65,7 +54,7 @@ class HostRngConfig(Probe):
                 probe_id=self.id,
                 algorithm="rng/daemon",
                 classification=Classification.INFO,
-                severity=_sev(Classification.INFO),
+                severity=sev_for(Classification.INFO),
                 title="No entropy daemon (rngd/haveged) and no hardware RNG",
                 evidence={
                     "daemon_paths_checked": [str(p) for p in self.rng_daemon_paths],
@@ -87,7 +76,7 @@ class HostRngConfig(Probe):
                 probe_id=self.id,
                 algorithm="rng/entropy",
                 classification=Classification.SEDERHANA,
-                severity=_sev(Classification.SEDERHANA),
+                severity=sev_for(Classification.SEDERHANA),
                 title=f"Low kernel entropy pool ({value} < {_ENTROPY_FLOOR})",
                 evidence={
                     "path": str(self.entropy_path),
@@ -115,7 +104,7 @@ class HostRngConfig(Probe):
             probe_id=self.id,
             algorithm="rng/hw_random",
             classification=Classification.INFO,
-            severity=_sev(Classification.INFO),
+            severity=sev_for(Classification.INFO),
             title="No hardware RNG backing the entropy pool",
             evidence={
                 "path": str(self.hwrng_path),

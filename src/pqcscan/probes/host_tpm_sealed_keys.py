@@ -12,8 +12,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
+from pqcscan.core.types import Classification, Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 _DEFAULT_PATHS = [
     Path("/etc/crypttab"),
@@ -32,18 +33,6 @@ _NOTE = (
     "TPM-sealed volume key uses classical RSA/ECC sealing — "
     "track for PQC-era key management"
 )
-
-
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]
 
 
 class HostTpmSealedKeys(Probe):
@@ -108,7 +97,7 @@ class HostTpmSealedKeys(Probe):
             probe_id=self.id,
             algorithm="TPM-sealed",
             classification=Classification.SEDERHANA,
-            severity=_sev(Classification.SEDERHANA),
+            severity=sev_for(Classification.SEDERHANA),
             title=f"TPM-sealed volume key for {volume}",
             evidence=evidence,
             remediation={

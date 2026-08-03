@@ -12,11 +12,11 @@ from cryptography.x509.oid import NameOID
 
 from pqcscan.core.types import Classification, ProbeFamily, Severity
 from pqcscan.probes._base import ScanContext
+from pqcscan.probes._severity import sev_for as _sev
 from pqcscan.probes.fs_cert_x509 import FsCertX509
 from pqcscan.probes.fs_keystore_pkcs12 import (
     FsKeystorePkcs12,
     _classify_sig_hash,
-    _sev,
 )
 
 

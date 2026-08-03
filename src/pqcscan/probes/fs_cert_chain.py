@@ -20,6 +20,7 @@ from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from pqcscan.core.alg import classify
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 _EXTS = (".pem", ".crt", ".cer")
 
@@ -234,7 +235,7 @@ class FsCertChain(Probe):
             probe_id=self.id,
             algorithm=weakest_alg,
             classification=weakest_cls,
-            severity=_sev(weakest_cls),
+            severity=sev_for(weakest_cls),
             title=f"chain weakest link: {weakest_alg} ({weakest_path.name})",
             evidence={
                 "leaf": str(leaf_path),
@@ -287,13 +288,3 @@ class FsCertChain(Probe):
             ))
 
 
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]

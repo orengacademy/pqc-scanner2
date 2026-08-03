@@ -24,8 +24,9 @@ from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, r
 from cryptography.utils import CryptographyDeprecationWarning
 from cryptography.x509.oid import AuthorityInformationAccessOID
 
-from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
+from pqcscan.core.types import Classification, Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 _EXTS = (".pem", ".crt", ".cer")
 
@@ -106,7 +107,7 @@ class FsCertRevocation(Probe):
                 probe_id=self.id,
                 algorithm=_key_algorithm(cert.public_key()),
                 classification=Classification.SEDERHANA,
-                severity=_sev(Classification.SEDERHANA),
+                severity=sev_for(Classification.SEDERHANA),
                 title=f"{path.name}: classical cert has no revocation path (no OCSP, no CRL)",
                 evidence=evidence,
                 remediation={
@@ -122,7 +123,7 @@ class FsCertRevocation(Probe):
             probe_id=self.id,
             algorithm=_key_algorithm(cert.public_key()),
             classification=Classification.INFO,
-            severity=_sev(Classification.INFO),
+            severity=sev_for(Classification.INFO),
             title=f"{path.name}: revocation endpoints "
                   f"(OCSP={len(ocsp_urls)}, CRL={len(crl_urls)})",
             evidence=evidence,
@@ -214,13 +215,3 @@ def _key_algorithm(pk: object) -> str:
     return type(pk).__name__
 
 
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]

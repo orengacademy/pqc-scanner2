@@ -4,8 +4,9 @@ import asyncio
 import shutil
 
 from pqcscan.core.alg import classify, normalise
-from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
+from pqcscan.core.types import Classification, Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 
 class HostOpenSSLCiphers(Probe):
@@ -67,7 +68,7 @@ class HostOpenSSLCiphers(Probe):
                     probe_id=self.id,
                     algorithm=normalise(canonical),
                     classification=cls,
-                    severity=_sev(cls),
+                    severity=sev_for(cls),
                     title=f"openssl ciphers includes {cipher_name} ({canonical})",
                     evidence={"line": line, "enc": enc_alg, "bits": key_bits},
                     remediation={
@@ -76,13 +77,3 @@ class HostOpenSSLCiphers(Probe):
                 ))
 
 
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]

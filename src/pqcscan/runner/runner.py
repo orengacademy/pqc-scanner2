@@ -42,6 +42,21 @@ class ProbeRunner:
         # Strong refs to fire-and-forget event-bus publish tasks (RUF006).
         self._bg_tasks: set[asyncio.Task[None]] = set()
 
+    def _scan_metadata(self) -> tuple[dict[str, str], dict[str, str]]:
+        return (
+            {p.id: p.version for p in self.registry.all()},
+            {"python": platform.python_version()},
+        )
+
+    def begin_scan_if_idle(self, *, mode: str) -> int | None:
+        """Atomically claim a new 'running' scan row, or None if one is already
+        running. Lets the daemon create the row synchronously (closing the
+        check-then-start race) before handing the id to run()."""
+        probe_versions, tool_versions = self._scan_metadata()
+        return self.repo.begin_scan_if_idle(
+            mode=mode, probe_versions=probe_versions, tool_versions=tool_versions,
+        )
+
     async def run(
         self,
         *,
@@ -51,13 +66,15 @@ class ProbeRunner:
         server_target: str | None = None,
         ot_targets: list[OTTarget] | None = None,
         sniff: SniffConfig | None = None,
+        scan_id: int | None = None,
     ) -> int:
-        probe_versions = {p.id: p.version for p in self.registry.all()}
-        scan_id = self.repo.create_scan(
-            mode=mode,
-            probe_versions=probe_versions,
-            tool_versions={"python": platform.python_version()},
-        )
+        if scan_id is None:
+            probe_versions, tool_versions = self._scan_metadata()
+            scan_id = self.repo.create_scan(
+                mode=mode,
+                probe_versions=probe_versions,
+                tool_versions=tool_versions,
+            )
         ctx = ScanContext(
             scan_id=scan_id,
             mode=mode,

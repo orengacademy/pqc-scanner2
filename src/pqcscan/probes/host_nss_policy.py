@@ -18,8 +18,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
+from pqcscan.core.types import Classification, Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 _DEFAULT_PATH = Path("/etc/crypto-policies/back-ends/nss.config")
 
@@ -34,18 +35,6 @@ _WEAK_PRIMITIVES = {
     "md5": "MD5",
     "hmac-md5": "HMAC-MD5",
 }
-
-
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]
 
 
 class HostNssPolicy(Probe):
@@ -100,7 +89,7 @@ class HostNssPolicy(Probe):
             probe_id=self.id,
             algorithm="nss/min-tls",
             classification=Classification.SEDERHANA,
-            severity=_sev(Classification.SEDERHANA),
+            severity=sev_for(Classification.SEDERHANA),
             title=f"NSS policy TLS floor is weak ({shown})",
             evidence={
                 "path": path,
@@ -154,7 +143,7 @@ class HostNssPolicy(Probe):
             probe_id=self.id,
             algorithm="nss/allow",
             classification=Classification.TINGGI,
-            severity=_sev(Classification.TINGGI),
+            severity=sev_for(Classification.TINGGI),
             title=f"NSS policy allow list contains weak primitives ({', '.join(weak_found)})",
             evidence={
                 "path": path,

@@ -110,18 +110,6 @@ def parse_prelogin_response(payload: bytes) -> dict | None:
         return None
 
 
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]
-
-
 class NetDbMssqlTls(Probe):
     id = "net.db.mssql_tls"
     family = ProbeFamily.NETWORK

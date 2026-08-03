@@ -16,6 +16,7 @@ from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, r
 from pqcscan.core.alg import classify, normalise
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 _SSL_REQUEST = struct.pack("!II", 8, 80877103)  # length=8, code=0x04D2162F
 
@@ -112,7 +113,7 @@ class NetDbPostgresTls(Probe):
             cls = classify(cname)
             emit(Finding(
                 probe_id=self.id, algorithm=normalise(cname),
-                classification=cls, severity=_sev(cls),
+                classification=cls, severity=sev_for(cls),
                 title=f"PostgreSQL {tlsver} negotiated cipher {cname}",
                 evidence={"endpoint": f"{self.host}:{self.port}", "version": tlsver},
             ))
@@ -129,7 +130,7 @@ class NetDbPostgresTls(Probe):
             )
             emit(Finding(
                 probe_id=self.id, algorithm=alg,
-                classification=cls, severity=_sev(cls),
+                classification=cls, severity=sev_for(cls),
                 title=f"PostgreSQL server cert uses {alg}",
                 evidence={"endpoint": f"{self.host}:{self.port}",
                           "subject": cert.subject.rfc4514_string(),
@@ -151,13 +152,3 @@ def _key_alg(pk: object) -> str:
     return type(pk).__name__
 
 
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]

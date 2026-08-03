@@ -42,7 +42,7 @@ import yaml
 
 from pqcscan.core.types import Finding
 
-_KEY_SIZE_RE = re.compile(r"(\d+)")
+_KEY_SIZE_RE = re.compile(r"\d+")
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,10 +80,13 @@ def _matches(key: str, expected: Any, f: Finding) -> bool:
     if key == "algorithm_exact":
         return a == str(expected).upper()
     if key in {"key_size_lt", "key_size_ge"}:
-        m = _KEY_SIZE_RE.search(f.algorithm)
-        if not m:
+        nums = _KEY_SIZE_RE.findall(f.algorithm)
+        if not nums:
             return False
-        bits = int(m.group(1))
+        # Use the largest integer in the name: the key size dwarfs incidental
+        # version digits, so "SHA-3-512" reads as 512, not 3, and "RSA-2048"
+        # as 2048.
+        bits = max(int(n) for n in nums)
         return bits < int(expected) if key == "key_size_lt" else bits >= int(expected)
     if key == "classification":
         return f.classification.value == str(expected)

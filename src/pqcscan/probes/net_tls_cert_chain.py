@@ -15,8 +15,9 @@ import struct
 from cryptography import x509
 
 from pqcscan.core.alg import classify, normalise
-from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
+from pqcscan.core.types import Classification, Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 _FIXED_RANDOM = bytes(range(32))
 # TLS 1.2 ECDHE/RSA + ECDHE/ECDSA + RSA cipher suites — broad enough that any
@@ -141,18 +142,6 @@ def _worst(a: Classification, b: Classification) -> Classification:
     return a if order[a] >= order[b] else b
 
 
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]
-
-
 class NetTlsCertChain(Probe):
     """Read a TLS 1.2 server's served certificate chain + per-cert sig algs."""
 
@@ -202,7 +191,7 @@ class NetTlsCertChain(Probe):
                 probe_id=self.id,
                 algorithm=normalise(key_alg),
                 classification=cls,
-                severity=_sev(cls),
+                severity=sev_for(cls),
                 title=f"{host}:{port} served-chain {role} cert: {key_alg} signed with {sig or 'unknown'}",
                 evidence={
                     "host": host, "port": port, "depth": depth, "role": role,

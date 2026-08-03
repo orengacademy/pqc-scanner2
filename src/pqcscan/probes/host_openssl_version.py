@@ -11,8 +11,9 @@ import asyncio
 import re
 import shutil
 
-from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
+from pqcscan.core.types import Classification, Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 _VERSION_RE = re.compile(r"(OpenSSL|LibreSSL|BoringSSL)\s+(\d+)\.(\d+)\.(\d+)")
 
@@ -56,7 +57,7 @@ class HostOpenSSLVersion(Probe):
             probe_id=self.id,
             algorithm=f"{name}/{version}",
             classification=classification,
-            severity=_severity(classification),
+            severity=sev_for(classification),
             title=f"Crypto library is {name} {version} — {note}",
             evidence={"version_line": first, "library": name, "version": version},
         ))
@@ -102,13 +103,3 @@ class HostOpenSSLVersion(Probe):
         return stdout.decode("utf-8", errors="replace")
 
 
-def _severity(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]

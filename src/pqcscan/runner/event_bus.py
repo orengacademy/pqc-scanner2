@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import threading
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 
 
@@ -67,7 +67,7 @@ class EventBus:
                 with contextlib.suppress(RuntimeError):
                     loop.call_soon_threadsafe(q.put_nowait, event)
 
-    async def subscribe(self) -> AsyncIterator[Event]:
+    async def subscribe(self) -> AsyncGenerator[Event, None]:
         q: asyncio.Queue[Event] = asyncio.Queue()
         loop = asyncio.get_running_loop()
         with self._lock:

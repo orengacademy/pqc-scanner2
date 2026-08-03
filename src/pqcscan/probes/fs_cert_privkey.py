@@ -6,8 +6,9 @@ from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, r
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
 from pqcscan.core.alg import classify
-from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
+from pqcscan.core.types import Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 _EXTS = (".key", ".pem", ".priv")
 
@@ -46,7 +47,7 @@ class FsCertPrivkey(Probe):
             probe_id=self.id,
             algorithm=alg,
             classification=cls,
-            severity=_sev(cls),
+            severity=sev_for(cls),
             title=f"private key {path.name} uses {alg}",
             evidence={"path": str(path)},
         ))
@@ -66,13 +67,3 @@ def _key_algorithm(key: object) -> str:
     return type(key).__name__
 
 
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]

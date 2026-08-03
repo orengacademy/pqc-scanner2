@@ -8,6 +8,7 @@ from cryptography.hazmat.primitives.serialization import pkcs12
 from pqcscan.core.alg import classify
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 _EXTS = (".p12", ".pfx")
 _PASSWORDS: tuple[bytes | None, ...] = (None, b"", b"changeit", b"password")
@@ -68,7 +69,7 @@ class FsKeystorePkcs12(Probe):
                 probe_id=self.id,
                 algorithm=alg,
                 classification=cls,
-                severity=_sev(cls),
+                severity=sev_for(cls),
                 title=f"{path.name}: private key {alg}",
                 evidence={"path": str(path), "kind": "private-key"},
             ))
@@ -79,7 +80,7 @@ class FsKeystorePkcs12(Probe):
                 probe_id=self.id,
                 algorithm=sig,
                 classification=scls,
-                severity=_sev(scls),
+                severity=sev_for(scls),
                 title=f"{path.name}: leaf certificate signature {sig}",
                 evidence={
                     "path": str(path),
@@ -133,13 +134,3 @@ def _classify_sig_hash(name: str) -> Classification:
     return Classification.INFO
 
 
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]

@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime
-
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.util.clock import utcnow
 
 
 class AuxClockCertValidity(Probe):
@@ -14,7 +13,7 @@ class AuxClockCertValidity(Probe):
         return True
 
     async def run(self, ctx: ScanContext, emit: Emitter) -> None:
-        now = datetime.utcnow()
+        now = utcnow()
         emit(Finding(
             probe_id=self.id,
             algorithm="N/A",

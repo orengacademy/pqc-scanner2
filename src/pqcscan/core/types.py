@@ -5,6 +5,8 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
+from pqcscan.util.clock import utcnow
+
 
 class Capability(StrEnum):
     ROOT = "root"
@@ -66,4 +68,4 @@ class Finding:
     # Detection confidence: "high" | "medium" | "low". Assigned centrally by
     # the runner (see core.confidence) unless a probe sets it explicitly.
     confidence: str = "high"
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=utcnow)

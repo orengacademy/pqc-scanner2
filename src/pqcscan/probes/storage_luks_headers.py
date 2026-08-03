@@ -6,8 +6,9 @@ import re
 import shutil
 
 from pqcscan.core.alg import classify, normalise
-from pqcscan.core.types import Capability, Classification, Finding, ProbeFamily, Severity
+from pqcscan.core.types import Capability, Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 _LUKS_CIPHER_RE = re.compile(r"^\s*Cipher\s*name:\s*(\S+)", re.MULTILINE | re.IGNORECASE)
 _LUKS_KEYBITS_RE = re.compile(r"^\s*MK\s*bits:\s*(\d+)", re.MULTILINE | re.IGNORECASE)
@@ -77,19 +78,9 @@ class StorageLuksHeaders(Probe):
             probe_id=self.id,
             algorithm=normalise(canonical),
             classification=cls,
-            severity=_sev(cls),
+            severity=sev_for(cls),
             title=f"LUKS device {device} cipher = {canonical}",
             evidence={"device": device, "cipher_name": cipher_name, "key_bits": bits},
         ))
 
 
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]

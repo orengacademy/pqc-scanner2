@@ -121,16 +121,19 @@ async def dashboard(request: Request) -> HTMLResponse:
         surfaces = surface_breakdown(findings)
         score = readiness_score(bands)
 
-    # Last 30-day trend: take up to 30 most recent done-or-running scans
-    # in chronological order so the sparkline reads left-to-right.
-    trend = []
-    for s in reversed(scans[:30]):
-        s_bands = count_bands(repo.list_findings(s.id))
-        trend.append({
+    # Last 30-day trend: take up to 30 most recent scans in chronological
+    # order so the sparkline reads left-to-right. One bulk query (not one
+    # per scan) keeps the dashboard O(1) in DB round-trips.
+    recent = list(reversed(scans[:30]))
+    findings_by_scan = repo.list_findings_bulk([s.id for s in recent])
+    trend = [
+        {
             "id": s.id,
-            "score": readiness_score(s_bands),
+            "score": readiness_score(count_bands(findings_by_scan[s.id])),
             "started_at": s.started_at,
-        })
+        }
+        for s in recent
+    ]
 
     today = date.today()
     nacsa_fasa = {

@@ -5,8 +5,9 @@ import asyncio
 import shutil
 
 from pqcscan.core.alg import classify
-from pqcscan.core.types import Capability, Classification, Finding, ProbeFamily, Severity
+from pqcscan.core.types import Capability, Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 
 class StorageDmcrypt(Probe):
@@ -51,19 +52,9 @@ class StorageDmcrypt(Probe):
                 probe_id=self.id,
                 algorithm=cipher_token,
                 classification=cls,
-                severity=_sev(cls),
+                severity=sev_for(cls),
                 title=f"dm-crypt mapping {parts[0].rstrip(':')} cipher = {cipher_token}",
                 evidence={"line": raw},
             ))
 
 
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]

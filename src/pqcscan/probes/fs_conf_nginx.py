@@ -6,6 +6,7 @@ from pathlib import Path
 from pqcscan.core.alg import classify, normalise
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 _PROTOCOL_RE = re.compile(r"^\s*ssl_protocols\s+(.+);", re.IGNORECASE | re.MULTILINE)
 _CIPHERS_RE = re.compile(r"^\s*ssl_ciphers\s+(.+);", re.IGNORECASE | re.MULTILINE)
@@ -68,7 +69,7 @@ class FsConfNginx(Probe):
                         probe_id=self.id,
                         algorithm=normalise(token),
                         classification=cls,
-                        severity=_sev(cls),
+                        severity=sev_for(cls),
                         title=f"nginx ssl_ciphers includes {token}",
                         evidence={
                             "path": str(path),
@@ -78,13 +79,3 @@ class FsConfNginx(Probe):
                     ))
 
 
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]

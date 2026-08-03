@@ -15,6 +15,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from pqcscan.util.clock import utcnow
+
 
 class Base(DeclarativeBase):
     pass
@@ -65,7 +67,7 @@ class FindingRow(Base):
     title: Mapped[str] = mapped_column(Text)
     evidence: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     remediation: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
 class GraphEdge(Base):
@@ -96,5 +98,5 @@ class Baseline(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     scan_id: Mapped[int] = mapped_column(ForeignKey("scans.id"))
     label: Mapped[str] = mapped_column(String(128), index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)

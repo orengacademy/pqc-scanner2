@@ -22,22 +22,11 @@ import asyncio
 import re
 import shutil
 
-from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
+from pqcscan.core.types import Classification, Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 _VERSION_RE = re.compile(r"(OpenSSL|LibreSSL|BoringSSL)\s+(\d+)\.(\d+)\.(\d+)")
-
-
-def _severity(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]
 
 
 class HostOpenSSLPqcProvenance(Probe):
@@ -123,7 +112,7 @@ class HostOpenSSLPqcProvenance(Probe):
             probe_id=self.id,
             algorithm=f"openssl-pqc-{provenance}",
             classification=cls,
-            severity=_severity(cls),
+            severity=sev_for(cls),
             title=title,
             evidence={
                 "library": library,

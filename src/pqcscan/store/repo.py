@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 
 from sqlalchemy import create_engine, event, select
@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from pqcscan.core.types import Finding
 from pqcscan.store import migrations
 from pqcscan.store.schema import Baseline, FindingRow, FrameworkView, Scan
+from pqcscan.util.clock import utcnow
 
 
 class Repo:
@@ -45,7 +46,7 @@ class Repo:
     ) -> int:
         with Session(self.engine) as s:
             scan = Scan(
-                started_at=datetime.utcnow(),
+                started_at=utcnow(),
                 host_fingerprint=host_fingerprint,
                 mode=mode,
                 status="running",
@@ -61,13 +62,60 @@ class Repo:
             stmt = select(Scan.id).where(Scan.status == "running").limit(1)
             return s.execute(stmt).first() is not None
 
+    def begin_scan_if_idle(
+        self,
+        *,
+        mode: str,
+        probe_versions: dict[str, str],
+        tool_versions: dict[str, str],
+        host_fingerprint: str | None = None,
+    ) -> int | None:
+        """Check-no-running-scan and insert the new 'running' row in ONE
+        transaction, returning its id — or None if a scan is already running.
+        Closing the check then start race the two-step has_running_scan +
+        create_scan left open."""
+        with Session(self.engine) as s:
+            running = s.execute(
+                select(Scan.id).where(Scan.status == "running").limit(1)
+            ).first()
+            if running is not None:
+                return None
+            scan = Scan(
+                started_at=utcnow(),
+                host_fingerprint=host_fingerprint,
+                mode=mode,
+                status="running",
+                probe_versions=probe_versions,
+                tool_versions=tool_versions,
+            )
+            s.add(scan)
+            s.commit()
+            return scan.id
+
+    def reconcile_running_scans(self) -> int:
+        """Mark scans still 'running' as 'interrupted'. Call on daemon startup:
+        a crash/restart leaves the in-flight scan's row stuck at 'running'
+        (daemon scan threads are daemonic and die with the process), which
+        otherwise wedges the one-scan-at-a-time guard forever. Returns the
+        number of rows swept."""
+        with Session(self.engine) as s:
+            stale = list(
+                s.execute(select(Scan).where(Scan.status == "running")).scalars()
+            )
+            for scan in stale:
+                scan.status = "interrupted"
+                if scan.finished_at is None:
+                    scan.finished_at = utcnow()
+            s.commit()
+            return len(stale)
+
     def finish_scan(self, scan_id: int, *, status: str) -> None:
         with Session(self.engine) as s:
             scan = s.get(Scan, scan_id)
             if scan is None:
                 raise ValueError(f"scan {scan_id} not found")
             scan.status = status
-            scan.finished_at = datetime.utcnow()
+            scan.finished_at = utcnow()
             s.commit()
 
     def record_finding(self, scan_id: int, f: Finding) -> int:
@@ -122,6 +170,25 @@ class Repo:
     def get_scan(self, scan_id: int) -> Scan | None:
         with Session(self.engine) as s:
             return s.get(Scan, scan_id)
+
+    def list_findings_bulk(self, scan_ids: list[int]) -> dict[int, list[FindingRow]]:
+        """All findings for several scans in ONE query, grouped by scan id.
+
+        Replaces the dashboard's per-scan N+1 loop (one Session per trend
+        point). Every requested id is present in the result, even with no
+        findings."""
+        grouped: dict[int, list[FindingRow]] = {sid: [] for sid in scan_ids}
+        if not scan_ids:
+            return grouped
+        with Session(self.engine) as s:
+            rows = s.execute(
+                select(FindingRow)
+                .where(FindingRow.scan_id.in_(scan_ids))
+                .order_by(FindingRow.created_at)
+            ).scalars()
+            for r in rows:
+                grouped[r.scan_id].append(r)
+        return grouped
 
     def record_framework_view(
         self,

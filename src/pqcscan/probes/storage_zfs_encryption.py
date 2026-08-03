@@ -5,8 +5,9 @@ import asyncio
 import shutil
 
 from pqcscan.core.alg import classify
-from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
+from pqcscan.core.types import Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 
 class StorageZfsEncryption(Probe):
@@ -46,19 +47,9 @@ class StorageZfsEncryption(Probe):
                 probe_id=self.id,
                 algorithm=value,
                 classification=cls,
-                severity=_sev(cls),
+                severity=sev_for(cls),
                 title=f"ZFS dataset {dataset} encryption = {value}",
                 evidence={"dataset": dataset, "encryption": value},
             ))
 
 
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]

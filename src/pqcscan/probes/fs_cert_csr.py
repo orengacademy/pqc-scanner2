@@ -6,8 +6,9 @@ from cryptography import x509
 from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, rsa
 
 from pqcscan.core.alg import classify
-from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
+from pqcscan.core.types import Classification, Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 _EXTS = (".csr", ".req")
 
@@ -55,14 +56,14 @@ class FsCertCsr(Probe):
         if sig_hash is not None:
             candidates.append((sig_hash, classify(sig_hash)))
         worst_alg, worst_cls = max(
-            candidates, key=lambda c: _sev(c[1]).numeric
+            candidates, key=lambda c: sev_for(c[1]).numeric
         )
 
         emit(Finding(
             probe_id=self.id,
             algorithm=worst_alg,
             classification=worst_cls,
-            severity=_sev(worst_cls),
+            severity=sev_for(worst_cls),
             title=f"{path.name}: {alg} signed with {sig_hash or 'unknown'}",
             evidence={
                 "path": str(path),
@@ -95,13 +96,3 @@ def _signature_hash(csr: x509.CertificateSigningRequest) -> str | None:
     return h.name.upper()
 
 
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]

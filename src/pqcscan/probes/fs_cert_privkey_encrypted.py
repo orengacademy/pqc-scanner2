@@ -14,24 +14,13 @@ from pathlib import Path
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._severity import sev_for
 
 _EXTS = (".pem", ".key")
 _PKCS8_ENC = "-----BEGIN ENCRYPTED PRIVATE KEY-----"
 _LEGACY_MARK = "Proc-Type: 4,ENCRYPTED"
 _DEK_RE = re.compile(r"^DEK-Info:\s*([A-Za-z0-9-]+)", re.MULTILINE)
 _WEAK_CIPHERS = ("DES-CBC", "DES-EDE3-CBC", "DES-EDE-CBC", "RC2")
-
-
-def _sev(c: Classification) -> Severity:
-    return {
-        Classification.SANGAT_TINGGI: Severity.CRIT,
-        Classification.TINGGI: Severity.HIGH,
-        Classification.SEDERHANA: Severity.MED,
-        Classification.RENDAH: Severity.LOW,
-        Classification.PQC_READY: Severity.INFO,
-        Classification.INFO: Severity.INFO,
-        Classification.ERROR: Severity.INFO,
-    }[c]
 
 
 class FsCertPrivkeyEncrypted(Probe):
@@ -95,7 +84,7 @@ class FsCertPrivkeyEncrypted(Probe):
                 probe_id=self.id,
                 algorithm=f"PEM-legacy/{cipher}",
                 classification=cls,
-                severity=_sev(cls),
+                severity=sev_for(cls),
                 title=(f"{path.name}: legacy PEM-encrypted private key "
                        f"(DEK {cipher})"),
                 evidence={
