@@ -167,8 +167,15 @@ def _props(repo, evidence):
 def test_cbom_host_properties_from_fleet_evidence(tmp_db_path):
     repo = Repo(tmp_db_path)
     repo.init_schema()
-    props = _props(repo, {"host": "web01", "machine_id": "m-web01"})
+    props = _props(repo, {"host": "bank.example", "_fleet": {"host": "web01", "host_id": 1, "machine_id": "m-web01"}})
     assert props["pqcscan:host"] == "web01" and props["pqcscan:machine_id"] == "m-web01"
+
+
+def test_cbom_scan_target_host_is_not_fleet_attribution(tmp_db_path):
+    repo = Repo(tmp_db_path)
+    repo.init_schema()
+    props = _props(repo, {"host": "bank.example", "port": 443})
+    assert "pqcscan:host" not in props
 
 
 def test_cbom_no_host_properties_for_single_host_scan(tmp_db_path):

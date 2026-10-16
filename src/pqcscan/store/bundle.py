@@ -23,8 +23,9 @@ BUNDLE_SCHEMA_VERSION = 1
 MAX_GZIP_BYTES = 8 * 1024 * 1024
 MAX_RAW_BYTES = 50 * 1024 * 1024
 MAX_FINDINGS = 200_000
-# Attribution is set by the collector, never by the agent.
-_SERVER_EVIDENCE_KEYS = frozenset({"host", "host_id", "machine_id"})
+# Fleet attribution (evidence["_fleet"]) is set by the collector, never by the agent.
+# evidence["host"] is the scan target (net probes) and stays.
+_SERVER_EVIDENCE_KEYS = frozenset({"_fleet"})
 
 
 class BundleInvalid(ValueError):  # noqa: N818 - name fixed by the fleet interface

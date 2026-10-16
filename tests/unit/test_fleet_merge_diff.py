@@ -33,7 +33,7 @@ def test_merge_copies_scans_and_builds_rollup(tmp_path: Path):
     roll = fleet.get_scan(rep.rollup_scan_id)
     assert roll is not None and roll.label == ROLLUP_LABEL and roll.status == "done"
     rows = fleet.list_findings(rep.rollup_scan_id)
-    assert sorted(r.evidence["host"] for r in rows) == ["web01", "web01", "web02"]
+    assert sorted(r.evidence["_fleet"]["host"] for r in rows) == ["web01", "web01", "web02"]
     # framework views travel with the findings
     assert {v.framework for v in fleet.list_framework_views(rep.rollup_scan_id)} == {"cnsa2"}
     # per-host scans are still there for drill-down

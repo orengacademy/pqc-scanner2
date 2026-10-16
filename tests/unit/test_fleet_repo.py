@@ -83,10 +83,12 @@ def test_materialize_fleet_rollup_unions_latest_per_host(tmp_db_path, tmp_path):
     fleet.ingest_bundle(_bundle(src, WEB02, ["ECDSA-P256"]), h2.id)
     rid = fleet.materialize_fleet_rollup()
     rows = fleet.list_findings(rid)
-    assert sorted((r.algorithm, r.evidence["host"]) for r in rows) == [("ECDSA-P256", "web02"), ("RSA-2048", "web01")]
+    assert sorted((r.algorithm, r.evidence["_fleet"]["host"]) for r in rows) == [("ECDSA-P256", "web02"),
+                                                                                  ("RSA-2048", "web01")]
     assert fleet.get_scan(rid).label == "fleet-rollup"
-    assert {r.evidence["machine_id"] for r in rows} == {h1.machine_id, h2.machine_id}
-    assert {r.evidence["host_id"] for r in rows} == {h1.id, h2.id}
+    assert {r.evidence["_fleet"]["machine_id"] for r in rows} == {h1.machine_id, h2.machine_id}
+    assert {r.evidence["_fleet"]["host_id"] for r in rows} == {h1.id, h2.id}
+    assert all("host" not in r.evidence for r in rows)  # the scan-target key is never overwritten
     fleet.delete_scan(rid)
     assert fleet.get_scan(rid) is None and fleet.list_findings(rid) == []
 

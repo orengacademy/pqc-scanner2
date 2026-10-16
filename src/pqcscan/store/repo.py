@@ -523,7 +523,7 @@ class Repo:
         return len(ids)
 
     def materialize_fleet_rollup(self) -> int | None:
-        """Temporary scan = latest done scan of every host, evidence['host'] set. Caller deletes it."""
+        """Temporary scan = latest done scan of every host, evidence['_fleet'] set. Caller deletes it."""
         summary = [x for x in self.fleet_summary() if x.scan_id is not None]
         if not summary:
             return None
@@ -537,8 +537,9 @@ class Repo:
                 for r in s.execute(select(FindingRow).where(FindingRow.scan_id == x.scan_id)).scalars().all():
                     nf = FindingRow(scan_id=roll.id, probe_id=r.probe_id, algorithm=r.algorithm,
                                     classification=r.classification, severity=r.severity, title=r.title,
-                                    evidence={**(r.evidence or {}), "host": x.host.hostname,
-                                              "host_id": x.host.id, "machine_id": x.host.machine_id},
+                                    evidence={**(r.evidence or {}), "_fleet": {
+                                        "host": x.host.hostname, "host_id": x.host.id,
+                                        "machine_id": x.host.machine_id}},
                                     remediation=r.remediation, created_at=r.created_at)
                     s.add(nf)
                     s.flush()

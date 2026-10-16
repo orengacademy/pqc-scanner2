@@ -24,7 +24,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unreachable.
 - **`pqcscan agents list|revoke|unrevoke`** and **`pqcscan fleet summary|prune --keep N`**.
 - **`pqcscan export --scan fleet`** (CLI and daemon API) — latest scan of every
-  host via a temporary rollup, `evidence.host` set, for CBOM, SARIF, XLSX and PDF.
+  host via a temporary rollup, for CBOM, SARIF, XLSX and PDF. Each rollup finding
+  carries `evidence._fleet` (`host`, `host_id`, `machine_id`); the fleet CBOM
+  exposes it as `pqcscan:host` (the contributing fleet host) and `pqcscan:machine_id`.
+
+### Changed
+- **`pqcscan merge` rollups** record the contributing host in `evidence._fleet.host`
+  instead of overwriting `evidence.host`, which net probes use for the scan target.
+  `_fleet` is collector-only: ingest strips it from agent bundles.
 - **PostgreSQL option** — every CLI command and the daemon accept a SQLAlchemy URL
   for `--db` (`postgresql+psycopg://…`, `pip install 'pqcscan[fleet-pg]'`).
   Wired, not yet tested.
