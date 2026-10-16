@@ -14,6 +14,7 @@ from fastapi import Body, FastAPI, Form, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 
 from pqcscan import __version__
+from pqcscan.daemon.fleet import FLEET_BEARER_PATHS, build_fleet_router
 from pqcscan.daemon.sse import sse_stream
 from pqcscan.probes._registry import Registry, default_registry
 from pqcscan.runner.capabilities import current_mode, detect_capabilities
@@ -85,7 +86,7 @@ def _host_allowed(request: Request, allowed: frozenset[str]) -> bool:
 
 def create_app(
     *, db_path: Path, registry: Registry | None = None, token: str | None = None,
-    allowed_hosts: Iterable[str] = (),
+    allowed_hosts: Iterable[str] = (), enroll_token: str | None = None,
 ) -> FastAPI:
     """Build the daemon app.
 
@@ -104,6 +105,7 @@ def create_app(
     """
     app = FastAPI(title="pqcscan", version=__version__)
     token = token if token is not None else os.environ.get("PQCSCAN_TOKEN") or None
+    enroll_token = enroll_token if enroll_token is not None else os.environ.get("PQCSCAN_ENROLL_TOKEN") or None
     hosts = frozenset(LOOPBACK_HOSTS | {_host_only(h) for h in allowed_hosts if h})
     sessions: set[str] = set()
 
@@ -113,7 +115,8 @@ def create_app(
             return JSONResponse({"detail": "host not allowed"}, status_code=400)
         if request.method not in ("GET", "HEAD", "OPTIONS") and not _origin_matches_host(request):
             return JSONResponse({"detail": "cross-origin request rejected"}, status_code=403)
-        if token and request.url.path not in ("/api/health", "/login"):
+        if (token and request.url.path not in ("/api/health", "/login")
+                and request.url.path not in FLEET_BEARER_PATHS):
             auth = request.headers.get("authorization", "")
             if auth.lower().startswith("bearer "):
                 ok = hmac.compare_digest(auth[7:].strip().encode(), token.encode())
@@ -361,6 +364,8 @@ def create_app(
             media_type=content_type,
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
+
+    app.include_router(build_fleet_router(repo, enroll_token=enroll_token))
 
     # Mount the web UI (Jinja + HTMX + SSE).
     from pqcscan.ui.routes import mount_static

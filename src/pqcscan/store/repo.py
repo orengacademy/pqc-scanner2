@@ -375,6 +375,10 @@ class Repo:
             s.commit()
             return True
 
+    def get_scan_id_by_uuid(self, scan_uuid: str) -> int | None:
+        with Session(self.engine) as s:
+            return s.execute(select(Scan.id).where(Scan.scan_uuid == scan_uuid)).scalar_one_or_none()
+
     def ingest_bundle(self, bundle: ScanBundle, host_id: int) -> IngestResult:
         """Store one bundle in a single transaction; a repeated scan_uuid is a no-op."""
         with Session(self.engine) as s:

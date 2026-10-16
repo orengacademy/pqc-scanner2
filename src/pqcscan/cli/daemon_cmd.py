@@ -28,9 +28,13 @@ from pqcscan.util.paths import default_db_path
     help="Bearer/cookie token required on every request ($PQCSCAN_TOKEN). "
          "Mandatory when --bind is not a loopback address.",
 )
+@click.option(
+    "--enroll-token", default=None, envvar="PQCSCAN_ENROLL_TOKEN",
+    help="Shared token agents present once to enroll (fleet mode). Without it, /api/agents/enroll is disabled.",
+)
 def daemon_cmd(
     port: int, bind: str, db: Path | None, tls_cert: Path | None, tls_key: Path | None,
-    allow_hosts: tuple[str, ...], token: str | None,
+    allow_hosts: tuple[str, ...], token: str | None, enroll_token: str | None,
 ) -> None:
     """Run the daemon (HTTP + SSE on 127.0.0.1; HTTPS with --tls-cert/--tls-key)."""
     if bool(tls_cert) != bool(tls_key):
@@ -47,7 +51,7 @@ def daemon_cmd(
     db_path = db or default_db_path()
     db_path.parent.mkdir(parents=True, exist_ok=True)
     app = create_app(
-        db_path=db_path, token=token,
+        db_path=db_path, token=token, enroll_token=enroll_token,
         allowed_hosts=(bind, socket.gethostname(), *allow_hosts),
     )
     uvicorn.run(
