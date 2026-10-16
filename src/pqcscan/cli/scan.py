@@ -92,20 +92,28 @@ def run_local_scan(
 
 def _report_to_fleet(
     repo: Repo, scan_id: int, *, server: str, enroll_token: str | None, agent_token: str | None,
-    labels: tuple[str, ...], state_dir: Path | None, ca_cert: Path | None, insecure: bool,
-) -> dict | None:
-    """Post the scan to the fleet daemon. Never raises: reporting must not change the scan's exit code."""
-    from pqcscan.cli._report import default_state_dir, make_client, report_scan
+    labels: tuple[str, ...], state_dir: Path | None, ca_cert: Path | None, insecure: bool, allow_http: bool,
+) -> tuple[dict | None, str]:
+    """Post the scan to the fleet daemon; returns (response, outcome). Never raises: reporting must not
+    change the scan's exit code."""
+    from pqcscan.cli._report import ReportError, check_server_scheme, default_state_dir, make_client, report_scan
     from pqcscan.util.hostid import parse_labels
     try:
+        check_server_scheme(server, allow_http)
+    except ReportError as e:
+        click.echo(f"report not sent: {e.detail}", err=True)
+        return None, "not sent"
+    try:
         with make_client(ca_cert=ca_cert, insecure=insecure) as client:
-            return report_scan(
+            report = report_scan(
                 repo, scan_id, server=server, enroll_token=enroll_token, agent_token=agent_token,
                 labels=parse_labels(labels), state_dir=state_dir or default_state_dir(), client=client,
+                allow_http=allow_http,
             )
-    except Exception as e:  # reporting is best-effort
-        click.echo(f"report failed: {e}", err=True)
-        return None
+    except Exception as e:  # reporting is best-effort; report_scan spools every failure after the dump
+        click.echo(f"report failed (not spooled): {e}", err=True)
+        return None, "not sent"
+    return report, "ok" if report else "spooled for retry"
 
 
 @click.command()
@@ -156,6 +164,8 @@ def _report_to_fleet(
 @click.option("--ca-cert", type=click.Path(path_type=Path, exists=True), default=None,
               help="CA bundle for --report-to.")
 @click.option("--insecure", is_flag=True, help="Skip TLS verification for --report-to (lab only).")
+@click.option("--allow-http", "allow_http", is_flag=True,
+              help="Allow --report-to over plain http to a non-loopback host (credentials in clear text).")
 def scan_cmd(
     db: Path | None, as_json: bool, watch: bool,
     target: str | None, paths: tuple[str, ...], ot: tuple[str, ...],
@@ -163,6 +173,7 @@ def scan_cmd(
     fail_on: str,
     report_to: str | None, enroll_token: str | None, agent_token: str | None,
     labels: tuple[str, ...], state_dir: Path | None, ca_cert: Path | None, insecure: bool,
+    allow_http: bool,
 ) -> None:
     """Run a scan in-process; persist to SQLite.
 
@@ -198,10 +209,11 @@ def scan_cmd(
     mosca = assess(mosca_inputs)
 
     report: dict | None = None
+    report_outcome = ""
     if report_to:
-        report = _report_to_fleet(
+        report, report_outcome = _report_to_fleet(
             repo, scan_id, server=report_to, enroll_token=enroll_token, agent_token=agent_token,
-            labels=labels, state_dir=state_dir, ca_cert=ca_cert, insecure=insecure,
+            labels=labels, state_dir=state_dir, ca_cert=ca_cert, insecure=insecure, allow_http=allow_http,
         )
 
     if as_json:
@@ -235,7 +247,7 @@ def scan_cmd(
         )
         click.echo(summary_lines(mosca, vulnerable_count=len(high_or_crit))["en"])
         if report_to:
-            click.echo(f"Reported to {report_to}: {'ok' if report else 'spooled for retry'}.")
+            click.echo(f"Reported to {report_to}: {report_outcome}.")
 
     sys.exit(1 if gate_tripped else 0)
 
