@@ -87,14 +87,12 @@ def test_two_hosts_report_and_fleet_exports(daemon, tmp_path):
     assert a["report"]["stored_findings"] > 0 and b["report"]["stored_findings"] > 0
     fleet = httpx.get(f"{url}/api/fleet").json()
     assert sorted(h["labels"]["host"] for h in fleet) == ["web01", "web02"]
-    cbom = httpx.get(f"{url}/api/scans/fleet/export/cbom").json()
+    # export builds a temporary rollup; it takes ~5s on this box, so the 5s httpx default is too tight
+    cbom = httpx.get(f"{url}/api/scans/fleet/export/cbom", timeout=60).json()
     assert cbom["bomFormat"] == "CycloneDX"
     assert cbom["components"], "fleet CBOM has no components"
-    # The builder does not emit evidence['host']; each host's seeded cert lives under its own scan dir,
-    # so the component evidence locations identify which host contributed.
-    locations = [o["location"] for c in cbom["components"] for o in c.get("evidence", {}).get("occurrences", [])]
-    for name in ("web01", "web02"):
-        assert any(f"/{name}/" in loc for loc in locations), f"{name} missing from fleet CBOM: {locations}"
+    props = [p for c in cbom["components"] for p in c.get("properties", [])]
+    assert {p["value"] for p in props if p["name"] == "pqcscan:machine_id"} == {"m-web01", "m-web02"}
     out = subprocess.run([sys.executable, "-m", "pqcscan", "fleet", "summary", "--db", str(db), "--json"],
                          capture_output=True, text=True, env={**os.environ, "PYTHONPATH": SRC})
     assert out.returncode == 0, out.stderr

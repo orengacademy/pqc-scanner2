@@ -100,6 +100,10 @@ def build_cbom(repo: Repo, scan_id: int) -> dict[str, Any]:
                 {"name": "pqcscan:probe", "value": f.probe_id},
             ],
         }
+        # Fleet rollups tag findings with the contributing host; single-host scans carry neither key.
+        for key in ("host", "machine_id"):
+            if isinstance(ev.get(key), str) and ev[key]:
+                comp["properties"].append({"name": f"pqcscan:{key}", "value": ev[key]})
         path = ev.get("path") or ev.get("file")
         if isinstance(path, str) and path:
             comp["evidence"] = {"occurrences": [{"location": path}]}

@@ -537,7 +537,8 @@ class Repo:
                 for r in s.execute(select(FindingRow).where(FindingRow.scan_id == x.scan_id)).scalars().all():
                     nf = FindingRow(scan_id=roll.id, probe_id=r.probe_id, algorithm=r.algorithm,
                                     classification=r.classification, severity=r.severity, title=r.title,
-                                    evidence={**(r.evidence or {}), "host": x.host.hostname},
+                                    evidence={**(r.evidence or {}), "host": x.host.hostname,
+                                              "host_id": x.host.id, "machine_id": x.host.machine_id},
                                     remediation=r.remediation, created_at=r.created_at)
                     s.add(nf)
                     s.flush()

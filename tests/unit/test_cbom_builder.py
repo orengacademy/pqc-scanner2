@@ -153,3 +153,26 @@ def test_cbom_primitive_values_are_valid_1_7_enum(tmp_db_path):
     assert _one_finding_cbom(
         tmp_db_path, algorithm="ML-KEM-768", classification=Classification.PQC_READY
     )["primitive"] == "kem"
+
+
+def _props(repo, evidence):
+    scan_id = repo.create_scan(mode="user", probe_versions={}, tool_versions={})
+    repo.record_finding(scan_id, Finding(
+        probe_id="fs.cert.x509", algorithm="RSA-1024", classification=Classification.SANGAT_TINGGI,
+        severity=Severity.CRIT, title="weak cert", evidence=evidence))
+    repo.finish_scan(scan_id, status="done")
+    return {p["name"]: p["value"] for p in build_cbom(repo, scan_id)["components"][0]["properties"]}
+
+
+def test_cbom_host_properties_from_fleet_evidence(tmp_db_path):
+    repo = Repo(tmp_db_path)
+    repo.init_schema()
+    props = _props(repo, {"host": "web01", "machine_id": "m-web01"})
+    assert props["pqcscan:host"] == "web01" and props["pqcscan:machine_id"] == "m-web01"
+
+
+def test_cbom_no_host_properties_for_single_host_scan(tmp_db_path):
+    repo = Repo(tmp_db_path)
+    repo.init_schema()
+    props = _props(repo, {"path": "/x/server.pem"})
+    assert "pqcscan:host" not in props and "pqcscan:machine_id" not in props
