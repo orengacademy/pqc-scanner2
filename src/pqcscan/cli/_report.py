@@ -28,8 +28,9 @@ class ReportError(RuntimeError):
         self.detail = detail
 
 
-def default_state_dir() -> Path:
-    return default_db_path().parent / "agent"
+def default_state_dir(db: Path | str | None = None) -> Path:
+    """<db dir>/agent for a file --db; the default DB's directory for a URL or no --db."""
+    return (db if isinstance(db, Path) else default_db_path()).parent / "agent"
 
 
 def make_client(*, ca_cert: Path | None = None, insecure: bool = False, timeout: float = 60.0) -> httpx.Client:
@@ -154,8 +155,8 @@ def flush_spool(server: str, token: str, state_dir: Path, client: httpx.Client) 
             if e.status in (400, 403, 413):      # will never succeed; keep for inspection, don't retry forever
                 logger.warning("fleet: spool {} rejected ({}), left in place", p.name, e.status)
             kept += 1
-            if e.status in (0, 429) or e.status >= 500:
-                break                            # server down or throttling: stop this pass
+            if e.status in (0, 401, 429) or e.status >= 500:
+                break                            # server down, throttling or token rejected: stop this pass
             continue
         sent += 1
         try:
@@ -173,12 +174,30 @@ def report_scan(repo: Repo, scan_id: int, *, server: str, enroll_token: str | No
     check_server_scheme(server, allow_http)      # config error: raise before dumping, nothing to spool
     identity = host_identity(labels)
     data = dump_bundle(repo, scan_id, identity)
-    try:
+
+    def send() -> dict:
         token = agent_token or ensure_agent_token(server, enroll_token=enroll_token, identity=identity,
                                                   state_dir=state_dir, client=client)
         flush_spool(server, token, state_dir, client)
         return post_bundle(server, token, data, client)
+
+    try:
+        try:
+            return send()
+        except ReportError as e:
+            if e.status != 401 or agent_token:   # only a stored token is ours to replace
+                raise
+            token_path = state_dir / TOKEN_FILE
+            if not enroll_token:
+                raise ReportError(401, f"agent token rejected; re-run with --enroll-token or delete {token_path}"
+                                  ) from e
+            logger.warning("fleet: agent token rejected by {}; re-enrolling", server)
+            token_path.unlink(missing_ok=True)
+            return send()                        # once: a second 401 spools like any failure
     except Exception as e:  # a dumped bundle must never be lost
-        p = spool_bundle(state_dir, data)
+        try:
+            p = spool_bundle(state_dir, data)
+        except Exception as spool_err:
+            raise ReportError(0, f"{e}; cannot spool to {state_dir}: {spool_err}") from spool_err
         logger.warning("fleet: report to {} failed ({}); spooled {}", server, e, p)
         return None

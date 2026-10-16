@@ -8,7 +8,7 @@ import pytest
 
 from pqcscan.cli import _report
 from pqcscan.core.types import Classification, Finding, Severity
-from pqcscan.store.bundle import HostIdentity
+from pqcscan.store.bundle import HostIdentity, dump_bundle
 from pqcscan.store.repo import Repo
 
 IDENT = HostIdentity(machine_id="m-1", hostname="h", os="linux", labels={}, agent_version="x")
@@ -298,3 +298,80 @@ def test_scan_cli_gate_exit_code_unaffected_by_report(tmp_path, stub_scan):
         "--db", str(tmp_path / "x.db"), "--fail-on", "high", "--report-to", "http://127.0.0.1:1",
         "--enroll-token", "E", "--state-dir", str(tmp_path / "st")])
     assert r.exit_code == 1                       # the seeded HIGH finding trips the gate, not the report
+
+
+# ---- phase-1 fix round: state dir follows --db, spool failure, re-enroll on 401 ----
+
+def test_default_state_dir_follows_file_db_not_url(tmp_path):
+    from pqcscan.util.paths import default_db_path
+    assert _report.default_state_dir(tmp_path / "x" / "scan.db") == tmp_path / "x" / "agent"
+    assert _report.default_state_dir("postgresql+psycopg://u@h/db") == default_db_path().parent / "agent"
+
+
+def test_scan_report_uses_db_dir_for_state(tmp_path, monkeypatch):
+    from pqcscan.cli.scan import _report_to_fleet
+    seen = {}
+    monkeypatch.setattr(_report, "report_scan", lambda *a, **k: seen.update(k) or {"scan_id": 1})
+    repo, sid = _seed(tmp_path)
+    _report_to_fleet(repo, sid, server="https://c", enroll_token=None, agent_token="T", labels=(), state_dir=None,
+                     ca_cert=None, insecure=False, allow_http=False, db_path=tmp_path / "d" / "scan.db")
+    assert seen["state_dir"] == tmp_path / "d" / "agent"
+
+
+def test_spool_failure_is_reported_not_raised(tmp_path, capsys):
+    from pqcscan.cli.scan import _report_to_fleet
+    repo, sid = _seed(tmp_path)
+    blocker = tmp_path / "state"
+    blocker.write_text("a file where the state dir should be")
+    out = _report_to_fleet(repo, sid, server="http://127.0.0.1:9", enroll_token=None, agent_token="T", labels=(),
+                           state_dir=blocker, ca_cert=None, insecure=False, allow_http=False, db_path=tmp_path / "x")
+    assert out == (None, "not sent")
+    err = capsys.readouterr().err
+    assert "report failed (not spooled):" in err and "cannot spool" in err and "ingest failed" in err
+
+
+class _RevokedTokenServer(_Server):
+    """401 for the stale token OLD; enroll mints AGENT, which ingest accepts."""
+
+    def handler(self, req: httpx.Request) -> httpx.Response:
+        if req.url.path == "/api/ingest" and req.headers.get("authorization") == "Bearer OLD":
+            self.calls.append((req.url.path, req.content, dict(req.headers)))
+            return httpx.Response(401, json={"detail": "unknown or revoked agent token"})
+        return super().handler(req)
+
+
+def _stale_state(tmp_path):
+    state = tmp_path / "s"
+    state.mkdir()
+    (state / "agent.token").write_text("OLD")
+    _report.spool_bundle(state, dump_bundle(*_seed(tmp_path / "old"), IDENT))
+    return state
+
+
+def test_401_with_enroll_token_reenrolls_once_and_sends(tmp_path):
+    (tmp_path / "old").mkdir()
+    state = _stale_state(tmp_path)
+    repo, sid = _seed(tmp_path)
+    srv = _RevokedTokenServer()
+    assert _report.report_scan(repo, sid, server="http://127.0.0.1", enroll_token="E", agent_token=None, labels={},
+                               state_dir=state, client=_client(srv)) is not None
+    assert (state / "agent.token").read_text() == "AGENT"
+    assert [c[0] for c in srv.calls].count("/api/agents/enroll") == 1
+    assert _spool_files(state) == []                      # the spooled bundle went out with the new token
+
+
+def test_401_without_enroll_token_spools_and_says_what_to_do(tmp_path):
+    from loguru import logger
+    (tmp_path / "old").mkdir()
+    state = _stale_state(tmp_path)
+    repo, sid = _seed(tmp_path)
+    seen: list[str] = []
+    sink = logger.add(lambda m: seen.append(str(m)), level="WARNING")
+    try:
+        assert _report.report_scan(repo, sid, server="http://127.0.0.1", enroll_token=None, agent_token=None,
+                                   labels={}, state_dir=state, client=_client(_RevokedTokenServer())) is None
+    finally:
+        logger.remove(sink)
+    assert len(_spool_files(state)) == 2 and (state / "agent.token").read_text() == "OLD"
+    assert any(f"agent token rejected; re-run with --enroll-token or delete {state / 'agent.token'}" in m
+               for m in seen)

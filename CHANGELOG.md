@@ -44,6 +44,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **State files** (agent token, spool) are written `0600` with `O_NOFOLLOW` / `O_EXCL`.
 - **https or loopback only** for `--report-to`; plain http needs `--allow-http`.
 - **Revoked hosts cannot re-enroll** until `pqcscan agents unrevoke`.
+- **Rejected agent token (401)**: with `--enroll-token` the agent discards its stored
+  token, re-enrolls once and resends; without it the bundle is spooled and the
+  message says to re-run with `--enroll-token` or delete `<state dir>/agent.token`.
+- **Agent state** defaults to `<db dir>/agent` for a file `--db`; a spool write
+  failure is reported ("report failed (not spooled)") instead of raising.
 - **Re-enrolling** a non-revoked machine id rotates its token (and is logged).
 - **`/api/ingest` and `/api/agents/enroll`** bypass the site `--token` guard
   (agents use their own bearer token) but keep the Host and Origin guards.

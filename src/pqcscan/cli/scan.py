@@ -94,6 +94,7 @@ def run_local_scan(
 def _report_to_fleet(
     repo: Repo, scan_id: int, *, server: str, enroll_token: str | None, agent_token: str | None,
     labels: tuple[str, ...], state_dir: Path | None, ca_cert: Path | None, insecure: bool, allow_http: bool,
+    db_path: Path | str,
 ) -> tuple[dict | None, str]:
     """Post the scan to the fleet daemon; returns (response, outcome). Never raises: reporting must not
     change the scan's exit code."""
@@ -108,7 +109,7 @@ def _report_to_fleet(
         with make_client(ca_cert=ca_cert, insecure=insecure) as client:
             report = report_scan(
                 repo, scan_id, server=server, enroll_token=enroll_token, agent_token=agent_token,
-                labels=parse_labels(labels), state_dir=state_dir or default_state_dir(), client=client,
+                labels=parse_labels(labels), state_dir=state_dir or default_state_dir(db_path), client=client,
                 allow_http=allow_http,
             )
     except Exception as e:  # reporting is best-effort; report_scan spools every failure after the dump
@@ -215,6 +216,7 @@ def scan_cmd(
         report, report_outcome = _report_to_fleet(
             repo, scan_id, server=report_to, enroll_token=enroll_token, agent_token=agent_token,
             labels=labels, state_dir=state_dir, ca_cert=ca_cert, insecure=insecure, allow_http=allow_http,
+            db_path=db_path,
         )
 
     if as_json:

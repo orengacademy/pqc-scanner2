@@ -29,7 +29,10 @@ exports from them.
    `pqcscan merge -o fleet.db a.db b.db` still folds per-host DBs offline.
 6. **Admin.**
    - `pqcscan agents list` shows every host with `first_seen` and `last_seen` (also in `--json`).
-   - `pqcscan agents revoke <id>` blocks a host. `pqcscan agents unrevoke <id>` lets it enroll again.
+   - `pqcscan agents revoke <id>` blocks a host. `pqcscan agents unrevoke <id>` lets it enroll again:
+     its stored token stays invalid, so the agent's next `scan --report-to … --enroll-token …` gets a 401,
+     discards `<state dir>/agent.token`, re-enrolls and sends (spooled bundles included). Without
+     `--enroll-token` it spools the bundle and tells you to re-run with it or delete the token file.
    - `pqcscan fleet prune --keep 12` keeps the newest 12 scans per host.
 7. **Scale.** SQLite handles roughly 2,000 hosts daily. Past roughly 10k per day,
    run the daemon with `--db postgresql+psycopg://user:pw@host/db` (every CLI command
