@@ -10,7 +10,7 @@ from pqcscan.daemon.app import create_app
 @pytest.fixture
 def client(tmp_db_path, fast_registry):
     app = create_app(db_path=tmp_db_path, registry=fast_registry)
-    return TestClient(app)
+    return TestClient(app, base_url="http://127.0.0.1")
 
 
 def test_health(client):
@@ -93,7 +93,7 @@ def _slow_registry():
 
 def test_post_scan_409_while_another_scan_runs(tmp_db_path):
     app = create_app(db_path=tmp_db_path, registry=_slow_registry())
-    client = TestClient(app)
+    client = TestClient(app, base_url="http://127.0.0.1")
     first = client.post("/api/scans")
     assert first.status_code == 202
     second = client.post("/api/scans")
@@ -103,7 +103,7 @@ def test_post_scan_409_while_another_scan_runs(tmp_db_path):
 
 def test_ui_scan_redirects_to_running_scan(tmp_db_path):
     app = create_app(db_path=tmp_db_path, registry=_slow_registry())
-    client = TestClient(app)
+    client = TestClient(app, base_url="http://127.0.0.1")
     first = client.post("/scans/new", follow_redirects=False)
     assert first.status_code == 303
     running = first.headers["location"]

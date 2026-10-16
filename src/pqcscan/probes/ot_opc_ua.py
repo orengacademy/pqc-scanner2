@@ -73,12 +73,9 @@ class OTOpcUa(Probe):
                 ))
                 continue
             for pol in policies:
-                if pol in ("Basic128Rsa15", "Basic256"):
+                if pol in ("Basic128Rsa15", "Basic256") or pol == "None":
                     sev = Severity.HIGH
                     cls = Classification.SANGAT_TINGGI
-                elif pol == "None":
-                    sev = Severity.HIGH
-                    cls = Classification.INFO
                 else:
                     sev = Severity.MED
                     cls = classify(pol)

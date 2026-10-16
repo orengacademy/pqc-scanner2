@@ -172,7 +172,7 @@ server {
     location / {
         proxy_pass         http://127.0.0.1:8765;
         proxy_http_version 1.1;
-        proxy_set_header   Host              $host;
+        proxy_set_header   Host              $host;   # then start the daemon with --allow-host pqcscan.example.internal
         proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header   X-Forwarded-Proto $scheme;
 
@@ -229,5 +229,6 @@ sudo setsebool -P httpd_can_network_connect 1
 | DB path    | `--db` / `PQCSCAN_DB_PATH`         | `/var/lib/pqcscan/pqcscan.db` |
 | Auth token | `--token` / `PQCSCAN_TOKEN`        | none (loopback only)          |
 | HTTPS      | `--tls-cert` + `--tls-key`         | off (plain HTTP)              |
+| Host allowlist | `--allow-host` (repeatable)    | loopback, `--bind`, hostname  |
 
 Health check endpoint: `GET /api/health` → `{"ok": true, "version": "..."}`.
