@@ -17,9 +17,17 @@ from typing import Any
 from fastapi import APIRouter, Body, HTTPException, Request
 from loguru import logger
 from sqlalchemy.exc import IntegrityError
+from starlette.concurrency import run_in_threadpool
 
-from pqcscan.store.bundle import MAX_GZIP_BYTES, BundleInvalid, BundleTooLarge, HostIdentity, load_bundle
-from pqcscan.store.repo import Repo
+from pqcscan.store.bundle import (
+    MAX_GZIP_BYTES,
+    BundleInvalid,
+    BundleTooLarge,
+    HostIdentity,
+    ScanBundle,
+    load_bundle,
+)
+from pqcscan.store.repo import IngestResult, Repo
 
 FLEET_BEARER_PATHS = ("/api/ingest", "/api/agents/enroll")
 INGEST_MIN_INTERVAL_S = 60.0
@@ -84,12 +92,18 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None) -> APIRouter:
                              os=str(h.get("os", "")), labels={str(k): str(v) for k, v in labels.items()},
                              agent_version=str(h.get("agent_version", "")))
         prior = repo.get_host_by_machine_id(ident.machine_id)
+        if prior is not None and prior.revoked:
+            raise HTTPException(403, f"host is revoked; an operator must run `pqcscan agents unrevoke {prior.id}`")
         if prior is not None and prior.token_hash:
             logger.warning("fleet: re-enrollment rotated the token for host {} ({})", ident.hostname, ident.machine_id)
         token = secrets.token_urlsafe(32)
         host = repo.upsert_host(ident, token_hash=hash_token(token))
         logger.info("fleet: enrolled host {} ({})", host.hostname, host.machine_id)
         return {"host_id": host.id, "agent_token": token}
+
+    def _store(bundle: ScanBundle, host_id: int) -> IngestResult:
+        repo.upsert_host(bundle.host)
+        return repo.ingest_bundle(bundle, host_id)
 
     @router.post("/api/ingest")
     async def ingest(request: Request) -> dict:
@@ -109,7 +123,7 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None) -> APIRouter:
                 raise HTTPException(413, f"bundle over {MAX_GZIP_BYTES} bytes")
             chunks.append(chunk)
         try:
-            bundle = load_bundle(b"".join(chunks))
+            bundle = await run_in_threadpool(load_bundle, b"".join(chunks))
         except BundleTooLarge as e:
             raise HTTPException(413, str(e)) from e
         except BundleInvalid as e:
@@ -121,11 +135,10 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None) -> APIRouter:
             raise HTTPException(400, f"scan status {status!r} is not terminal; expected one of {_TERMINAL_STATUSES}")
         if not limiter.allow(host.id):
             raise HTTPException(429, "one bundle per minute per host")
-        repo.upsert_host(bundle.host)
         try:
-            res = repo.ingest_bundle(bundle, host.id)
+            res = await run_in_threadpool(_store, bundle, host.id)
         except (ValueError, KeyError, TypeError) as e:
-            raise HTTPException(400, f"invalid bundle content: {e!r}") from e
+            raise HTTPException(400, f"invalid bundle content: {e}") from e
         except IntegrityError as e:
             # Two requests with the same scan_uuid raced past the duplicate check; the loser is a duplicate.
             existing = repo.get_scan_id_by_uuid(bundle.scan_uuid)

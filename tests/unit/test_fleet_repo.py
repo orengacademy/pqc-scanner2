@@ -156,3 +156,18 @@ def test_delete_scan_removes_components_and_edges(tmp_db_path, tmp_path):
     with Session(fleet.engine) as s:
         assert s.execute(select(func.count()).select_from(ComponentRow)).scalar_one() == 0
         assert s.execute(select(func.count()).select_from(GraphEdge)).scalar_one() == 0
+
+
+def test_token_hash_never_unrevokes_only_unrevoke_host_does(tmp_db_path):
+    repo = Repo(tmp_db_path); repo.init_schema()
+    h = repo.upsert_host(WEB01, token_hash="abc")
+    repo.revoke_host(h.id)
+    h2 = repo.upsert_host(WEB01, token_hash="def")
+    assert h2.revoked is True and repo.get_host(h.id).revoked is True
+    assert repo.unrevoke_host(h.id) is True
+    got = repo.get_host(h.id)
+    assert got.revoked is False and got.token_hash == "def"
+    assert repo.unrevoke_host(999) is False
+    repo.revoke_host(h.id)
+    repo.unrevoke_host(h.id)
+    assert repo.get_host(h.id).token_hash is None                 # agent must re-enroll

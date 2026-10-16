@@ -121,7 +121,7 @@ def test_ingest_malformed_content_is_400(tmp_db_path, fast_registry, tmp_path, m
     monkeypatch.setattr(Repo, "ingest_bundle", boom)
     r = c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(tok))
     assert r.status_code == 400
-    assert r.json()["detail"]
+    assert str(exc.args[0]) in r.json()["detail"] and "Error(" not in r.json()["detail"]   # message, not repr
 
 
 def test_concurrent_duplicate_scan_uuid_is_200_duplicate(tmp_db_path, fast_registry, tmp_path, monkeypatch):
@@ -183,3 +183,25 @@ def test_chunked_oversize_upload_is_413(tmp_db_path, fast_registry):
         for _ in range(9):
             yield os.urandom(1024 * 1024)
     assert c.post("/api/ingest", content=body(), headers=_hdr(tok)).status_code == 413
+
+
+def test_revoked_host_cannot_reenroll_until_unrevoked(tmp_db_path, fast_registry):
+    c = _client(tmp_db_path, fast_registry)
+    _enroll(c)
+    assert c.post("/api/agents/1/revoke").status_code == 200
+    r = c.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": HOST})
+    assert r.status_code == 403 and "unrevoke 1" in r.json()["detail"]
+    repo = Repo(tmp_db_path)
+    assert repo.get_host(1).token_hash is None and repo.get_host(1).revoked is True
+    assert repo.unrevoke_host(1) is True
+    again = c.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": HOST})
+    assert again.status_code == 201
+    assert repo.get_host(1).revoked is False
+
+
+@pytest.mark.parametrize("path", ["/api/ingest", "/api/agents/enroll"])
+def test_exempt_paths_keep_host_and_origin_guards(tmp_db_path, fast_registry, path):
+    c = _client(tmp_db_path, fast_registry, token="SITE")
+    body = {"enroll_token": "ENROLL", "host": HOST}
+    assert c.post(path, json=body, headers={"host": "evil.example"}).status_code == 400
+    assert c.post(path, json=body, headers={"origin": "http://evil.example"}).status_code == 403

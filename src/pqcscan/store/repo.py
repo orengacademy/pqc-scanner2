@@ -342,8 +342,7 @@ class Repo:
             h.agent_version = identity.agent_version or h.agent_version
             h.last_seen = utcnow()
             if token_hash is not None:
-                h.token_hash = token_hash
-                h.revoked = False
+                h.token_hash = token_hash   # never clears `revoked`: only unrevoke_host does
             s.commit()
             s.refresh(h)
             s.expunge(h)
@@ -378,6 +377,16 @@ class Repo:
     def get_scan_id_by_uuid(self, scan_uuid: str) -> int | None:
         with Session(self.engine) as s:
             return s.execute(select(Scan.id).where(Scan.scan_uuid == scan_uuid)).scalar_one_or_none()
+
+    def unrevoke_host(self, host_id: int) -> bool:
+        """Re-approve a revoked host. The token stays cleared, so the agent must re-enroll."""
+        with Session(self.engine) as s:
+            h = s.get(Host, host_id)
+            if h is None:
+                return False
+            h.revoked = False
+            s.commit()
+            return True
 
     def ingest_bundle(self, bundle: ScanBundle, host_id: int) -> IngestResult:
         """Store one bundle in a single transaction; a repeated scan_uuid is a no-op."""
