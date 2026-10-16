@@ -1,10 +1,12 @@
 """Enroll → ingest → fleet view, with every rejection path."""
+import json
 import os
 
 import pytest
 from fastapi.testclient import TestClient
 from loguru import logger
 from sqlalchemy.exc import IntegrityError
+from starlette.requests import Request
 
 from pqcscan.core.types import Classification, Finding, Severity
 from pqcscan.daemon import fleet
@@ -80,10 +82,10 @@ def test_ingest_rejections(tmp_db_path, fast_registry, tmp_path, monkeypatch):
     assert c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr("bad")).status_code == 401
     assert c.post("/api/ingest", content=b"garbage", headers=h).status_code == 400
     assert c.post("/api/ingest", content=_bundle(tmp_path, machine_id="other"), headers=h).status_code == 403
-    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 200
-    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 429   # bucket empty
     # incompressible body so the wire size, not the decompressed size, trips the cap
     assert c.post("/api/ingest", content=os.urandom(9 * 1024 * 1024), headers=h).status_code == 413
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 200   # rejections were free
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 429   # bucket empty
 
 
 def test_revoked_token_is_401(tmp_db_path, fast_registry, tmp_path):
@@ -191,6 +193,40 @@ def test_token_bucket_burst_and_no_spend_on_duplicate_or_rejection(tmp_db_path, 
     assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 400   # refunded
     monkeypatch.setattr(Repo, "ingest_bundle", real)
     assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 200   # second token
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 429
+
+
+def test_enroll_disabled_is_503_without_parsing_the_body(tmp_db_path, fast_registry, monkeypatch):
+    c = TestClient(create_app(db_path=tmp_db_path, registry=fast_registry), base_url="http://127.0.0.1")
+
+    def no_parse(*a, **k):
+        raise AssertionError("enroll body parsed while enrollment is disabled")
+    monkeypatch.setattr(json, "loads", no_parse)
+    r = c.post("/api/agents/enroll", content=b"x" * (20 * 1024 * 1024), headers={"content-type": "application/json"})
+    assert r.status_code == 503
+
+
+def test_enroll_body_is_capped_and_must_be_a_json_object(tmp_db_path, fast_registry):
+    c = _client(tmp_db_path, fast_registry)
+    big = json.dumps({"enroll_token": "ENROLL", "host": HOST, "pad": "x" * fleet.MAX_ENROLL_BYTES}).encode()
+    assert c.post("/api/agents/enroll", content=big).status_code == 413
+
+    def chunked():
+        yield big
+    assert c.post("/api/agents/enroll", content=chunked()).status_code == 413
+    assert c.post("/api/agents/enroll", content=b"not json").status_code == 400
+    assert c.post("/api/agents/enroll", content=b"[1]").status_code == 400
+
+
+def test_rate_limit_rejects_before_reading_the_body(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    monkeypatch.setattr(fleet, "INGEST_BURST", 1)
+    c = _client(tmp_db_path, fast_registry)
+    h = _hdr(_enroll(c)["agent_token"])
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 200
+
+    def no_read(self):
+        raise AssertionError("ingest body read by a throttled request")
+    monkeypatch.setattr(Request, "stream", no_read)
     assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 429
 
 

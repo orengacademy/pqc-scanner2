@@ -7,14 +7,16 @@ cookie/token guard; the fleet read endpoints use the normal site guard.
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
+import json
 import secrets
 import threading
 import time
 from typing import Any
 
-from fastapi import APIRouter, Body, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 from loguru import logger
 from sqlalchemy.exc import IntegrityError
 from starlette.concurrency import run_in_threadpool
@@ -32,6 +34,8 @@ from pqcscan.store.repo import IngestResult, Repo
 FLEET_BEARER_PATHS = ("/api/ingest", "/api/agents/enroll")
 INGEST_MIN_INTERVAL_S = 60.0   # one ingest token refilled per interval, per host
 INGEST_BURST = 10               # tokens a host can spend at once (spool replay after an outage)
+INGEST_PARALLELISM = 2          # bundles parsed/stored at once, across all hosts
+MAX_ENROLL_BYTES = 64 * 1024
 _TERMINAL_STATUSES = ("done", "failed", "interrupted")
 
 
@@ -64,6 +68,24 @@ class _TokenBucket:
             self._state[key] = (min(float(INGEST_BURST), tokens + 1), then)
 
 
+async def _read_capped(request: Request, cap: int) -> bytes:
+    """Request body, 413 past `cap` bytes; chunked uploads carry no Content-Length, so cap while reading."""
+    try:
+        declared = int(request.headers.get("content-length") or 0)
+    except ValueError:
+        declared = 0
+    if declared > cap:
+        raise HTTPException(413, f"body over {cap} bytes")
+    chunks: list[bytes] = []
+    size = 0
+    async for chunk in request.stream():
+        size += len(chunk)
+        if size > cap:
+            raise HTTPException(413, f"body over {cap} bytes")
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
 def _host_dict(h: Any) -> dict[str, Any]:
     return {"host_id": h.id, "machine_id": h.machine_id, "hostname": h.hostname, "os": h.os,
             "labels": h.labels or {}, "agent_version": h.agent_version,
@@ -74,6 +96,8 @@ def _host_dict(h: Any) -> dict[str, Any]:
 def build_fleet_router(repo: Repo, *, enroll_token: str | None) -> APIRouter:
     router = APIRouter()
     limiter = _TokenBucket()
+    # Per router (one per app): an asyncio.Semaphore binds to the loop it first blocks on.
+    parse_slots = asyncio.Semaphore(INGEST_PARALLELISM)
 
     def _agent_host(request: Request):
         auth = request.headers.get("authorization", "")
@@ -85,9 +109,15 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None) -> APIRouter:
         return host
 
     @router.post("/api/agents/enroll", status_code=201)
-    async def enroll(body: dict = Body(...)) -> dict:
-        if not enroll_token:
+    async def enroll(request: Request) -> dict:
+        if not enroll_token:              # before reading the body: this endpoint is pre-auth
             raise HTTPException(503, "enrollment disabled: daemon started without --enroll-token")
+        try:
+            body = json.loads(await _read_capped(request, MAX_ENROLL_BYTES))
+        except (ValueError, RecursionError) as e:
+            raise HTTPException(400, "body must be JSON") from e
+        if not isinstance(body, dict):
+            raise HTTPException(400, "body must be a JSON object")
         presented = str(body.get("enroll_token") or "")
         if not hmac.compare_digest(presented.encode(), enroll_token.encode()):
             raise HTTPException(403, "bad enrollment token")
@@ -117,46 +147,36 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None) -> APIRouter:
     @router.post("/api/ingest")
     async def ingest(request: Request) -> dict:
         host = _agent_host(request)
-        try:
-            declared = int(request.headers.get("content-length") or 0)
-        except ValueError:
-            declared = 0
-        if declared > MAX_GZIP_BYTES:
-            raise HTTPException(413, f"bundle over {MAX_GZIP_BYTES} bytes")
-        # Chunked uploads carry no Content-Length: enforce the cap while reading, not after.
-        chunks: list[bytes] = []
-        size = 0
-        async for chunk in request.stream():
-            size += len(chunk)
-            if size > MAX_GZIP_BYTES:
-                raise HTTPException(413, f"bundle over {MAX_GZIP_BYTES} bytes")
-            chunks.append(chunk)
-        try:
-            bundle = await run_in_threadpool(load_bundle, b"".join(chunks))
-        except BundleTooLarge as e:
-            raise HTTPException(413, str(e)) from e
-        except BundleInvalid as e:
-            raise HTTPException(400, str(e)) from e
-        if bundle.host.machine_id != host.machine_id:
-            raise HTTPException(403, "bundle machine_id does not match the agent token")
-        status = bundle.scan.get("status")
-        if status not in _TERMINAL_STATUSES:
-            raise HTTPException(400, f"scan status {status!r} is not terminal; expected one of {_TERMINAL_STATUSES}")
-        if not limiter.take(host.id):
+        if not limiter.take(host.id):     # before reading or parsing anything
             raise HTTPException(429, f"ingest rate limit: {INGEST_BURST} bundles, then one per "
                                      f"{INGEST_MIN_INTERVAL_S:g} s per host")
         stored = False                    # only a newly stored bundle spends the token
         try:
-            res = await run_in_threadpool(_store, bundle, host.id)
-            stored = not res.duplicate
-        except (ValueError, KeyError, TypeError) as e:
-            raise HTTPException(400, f"invalid bundle content: {e}") from e
-        except IntegrityError as e:
-            # Two requests with the same scan_uuid raced past the duplicate check; the loser is a duplicate.
-            existing = repo.get_scan_id_by_uuid(bundle.scan_uuid)
-            if existing is None:
-                raise HTTPException(400, "bundle violates a store constraint") from e
-            return {"scan_id": existing, "stored_findings": 0, "stored_views": 0, "duplicate": True}
+            data = await _read_capped(request, MAX_GZIP_BYTES)
+            async with parse_slots:
+                try:
+                    bundle = await run_in_threadpool(load_bundle, data)
+                except BundleTooLarge as e:
+                    raise HTTPException(413, str(e)) from e
+                except BundleInvalid as e:
+                    raise HTTPException(400, str(e)) from e
+                if bundle.host.machine_id != host.machine_id:
+                    raise HTTPException(403, "bundle machine_id does not match the agent token")
+                status = bundle.scan.get("status")
+                if status not in _TERMINAL_STATUSES:
+                    raise HTTPException(400, f"scan status {status!r} is not terminal; "
+                                             f"expected one of {_TERMINAL_STATUSES}")
+                try:
+                    res = await run_in_threadpool(_store, bundle, host.id)
+                    stored = not res.duplicate
+                except (ValueError, KeyError, TypeError) as e:
+                    raise HTTPException(400, f"invalid bundle content: {e}") from e
+                except IntegrityError as e:
+                    # Two requests with the same scan_uuid raced past the duplicate check; the loser is a duplicate.
+                    existing = repo.get_scan_id_by_uuid(bundle.scan_uuid)
+                    if existing is None:
+                        raise HTTPException(400, "bundle violates a store constraint") from e
+                    return {"scan_id": existing, "stored_findings": 0, "stored_views": 0, "duplicate": True}
         finally:
             if not stored:
                 limiter.refund(host.id)
