@@ -84,7 +84,7 @@ class OTModbusTcp(Probe):
         emit(Finding(
             probe_id=self.id,
             algorithm="plain-Modbus",
-            classification=Classification.INFO,
+            classification=Classification.SANGAT_TINGGI,
             severity=Severity.HIGH,
             title=f"plain Modbus/TCP at {target.host}:{target.port}",
             evidence={

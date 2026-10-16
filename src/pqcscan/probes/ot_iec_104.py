@@ -54,7 +54,7 @@ class OTIec104(Probe):
             emit(Finding(
                 probe_id=self.id,
                 algorithm="plain-IEC104",
-                classification=Classification.INFO,
+                classification=Classification.SANGAT_TINGGI,
                 severity=Severity.HIGH,
                 title=f"plain IEC 60870-5-104 at {target.host}:{target.port}",
                 evidence={

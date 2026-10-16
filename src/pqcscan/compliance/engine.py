@@ -26,11 +26,16 @@ Rule shape (one YAML per framework):
   classification           : one of sangat-tinggi/tinggi/sederhana/rendah/
                              pqc-ready/info/error.
   classification_in        : list of classifications.
+  probe_id                 : exact probe id (e.g. ot.dnp3.tcp).
+  probe_id_prefix          : probe id starts with (e.g. ot.opc_ua).
+  probe_family             : ProbeFamily value (host/network/filesystem/
+                             ot/...), looked up in the probe registry.
 
 A rule fires for a Finding when ALL declared `match` keys evaluate true.
 """
 from __future__ import annotations
 
+import functools
 import re
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -43,6 +48,20 @@ import yaml
 from pqcscan.core.types import Finding
 
 _KEY_SIZE_RE = re.compile(r"\d+")
+
+@functools.cache
+def _family_index() -> dict[str, str]:
+    # Findings carry only the probe id; the registry is the one source of
+    # truth for family (ids don't follow their family — fs.pcap.crypto is
+    # NETWORK, host.cloud_kms is STORAGE). Imported lazily: probes never
+    # import this module, but keep the dependency one-way at import time.
+    from pqcscan.probes._registry import default_registry
+    return {p.id: p.family.value for p in default_registry().all()}
+
+
+def family_of(probe_id: str) -> str | None:
+    """ProbeFamily value for a registered probe id, else None."""
+    return _family_index().get(probe_id)
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,6 +111,12 @@ def _matches(key: str, expected: Any, f: Finding) -> bool:
         return f.classification.value == str(expected)
     if key == "classification_in":
         return f.classification.value in {str(x) for x in expected}
+    if key == "probe_id":
+        return f.probe_id == str(expected)
+    if key == "probe_id_prefix":
+        return f.probe_id.startswith(str(expected))
+    if key == "probe_family":
+        return family_of(f.probe_id) == str(expected)
     return False
 
 

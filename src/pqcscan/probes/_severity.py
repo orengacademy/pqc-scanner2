@@ -50,3 +50,24 @@ def classify_cipher_token(token: str) -> Classification:
         if needle in up:
             return cls
     return Classification.INFO
+
+
+def classify_suite(name: str) -> Classification:
+    """Classify a TLS cipher suite by its RFC name for PQC exposure.
+
+    Weak symmetric primitives (RC4/3DES/DES/MD5/NULL/EXPORT/anon) and legacy
+    CBC-mode-with-SHA1 suites are SANGAT_TINGGI; static-RSA key transport and
+    classical (EC)DHE key exchange are quantum-broken -> TINGGI. Bare TLS 1.3
+    AEAD suites carry no KEX in the name (that lives in key_share) -> INFO.
+    """
+    up = name.upper()
+    base = classify_cipher_token(name)
+    if base is Classification.SANGAT_TINGGI:
+        return base
+    if up.endswith("_CBC_SHA"):  # CBC cipher + SHA-1 MAC, no AEAD
+        return Classification.SANGAT_TINGGI
+    if "_RSA_WITH" in up and "DHE" not in up:  # static-RSA key transport
+        return Classification.TINGGI
+    if "ECDHE" in up or "ECDH_" in up or "DHE_" in up:  # classical KEX
+        return Classification.TINGGI
+    return base

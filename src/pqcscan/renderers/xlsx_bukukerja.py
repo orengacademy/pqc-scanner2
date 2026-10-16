@@ -30,6 +30,7 @@ from pathlib import Path
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment
 
+from pqcscan.renderers._xlsx_safe import force_text
 from pqcscan.store.repo import Repo
 from pqcscan.store.schema import FindingRow
 
@@ -361,6 +362,9 @@ def _delete_example_rows(ws, header_row: int = 4) -> None:
 
 
 def _wrap(cells) -> None:
+    # Every appended data row passes through here, so it doubles as the
+    # formula-injection guard for scan-derived strings.
+    force_text(cells)
     for c in cells:
         c.alignment = Alignment(wrap_text=True, vertical="top")
 

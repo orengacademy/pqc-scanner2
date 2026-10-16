@@ -5,6 +5,7 @@ import click
 from pqcscan import __version__
 from pqcscan.cli.daemon_cmd import daemon_cmd
 from pqcscan.cli.export import export_cmd
+from pqcscan.cli.fleet import diff_cmd, merge_cmd
 from pqcscan.cli.scan import scan_cmd, scans_cmd, status_cmd
 from pqcscan.cli.sniff import sniff_cmd
 
@@ -26,6 +27,8 @@ cli.add_command(scans_cmd, name="scans")
 cli.add_command(status_cmd, name="status")
 cli.add_command(daemon_cmd, name="daemon")
 cli.add_command(export_cmd, name="export")
+cli.add_command(merge_cmd, name="merge")
+cli.add_command(diff_cmd, name="diff")
 
 
 if __name__ == "__main__":

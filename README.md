@@ -2,7 +2,7 @@
 
 Post-Quantum Cryptography (PQC) readiness scanner. Single Python process. Bundled web UI + headless CLI. Runs locally on Linux, Windows, macOS.
 
-> **Status: 179 probes · 19 compliance frameworks · SARIF + CBOM + PDF + XLSX exports · light/dark web UI — see [docs/STATUS.md](docs/STATUS.md).**
+> **Status: 180 probes · 19 compliance frameworks · SARIF + CBOM + PDF + XLSX exports · light/dark web UI — see [docs/STATUS.md](docs/STATUS.md).**
 > Scans point at the local host **or** a network endpoint (`--target`), filesystem paths (`--path`), or an OT/ICS endpoint (`--ot`). Every finding carries a typed PQC migration target + deadline, surfaced inline in the UI and in the SARIF export. See `docs/superpowers/specs/2026-04-29-pqcscan-v2-design.md` for the full design.
 
 ---
@@ -29,7 +29,7 @@ chmod +x pqcscan
 **What v0.9.12 brings** (the full 0.9.x arc is in [`CHANGELOG.md`](CHANGELOG.md)
 and [`docs/STATUS.md` §10](docs/STATUS.md)):
 
-- **SQL Server + C#/.NET coverage (179 probes)** — `net.db.mssql_tls` reads PQC
+- **SQL Server + C#/.NET coverage (180 probes)** — `net.db.mssql_tls` reads PQC
   posture out of the TDS-tunnelled TLS handshake the OS `ssl` stack can't see,
   and `code.ts.csharp` finds quantum-vulnerable crypto in ASP.NET Core sources.
 - **Runner/daemon hardening** — a raising `applies()` no longer aborts a scan;
@@ -66,7 +66,7 @@ Prefer to run from source, or want the systemd/production deployment? See
 - [Probe families](#probe-families)
 - [Web UI map](#web-ui-map)
 - [Compliance engine](#compliance-engine)
-- [Offline pack & OSV matcher](#offline-pack--osv-matcher)
+- [Offline pack](#offline-pack)
 - [Build & release pipeline](#build--release-pipeline)
 - [Tests](#tests)
 - [Tech stack](#tech-stack)
@@ -129,12 +129,12 @@ flowchart LR
         FS["filesystem<br/>/etc, /srv, /opt"]
         SYS["system tools<br/>openssl, dpkg, kubectl…"]
         NET["network sockets<br/>TLS / STARTTLS / binary"]
-        FOSS["bundled FOSS tools<br/>syft, grype, semgrep…"]
+        FOSS["bundled FOSS tools<br/>syft, semgrep, testssl…"]
     end
 
     subgraph proc["pqcscan single process"]
         direction TB
-        REG["probe registry<br/>(default_registry, 179 probes)"]
+        REG["probe registry<br/>(default_registry, 180 probes)"]
         RUN["async runner<br/>(asyncio.gather per family,<br/>per-probe timeout)"]
         BUS["event bus<br/>(SSE-friendly)"]
         REPO[("SQLite store<br/>scans · findings ·<br/>baselines · framework_views")]
@@ -224,7 +224,10 @@ pqcscan version                              # print version
 pqcscan daemon [--port 8765] [--bind ...]    # start daemon + web UI
 pqcscan scan [--json] [--watch]              # one-shot local-host scan
 pqcscan scan --target host[:port]            # scan a network endpoint (TLS/STARTTLS)
-pqcscan scan --path /etc/ssl --path /opt/app # scan filesystem paths (certs/keys/code/binaries)
+pqcscan scan --path /etc/ssl --path /opt/app # scope every file-walking probe to these paths (certs/keys/configs/code/binaries)
+pqcscan scan --db web01.db                   # one DB per host, then ...
+pqcscan merge -o fleet.db web01.db web02.db  # ... fold them into a fleet DB + rollup scan for fleet-wide exports
+pqcscan diff --scan 4 --baseline-scan 3 --fail-on-drift   # HA/DR parity gate (exit 1 on drift)
 pqcscan scan --ot plc.local:502:modbus       # scan an OT/ICS endpoint
 pqcscan scan --fail-on high                  # CI gate: exit 1 if a finding >= band
                                              #   (none|low|med|high|crit; default high)
@@ -295,7 +298,7 @@ sequenceDiagram
 
 ## Probe families
 
-**179 probes across 14 families.** Each probe is a small `Probe` subclass that
+**180 probes across 14 families.** Each probe is a small `Probe` subclass that
 declares an `id`, a `family`, and `framework_tags` for the compliance engine.
 Current breakdown (verify any time with the snippet below):
 
@@ -303,9 +306,9 @@ Current breakdown (verify any time with the snippet below):
 |---|--:|---|
 | **NETWORK** | 42 | `tls.{https,imaps,smtps,ldaps,mqtts}` · `starttls.*` · `db.*_tls` (incl. ★`db.mssql_tls`, TDS-tunnelled TLS) · `tls.kex_groups` · `tls.pqc_handshake` · `ike.{v1v2,transforms}` · `ssh.handshake` · `kerberos.{asreq,etypes}` · `rdp` · `smb` · `snmp` · ★`telnet.plaintext` · ★`tftp.service` · ★`sniff.live` (passive) · `ct.crtsh` |
 | **HOST** | 25 | `openssl.{version,ciphers,config,groups,fips_state,oqs_provider}` · ★`openssl.pqc_provenance` · `libcrypto_pqc_features` · `ssh.{server,client}_config` · `java.security` · `crypto_policies` · `cloud_kms` · `windows.schannel` · `macos.keychain` |
-| **FILESYSTEM** | 24 | `cert.{x509,chain,csr,pkcs7,privkey,pqc_x509}` · ★`binary.crypto` (linkage + reachability + constants) · ★`pcap.crypto` (incl. **QUIC**) · ★`zeek.logs` · `conf.{nginx,apache,sshd,haproxy,envoy,f5,netscaler}` · `db.crypto` · `iac.{terraform,cloudformation}` |
+| **FILESYSTEM** | 25 | `cert.{x509,chain,csr,pkcs7,privkey,pqc_x509}` · ★`binary.crypto` (linkage + reachability + constants) · ★`pcap.crypto` (incl. **QUIC**) · ★`zeek.logs` · `conf.{nginx,apache,sshd,haproxy,envoy,f5,netscaler}` · `db.crypto` · `iac.{terraform,cloudformation}` · ★`conf.ibmi_sysval` (IBM i QSSLPCL/QSSLCSL export) |
 | **STORAGE** | 18 | disk: `luks`·`bitlocker`·`zfs`·`dmcrypt`·`fscrypt` · db-TDE: `pg.pgcrypto`·`mysql.keyring`·`mssql.tde` · MQ: `kafka`·`rabbitmq`·`nats`·`mqtt` · HW: `tpm_algorithms`·`pkcs11_modules`·`smartcard_readers` |
-| **SBOM** | 15 | `os.{dpkg,rpm,apk,…}` · `lang.{pip,npm,gomod,cargo,maven,…}` · `syft`·`grype`·`trivy` · `crypto_map` · `cve.osv_offline` |
+| **SBOM** | 15 | `os.{dpkg,rpm,apk,…}` · `lang.{pip,npm,gomod,cargo,maven,composer,…}` · `syft` · `crypto_map` |
 | **OT** | 15 | industrial-protocol crypto exposure: `modbus`·`dnp3`·`opcua`·`bacnet`·… |
 | **CODE** | 9 | `ts.{python,javascript,go,java,php,rust}` · ★`ts.csharp` (.NET/ASP.NET Core) · `crypto_primitives` · `semgrep.pqc` |
 | **CONTAINER** | 7 | `runtime.detect` · `image.sbom` · `k8s.{ingress,secrets,helm,mesh_mtls,mesh_policy}` |
@@ -316,10 +319,11 @@ Current breakdown (verify any time with the snippet below):
 | **VPN** | 3 | `wireguard` · `openvpn` · `tailscale` |
 | **AUX** | 2 | `clock.cert_validity` · … |
 
-The ~15 FOSS-tool wrappers (syft, grype, trivy, testssl, sslyze, nmap,
-pip-audit, npm-audit, govulncheck, cargo-audit, lynis, bandit, semgrep,
-osv_offline) live *within* the families above and resolve their binaries via the
-[offline-pack resolver](#offline-pack--osv-matcher) — absent tools self-skip.
+The FOSS-tool wrappers (syft, semgrep, testssl, sslyze, nmap) live *within*
+the families above and resolve their binaries via the
+[offline-pack resolver](#offline-pack) — absent tools self-skip. CVE, secrets
+and generic-hardening wrappers (grype, trivy, gitleaks, lynis, bandit, the
+OSV matcher) were removed in v0.2.0: pqcscan inventories cryptography only.
 
 Quick listing:
 
@@ -346,7 +350,7 @@ flowchart LR
     DETAIL["/scans/{id}<br/>live SSE feed +<br/>findings table +<br/>'Mark as baseline' form"]
     FRAMEWORKS["/frameworks<br/>19 framework YAMLs"]
     FW_DET["/frameworks/{slug}<br/>rules · clauses · verdicts"]
-    PROBES["/probes<br/>179 probes by family"]
+    PROBES["/probes<br/>180 probes by family"]
     BASELINES["/baselines<br/>list + diff form"]
     DIFF["/baselines/diff<br/>added · removed · common"]
     SETTINGS["/settings<br/>version · python · platform ·<br/>privilege mode · DB · capabilities"]
@@ -424,13 +428,13 @@ Adding a new framework needs **zero code changes** — just drop a new YAML.
 
 ---
 
-## Offline pack & OSV matcher
+## Offline pack
 
-Resolution flow for FOSS-tool binaries (`pqcscan.util.offline_pack.resolve_tool`) and the OSV snapshot path:
+Resolution flow for FOSS-tool binaries (`pqcscan.util.offline_pack.resolve_tool`):
 
 ```mermaid
 flowchart TD
-    START["Probe needs 'syft' / 'grype' / 'semgrep' / …"]
+    START["Probe needs 'syft' / 'semgrep' / …"]
     ENV{"$PQCSCAN_OFFLINE_PACK<br/>set?"}
     MEI{"running as<br/>PyInstaller binary?<br/>(sys._MEIPASS set)"}
     PATH{"on system $PATH?"}
@@ -450,57 +454,7 @@ flowchart TD
     PATH -- no --> SKIP
 ```
 
-The 14 FOSS-tool probes use this resolver via the `resolve_or_none(self.X_bin, "tool-name")` helper that also validates explicit `<x>_bin` constructor args.
-
-### `cve.osv_offline` ecosystem coverage
-
-```mermaid
-flowchart LR
-    SNAP["OSV snapshot<br/>JSONL or JSON-array"]
-    IDX["index<br/>(ecosystem, name)<br/>→ [advisory…]"]
-
-    SNAP --> IDX
-
-    REQ["requirements.txt<br/>+ Pipfile.lock<br/>+ poetry.lock"]
-    NPM["package-lock.json<br/>(v6 + v7+)"]
-    CARGO["Cargo.lock"]
-    GO["go.sum"]
-    PHP["composer.lock"]
-    RUBY["Gemfile.lock"]
-    NUGET["packages.lock.json"]
-    HEX["mix.lock"]
-    DART["pubspec.lock"]
-    GRADLE["gradle.lockfile"]
-
-    IDX --> MATCH["matcher<br/>(name, version) →<br/>SpecifierSet overlap<br/>or exact pin)"]
-
-    REQ    --> MATCH
-    NPM    --> MATCH
-    CARGO  --> MATCH
-    GO     --> MATCH
-    PHP    --> MATCH
-    RUBY   --> MATCH
-    NUGET  --> MATCH
-    HEX    --> MATCH
-    DART   --> MATCH
-    GRADLE --> MATCH
-
-    MATCH --> EXACT["exact == pin<br/>→ Tinggi / HIGH"]
-    MATCH --> RANGE["range overlap<br/>→ Sederhana / MED"]
-```
-
-The default snapshot path is `/var/lib/pqcscan/osv-snapshot.jsonl`; override with `PQCSCAN_OSV_SNAPSHOT=<path>` or pass `snapshot_path=` to the probe constructor.
-
-Snapshot fetch (one command):
-
-```bash
-bash scripts/fetch-osv-snapshot.sh                  # PyPI + npm + Go (~75 MB)
-bash scripts/fetch-osv-snapshot.sh PyPI npm         # specific ecosystems
-bash scripts/fetch-osv-snapshot.sh --all            # every ecosystem (~1+ GB)
-bash scripts/fetch-osv-snapshot.sh --out /var/lib/pqcscan/osv-snapshot.jsonl
-```
-
-Range-aware PyPI matching uses the `packaging` library: `requirements.txt` lines like `flask>=1.0,<2.0` are overlap-checked against OSV `affected[].versions` and `affected[].ranges[].events[]` — if there's any vulnerable version inside the constraint, the probe emits a `Sederhana` ("potentially affected") finding. Exact `==` pins still emit `Tinggi`.
+The FOSS-tool probes use this resolver via the `resolve_or_none(self.X_bin, "tool-name")` helper that also validates explicit `<x>_bin` constructor args. `scripts/fetch-offline-tools.sh` stages a **version-pinned, checksum-verified** syft under `./tools/` for bundling (`SYFT_VERSION=…` to bump).
 
 ---
 
@@ -518,28 +472,26 @@ flowchart TD
     SPEC["build/pyinstaller.spec<br/>(bundles UI + frameworks +<br/>renderer templates +<br/>semgrep rules + tools/)"]
     BIN["dist/pqcscan-{linux-x86_64,<br/>macos-arm64, windows-x86_64.exe}"]
     UPLOAD["actions/upload-artifact@v4"]
+    SUMS["SHA256SUMS.txt +<br/>build-provenance attestation"]
     REL["softprops/action-gh-release@v2<br/>→ GitHub Release"]
 
     DEV --> PUSH --> GH
-    GH --> INSTALL --> SCRIPT --> SPEC --> BIN --> UPLOAD --> REL
+    GH --> INSTALL --> SCRIPT --> SPEC --> BIN --> UPLOAD --> SUMS --> REL
 
-    OPT1["scripts/fetch-offline-tools.sh<br/>(syft + grype)"]
-    OPT2["scripts/fetch-osv-snapshot.sh<br/>(OSV.dev JSONL)"]
+    OPT1["scripts/fetch-offline-tools.sh<br/>(pinned syft)"]
     OPT1 -.optional.-> SPEC
-    OPT2 -.optional.-> SPEC
 
     classDef step fill:#1e3a5f,color:#fff,stroke:#3b82f6
     classDef opt  fill:#5f3a1e,color:#fff,stroke:#fb923c,stroke-dasharray: 5 5
-    class DEV,PUSH,GH,INSTALL,SCRIPT,SPEC,BIN,UPLOAD,REL step
-    class OPT1,OPT2 opt
+    class DEV,PUSH,GH,INSTALL,SCRIPT,SPEC,BIN,UPLOAD,SUMS,REL step
+    class OPT1 opt
 ```
 
 Local single-OS build:
 
 ```bash
 pip install -e ".[build]"           # installs pyinstaller>=6
-bash scripts/fetch-offline-tools.sh # optional: bundle syft + grype too
-bash scripts/fetch-osv-snapshot.sh  # optional: bundle OSV snapshot
+bash scripts/fetch-offline-tools.sh # optional: bundle a pinned, checksum-verified syft
 bash scripts/build-binary.sh
 ./dist/pqcscan --help
 ```

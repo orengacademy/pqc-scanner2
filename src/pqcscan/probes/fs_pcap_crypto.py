@@ -39,7 +39,7 @@ from pqcscan.probes._pcap import (
     parse_tls_handshake,
 )
 from pqcscan.probes._quic import extract_client_hello
-from pqcscan.probes._severity import classify_cipher_token, sev_for
+from pqcscan.probes._severity import classify_suite, sev_for
 
 # Cap findings per file so a huge capture with the same repeated handshake does
 # not emit thousands of identical rows.
@@ -115,25 +115,7 @@ _CIPHER_SUITES: dict[int, str] = {
 }
 
 
-def _classify_suite(name: str) -> Classification:
-    """Classify a TLS cipher suite by its RFC name for PQC exposure.
-
-    Weak symmetric primitives (RC4/3DES/DES/MD5/NULL/EXPORT/anon) and legacy
-    CBC-mode-with-SHA1 suites are SANGAT_TINGGI; static-RSA key transport and
-    classical (EC)DHE key exchange are quantum-broken -> TINGGI. Bare TLS 1.3
-    AEAD suites carry no KEX in the name (that lives in key_share) -> INFO.
-    """
-    up = name.upper()
-    base = classify_cipher_token(name)
-    if base is Classification.SANGAT_TINGGI:
-        return base
-    if up.endswith("_CBC_SHA"):  # CBC cipher + SHA-1 MAC, no AEAD
-        return Classification.SANGAT_TINGGI
-    if "_RSA_WITH" in up and "DHE" not in up:  # static-RSA key transport
-        return Classification.TINGGI
-    if "ECDHE" in up or "ECDH_" in up or "DHE_" in up:  # classical KEX
-        return Classification.TINGGI
-    return base
+_classify_suite = classify_suite
 
 
 def _classify_ssh_kex(token: str) -> tuple[str, Classification]:

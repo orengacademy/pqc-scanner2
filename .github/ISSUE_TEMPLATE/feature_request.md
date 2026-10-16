@@ -23,7 +23,7 @@ assignees: ''
 
 - [ ] New probe — which family? (host / fs / network / sbom / code / vpn /
       storage / container / app / sign / dns_email / aux / pqc_meta /
-      secrets / foss-tool wrapper)
+      ot / foss-tool wrapper)
 - [ ] New compliance framework — link to its spec (e.g. NIST IR XXXX)
 - [ ] New renderer / export format — what consumes it?
 - [ ] New web UI page — what data does it show?

@@ -56,7 +56,7 @@ class OTS7comm(Probe):
             emit(Finding(
                 probe_id=self.id,
                 algorithm="plain-S7",
-                classification=Classification.INFO,
+                classification=Classification.SANGAT_TINGGI,
                 severity=Severity.HIGH,
                 title=f"plain Siemens S7 at {target.host}:{target.port}",
                 evidence={

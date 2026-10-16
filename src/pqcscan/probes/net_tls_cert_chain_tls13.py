@@ -32,6 +32,7 @@ from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X
 from pqcscan.core.alg import classify, normalise
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._keyalg import key_algorithm as _key_algorithm
 from pqcscan.probes._severity import sev_for
 from pqcscan.probes._tls13_keyschedule import (
     CIPHER_SUITES,
@@ -217,21 +218,6 @@ def extract_certificates_tls13(cert_msg_body: bytes) -> list[bytes]:
         ext_len = struct.unpack(">H", cert_msg_body[p:p + 2])[0]
         p += 2 + ext_len
     return certs
-
-
-def _key_algorithm(pk: object) -> str:
-    from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, rsa
-    if isinstance(pk, rsa.RSAPublicKey):
-        return f"RSA-{pk.key_size}"
-    if isinstance(pk, ec.EllipticCurvePublicKey):
-        return f"ECDSA-{pk.curve.name}"
-    if isinstance(pk, dsa.DSAPublicKey):
-        return f"DSA-{pk.key_size}"
-    if isinstance(pk, ed25519.Ed25519PublicKey):
-        return "Ed25519"
-    if isinstance(pk, ed448.Ed448PublicKey):
-        return "Ed448"
-    return type(pk).__name__
 
 
 def _sig_hash(cert: x509.Certificate) -> str | None:

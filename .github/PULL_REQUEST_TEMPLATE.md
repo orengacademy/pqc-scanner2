@@ -22,7 +22,7 @@
 - [ ] `ruff check src/ tests/` clean
 - [ ] `mypy src/pqcscan` clean
 - [ ] If you added a probe: tested against synthetic fixtures + real config (where applicable)
-- [ ] If you touched the OSV matcher: smoke-tested against `scripts/fetch-osv-snapshot.sh PyPI` output
+- [ ] If you touched a probe's detection logic: `PYTHONPATH=src python benchmark/run_benchmark.py` still reports precision 1.0
 -->
 
 # Checklist

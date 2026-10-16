@@ -32,3 +32,11 @@ Thumbs.db
 *.dist-info/
 pyinstaller/
 .claude/worktrees/
+
+# Agent/plugin session state (never source)
+.omc/
+.swarm/
+ruvector.db
+.claude-flow/
+agentdb.rvf
+agentdb.rvf.lock

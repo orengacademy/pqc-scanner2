@@ -31,7 +31,7 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """Built-in probe set — 179 probes (see docs/STATUS.md for the family map)."""
+    """Built-in probe set — 180 probes (see docs/STATUS.md for the family map)."""
     from pqcscan.probes.app_crypto_lib_pqc_support import AppCryptoLibPqcSupport
     from pqcscan.probes.app_jwt_env_alg import AppJwtEnvAlg
     from pqcscan.probes.app_nginx_jwt_validation import AppNginxJwtValidation
@@ -72,6 +72,7 @@ def default_registry() -> Registry:
     from pqcscan.probes.fs_conf_envoy import FsConfEnvoy
     from pqcscan.probes.fs_conf_f5 import FsConfF5
     from pqcscan.probes.fs_conf_haproxy import FsConfHaproxy
+    from pqcscan.probes.fs_conf_ibmi_sysval import FsConfIbmiSysval
     from pqcscan.probes.fs_conf_netscaler import FsConfNetscaler
     from pqcscan.probes.fs_conf_nginx import FsConfNginx
     from pqcscan.probes.fs_conf_openssl_cnf import FsConfOpensslCnf
@@ -443,4 +444,6 @@ def default_registry() -> Registry:
     reg.register(NetSniffLive())
     reg.register(FsIacTerraform())
     reg.register(FsIacCloudformation())
+    # IBM i (AS/400): offline parse of exported QSSLPCL / QSSLCSL system values.
+    reg.register(FsConfIbmiSysval())
     return reg

@@ -7,6 +7,7 @@ from pathlib import Path
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
+from pqcscan.renderers._xlsx_safe import force_text
 from pqcscan.store.repo import Repo
 
 _HEADER_FILL = PatternFill("solid", fgColor="0F172A")
@@ -43,6 +44,7 @@ def render_xlsx_generic(repo: Repo, scan_id: int, output_path: Path) -> Path:
         ws.cell(row=row_idx, column=7, value=json.dumps(f.evidence, default=str))
         ws.cell(row=row_idx, column=8, value=json.dumps(f.remediation, default=str))
         ws.cell(row=row_idx, column=9, value=f.created_at.isoformat())
+        force_text(ws[row_idx])
 
     # Friendly column widths.
     widths = {1: 6, 2: 24, 3: 18, 4: 14, 5: 8, 6: 60, 7: 50, 8: 30, 9: 22}

@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from pqcscan.core.types import Capability, Classification, Finding, ProbeFamily, Severity
+from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._udp_payloads import DEFAULT_UDP_PORTS, UDPPayload
 
@@ -31,10 +31,9 @@ class NetPortsUDP(Probe):
         return True
 
     def _resolve_mode(self, ctx: ScanContext) -> str:
-        if self.mode in ("raw", "targeted"):
-            return self.mode
-        if Capability.NET_RAW in ctx.available_capabilities:
-            return "raw"
+        # ponytail: only the targeted (protocol-payload) scan exists. A raw
+        # ICMP-unreachable scan needs AF_PACKET + ICMP parsing; add it here,
+        # gated on Capability.NET_RAW, if open|filtered precision ever matters.
         return "targeted"
 
     def _payload_for(self, port: int) -> UDPPayload:
@@ -82,18 +81,12 @@ class NetPortsUDP(Probe):
         finally:
             transport.close()
 
-    async def _probe_raw(self, port: int) -> tuple[str, dict[str, Any]]:
-        return await self._probe_targeted(port)
-
     async def run(self, ctx: ScanContext, emit: Emitter) -> None:
         mode = self._resolve_mode(ctx)
         ports = self.ports or [p.port for p in DEFAULT_UDP_PORTS]
 
         async def _one(port: int) -> None:
-            if mode == "raw":
-                state, evidence = await self._probe_raw(port)
-            else:
-                state, evidence = await self._probe_targeted(port)
+            state, evidence = await self._probe_targeted(port)
             evidence = {"state": state, "mode": mode, **evidence}
             sev = Severity.INFO if state in ("closed", "filtered") else Severity.LOW
             emit(Finding(

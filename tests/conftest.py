@@ -19,7 +19,7 @@ def tmp_dir(tmp_path: Path) -> Path:
 @pytest.fixture
 def fast_registry() -> Registry:
     """Minimal one-probe Registry for integration tests that need a quick
-    end-to-end scan completion. The full default_registry() runs 179 probes
+    end-to-end scan completion. The full default_registry() runs 180 probes
     including ~40 network probes that hit their 30s timeout on CI runners
     with no reachable services, making scans take 5+ min."""
     from pqcscan.probes.aux_clock_cert_validity import AuxClockCertValidity

@@ -12,9 +12,9 @@ Type=exec
 User=root
 Group=root
 
-# Loopback ONLY. The daemon has no built-in authentication and serves plain
-# HTTP. Never bind a routable address without a TLS-terminating reverse proxy
-# and auth in front of it (docs/DEPLOYMENT.md covers the nginx path).
+# Loopback ONLY. The daemon serves plain HTTP; a routable --bind is refused
+# unless --token / PQCSCAN_TOKEN is set, and even then needs a TLS-terminating
+# reverse proxy in front (docs/DEPLOYMENT.md covers the nginx path).
 ExecStart=/usr/local/bin/pqcscan daemon --bind 127.0.0.1 --port 8765 --db /var/lib/pqcscan/pqcscan.db
 
 # systemd creates and owns /var/lib/pqcscan before the unit starts.

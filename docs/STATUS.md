@@ -5,7 +5,7 @@
 | **Date** | 2026-08-03 |
 | **Branch / commit** | `main` |
 | **Version** | `0.9.12` |
-| **Probes** | 179 registered across 14 families |
+| **Probes** | 180 registered across 14 families |
 | **Frameworks** | 19 compliance YAMLs |
 | **Tests** | 1226 passed / 1 skipped locally (Python 3.11) |
 | **Status** | Design-doc target shipped, plus four loops (§7 coverage+UX, §8 deferred-items + bilingual + any-OS, §9 the 0.8.x–0.9.4 precision/decision loop, §10 the 0.9.5–0.9.11 coverage-completeness + FOSS-verification loop). See `CHANGELOG.md` for the authoritative per-version record — it is kept current every release; this file is a coarser resume guide. |
@@ -14,17 +14,17 @@
 
 The full design-doc target is shipped:
 
-- **Plan A** — MVP foundation (core types, SQLite store, async runner + event bus, probe ABC + registry, FastAPI daemon + SSE, click CLI, Jinja+HTMX web UI, CycloneDX 1.6 CBOM, util).
+- **Plan A** — MVP foundation (core types, SQLite store, async runner + event bus, probe ABC + registry, FastAPI daemon + SSE, click CLI, Jinja+HTMX web UI, CycloneDX CBOM (now 1.7), util).
 - **Plan B (batches 1–15)** — 92 host/filesystem/network/SBOM/VPN/storage/container/k8s/app/sign/DNS/email/web/code/binary-protocol probes.
-- **FOSS-tools + FOSS-VA add-ons** — Syft, Grype, Semgrep, OSV, testssl, sslyze, nmap, pip-audit, npm-audit, govulncheck, cargo-audit, trivy, lynis, bandit, gitleaks (15 wrappers).
+- **FOSS-tool add-ons** — Syft, Semgrep, testssl, sslyze, nmap wrappers. (Grype/trivy/OSV/pip-audit/npm-audit/govulncheck/cargo-audit/lynis/bandit/gitleaks were removed in v0.2.0 — Plan H.1 scope trim.)
 - **Plan C** — Compliance engine + 10 framework YAMLs (BUKUKERJA, NIST IR 8547, NIST SP 800-227, CNSA 2.0, BSI TR-02102-1, ANSSI PQC, MAS Notice 655, ENISA PQC, MyKripto, NACSA Arahan KE No. 9).
 - **Plan D** — Renderers: PDF technical, PDF executive, XLSX BUKUKERJA, XLSX generic.
 - **Plan E (batches 1–4)** — Frameworks page, Probes page, Baselines + scan-vs-baseline diff, EN/MS i18n toggle, Settings page, Mark-as-baseline UX.
 - **Plan G (batches 1–3)** — DB-TDE (4 probes), MQ brokers (4 probes), hardware crypto (3 probes) — all from spec §13.1 deferral.
-- **Plan F (batches 1–3)** — `build/pyinstaller.spec` for self-contained binary builds, `scripts/build-binary.sh`, GitHub Actions release matrix (Linux/macOS/Windows on tag push, auto-attached release assets), `pqcscan.util.offline_pack.resolve_tool()` runtime tool resolver (env override → MEIPASS bundle → PATH), `scripts/fetch-offline-tools.sh` to stage Syft+Grype, 3 reference probe migrations (`sbom_syft`, `cve_grype`, `cve_trivy_fs`).
-- **B17 — Real OSV.dev offline matcher** across **10 ecosystems / 12 lockfile formats**: PyPI (`requirements.txt`, `Pipfile.lock`, `poetry.lock`), npm (`package-lock.json` v6 + v7+), crates.io (`Cargo.lock`), Go (`go.sum`), Packagist (`composer.lock`), RubyGems (`Gemfile.lock`), NuGet (`packages.lock.json`), Hex (`mix.lock`), Pub (`pubspec.lock`), Maven (`gradle.lockfile`). Resolution path: `snapshot_path` constructor arg → `$PQCSCAN_OSV_SNAPSHOT` env → `/var/lib/pqcscan/osv-snapshot.jsonl`.
+- **Plan F (batches 1–3)** — `build/pyinstaller.spec` for self-contained binary builds, `scripts/build-binary.sh`, GitHub Actions release matrix (Linux/macOS/Windows on tag push, auto-attached release assets), `pqcscan.util.offline_pack.resolve_tool()` runtime tool resolver (env override → MEIPASS bundle → PATH), `scripts/fetch-offline-tools.sh` to stage a pinned, checksum-verified Syft.
+- **B17 — OSV.dev offline matcher** — shipped in 0.1.x, **removed in v0.2.0** (Plan H.1): CVE matching is out of PQC scope.
 
-179 probes registered; SQLite store; web UI at all 9 spec'd pages with EN/MS toggle; PDF/XLSX/CBOM exports; 19 compliance frameworks all evaluated against findings; cross-OS PyInstaller binary build pipeline; offline-pack framework with broad-ecosystem CVE matching.
+180 probes registered; SQLite store; web UI at all 9 spec'd pages with EN/MS toggle; PDF/XLSX/CBOM/SARIF exports; 19 compliance frameworks all evaluated against findings; cross-OS PyInstaller binary build pipeline; offline-pack resolver for the remaining FOSS tools.
 
 ## 2. What's shipped
 
@@ -35,20 +35,20 @@ The full design-doc target is shipped:
 | Core types & PQC classifier | `src/pqcscan/core/{types,alg}.py` | Capability/ProbeFamily/Classification/Severity enums; Finding/Component dataclasses; classify() per spec Appendix B |
 | SQLite store | `src/pqcscan/store/{schema,migrations,repo}.py` | scans, components, findings, graph_edges, framework_views, baselines; `check_same_thread=False`; baseline create + diff helpers |
 | Async runner + event bus | `src/pqcscan/runner/*.py` | Probe isolation, per-probe timeout, asyncio.gather per family, Finding/ScanCompleted SSE events |
-| Probe ABC + registry | `src/pqcscan/probes/{_base,_registry}.py` | `default_registry()` seeds 179 probes |
+| Probe ABC + registry | `src/pqcscan/probes/{_base,_registry}.py` | `default_registry()` seeds 180 probes |
 | FastAPI daemon + API | `src/pqcscan/daemon/app.py` | health, version, scans, findings, events SSE, baselines, scan diff |
 | Web UI | `src/pqcscan/ui/{routes,templates,static,i18n}.py` | 9 pages; EN/MS toggle via `pqcscan_locale` cookie; vanilla forms, no JS deps |
 | CycloneDX 1.7 CBOM + PDF/XLSX renderers | `src/pqcscan/{cbom,renderers}/*` | CBOM JSON, PDF (technical/executive), XLSX (BUKUKERJA template + generic) |
 | Compliance engine | `src/pqcscan/compliance/{engine,frameworks/*.yaml}` | YAML-driven; 19 frameworks |
 | Click CLI | `src/pqcscan/cli/*.py` | `scan, scans, status, daemon, export` subcommands |
 
-### Probes — 179 total
+### Probes — 180 total
 
 | Family | Count |
 |---|---:|
 | NETWORK (TLS direct + STARTTLS + DB TLS incl. SQL Server TDS + binary protocols + sniffing) | 42 |
 | HOST | 25 |
-| FILESYSTEM | 24 |
+| FILESYSTEM | 25 |
 | STORAGE (disk + db-TDE + MQ + hw) | 18 |
 | SBOM | 15 |
 | OT / ICS | 15 |
@@ -76,9 +76,9 @@ EN/MS i18n toggle in nav writes a 1-year cookie; `_render()` injects `t()` calla
 
 | Item | Status | Rationale |
 |---|---|---|
-| **Plan F batch 4 — Grype-DB snapshot bundling** | Not started | Multi-GB Grype-DB snapshot is a release-pipeline / artifact-storage decision rather than code. Without it, bundled `grype` falls back to its online DB sync on first run. |
-| **FOSS-tool probe migrations** | ✅ Done | All 14 FOSS-tool probes (`sbom_syft`, `cve_grype`, `cve_trivy_fs`, `host_lynis`, `secrets_gitleaks`, `cve_pip_audit`, `cve_npm_audit`, `code_semgrep_pqc`, `net_tls_testssl`, `net_tls_sslyze`, `cve_govulncheck`, `cve_cargo_audit`, `code_bandit`, `net_tls_nmap_ssl`) now resolve via `resolve_or_none()` and honour `$PQCSCAN_OFFLINE_PACK` + PyInstaller's bundled `tools/`. |
-| **Range-aware PyPI matching** in `cve.osv_offline` | ✅ Done | `requirements.txt` `>=`/`~=`/`<` / multi-clause specifiers are overlap-checked against OSV `affected[].versions` and `affected[].ranges[].events[]` via the `packaging` library. Range-overlap hits are classified Sederhana ("potentially affected"); exact `==` pin hits remain Tinggi ("definitely affected"). |
+| **Plan F batch 4 — Grype-DB snapshot bundling** | Dropped | grype itself was removed in v0.2.0 (Plan H.1). |
+| **FOSS-tool probe migrations** | ✅ Done | The remaining wrappers (`sbom_syft`, `code_semgrep_pqc`, `net_tls_testssl`, `net_tls_sslyze`, `net_tls_nmap_ssl`) resolve via `resolve_or_none()` and honour `$PQCSCAN_OFFLINE_PACK` + PyInstaller's bundled `tools/`. |
+| **Range-aware PyPI CVE matching** | Removed | Went with `cve.osv_offline` in v0.2.0. |
 
 **Spec §13.1 deferral is fully closed.** Plan F (batches 1–3) and B17 (across 10 ecosystems) are shipped.
 

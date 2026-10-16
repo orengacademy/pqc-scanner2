@@ -96,7 +96,7 @@ rules:
     note: "Aset perlu didaftar dalam Borang Pelaksanaan Migrasi PQC (Lampiran A, Jadual 0) menjelang akhir Fasa 1 Persediaan (Dis 2025)."
 
   # ───── OT/ICS clauses (Plan H.3) ─────
-  - match: { probe_family: ot }
+  - match: { probe_family: ot, classification: sangat-tinggi }
     clause: NACSA-9:ot-no-crypto
     verdict: non-compliant
     deadline: 2027-06-30

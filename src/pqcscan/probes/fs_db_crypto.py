@@ -49,7 +49,6 @@ from hashlib import sha256
 from pathlib import Path
 
 from cryptography import x509
-from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, rsa
 from cryptography.hazmat.primitives.serialization import (
     Encoding,
     load_pem_private_key,
@@ -61,6 +60,7 @@ from cryptography.utils import CryptographyDeprecationWarning
 from pqcscan.core.alg import classify
 from pqcscan.core.types import Classification, Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._keyalg import key_algorithm as _key_algorithm
 from pqcscan.probes._severity import sev_for
 
 _SQLITE_MAGIC = b"SQLite format 3\x00"  # 16 bytes
@@ -222,18 +222,6 @@ def _ssh_hit(token: str) -> _Hit:
     )
 
 
-def _key_algorithm(key: object) -> str:
-    if isinstance(key, rsa.RSAPublicKey | rsa.RSAPrivateKey):
-        return f"RSA-{key.key_size}"
-    if isinstance(key, ec.EllipticCurvePublicKey | ec.EllipticCurvePrivateKey):
-        return f"ECDSA-{key.curve.name}"
-    if isinstance(key, dsa.DSAPublicKey | dsa.DSAPrivateKey):
-        return f"DSA-{key.key_size}"
-    if isinstance(key, ed25519.Ed25519PublicKey | ed25519.Ed25519PrivateKey):
-        return "Ed25519"
-    if isinstance(key, ed448.Ed448PublicKey | ed448.Ed448PrivateKey):
-        return "Ed448"
-    return type(key).__name__
 
 
 # --- source iterators (yield (table, column, hit)) -------------------------

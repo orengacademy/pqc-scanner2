@@ -44,7 +44,7 @@ class SbomLangGomod(Probe):
                 # Required deps.
                 for req in _REQUIRE_RE.finditer(text):
                     dep_name, dep_ver = req.group(1), req.group(2)
-                    if dep_name == m.group(1) if m else False:
+                    if m and dep_name == m.group(1):
                         continue
                     emit_package(self.id, emit,
                                  name=dep_name, version=dep_ver,

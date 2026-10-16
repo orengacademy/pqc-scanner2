@@ -21,6 +21,7 @@ from pqcscan.core.bands import (
     readiness_score,
     surface_breakdown,
 )
+from pqcscan.daemon.app import acquire_render_slot
 from pqcscan.probes._registry import default_registry
 from pqcscan.runner.capabilities import current_mode, detect_capabilities
 from pqcscan.ui.i18n import (
@@ -345,7 +346,11 @@ async def scan_report_tech(
     if repo.get_scan(scan_id) is None:
         raise HTTPException(404, "scan not found")
     from pqcscan.renderers.pdf_technical import build_html_technical
-    return HTMLResponse(build_html_technical(repo, scan_id, lang=_report_lang(request, lang)))
+    acquire_render_slot(request.app)
+    try:
+        return HTMLResponse(build_html_technical(repo, scan_id, lang=_report_lang(request, lang)))
+    finally:
+        request.app.state.render_slots.release()
 
 
 @router.get("/scans/{scan_id}/report/exec_summary", response_class=HTMLResponse)
@@ -357,7 +362,11 @@ async def scan_report_exec_summary(
     if repo.get_scan(scan_id) is None:
         raise HTTPException(404, "scan not found")
     from pqcscan.renderers.pdf_executive import build_html_executive
-    return HTMLResponse(build_html_executive(repo, scan_id, lang=_report_lang(request, lang)))
+    acquire_render_slot(request.app)
+    try:
+        return HTMLResponse(build_html_executive(repo, scan_id, lang=_report_lang(request, lang)))
+    finally:
+        request.app.state.render_slots.release()
 
 
 def _load_framework(path: Path) -> dict:
@@ -375,7 +384,7 @@ async def frameworks_list(request: Request) -> HTMLResponse:
                 "name": doc.get("framework", path.stem),
                 "title": doc.get("title", ""),
                 "rule_count": len(doc.get("rules") or []),
-                "path": str(path),
+                "path": path.name,
             })
     return _render(
         request, "frameworks.html", {"frameworks": rows},

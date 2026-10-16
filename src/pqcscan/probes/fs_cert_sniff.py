@@ -13,12 +13,12 @@ from __future__ import annotations
 from pathlib import Path
 
 from cryptography import x509
-from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, rsa
 from cryptography.hazmat.primitives.serialization import load_der_private_key, load_pem_private_key
 
 from pqcscan.core.alg import classify
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._keyalg import key_algorithm as _key_algorithm
 
 # Suffixes already covered by the dedicated cert/key/keystore probes — skip them
 # here so this probe only catches the wrong-extension / extensionless leftovers.
@@ -168,17 +168,5 @@ def _load_private_key(data: bytes) -> object | None:
         return None
 
 
-def _key_algorithm(pk: object) -> str:
-    if isinstance(pk, (rsa.RSAPublicKey, rsa.RSAPrivateKey)):
-        return f"RSA-{pk.key_size}"
-    if isinstance(pk, (ec.EllipticCurvePublicKey, ec.EllipticCurvePrivateKey)):
-        return f"ECDSA-{pk.curve.name}"
-    if isinstance(pk, (dsa.DSAPublicKey, dsa.DSAPrivateKey)):
-        return f"DSA-{pk.key_size}"
-    if isinstance(pk, (ed25519.Ed25519PublicKey, ed25519.Ed25519PrivateKey)):
-        return "Ed25519"
-    if isinstance(pk, (ed448.Ed448PublicKey, ed448.Ed448PrivateKey)):
-        return "Ed448"
-    return type(pk).__name__
 
 
