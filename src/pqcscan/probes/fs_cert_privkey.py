@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, rsa
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
 from pqcscan.core.alg import classify
 from pqcscan.core.types import Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._keyalg import key_algorithm as _key_algorithm
 from pqcscan.probes._severity import sev_for
 
 _EXTS = (".key", ".pem", ".priv")
@@ -53,17 +53,5 @@ class FsCertPrivkey(Probe):
         ))
 
 
-def _key_algorithm(key: object) -> str:
-    if isinstance(key, rsa.RSAPrivateKey):
-        return f"RSA-{key.key_size}"
-    if isinstance(key, ec.EllipticCurvePrivateKey):
-        return f"ECDSA-{key.curve.name}"
-    if isinstance(key, dsa.DSAPrivateKey):
-        return f"DSA-{key.key_size}"
-    if isinstance(key, ed25519.Ed25519PrivateKey):
-        return "Ed25519"
-    if isinstance(key, ed448.Ed448PrivateKey):
-        return "Ed448"
-    return type(key).__name__
 
 

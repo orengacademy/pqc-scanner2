@@ -7,10 +7,10 @@ import ssl
 from collections.abc import Callable
 
 from cryptography import x509
-from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, rsa
 
 from pqcscan.core.alg import classify, normalise
 from pqcscan.core.types import Classification, Finding, Severity
+from pqcscan.probes._keyalg import key_algorithm as _key_algorithm
 from pqcscan.probes._severity import sev_for
 
 
@@ -95,17 +95,5 @@ async def run_tls_probe(
         ))
 
 
-def _key_algorithm(pk: object) -> str:
-    if isinstance(pk, rsa.RSAPublicKey):
-        return f"RSA-{pk.key_size}"
-    if isinstance(pk, ec.EllipticCurvePublicKey):
-        return f"ECDSA-{pk.curve.name}"
-    if isinstance(pk, dsa.DSAPublicKey):
-        return f"DSA-{pk.key_size}"
-    if isinstance(pk, ed25519.Ed25519PublicKey):
-        return "Ed25519"
-    if isinstance(pk, ed448.Ed448PublicKey):
-        return "Ed448"
-    return type(pk).__name__
 
 

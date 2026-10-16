@@ -67,7 +67,7 @@ def _gate_tripped(findings: Iterable[_HasSeverity], threshold: str) -> bool:
 @click.option(
     "--path", "paths", multiple=True,
     type=click.Path(),
-    help="Filesystem path to scan for certs/keys/code (repeatable).",
+    help="Scope all file-walking probes to this path (repeatable); omit for a host scan.",
 )
 @click.option(
     "--ot", "ot", multiple=True,

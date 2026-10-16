@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import contextlib
+import os
 from datetime import date
 from pathlib import Path
 
@@ -32,6 +34,12 @@ class Repo:
             cursor.execute("PRAGMA journal_mode=WAL")
             cursor.execute("PRAGMA busy_timeout=5000")
             cursor.close()
+            # The DB holds the host's full crypto inventory (key paths, weak
+            # configs): owner-only, whatever the umask. SQLite gives -wal/-shm
+            # the main file's mode, so one chmod covers all three.
+            with contextlib.suppress(OSError):
+                if os.path.isfile(str(db_path)):
+                    os.chmod(str(db_path), 0o600)
 
     def init_schema(self) -> None:
         migrations.apply(self.engine)

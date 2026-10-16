@@ -37,6 +37,16 @@ class ScanCompleted:
 Event = StageStarted | StageCompleted | FindingDiscovered | ScanCompleted
 
 
+# Per-subscriber backlog cap: a stalled SSE client drops events past this
+# instead of growing an unbounded queue inside the (often root) daemon.
+_QUEUE_MAX = 2000
+
+
+def _offer(q: asyncio.Queue[Event], event: Event) -> None:
+    with contextlib.suppress(asyncio.QueueFull):
+        q.put_nowait(event)
+
+
 class EventBus:
     """In-memory pub/sub: each subscribe() returns its own queue.
 
@@ -60,15 +70,15 @@ class EventBus:
             subs = list(self._subscribers)
         for q, loop in subs:
             if loop is current:
-                q.put_nowait(event)
+                _offer(q, event)
             else:
                 # RuntimeError: subscriber's loop already closed; its
                 # generator's finally block removes the queue on teardown.
                 with contextlib.suppress(RuntimeError):
-                    loop.call_soon_threadsafe(q.put_nowait, event)
+                    loop.call_soon_threadsafe(_offer, q, event)
 
     async def subscribe(self) -> AsyncGenerator[Event, None]:
-        q: asyncio.Queue[Event] = asyncio.Queue()
+        q: asyncio.Queue[Event] = asyncio.Queue(maxsize=_QUEUE_MAX)
         loop = asyncio.get_running_loop()
         with self._lock:
             self._subscribers.append((q, loop))

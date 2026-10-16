@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import platform
+import socket
 from collections import defaultdict
 from pathlib import Path
 
@@ -10,7 +12,7 @@ from loguru import logger
 from pqcscan.compliance.engine import ComplianceEngine
 from pqcscan.core.confidence import assess as assess_confidence
 from pqcscan.core.remediation import enrich as enrich_remediation
-from pqcscan.core.types import Capability, Classification, Finding, Severity
+from pqcscan.core.types import Capability, Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import OTTarget, Probe, ScanContext, SniffConfig
 from pqcscan.probes._registry import Registry
 from pqcscan.runner.event_bus import (
@@ -21,6 +23,44 @@ from pqcscan.runner.event_bus import (
     StageStarted,
 )
 from pqcscan.store.repo import Repo
+
+
+def _target_host(server_target: str) -> str:
+    """Host part of a `host[:port]` / `[v6]:port` target ('' if none)."""
+    if server_target.startswith("["):
+        return server_target[1:].partition("]")[0]
+    return server_target.partition(":")[0]
+
+
+def bind_context(probe: Probe, ctx: ScanContext) -> Probe:
+    """Per-scan copy of `probe` with --path / --target applied.
+
+    The registry holds one instance of each probe, built with its host
+    defaults (`roots=[/etc, /srv, ...]`, `host="127.0.0.1"`). Rather than
+    teach ~90 probes about ScanContext, point a shallow copy at the user's
+    inputs here: `scan_paths` REPLACE the default roots (``--path .`` in CI
+    must not sweep the runner's /etc and /usr/bin — a plain host scan is the
+    run without --path), and `server_target` replaces the default host on
+    NETWORK probes. Probes that already resolve ctx themselves (`roots=None`,
+    or that read ctx.server_target) are unaffected and follow the same rule.
+    """
+    roots: list[Path] | None = getattr(probe, "roots", None)
+    host = getattr(probe, "host", None)
+    want_roots = bool(ctx.scan_paths) and isinstance(roots, list)
+    want_host = (
+        bool(ctx.server_target) and isinstance(host, str)
+        and probe.family is ProbeFamily.NETWORK
+    )
+    if not (want_roots or want_host):
+        return probe
+    bound = copy.copy(probe)
+    if want_roots:
+        bound.roots = list(ctx.scan_paths)  # type: ignore[attr-defined]
+    if want_host:
+        new_host = _target_host(ctx.server_target or "")
+        if new_host:
+            bound.host = new_host  # type: ignore[attr-defined]
+    return bound
 
 
 class ProbeRunner:
@@ -55,6 +95,7 @@ class ProbeRunner:
         probe_versions, tool_versions = self._scan_metadata()
         return self.repo.begin_scan_if_idle(
             mode=mode, probe_versions=probe_versions, tool_versions=tool_versions,
+            host_fingerprint=socket.gethostname() or None,
         )
 
     async def run(
@@ -74,6 +115,7 @@ class ProbeRunner:
                 mode=mode,
                 probe_versions=probe_versions,
                 tool_versions=tool_versions,
+                host_fingerprint=socket.gethostname() or None,
             )
         ctx = ScanContext(
             scan_id=scan_id,
@@ -99,6 +141,7 @@ class ProbeRunner:
         return scan_id
 
     async def _run_one(self, probe: Probe, ctx: ScanContext) -> None:
+        probe = bind_context(probe, ctx)
         if not probe.requires.issubset(ctx.available_capabilities):
             self.repo.record_finding(ctx.scan_id, Finding(
                 probe_id=probe.id,

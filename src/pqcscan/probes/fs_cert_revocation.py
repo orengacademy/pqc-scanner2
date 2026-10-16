@@ -26,6 +26,7 @@ from cryptography.x509.oid import AuthorityInformationAccessOID
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._keyalg import key_algorithm as _key_algorithm
 from pqcscan.probes._severity import sev_for
 
 _EXTS = (".pem", ".crt", ".cer")
@@ -201,17 +202,5 @@ def _sct_present(cert: x509.Certificate) -> bool:
     return len(list(scts)) > 0
 
 
-def _key_algorithm(pk: object) -> str:
-    if isinstance(pk, rsa.RSAPublicKey):
-        return f"RSA-{pk.key_size}"
-    if isinstance(pk, ec.EllipticCurvePublicKey):
-        return f"ECDSA-{pk.curve.name}"
-    if isinstance(pk, dsa.DSAPublicKey):
-        return f"DSA-{pk.key_size}"
-    if isinstance(pk, ed25519.Ed25519PublicKey):
-        return "Ed25519"
-    if isinstance(pk, ed448.Ed448PublicKey):
-        return "Ed448"
-    return type(pk).__name__
 
 

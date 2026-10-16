@@ -8,7 +8,7 @@ assignees: ''
 
 ## What happened
 
-<!-- Describe the wrong behaviour. Probe IDs help (e.g. `cve.osv_offline`,
+<!-- Describe the wrong behaviour. Probe IDs help (e.g. `fs.cert.x509`,
      `net.tls.https`). -->
 
 ## What you expected

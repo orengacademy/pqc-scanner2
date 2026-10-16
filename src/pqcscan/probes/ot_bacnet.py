@@ -66,7 +66,7 @@ class OTBacnet(Probe):
         emit(Finding(
             probe_id=self.id,
             algorithm="plain-BACnet",
-            classification=Classification.INFO,
+            classification=Classification.SANGAT_TINGGI,
             severity=Severity.HIGH,
             title=f"plain BACnet/IP at {target.host}:{target.port}",
             evidence={

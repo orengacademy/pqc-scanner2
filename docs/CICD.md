@@ -40,7 +40,8 @@ above** the threshold. Severities rank `info < low < med < high < crit`, so
 | ---- | ------- |
 | `0`  | Clean — no finding at or above `--fail-on` (or the gate is `none`). |
 | `1`  | Gate tripped — at least one finding at or above the threshold. |
-| `3`  | Internal error (bad arguments, unreadable DB, …). |
+| `2`  | Scan failed or invalid arguments (click usage error). |
+| `3`  | Unknown scan id (`status` / `export`). |
 
 Both the human-readable output and `--json` report the threshold and the count
 of findings at or above it:
@@ -156,7 +157,7 @@ set -e
 case "$code" in
   0) echo "pqcscan: clean" ;;
   1) echo "pqcscan: gate tripped — quantum-vulnerable crypto found"; exit 1 ;;
-  3) echo "pqcscan: internal error"; exit 3 ;;
+  2) echo "pqcscan: scan failed"; exit 2 ;;
   *) echo "pqcscan: unexpected exit $code"; exit "$code" ;;
 esac
 ```

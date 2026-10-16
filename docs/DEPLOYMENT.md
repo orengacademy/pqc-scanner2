@@ -15,16 +15,20 @@ the host is required.
 
 ## Security model — read before exposing anything
 
-The daemon ships with **no authentication**, **no CORS / Host filtering**, and
-serves **plain HTTP** (no TLS). `POST /api/scans` lets any client that can
-reach the port trigger scans and read every finding.
-
-The only thing protecting it out of the box is the default `127.0.0.1` bind.
+The daemon serves **plain HTTP** (no TLS). Authentication is optional and
+off by default on loopback; the default `127.0.0.1` bind is the boundary.
 
 - **Do** keep `--bind 127.0.0.1`. Reach the UI over an SSH tunnel, or front it
-  with a reverse proxy that terminates TLS and enforces auth (see below).
-- **Do not** pass `--bind 0.0.0.0` (or a LAN address) without that proxy. Doing
-  so publishes an unauthenticated scan-trigger and data API to the network.
+  with a reverse proxy that terminates TLS (see below).
+- A non-loopback `--bind` is **refused** unless `--token` (or `PQCSCAN_TOKEN`)
+  is set. With a token, every request needs `Authorization: Bearer <token>`
+  (API) or a session cookie obtained by submitting the token at `/login` (browser; the token never travels in a URL).
+  State-changing requests are rejected when the browser `Origin` does not
+  match the `Host` (CSRF guard). The SQLite DB is created mode `0600`.
+- Even with a token, serve HTTPS (`--tls-cert`/`--tls-key`, PEM) or put a TLS
+  proxy in front on any routable address — the token travels in clear otherwise.
+- Export and report renders are capped at 2 concurrent; extra requests get
+  HTTP 429.
 
 ---
 
@@ -40,6 +44,8 @@ curl -fsSL -o /usr/local/bin/pqcscan \
   "https://github.com/orengacademy/pqc-scanner2/releases/download/${VERSION}/pqcscan-linux-x86_64"
 
 echo "${SHA256}  /usr/local/bin/pqcscan" | sha256sum -c -    # must print: OK
+# From v0.9.13 every release also ships SHA256SUMS.txt and a build-provenance
+# attestation: `gh attestation verify /usr/local/bin/pqcscan -R orengacademy/pqc-scanner2`
 chmod +x /usr/local/bin/pqcscan
 pqcscan --help
 ```
@@ -221,5 +227,7 @@ sudo setsebool -P httpd_can_network_connect 1
 | Bind addr  | `--bind`                           | `127.0.0.1`                   |
 | Port       | `--port`                           | `8765`                        |
 | DB path    | `--db` / `PQCSCAN_DB_PATH`         | `/var/lib/pqcscan/pqcscan.db` |
+| Auth token | `--token` / `PQCSCAN_TOKEN`        | none (loopback only)          |
+| HTTPS      | `--tls-cert` + `--tls-key`         | off (plain HTTP)              |
 
 Health check endpoint: `GET /api/health` → `{"ok": true, "version": "..."}`.

@@ -54,7 +54,7 @@ class OTEthernetIp(Probe):
             emit(Finding(
                 probe_id=self.id,
                 algorithm="plain-ENIP",
-                classification=Classification.INFO,
+                classification=Classification.SANGAT_TINGGI,
                 severity=Severity.HIGH,
                 title=f"plain EtherNet/IP at {target.host}:{target.port}",
                 evidence={

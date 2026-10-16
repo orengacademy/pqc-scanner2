@@ -55,7 +55,8 @@ class OTDnp3Tcp(Probe):
             emit(Finding(
                 probe_id=self.id,
                 algorithm="plain-DNP3" if not secure_auth_present else "DNP3-SA",
-                classification=Classification.INFO,
+                classification=(Classification.SANGAT_TINGGI if not secure_auth_present
+                                else Classification.SEDERHANA),
                 severity=Severity.HIGH if not secure_auth_present else Severity.MED,
                 title=f"DNP3 outstation at {target.host}:{target.port}",
                 evidence={

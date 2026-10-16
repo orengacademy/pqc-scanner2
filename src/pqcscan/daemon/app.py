@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
+import ipaddress
+import os
+import secrets
 from pathlib import Path
+from urllib.parse import urlsplit
 
-from fastapi import Body, FastAPI, HTTPException, Response
-from fastapi.responses import StreamingResponse
+from fastapi import Body, FastAPI, Form, HTTPException, Request, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 
 from pqcscan import __version__
 from pqcscan.daemon.sse import sse_stream
@@ -16,9 +21,87 @@ from pqcscan.runner.targets import parse_scan_inputs
 from pqcscan.store.repo import Repo
 from pqcscan.store.schema import Scan
 
+SESSION_COOKIE = "pqcscan_session"
+_MAX_CONCURRENT_RENDERS = 2
 
-def create_app(*, db_path: Path, registry: Registry | None = None) -> FastAPI:
+
+def acquire_render_slot(app: FastAPI) -> None:
+    """Take a render slot or raise 429; release with app.state.render_slots.release()."""
+    if not app.state.render_slots.acquire(blocking=False):
+        raise HTTPException(429, "too many concurrent exports; retry shortly")
+
+_LOGIN_FORM = """<!doctype html><title>pqcscan login</title>
+<form method="post" action="/login" style="font-family:sans-serif;margin:3em">
+<label>Token <input type="password" name="token" autofocus></label>
+<button>Sign in</button></form>"""
+
+
+def is_loopback(bind: str) -> bool:
+    """True for 127.0.0.0/8, ::1 and 'localhost'."""
+    if bind in ("localhost", ""):
+        return True
+    try:
+        return ipaddress.ip_address(bind.strip("[]")).is_loopback
+    except ValueError:
+        return False
+
+
+def _origin_matches_host(request: Request) -> bool:
+    """CSRF guard: a browser-sent Origin must match the Host we were reached
+    on. Non-browser clients send no Origin and pass."""
+    origin = request.headers.get("origin")
+    if not origin or origin == "null":
+        return not origin
+    return urlsplit(origin).netloc.lower() == request.headers.get("host", "").lower()
+
+
+def create_app(
+    *, db_path: Path, registry: Registry | None = None, token: str | None = None,
+) -> FastAPI:
+    """Build the daemon app.
+
+    `token` (or $PQCSCAN_TOKEN) enables authentication: every request must
+    carry `Authorization: Bearer <token>` or a session cookie obtained by
+    POSTing the token to `/login` (a form; the token never travels in a URL,
+    so it stays out of access logs and browser history). Sessions are random
+    ids held in memory, so a restart logs browsers out. Without a token the
+    daemon trusts whoever can reach the socket, which is only acceptable on
+    loopback — `pqcscan daemon` refuses a non-loopback --bind without one.
+    """
     app = FastAPI(title="pqcscan", version=__version__)
+    token = token if token is not None else os.environ.get("PQCSCAN_TOKEN") or None
+    sessions: set[str] = set()
+
+    @app.middleware("http")
+    async def _guard(request: Request, call_next):
+        if request.method not in ("GET", "HEAD", "OPTIONS") and not _origin_matches_host(request):
+            return JSONResponse({"detail": "cross-origin request rejected"}, status_code=403)
+        if token and request.url.path not in ("/api/health", "/login"):
+            auth = request.headers.get("authorization", "")
+            if auth.lower().startswith("bearer "):
+                ok = hmac.compare_digest(auth[7:].strip().encode(), token.encode())
+            else:
+                ok = request.cookies.get(SESSION_COOKIE, "") in sessions
+            if not ok:
+                if "text/html" in request.headers.get("accept", ""):
+                    return RedirectResponse("/login", status_code=303)
+                return JSONResponse({"detail": "unauthorized"}, status_code=401)
+        return await call_next(request)
+
+    @app.get("/login", response_class=HTMLResponse)
+    async def login_form() -> str:
+        return _LOGIN_FORM
+
+    @app.post("/login")
+    async def login(token_form: str = Form("", alias="token")) -> Response:
+        """Exchange the token (form body, never a URL) for a random session id."""
+        if not token or not hmac.compare_digest(token_form.encode(), token.encode()):
+            raise HTTPException(401, "bad token")
+        sid = secrets.token_urlsafe(32)
+        sessions.add(sid)
+        resp = RedirectResponse("/", status_code=303)
+        resp.set_cookie(SESSION_COOKIE, sid, httponly=True, samesite="strict", path="/")
+        return resp
     repo = Repo(db_path)
     repo.init_schema()
     # Sweep scans left 'running' by a previous crash/restart so the
@@ -37,6 +120,9 @@ def create_app(*, db_path: Path, registry: Registry | None = None) -> FastAPI:
     # Serialises the check-and-claim of a new scan across concurrent requests
     # (single uvicorn process → a threading.Lock is sufficient).
     app.state.scan_lock = threading.Lock()
+    # Heavy renders (PDF/XLSX/CBOM, HTML reports) are a cheap GET for a client
+    # and an expensive in-memory render for us: cap concurrency, 429 beyond.
+    app.state.render_slots = threading.BoundedSemaphore(_MAX_CONCURRENT_RENDERS)
 
     @app.get("/api/health")
     async def health() -> dict:
@@ -184,6 +270,7 @@ def create_app(*, db_path: Path, registry: Registry | None = None) -> FastAPI:
             raise HTTPException(400, f"unknown format: {fmt}")
         suffix, content_type, name = formats[fmt]
 
+        acquire_render_slot(app)
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
             tmp_path = Path(tmp.name)
         try:
@@ -228,6 +315,7 @@ def create_app(*, db_path: Path, registry: Registry | None = None) -> FastAPI:
             data = tmp_path.read_bytes()
         finally:
             tmp_path.unlink(missing_ok=True)
+            app.state.render_slots.release()
 
         lang_tag = "-en" if (fmt == "xlsx-bukukerja" and lang == "en") else ""
         filename = f"pqcscan-scan{scan_id}-{name}{lang_tag}{suffix}"

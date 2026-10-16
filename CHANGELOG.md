@@ -5,6 +5,77 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed — `--path` / `--target` finally reach every probe
+- **`--path` was ignored by ~90 file-walking probes** (`fs.*`, `code.ts.*`,
+  `app.*`, `sbom.lang.*`, …): they walked only their hardcoded defaults
+  (`/etc`, `/srv`, `/opt`, `/var/www`). The runner now binds a per-scan copy
+  of each probe with its roots **replaced** by the user's paths
+  (`runner.bind_context`) — `--path` scopes every file-walking probe, the
+  same rule `fs.binary.crypto` already followed; omit `--path` for a host scan. `--target` likewise replaces the default
+  `127.0.0.1` host on every NETWORK probe that didn't already read it
+  (STARTTLS, DB-TLS, SSH, IKE, RDP, SMB, SNMP, port scans, testssl/sslyze/nmap).
+- **Compliance `probe_family` / `probe_id` / `probe_id_prefix` match keys** —
+  the NACSA `ot-no-crypto` clause used `probe_family: ot`, which the engine
+  never supported, so it never fired. Family resolves through the registry.
+- **OT plain-protocol findings are now `sangat-tinggi`** (were `info` with
+  `high` severity — invisible to the CBOM sheet, the risk register, the
+  benchmark "real detection" rule and the NACSA clause). DNP3 with Secure
+  Authentication present is `sederhana`. Unreachable-endpoint rows stay `info`.
+- `net.kerberos.asreq` is a reachability `info` row again (was `tinggi` for
+  any open TCP/88); etype grading is `net.kerberos.etypes`'s job.
+- `net.ports.udp`: removed the fake "raw" mode that silently ran the targeted
+  scan; it is targeted-only until a real ICMP-unreachable scan exists.
+- `sbom.lang.gomod`: operator-precedence slip in the replace-directive match.
+
+### Security — 2026-06-22 audit items
+- **Optional daemon auth**: `pqcscan daemon --token` / `$PQCSCAN_TOKEN`
+  requires `Authorization: Bearer` (API) or a session cookie from the `/login` form
+  (browser) on every request; `/api/health` stays open. A **non-loopback
+  `--bind` is refused without a token** (H1).
+- **CSRF guard**: state-changing requests whose browser `Origin` doesn't match
+  `Host` get 403 (M1).
+- **SQLite DB created `0600`** (-wal/-shm inherit) (H3).
+- **Release integrity**: `SHA256SUMS.txt` asset + GitHub build-provenance
+  attestation on every release (H5).
+- **Offline pack**: `fetch-offline-tools.sh` downloads a version-pinned syft
+  release and verifies it against the release checksums — no `curl | sh` (H4).
+- **XLSX formula injection**: scan-derived strings are forced to the string
+  cell type in both XLSX renderers (M2).
+- **Bounded SSE queues** (2000 events per subscriber; slow consumers drop
+  instead of growing the daemon) (M3).
+- `/frameworks` no longer echoes absolute YAML paths (L2).
+- Export / report renders capped at 2 concurrent (HTTP 429 beyond) (L1).
+- `pqcscan daemon --tls-cert/--tls-key` serves HTTPS directly.
+
+### Added — fleet + IBM i
+- **`pqcscan merge -o fleet.db a.db b.db …`** — folds per-host scan DBs into
+  one (per-host scans kept for drill-down, host fingerprint preserved or taken
+  from the file name) and builds a **fleet-rollup scan** (`evidence.host` per
+  finding) so every export — CBOM, SARIF, BUKUKERJA, PDF, readiness — runs
+  unchanged across the estate. Scans now record `host_fingerprint`.
+- **`pqcscan diff --scan A --baseline-scan B [--fail-on-drift] [--json]`** —
+  CLI over the existing scan diff; exit 1 on drift = HA/DR configuration-parity
+  gate.
+- **`fs.conf.ibmi_sysval` (180 probes)** — IBM i (AS/400) System SSL posture
+  from exported `QSSLPCL` / `QSSLCSL` / `QSSLCSLCTL` system values
+  (`DSPSYSVAL … OUTPUT(*PRINT)` spools or notes): weak protocols, `*OPSYS`
+  defaults, every cipher suite graded via the shared suite classifier. DCM PEM
+  exports are covered by `fs.cert.x509` through `--path`.
+- `probes/_severity.classify_suite` is now the one TLS cipher-suite grader
+  (was private to `fs.pcap.crypto`).
+
+### Changed
+- 13 per-probe copies of `_key_algorithm` collapsed into
+  `probes/_keyalg.key_algorithm` (public or private key → canonical name).
+
+### Docs
+- README / CONTRIBUTING / SECURITY / STATUS / issue + PR templates no longer
+  describe the CVE/secrets/OSV probes removed in v0.2.0; CBOM is 1.7, 179
+  probes; `docs/CICD.md` exit codes match the CLI (2 = scan failed, 3 =
+  unknown scan id); DEPLOYMENT documents the token.
+
 ## [0.9.12] — 2026-08-03
 
 ### Added — coverage: SQL Server + C#/.NET (179 probes)

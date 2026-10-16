@@ -31,10 +31,10 @@ src/pqcscan/
 ├── core/         types, alg classifier
 ├── runner/       async runner, capabilities, event bus
 ├── store/        SQLite schema + Repo
-├── probes/       177 probes; one file per probe; _registry.py wires them up
+├── probes/       180 probes; one file per probe; _registry.py wires them up
 ├── compliance/   engine + framework YAMLs
 ├── renderers/    PDF + XLSX
-├── cbom/         CycloneDX 1.6 builder
+├── cbom/         CycloneDX 1.7 builder
 ├── ui/           Jinja templates + i18n + routes
 ├── daemon/       FastAPI app + SSE
 ├── cli/          click subcommands
@@ -42,7 +42,7 @@ src/pqcscan/
 docs/             design spec, plans, references, STATUS.md
 tests/{unit,integration}/   pytest suites
 build/pyinstaller.spec      cross-OS binary spec
-scripts/                    build-binary, fetch-offline-tools, fetch-osv-snapshot
+scripts/                    build-binary, build-linux-compat, fetch-offline-tools, build-ui-assets
 .github/workflows/          ci.yml (lint+type+test) · release.yml (tag build)
 ```
 
@@ -120,23 +120,23 @@ pytest -q tests/integration         # integration (TestClient + SSE)
 pytest -q --cov=pqcscan             # with coverage
 ```
 
-End-to-end smoke test against a real OSV snapshot:
+End-to-end smoke test of a file-walking probe against a path:
 
 ```bash
-bash scripts/fetch-osv-snapshot.sh PyPI    # ~22 MB
 PYTHONPATH=src python3.11 -c "
 import asyncio
 from pathlib import Path
 from pqcscan.probes._base import ScanContext
-from pqcscan.probes.cve_osv_offline import CveOsvOffline
-p = CveOsvOffline(snapshot_path=Path('var/osv-snapshot.jsonl'),
-                  roots=[Path('/srv'), Path('/opt')])
+from pqcscan.probes.fs_cert_x509 import FsCertX509
+p = FsCertX509(roots=[Path('/etc/ssl')])
 ctx = ScanContext(scan_id=1, mode='user', available_capabilities=set())
 found = []
 asyncio.run(p.run(ctx, emit=lambda f: found.append(f)))
 print(f'{len(found)} findings')
 "
 ```
+
+Accuracy gate: `PYTHONPATH=src python benchmark/run_benchmark.py --min-precision 1.0 --min-recall 0.95`.
 
 ## Pull requests
 

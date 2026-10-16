@@ -66,7 +66,7 @@ class OTGtp(Probe):
         emit(Finding(
             probe_id=self.id,
             algorithm="plain-GTP",
-            classification=Classification.INFO,
+            classification=Classification.SANGAT_TINGGI,
             severity=Severity.HIGH,
             title=f"plain GTP at {target.host}:{target.port}",
             evidence={

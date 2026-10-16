@@ -1,9 +1,9 @@
-"""net.kerberos.asreq — connect to Kerberos KDC, observe protocol behaviour.
+"""net.kerberos.asreq — KDC reachability on TCP 88.
 
-Sending a full AS-REQ requires ASN.1 DER encoding which is non-trivial to
-hand-roll. v0.1 just verifies the KDC is listening on TCP 88 and emits an
-INFO finding so the framework registers Kerberos coverage; deep etype
-analysis lands when we add an ASN.1 DER encoder.
+Emits an INFO finding when a KDC answers. Encryption-type grading (RC4/DES/
+AES) is done by `net.kerberos.etypes`, which sends a real ASN.1 AS-REQ; this
+probe only records that a Kerberos service exists so the inventory is
+complete even when the etype probe is skipped.
 """
 from __future__ import annotations
 
@@ -53,10 +53,10 @@ class NetKerberosAsreq(Probe):
         emit(Finding(
             probe_id=self.id,
             algorithm="Kerberos",
-            classification=Classification.TINGGI,
-            severity=Severity.HIGH,
-            title=f"Kerberos KDC at {self.host}:{self.port} (deep etype analysis pending)",
+            classification=Classification.INFO,
+            severity=Severity.INFO,
+            title=f"Kerberos KDC reachable at {self.host}:{self.port}",
             evidence={"endpoint": f"{self.host}:{self.port}",
                       "response_bytes": len(resp),
-                      "deferred_to": "ASN.1 DER AS-REQ encoder for full etype probe"},
+                      "etype_grading": "net.kerberos.etypes"},
         ))

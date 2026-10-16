@@ -54,7 +54,7 @@ class OTIec61850Mms(Probe):
             emit(Finding(
                 probe_id=self.id,
                 algorithm="plain-MMS",
-                classification=Classification.INFO,
+                classification=Classification.SANGAT_TINGGI,
                 severity=Severity.HIGH,
                 title=f"plain IEC 61850 MMS at {target.host}:{target.port}",
                 evidence={
