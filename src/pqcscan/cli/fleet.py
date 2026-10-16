@@ -88,3 +88,99 @@ def diff_cmd(scan_id: int, baseline_id: int, db: Path | None, as_json: bool,
             click.echo(f"  - [{f.severity}] {f.probe_id} {f.algorithm}: {f.title}")
     if fail_on_drift and drift:
         sys.exit(1)
+
+
+def _open_repo(db: Path | None) -> Repo:
+    repo = Repo(db or default_db_path())
+    repo.init_schema()
+    return repo
+
+
+def resolve_scan_ref(repo: Repo, ref: str) -> tuple[int, bool]:
+    """'fleet' -> a temporary rollup scan (caller must delete_scan when done); else int id."""
+    if ref.strip().lower() == "fleet":
+        rid = repo.materialize_fleet_rollup()
+        if rid is None:
+            raise click.ClickException("no enrolled hosts with a completed scan")
+        return rid, True
+    try:
+        return int(ref), False
+    except ValueError as e:
+        raise click.BadParameter("must be a scan id or 'fleet'") from e
+
+
+@click.group("agents")
+def agents_cmd() -> None:
+    """Enrolled fleet agents."""
+
+
+@agents_cmd.command("list")
+@click.option("--db", type=click.Path(path_type=Path), default=None)
+@click.option("--json", "as_json", is_flag=True)
+def agents_list(db: Path | None, as_json: bool) -> None:
+    repo = _open_repo(db)
+    rows = [{"host_id": h.id, "hostname": h.hostname, "machine_id": h.machine_id, "os": h.os,
+             "labels": h.labels or {}, "agent_version": h.agent_version, "revoked": bool(h.revoked),
+             "last_seen": h.last_seen.isoformat() if h.last_seen else None} for h in repo.list_hosts()]
+    if as_json:
+        click.echo(json.dumps(rows))
+        return
+    for r in rows:
+        flag = " (revoked)" if r["revoked"] else ""
+        click.echo(f"{r['host_id']}\t{r['hostname']}\t{r['os']}\t{r['last_seen']}\t{r['labels']}{flag}")
+
+
+@agents_cmd.command("revoke")
+@click.argument("host_id", type=int)
+@click.option("--db", type=click.Path(path_type=Path), default=None)
+def agents_revoke(host_id: int, db: Path | None) -> None:
+    repo = _open_repo(db)
+    if not repo.revoke_host(host_id):
+        click.echo(f"host {host_id} not found", err=True)
+        sys.exit(3)
+    click.echo(f"revoked host {host_id}; its agent must re-enroll")
+
+
+@agents_cmd.command("unrevoke")
+@click.argument("host_id", type=int)
+@click.option("--db", type=click.Path(path_type=Path), default=None)
+def agents_unrevoke(host_id: int, db: Path | None) -> None:
+    """Allow a revoked host to enroll again."""
+    repo = _open_repo(db)
+    if not repo.unrevoke_host(host_id):
+        click.echo(f"host {host_id} not found", err=True)
+        sys.exit(3)
+    click.echo(f"unrevoked host {host_id}; its agent must re-enroll")
+
+
+@click.group("fleet")
+def fleet_cmd() -> None:
+    """Fleet-wide views and maintenance."""
+
+
+@fleet_cmd.command("summary")
+@click.option("--db", type=click.Path(path_type=Path), default=None)
+@click.option("--json", "as_json", is_flag=True)
+def fleet_summary(db: Path | None, as_json: bool) -> None:
+    repo = _open_repo(db)
+    rows = [{"host_id": x.host.id, "hostname": x.host.hostname, "labels": x.host.labels or {},
+             "scan_id": x.scan_id, "finished_at": x.finished_at.isoformat() if x.finished_at else None,
+             "readiness": x.readiness, "crit": x.crit, "high": x.high, "total": x.total}
+            for x in repo.fleet_summary()]
+    if as_json:
+        click.echo(json.dumps(rows))
+        return
+    click.echo(f"{'host':24s} {'readiness':>9} {'crit':>5} {'high':>5} {'total':>6}  last scan")
+    for r in rows:
+        click.echo(f"{r['hostname']:24s} {r['readiness']!s:>9} {r['crit']:>5} {r['high']:>5} "
+                   f"{r['total']:>6}  {r['finished_at'] or '-'}")
+
+
+@fleet_cmd.command("prune")
+@click.option("--keep", type=click.IntRange(min=1), default=12, show_default=True,
+              help="Scans to keep per host.")
+@click.option("--db", type=click.Path(path_type=Path), default=None)
+def fleet_prune(keep: int, db: Path | None) -> None:
+    repo = _open_repo(db)
+    n = repo.prune_scans(keep_per_host=keep)
+    click.echo(f"pruned {n} scans (kept {keep} per host)")

@@ -11,7 +11,8 @@ from pqcscan.util.paths import default_db_path
 
 
 @click.command()
-@click.option("--scan", "scan_id", type=int, required=True)
+@click.option("--scan", "scan_ref", required=True,
+              help="Scan id, or 'fleet' for the latest scan of every enrolled host.")
 @click.option(
     "--format", "fmt", required=True,
     type=click.Choice(
@@ -29,16 +30,24 @@ from pqcscan.util.paths import default_db_path
     help="Output language for the PDF and BUKUKERJA XLSX reports.",
 )
 def export_cmd(
-    scan_id: int, fmt: str, out: Path, db: Path | None, lang: str,
+    scan_ref: str, fmt: str, out: Path, db: Path | None, lang: str,
 ) -> None:
     """Export a scan in the chosen format."""
+    from pqcscan.cli.fleet import resolve_scan_ref
     repo = Repo(db or default_db_path())
     repo.init_schema()
-    if repo.get_scan(scan_id) is None:
-        click.echo(f"scan {scan_id} not found", err=True)
-        sys.exit(3)
+    scan_id, temp = resolve_scan_ref(repo, scan_ref)
+    try:
+        if repo.get_scan(scan_id) is None:
+            click.echo(f"scan {scan_id} not found", err=True)
+            sys.exit(3)
+        _export(repo, scan_id, fmt.lower(), lang, out)
+    finally:
+        if temp:
+            repo.delete_scan(scan_id)
 
-    f = fmt.lower()
+
+def _export(repo: Repo, scan_id: int, f: str, lang: str, out: Path) -> None:
     if f == "cbom":
         # Lazy imports keep CLI startup snappy and let optional deps stay
         # optional even if a renderer's transitive deps fail to import.

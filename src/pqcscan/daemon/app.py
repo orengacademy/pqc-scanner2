@@ -283,16 +283,25 @@ def create_app(
             "common": diff["common"],
         }
 
-    @app.get("/api/scans/{scan_id}/export/{fmt}")
-    async def export_scan(scan_id: int, fmt: str, lang: str = "ms") -> Response:
+    @app.get("/api/scans/{scan_ref}/export/{fmt}")
+    async def export_scan(scan_ref: str, fmt: str, lang: str = "ms") -> Response:
         """Render a scan to one of 5 formats and return as a binary download.
 
         Mirrors the CLI surface (`pqcscan export --format <fmt>`) but pipes the
         result back through HTTP so the web UI's export buttons work without
         users having to touch the CLI. PDF formats degrade gracefully (HTTP 503
-        with a helpful message) when the optional weasyprint dep is absent."""
-        if repo.get_scan(scan_id) is None:
-            raise HTTPException(404, "scan not found")
+        with a helpful message) when the optional weasyprint dep is absent.
+
+        `scan_ref` is a scan id, or 'fleet' for a temporary rollup of the latest
+        scan of every enrolled host (deleted again once rendered)."""
+        is_fleet = scan_ref.strip().lower() == "fleet"
+        scan_id = 0
+        if not is_fleet:
+            if not scan_ref.isdecimal():
+                raise HTTPException(422, "scan must be a scan id or 'fleet'")
+            scan_id = int(scan_ref)
+            if repo.get_scan(scan_id) is None:
+                raise HTTPException(404, "scan not found")
 
         import tempfile
 
@@ -313,7 +322,13 @@ def create_app(
         acquire_render_slot(app)
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
             tmp_path = Path(tmp.name)
+        temp_rollup = False
         try:
+            if is_fleet:
+                rid = repo.materialize_fleet_rollup()
+                if rid is None:
+                    raise HTTPException(404, "no enrolled hosts with a completed scan")
+                scan_id, temp_rollup = rid, True
             if fmt == "cbom":
                 import json as _json
 
@@ -354,11 +369,15 @@ def create_app(
                 render_xlsx_generic(repo, scan_id, tmp_path)
             data = tmp_path.read_bytes()
         finally:
-            tmp_path.unlink(missing_ok=True)
-            app.state.render_slots.release()
+            try:
+                if temp_rollup:
+                    repo.delete_scan(scan_id)
+            finally:
+                tmp_path.unlink(missing_ok=True)
+                app.state.render_slots.release()
 
         lang_tag = "-en" if (fmt == "xlsx-bukukerja" and lang == "en") else ""
-        filename = f"pqcscan-scan{scan_id}-{name}{lang_tag}{suffix}"
+        filename = f"pqcscan-{'fleet' if is_fleet else f'scan{scan_id}'}-{name}{lang_tag}{suffix}"
         return Response(
             content=data,
             media_type=content_type,
