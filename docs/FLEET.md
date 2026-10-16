@@ -7,6 +7,9 @@ exports from them.
 
 1. **Collector.** `pqcscan daemon --bind 0.0.0.0 --token <site> --enroll-token <enroll> --tls-cert c.pem --tls-key k.pem`
    (or behind the nginx recipe in [DEPLOYMENT.md](DEPLOYMENT.md) with `--allow-host`).
+   Agents authenticate with their own bearer token, so the proxy must not add
+   basic auth on `/api/ingest` and `/api/agents/enroll`. The recipe's extra
+   `location` block for those two paths does this.
    `--enroll-token` (or `PQCSCAN_ENROLL_TOKEN`) enables `/api/agents/enroll`;
    without it the endpoint is off.
 2. **Host, one-shot (recommended).** From cron / systemd timer / Task Scheduler / BigFix / Ansible:
@@ -25,11 +28,12 @@ exports from them.
 5. **Parity (HA/DR).** `pqcscan diff --scan <dr scan> --baseline-scan <primary scan> --fail-on-drift`.
    `pqcscan merge -o fleet.db a.db b.db` still folds per-host DBs offline.
 6. **Admin.**
-   - `pqcscan agents list` shows every host with `first_seen` and `last_seen`.
+   - `pqcscan agents list` shows every host with `first_seen` and `last_seen` (also in `--json`).
    - `pqcscan agents revoke <id>` blocks a host. `pqcscan agents unrevoke <id>` lets it enroll again.
    - `pqcscan fleet prune --keep 12` keeps the newest 12 scans per host.
 7. **Scale.** SQLite handles roughly 2,000 hosts daily. Past roughly 10k per day,
-   run the daemon with `--db postgresql://user:pw@host/db` after
+   run the daemon with `--db postgresql://user:pw@host/db` (every CLI command
+   takes the same `--db` URL) after
    `pip install 'pqcscan[fleet-pg]'`. See Known limits.
 
 ## Security

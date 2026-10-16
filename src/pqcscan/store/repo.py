@@ -93,9 +93,12 @@ class Repo:
                 # The DB holds the host's full crypto inventory (key paths, weak
                 # configs): owner-only, whatever the umask. SQLite gives -wal/-shm
                 # the main file's mode, so one chmod covers all three.
-                with contextlib.suppress(OSError):
-                    if os.path.isfile(str(db_path)):
-                        os.chmod(str(db_path), 0o600)
+                # Use the file SQLAlchemy actually opened (a URL argument is not a path).
+                real = self.engine.url.database
+                if real and real != ":memory:":
+                    with contextlib.suppress(OSError):
+                        if os.path.isfile(real):
+                            os.chmod(real, 0o600)
 
     def init_schema(self) -> None:
         migrations.apply(self.engine)

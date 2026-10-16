@@ -6,8 +6,8 @@ from pathlib import Path
 
 import click
 
+from pqcscan.cli._db import db_arg
 from pqcscan.store.repo import Repo
-from pqcscan.util.paths import default_db_path
 
 
 @click.command()
@@ -21,7 +21,7 @@ from pqcscan.util.paths import default_db_path
     ),
 )
 @click.option("-o", "--out", type=click.Path(path_type=Path), required=True)
-@click.option("--db", type=click.Path(path_type=Path), default=None)
+@click.option("--db", type=str, default=None, help="SQLite file path or SQLAlchemy URL (postgresql://…).")
 @click.option(
     "--lang",
     type=click.Choice(["ms", "en"], case_sensitive=False),
@@ -30,11 +30,11 @@ from pqcscan.util.paths import default_db_path
     help="Output language for the PDF and BUKUKERJA XLSX reports.",
 )
 def export_cmd(
-    scan_ref: str, fmt: str, out: Path, db: Path | None, lang: str,
+    scan_ref: str, fmt: str, out: Path, db: str | None, lang: str,
 ) -> None:
     """Export a scan in the chosen format."""
     from pqcscan.cli.fleet import resolve_scan_ref
-    repo = Repo(db or default_db_path())
+    repo = Repo(db_arg(db))
     repo.init_schema()
     scan_id, temp = resolve_scan_ref(repo, scan_ref)
     try:

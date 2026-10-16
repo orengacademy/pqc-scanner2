@@ -168,6 +168,16 @@ server {
     auth_basic           "pqcscan";
     auth_basic_user_file /etc/nginx/pqcscan.htpasswd;
 
+    # Fleet agents authenticate with their own bearer token, so these two paths
+    # must not sit behind Basic auth (only needed when you use fleet mode).
+    location ~ ^/api/(ingest|agents/enroll)$ {
+        auth_basic         off;
+        client_max_body_size 9m;
+        proxy_pass         http://127.0.0.1:8765;
+        proxy_http_version 1.1;
+        proxy_set_header   Host $host;
+    }
+
     location / {
         proxy_pass         http://127.0.0.1:8765;
         proxy_http_version 1.1;

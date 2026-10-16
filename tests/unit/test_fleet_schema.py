@@ -50,8 +50,15 @@ def test_pre_fleet_db_is_upgraded_in_place(tmp_path: Path):
 
 
 def test_repo_accepts_full_sqlalchemy_url_or_plain_path(tmp_path: Path):
-    assert Repo("sqlite:///:memory:").engine.url.drivername == "sqlite"
+    # The old code would have opened a file literally named "sqlite:/:memory:".
+    assert Repo("sqlite:///:memory:").engine.url.database == ":memory:"
     plain = Repo(tmp_path / "plain.db")
     plain.init_schema()
-    assert plain.engine.url.drivername == "sqlite"
-    assert plain.engine.url.database == str(tmp_path / "plain.db")
+    assert plain.engine.url.database.endswith(str(tmp_path / "plain.db"))
+
+
+def test_sqlite_url_db_file_is_chmod_0600(tmp_path: Path):
+    db = tmp_path / "u.db"
+    repo = Repo("sqlite:///" + str(db))
+    repo.init_schema()
+    assert db.exists() and (db.stat().st_mode & 0o777) == 0o600

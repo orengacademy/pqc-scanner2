@@ -35,6 +35,7 @@ def test_agents_list_and_revoke(tmp_path):
     db = _fleet_db(tmp_path)
     r = CliRunner().invoke(agents_cmd, ["list", "--db", str(db), "--json"])
     assert r.exit_code == 0 and [x["hostname"] for x in json.loads(r.output)] == ["web01", "web02"]
+    assert all(x["first_seen"] and x["last_seen"] for x in json.loads(r.output))
     assert CliRunner().invoke(agents_cmd, ["revoke", "1", "--db", str(db)]).exit_code == 0
     assert Repo(db).get_host(1).revoked is True
     assert CliRunner().invoke(agents_cmd, ["revoke", "99", "--db", str(db)]).exit_code == 3
@@ -173,6 +174,7 @@ def test_agents_list_plain_text_shows_host_and_revoked_flag(tmp_path):
     lines = r.output.strip().splitlines()
     assert r.exit_code == 0 and len(lines) == 2
     assert "web01" in lines[0] and "(revoked)" not in lines[0]
+    assert len(lines[0].split("\t")) == 6  # id, host, os, first_seen, last_seen, labels
     assert "web02" in lines[1] and lines[1].endswith("(revoked)")
 
 
@@ -182,3 +184,10 @@ def test_fleet_summary_plain_text_has_header_and_rows(tmp_path):
     lines = r.output.strip().splitlines()
     assert r.exit_code == 0 and lines[0].split() == ["host", "readiness", "crit", "high", "total", "last", "scan"]
     assert [ln.split()[0] for ln in lines[1:]] == ["web01", "web02"]
+
+
+def test_db_option_accepts_sqlalchemy_url(tmp_path):
+    db = tmp_path / "x.db"
+    r = CliRunner().invoke(agents_cmd, ["list", "--db", "sqlite:///" + str(db), "--json"])
+    assert r.exit_code == 0 and json.loads(r.output) == []
+    assert db.exists()

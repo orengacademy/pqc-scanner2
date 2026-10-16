@@ -7,15 +7,14 @@ from pathlib import Path
 import click
 import uvicorn
 
+from pqcscan.cli._db import db_arg
 from pqcscan.daemon.app import create_app, is_loopback
-from pqcscan.util.paths import default_db_path
 
 
 @click.command()
 @click.option("--port", type=int, default=8765)
 @click.option("--bind", default="127.0.0.1", help="Bind address. Default 127.0.0.1.")
-@click.option("--db", type=str, default=None,
-              help="SQLite file path, or a SQLAlchemy URL such as postgresql://user:pw@host/db (fleet scale).")
+@click.option("--db", type=str, default=None, help="SQLite file path or SQLAlchemy URL (postgresql://…).")
 @click.option("--tls-cert", type=click.Path(path_type=Path, exists=True), default=None,
               help="Serve HTTPS: PEM certificate (with --tls-key).")
 @click.option("--tls-key", type=click.Path(path_type=Path, exists=True), default=None,
@@ -49,11 +48,8 @@ def daemon_cmd(
             err=True,
         )
         sys.exit(2)
-    db_path: Path | str
-    if db and "://" in db:
-        db_path = db  # SQLAlchemy URL: Path() would collapse the "//"
-    else:
-        db_path = Path(db) if db else default_db_path()
+    db_path = db_arg(db)
+    if isinstance(db_path, Path):
         db_path.parent.mkdir(parents=True, exist_ok=True)
     app = create_app(
         db_path=db_path, token=token, enroll_token=enroll_token,

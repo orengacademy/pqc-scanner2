@@ -9,6 +9,7 @@ from typing import Protocol
 
 import click
 
+from pqcscan.cli._db import db_arg
 from pqcscan.core.mosca import MoscaInputs, assess, summary_lines
 from pqcscan.core.types import Severity
 from pqcscan.probes._registry import default_registry
@@ -17,7 +18,6 @@ from pqcscan.runner.event_bus import EventBus
 from pqcscan.runner.runner import ProbeRunner
 from pqcscan.runner.targets import parse_scan_inputs
 from pqcscan.store.repo import Repo
-from pqcscan.util.paths import default_db_path
 
 # --fail-on threshold names, ordered least → most severe. "none" disables the
 # CI gate entirely (the scan always exits 0 unless an internal error occurs).
@@ -56,11 +56,12 @@ def _gate_tripped(findings: Iterable[_HasSeverity], threshold: str) -> bool:
 
 
 def run_local_scan(
-    *, db_path: Path, paths: Iterable[str] = (), target: str | None = None,
+    *, db_path: Path | str, paths: Iterable[str] = (), target: str | None = None,
     ot: Iterable[str] = (), watch: bool = False,
 ) -> tuple[Repo, int]:
     """Run one in-process scan; returns (repo, scan_id). Raises on failure."""
-    db_path.parent.mkdir(parents=True, exist_ok=True)
+    if isinstance(db_path, Path):
+        db_path.parent.mkdir(parents=True, exist_ok=True)
     repo = Repo(db_path)
     repo.init_schema()
     bus = EventBus()
@@ -117,7 +118,7 @@ def _report_to_fleet(
 
 
 @click.command()
-@click.option("--db", type=click.Path(path_type=Path), default=None)
+@click.option("--db", type=str, default=None, help="SQLite file path or SQLAlchemy URL (postgresql://…).")
 @click.option("--json", "as_json", is_flag=True, help="Emit JSON to stdout.")
 @click.option("--watch", is_flag=True, help="Stream events to stderr while scanning.")
 @click.option(
@@ -167,7 +168,7 @@ def _report_to_fleet(
 @click.option("--allow-http", "allow_http", is_flag=True,
               help="Allow --report-to over plain http to a non-loopback host (credentials in clear text).")
 def scan_cmd(
-    db: Path | None, as_json: bool, watch: bool,
+    db: str | None, as_json: bool, watch: bool,
     target: str | None, paths: tuple[str, ...], ot: tuple[str, ...],
     data_lifetime: float, migration_years: float, threat_years: float,
     fail_on: str,
@@ -190,7 +191,7 @@ def scan_cmd(
     ('high') fails the build on any high or critical finding.
     """
     try:
-        db_path = db or default_db_path()
+        db_path = db_arg(db)
         repo, scan_id = run_local_scan(db_path=db_path, paths=paths, target=target, ot=ot, watch=watch)
     except Exception as e:  # documented "scan failed" exit
         click.echo(f"scan failed: {e}", err=True)
@@ -253,10 +254,10 @@ def scan_cmd(
 
 
 @click.command()
-@click.option("--db", type=click.Path(path_type=Path), default=None)
-def scans_cmd(db: Path | None) -> None:
+@click.option("--db", type=str, default=None, help="SQLite file path or SQLAlchemy URL (postgresql://…).")
+def scans_cmd(db: str | None) -> None:
     """List scans."""
-    repo = Repo(db or default_db_path())
+    repo = Repo(db_arg(db))
     repo.init_schema()
     for s in repo.list_scans():
         click.echo(f"{s.id}\t{s.started_at.isoformat()}\t{s.status}\t{s.mode}")
@@ -264,10 +265,10 @@ def scans_cmd(db: Path | None) -> None:
 
 @click.command()
 @click.option("--id", "scan_id", type=int, required=True)
-@click.option("--db", type=click.Path(path_type=Path), default=None)
-def status_cmd(scan_id: int, db: Path | None) -> None:
+@click.option("--db", type=str, default=None, help="SQLite file path or SQLAlchemy URL (postgresql://…).")
+def status_cmd(scan_id: int, db: str | None) -> None:
     """Show one scan's status."""
-    repo = Repo(db or default_db_path())
+    repo = Repo(db_arg(db))
     repo.init_schema()
     s = repo.get_scan(scan_id)
     if s is None:

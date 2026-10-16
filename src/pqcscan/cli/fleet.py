@@ -7,8 +7,8 @@ from pathlib import Path
 
 import click
 
+from pqcscan.cli._db import db_arg
 from pqcscan.store.repo import Repo, is_fleet_ref
-from pqcscan.util.paths import default_db_path
 
 
 @click.command()
@@ -50,18 +50,18 @@ def merge_cmd(sources: tuple[Path, ...], out: Path, no_rollup: bool, as_json: bo
 @click.option("--scan", "scan_id", type=int, required=True, help="Current scan id.")
 @click.option("--baseline-scan", "baseline_id", type=int, required=True,
               help="Scan to compare against (primary / baseline / HA peer).")
-@click.option("--db", type=click.Path(path_type=Path), default=None)
+@click.option("--db", type=str, default=None, help="SQLite file path or SQLAlchemy URL (postgresql://…).")
 @click.option("--json", "as_json", is_flag=True)
 @click.option("--fail-on-drift", is_flag=True,
               help="Exit 1 when the scans differ (HA/DR parity gate).")
-def diff_cmd(scan_id: int, baseline_id: int, db: Path | None, as_json: bool,
+def diff_cmd(scan_id: int, baseline_id: int, db: str | None, as_json: bool,
              fail_on_drift: bool) -> None:
     """Diff two scans by (probe, algorithm, title): added / removed / common.
 
     HA/DR parity: scan the primary and each peer (same DB, or merge them),
     then `pqcscan diff --scan <peer> --baseline-scan <primary> --fail-on-drift`.
     """
-    repo = Repo(db or default_db_path())
+    repo = Repo(db_arg(db))
     repo.init_schema()
     for sid in (scan_id, baseline_id):
         if repo.get_scan(sid) is None:
@@ -90,8 +90,8 @@ def diff_cmd(scan_id: int, baseline_id: int, db: Path | None, as_json: bool,
         sys.exit(1)
 
 
-def _open_repo(db: Path | None) -> Repo:
-    repo = Repo(db or default_db_path())
+def _open_repo(db: str | None) -> Repo:
+    repo = Repo(db_arg(db))
     repo.init_schema()
     return repo
 
@@ -115,25 +115,26 @@ def agents_cmd() -> None:
 
 
 @agents_cmd.command("list")
-@click.option("--db", type=click.Path(path_type=Path), default=None)
+@click.option("--db", type=str, default=None, help="SQLite file path or SQLAlchemy URL (postgresql://…).")
 @click.option("--json", "as_json", is_flag=True)
-def agents_list(db: Path | None, as_json: bool) -> None:
+def agents_list(db: str | None, as_json: bool) -> None:
     repo = _open_repo(db)
     rows = [{"host_id": h.id, "hostname": h.hostname, "machine_id": h.machine_id, "os": h.os,
              "labels": h.labels or {}, "agent_version": h.agent_version, "revoked": bool(h.revoked),
+             "first_seen": h.first_seen.isoformat() if h.first_seen else None,
              "last_seen": h.last_seen.isoformat() if h.last_seen else None} for h in repo.list_hosts()]
     if as_json:
         click.echo(json.dumps(rows))
         return
     for r in rows:
         flag = " (revoked)" if r["revoked"] else ""
-        click.echo(f"{r['host_id']}\t{r['hostname']}\t{r['os']}\t{r['last_seen']}\t{r['labels']}{flag}")
+        click.echo(f"{r['host_id']}\t{r['hostname']}\t{r['os']}\t{r['first_seen']}\t{r['last_seen']}\t{r['labels']}{flag}")
 
 
 @agents_cmd.command("revoke")
 @click.argument("host_id", type=int)
-@click.option("--db", type=click.Path(path_type=Path), default=None)
-def agents_revoke(host_id: int, db: Path | None) -> None:
+@click.option("--db", type=str, default=None, help="SQLite file path or SQLAlchemy URL (postgresql://…).")
+def agents_revoke(host_id: int, db: str | None) -> None:
     repo = _open_repo(db)
     if not repo.revoke_host(host_id):
         click.echo(f"host {host_id} not found", err=True)
@@ -143,8 +144,8 @@ def agents_revoke(host_id: int, db: Path | None) -> None:
 
 @agents_cmd.command("unrevoke")
 @click.argument("host_id", type=int)
-@click.option("--db", type=click.Path(path_type=Path), default=None)
-def agents_unrevoke(host_id: int, db: Path | None) -> None:
+@click.option("--db", type=str, default=None, help="SQLite file path or SQLAlchemy URL (postgresql://…).")
+def agents_unrevoke(host_id: int, db: str | None) -> None:
     """Allow a revoked host to enroll again."""
     repo = _open_repo(db)
     if not repo.unrevoke_host(host_id):
@@ -159,9 +160,9 @@ def fleet_cmd() -> None:
 
 
 @fleet_cmd.command("summary")
-@click.option("--db", type=click.Path(path_type=Path), default=None)
+@click.option("--db", type=str, default=None, help="SQLite file path or SQLAlchemy URL (postgresql://…).")
 @click.option("--json", "as_json", is_flag=True)
-def fleet_summary(db: Path | None, as_json: bool) -> None:
+def fleet_summary(db: str | None, as_json: bool) -> None:
     repo = _open_repo(db)
     rows = [{"host_id": x.host.id, "hostname": x.host.hostname, "labels": x.host.labels or {},
              "scan_id": x.scan_id, "finished_at": x.finished_at.isoformat() if x.finished_at else None,
@@ -179,8 +180,8 @@ def fleet_summary(db: Path | None, as_json: bool) -> None:
 @fleet_cmd.command("prune")
 @click.option("--keep", type=click.IntRange(min=1), default=12, show_default=True,
               help="Scans to keep per host.")
-@click.option("--db", type=click.Path(path_type=Path), default=None)
-def fleet_prune(keep: int, db: Path | None) -> None:
+@click.option("--db", type=str, default=None, help="SQLite file path or SQLAlchemy URL (postgresql://…).")
+def fleet_prune(keep: int, db: str | None) -> None:
     repo = _open_repo(db)
     n = repo.prune_scans(keep_per_host=keep)
     click.echo(f"pruned {n} scans (kept {keep} per host)")

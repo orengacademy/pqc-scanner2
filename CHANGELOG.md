@@ -25,14 +25,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`pqcscan agents list|revoke|unrevoke`** and **`pqcscan fleet summary|prune --keep N`**.
 - **`pqcscan export --scan fleet`** (CLI and daemon API) — latest scan of every
   host via a temporary rollup, `evidence.host` set, for CBOM, SARIF, XLSX and PDF.
-- **PostgreSQL option** — `--db` accepts a SQLAlchemy URL
-  (`postgresql://…`, `pip install 'pqcscan[fleet-pg]'`). Wired, not yet tested.
+- **PostgreSQL option** — `--db` accepts a SQLAlchemy URL on every CLI command
+  and on the daemon (`postgresql://…`, `pip install 'pqcscan[fleet-pg]'`).
+  Wired, not yet tested.
+- `pqcscan agents list` now shows `first_seen` (table and `--json`); the nginx
+  recipe exempts `/api/ingest` and `/api/agents/enroll` from Basic auth.
 
 ### Security — hardening done during review
 - **Never lose a report**: a failed post spools the bundle and retries on the next run.
 - **State files** (agent token, spool) are written `0600` with `O_NOFOLLOW` / `O_EXCL`.
 - **https or loopback only** for `--report-to`; plain http needs `--allow-http`.
 - **Revoked hosts cannot re-enroll** until `pqcscan agents unrevoke`.
+- **SQLite file mode**: the 0600 chmod targets the file SQLAlchemy actually
+  opens, including when `--db` is a `sqlite:///` URL.
 - **Keyed machine ids**: domain-separated SHA-256, never the raw machine id.
 - **Ingest validation and caps**: 8 MiB wire, 50 MiB raw, 200,000 findings,
   one bundle per minute per host, bundle `machine_id` must match the token;
