@@ -32,8 +32,9 @@ exports from them.
    - `pqcscan agents revoke <id>` blocks a host. `pqcscan agents unrevoke <id>` lets it enroll again.
    - `pqcscan fleet prune --keep 12` keeps the newest 12 scans per host.
 7. **Scale.** SQLite handles roughly 2,000 hosts daily. Past roughly 10k per day,
-   run the daemon with `--db postgresql://user:pw@host/db` (every CLI command
-   takes the same `--db` URL) after
+   run the daemon with `--db postgresql+psycopg://user:pw@host/db` (every CLI command
+   takes the same `--db` URL; `fleet-pg` installs psycopg 3, so the URL needs
+   the `+psycopg` driver suffix) after
    `pip install 'pqcscan[fleet-pg]'`. See Known limits.
 
 ## Security

@@ -25,8 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`pqcscan agents list|revoke|unrevoke`** and **`pqcscan fleet summary|prune --keep N`**.
 - **`pqcscan export --scan fleet`** (CLI and daemon API) — latest scan of every
   host via a temporary rollup, `evidence.host` set, for CBOM, SARIF, XLSX and PDF.
-- **PostgreSQL option** — `--db` accepts a SQLAlchemy URL on every CLI command
-  and on the daemon (`postgresql://…`, `pip install 'pqcscan[fleet-pg]'`).
+- **PostgreSQL option** — every CLI command and the daemon accept a SQLAlchemy URL
+  for `--db` (`postgresql+psycopg://…`, `pip install 'pqcscan[fleet-pg]'`).
   Wired, not yet tested.
 - `pqcscan agents list` now shows `first_seen` (table and `--json`); the nginx
   recipe exempts `/api/ingest` and `/api/agents/enroll` from Basic auth.
@@ -36,6 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **State files** (agent token, spool) are written `0600` with `O_NOFOLLOW` / `O_EXCL`.
 - **https or loopback only** for `--report-to`; plain http needs `--allow-http`.
 - **Revoked hosts cannot re-enroll** until `pqcscan agents unrevoke`.
+- **Re-enrolling** a non-revoked machine id rotates its token (and is logged).
+- **`/api/ingest` and `/api/agents/enroll`** bypass the site `--token` guard
+  (agents use their own bearer token) but keep the Host and Origin guards.
+- **Ingest parse and store** run in a thread pool, off the event loop.
+- **Unreadable machine-id files** fall through to the next identity source.
 - **SQLite file mode**: the 0600 chmod targets the file SQLAlchemy actually
   opens, including when `--db` is a `sqlite:///` URL.
 - **Keyed machine ids**: domain-separated SHA-256, never the raw machine id.

@@ -231,14 +231,14 @@ sudo setsebool -P httpd_can_network_connect 1
 
 ## Configuration reference
 
-| Setting    | Flag / env                         | Default                       |
-| ---------- | ---------------------------------- | ----------------------------- |
-| Bind addr  | `--bind`                           | `127.0.0.1`                   |
-| Port       | `--port`                           | `8765`                        |
-| DB path    | `--db` / `PQCSCAN_DB_PATH`         | `/var/lib/pqcscan/pqcscan.db` |
-| Auth token | `--token` / `PQCSCAN_TOKEN`        | none (loopback only)          |
-| Enroll token | `--enroll-token` / `PQCSCAN_ENROLL_TOKEN` | none (fleet off) |
-| HTTPS      | `--tls-cert` + `--tls-key`         | off (plain HTTP)              |
-| Host allowlist | `--allow-host` (repeatable)    | loopback, `--bind`, hostname  |
+| Setting        | Flag / env                                | Default                       |
+| -------------- | ----------------------------------------- | ----------------------------- |
+| Bind addr      | `--bind`                                  | `127.0.0.1`                   |
+| Port           | `--port`                                  | `8765`                        |
+| DB path        | `--db` / `PQCSCAN_DB_PATH`                | `/var/lib/pqcscan/pqcscan.db` |
+| Auth token     | `--token` / `PQCSCAN_TOKEN`               | none (loopback only)          |
+| Enroll token   | `--enroll-token` / `PQCSCAN_ENROLL_TOKEN` | none (fleet off)              |
+| HTTPS          | `--tls-cert` + `--tls-key`                | off (plain HTTP)              |
+| Host allowlist | `--allow-host` (repeatable)               | loopback, `--bind`, hostname  |
 
 Health check endpoint: `GET /api/health` → `{"ok": true, "version": "..."}`.

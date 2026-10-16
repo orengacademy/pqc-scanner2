@@ -26,7 +26,7 @@ chmod +x pqcscan
 ./pqcscan scan --json      # scan the local host, print a JSON summary
 ```
 
-**What v0.10.0 brings** (the full 0.9.x arc is in [`CHANGELOG.md`](CHANGELOG.md)
+**What v0.10.0 brings** (the full 0.9.x–0.10.x arc is in [`CHANGELOG.md`](CHANGELOG.md)
 and [`docs/STATUS.md` §10](docs/STATUS.md)):
 
 - **Fleet mode (phase 1)** — hosts run `pqcscan scan --report-to https://collector:8765`;
