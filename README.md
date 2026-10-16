@@ -7,10 +7,10 @@ Post-Quantum Cryptography (PQC) readiness scanner. Single Python process. Bundle
 
 ---
 
-## Latest release — v0.9.12
+## Latest release — v0.9.13
 
 Grab a **self-contained binary** — no Python, no `pip`, nothing else required on
-the host — from the [**v0.9.12 release**](https://github.com/orengacademy/pqc-scanner2/releases/tag/v0.9.12):
+the host — from the [**v0.9.13 release**](https://github.com/orengacademy/pqc-scanner2/releases/tag/v0.9.13):
 
 | Platform | Asset | Floor |
 |---|---|---|
@@ -20,24 +20,32 @@ the host — from the [**v0.9.12 release**](https://github.com/orengacademy/pqc-
 
 ```bash
 curl -fsSLo pqcscan \
-  https://github.com/orengacademy/pqc-scanner2/releases/download/v0.9.12/pqcscan-linux-x86_64
+  https://github.com/orengacademy/pqc-scanner2/releases/download/v0.9.13/pqcscan-linux-x86_64
 chmod +x pqcscan
-./pqcscan version          # -> pqcscan 0.9.12
+./pqcscan version          # -> pqcscan 0.9.13
 ./pqcscan scan --json      # scan the local host, print a JSON summary
 ```
 
-**What v0.9.12 brings** (the full 0.9.x arc is in [`CHANGELOG.md`](CHANGELOG.md)
+**What v0.9.13 brings** (the full 0.9.x arc is in [`CHANGELOG.md`](CHANGELOG.md)
 and [`docs/STATUS.md` §10](docs/STATUS.md)):
 
-- **SQL Server + C#/.NET coverage (180 probes)** — `net.db.mssql_tls` reads PQC
-  posture out of the TDS-tunnelled TLS handshake the OS `ssl` stack can't see,
-  and `code.ts.csharp` finds quantum-vulnerable crypto in ASP.NET Core sources.
-- **Runner/daemon hardening** — a raising `applies()` no longer aborts a scan;
-  cross-loop-safe SSE with idle keepalives; race-free single-scan guard; SQLite
-  WAL + busy_timeout; stale-scan reconciliation on startup.
-- **Correctness** — `fs.cert.x509` now flags ROCA / sub-1024-bit RSA keys;
-  `net.tls.https` honours `--target`; compliance key-size matching reads the
-  modulus, not a stray version digit.
+- **`--path` / `--target` reach every probe** — `--path` scopes all ~90
+  file-walking probes and `--target` drives every network probe
+  (`runner.bind_context`); before, most probes silently walked their host
+  defaults and ignored both flags.
+- **Fleet + IBM i (180 probes)** — `pqcscan merge` folds per-host DBs into one
+  fleet DB with a rollup scan so every export covers the estate;
+  `pqcscan diff --fail-on-drift` is the HA/DR parity gate;
+  `fs.conf.ibmi_sysval` grades IBM i (AS/400) `QSSLPCL`/`QSSLCSL` exports.
+- **Daemon hardening** — optional `--token` (form login, random session cookie),
+  Origin/Host CSRF guard, Host allowlist against DNS rebinding, non-loopback
+  bind refused without a token, `--tls-cert/--tls-key`, DB `0600`, bounded
+  SSE queues, render cap, XLSX formula guard.
+- **Supply chain** — every release ships `SHA256SUMS.txt` + a build-provenance
+  attestation; the offline pack pins and checksum-verifies syft.
+- **Compliance** — `probe_family` / `probe_id` match keys; the NACSA
+  `ot-no-crypto` clause now fires; OT plain protocols and OPC UA
+  `SecurityPolicy#None` are `sangat-tinggi`.
 - Still shipping the 0.9.11 headline capabilities: **QUIC PQC probing**,
   multi-modal binary scanning (linkage + `.dynsym` reachability + crypto-constant
   signatures), active + passive network sensing, and the per-finding confidence /
