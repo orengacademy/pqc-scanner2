@@ -84,6 +84,13 @@ def test_load_accepts_minimal_valid_doc():
     assert load_bundle(_doc()).host.labels == {}
 
 
+def test_load_strips_server_only_evidence_keys():
+    fs = [{"evidence": {"host": "evil", "host_id": 9, "machine_id": "x", "path": "/a"}},
+          {"title": "no evidence"}, {"evidence": "not a dict"}]
+    got = load_bundle(_doc(findings=fs)).findings
+    assert got == [{"evidence": {"path": "/a"}}, {"title": "no evidence"}, {"evidence": "not a dict"}]
+
+
 @pytest.mark.parametrize("over", [
     {"findings": "nope"},
     {"findings": ["a string"]},

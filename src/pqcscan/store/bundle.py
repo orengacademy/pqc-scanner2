@@ -23,6 +23,8 @@ BUNDLE_SCHEMA_VERSION = 1
 MAX_GZIP_BYTES = 8 * 1024 * 1024
 MAX_RAW_BYTES = 50 * 1024 * 1024
 MAX_FINDINGS = 200_000
+# Attribution is set by the collector, never by the agent.
+_SERVER_EVIDENCE_KEYS = frozenset({"host", "host_id", "machine_id"})
 
 
 class BundleInvalid(ValueError):  # noqa: N818 - name fixed by the fleet interface
@@ -126,6 +128,11 @@ def load_bundle(data: bytes) -> ScanBundle:
         raise BundleTooLarge(f"bundle has {len(findings)} findings; cap {MAX_FINDINGS}")
     if not all(isinstance(f, dict) for f in findings):
         raise BundleInvalid("every finding must be an object")
+    for f in findings:
+        ev = f.get("evidence")
+        if isinstance(ev, dict):
+            for k in _SERVER_EVIDENCE_KEYS:
+                ev.pop(k, None)
     if not all(isinstance(v, str) for v in labels.values()):
         raise BundleInvalid("host.labels values must be strings")
     host = HostIdentity(machine_id=_req_str(h, "machine_id", nonempty=True),
