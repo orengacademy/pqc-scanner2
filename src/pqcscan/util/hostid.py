@@ -1,4 +1,7 @@
-"""Stable machine identity for fleet enrollment (no PII beyond hostname)."""
+"""Stable machine identity for fleet enrollment (no PII beyond hostname).
+
+Ids are keyed sha256 hashes so the systemd machine-id (documented confidential) never reaches the collector.
+"""
 from __future__ import annotations
 
 import hashlib
@@ -22,16 +25,16 @@ def _run(argv: list[str]) -> str:
         return ""
 
 
-def _fallback() -> str:
-    return hashlib.sha256(f"{socket.gethostname()}|{uuid.getnode()}".encode()).hexdigest()
+def _hash(raw: str) -> str:
+    return hashlib.sha256(f"pqcscan|{raw}".encode()).hexdigest()
 
 
-def machine_id() -> str:
+def _raw_machine_id() -> str | None:
     if sys.platform.startswith("linux"):
         for p in _LINUX_ID_FILES:
             try:
                 v = p.read_text().strip()
-            except OSError:
+            except (OSError, ValueError):
                 continue
             if v:
                 return v
@@ -46,7 +49,16 @@ def machine_id() -> str:
                 return str(winreg.QueryValueEx(k, "MachineGuid")[0])
         except (ImportError, OSError):
             pass
-    return _fallback()
+    return None
+
+
+def machine_id() -> str:
+    raw = _raw_machine_id()
+    if raw is None:
+        # Known limit: in a container without /etc/machine-id, hostname and uuid.getnode() can change between runs
+        # (deferred follow-up: persist a generated id under the agent state dir).
+        raw = f"{socket.gethostname()}|{uuid.getnode()}"
+    return _hash(raw)
 
 
 def parse_labels(raw: Iterable[str]) -> dict[str, str]:
