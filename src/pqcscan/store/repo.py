@@ -3,16 +3,49 @@ from __future__ import annotations
 import contextlib
 import os
 import uuid
-from datetime import date
+from dataclasses import dataclass
+from datetime import date, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from sqlalchemy import create_engine, event, select
+from sqlalchemy import create_engine, delete, event, select
 from sqlalchemy.orm import Session
 
 from pqcscan.core.types import Finding
 from pqcscan.store import migrations
-from pqcscan.store.schema import Baseline, FindingRow, FrameworkView, Scan
+from pqcscan.store.schema import Baseline, FindingRow, FrameworkView, Host, Scan
 from pqcscan.util.clock import utcnow
+
+if TYPE_CHECKING:  # bundle.py imports Repo; importing it eagerly here would be a cycle
+    from pqcscan.store.bundle import HostIdentity, ScanBundle
+
+
+def _parse_dt(v: object) -> datetime | None:
+    if not v:
+        return None
+    try:
+        return datetime.fromisoformat(str(v))
+    except ValueError:
+        return None
+
+
+@dataclass(slots=True)
+class IngestResult:
+    scan_id: int
+    stored_findings: int
+    stored_views: int
+    duplicate: bool
+
+
+@dataclass(slots=True)
+class HostSummary:
+    host: Host
+    scan_id: int | None
+    finished_at: datetime | None
+    readiness: int | None
+    crit: int
+    high: int
+    total: int
 
 
 class Repo:
@@ -284,3 +317,165 @@ class Repo:
         removed = [f for f in baseline if key(f) not in current_keys]
         common = len(current_keys & baseline_keys)
         return {"added": added, "removed": removed, "common": common}
+
+    # ------------------------------------------------------------------ fleet
+    def upsert_host(self, identity: HostIdentity, *, token_hash: str | None = None) -> Host:
+        with Session(self.engine) as s:
+            h = s.execute(select(Host).where(Host.machine_id == identity.machine_id)).scalar_one_or_none()
+            if h is None:
+                h = Host(machine_id=identity.machine_id)
+                s.add(h)
+            h.hostname = identity.hostname or h.hostname
+            h.os = identity.os or h.os
+            h.labels = {**(h.labels or {}), **identity.labels}
+            h.agent_version = identity.agent_version or h.agent_version
+            h.last_seen = utcnow()
+            if token_hash is not None:
+                h.token_hash = token_hash
+                h.revoked = False
+            s.commit()
+            s.refresh(h)
+            s.expunge(h)
+            return h
+
+    def get_host(self, host_id: int) -> Host | None:
+        with Session(self.engine) as s:
+            return s.get(Host, host_id)
+
+    def get_host_by_machine_id(self, machine_id: str) -> Host | None:
+        with Session(self.engine) as s:
+            return s.execute(select(Host).where(Host.machine_id == machine_id)).scalar_one_or_none()
+
+    def get_host_by_token_hash(self, token_hash: str) -> Host | None:
+        with Session(self.engine) as s:
+            return s.execute(select(Host).where(Host.token_hash == token_hash)).scalar_one_or_none()
+
+    def list_hosts(self) -> list[Host]:
+        with Session(self.engine) as s:
+            return list(s.execute(select(Host).order_by(Host.hostname, Host.id)).scalars())
+
+    def revoke_host(self, host_id: int) -> bool:
+        with Session(self.engine) as s:
+            h = s.get(Host, host_id)
+            if h is None:
+                return False
+            h.revoked = True
+            h.token_hash = None
+            s.commit()
+            return True
+
+    def ingest_bundle(self, bundle: ScanBundle, host_id: int) -> IngestResult:
+        """Store one bundle in a single transaction; a repeated scan_uuid is a no-op."""
+        with Session(self.engine) as s:
+            existing = s.execute(select(Scan.id).where(Scan.scan_uuid == bundle.scan_uuid)).scalar_one_or_none()
+            if existing is not None:
+                return IngestResult(scan_id=existing, stored_findings=0, stored_views=0, duplicate=True)
+            sc = bundle.scan
+            scan = Scan(
+                started_at=_parse_dt(sc.get("started_at")) or utcnow(),
+                finished_at=_parse_dt(sc.get("finished_at")),
+                host_fingerprint=bundle.host.hostname, mode=str(sc.get("mode", "user")),
+                status=str(sc.get("status", "done")), label=None,
+                probe_versions=dict(sc.get("probe_versions") or {}),
+                tool_versions=dict(sc.get("tool_versions") or {}),
+                host_id=host_id, scan_uuid=bundle.scan_uuid,
+            )
+            s.add(scan)
+            s.flush()
+            n_f = n_v = 0
+            for f in bundle.findings:
+                row = FindingRow(
+                    scan_id=scan.id, probe_id=str(f["probe_id"]), algorithm=str(f.get("algorithm", "N/A")),
+                    classification=str(f.get("classification", "info")), severity=str(f.get("severity", "info")),
+                    title=str(f.get("title", "")), evidence=dict(f.get("evidence") or {}),
+                    remediation=dict(f.get("remediation") or {}),
+                    created_at=_parse_dt(f.get("created_at")) or utcnow(),
+                )
+                s.add(row)
+                s.flush()
+                n_f += 1
+                for v in f.get("views") or []:
+                    s.add(FrameworkView(finding_id=row.id, framework=str(v["framework"]), clause=str(v["clause"]),
+                                        verdict=str(v["verdict"]),
+                                        deadline=date.fromisoformat(v["deadline"]) if v.get("deadline") else None))
+                    n_v += 1
+            h = s.get(Host, host_id)
+            if h is not None:
+                h.last_seen = utcnow()
+            s.commit()
+            return IngestResult(scan_id=scan.id, stored_findings=n_f, stored_views=n_v, duplicate=False)
+
+    def fleet_summary(self) -> list[HostSummary]:
+        from pqcscan.core.bands import count_bands, readiness_score
+        out: list[HostSummary] = []
+        with Session(self.engine) as s:
+            for h in s.execute(select(Host).order_by(Host.hostname, Host.id)).scalars().all():
+                latest = s.execute(
+                    select(Scan).where(Scan.host_id == h.id, Scan.status == "done")
+                    .order_by(Scan.started_at.desc(), Scan.id.desc()).limit(1)
+                ).scalar_one_or_none()
+                s.expunge(h)
+                if latest is None:
+                    out.append(HostSummary(h, None, None, None, 0, 0, 0))
+                    continue
+                rows = s.execute(select(FindingRow).where(FindingRow.scan_id == latest.id)).scalars().all()
+                counts = count_bands(list(rows))
+                # A host with nothing rated is fully ready, not 0 (readiness_score is 0 on an empty denominator).
+                rated = counts["green"] + counts["yellow"] + counts["red"]
+                out.append(HostSummary(
+                    host=h, scan_id=latest.id, finished_at=latest.finished_at,
+                    readiness=readiness_score(counts) if rated else 100,
+                    crit=sum(1 for r in rows if r.severity == "crit"),
+                    high=sum(1 for r in rows if r.severity == "high"), total=len(rows),
+                ))
+        return out
+
+    def host_history(self, host_id: int, limit: int = 50) -> list[Scan]:
+        with Session(self.engine) as s:
+            return list(s.execute(select(Scan).where(Scan.host_id == host_id)
+                                  .order_by(Scan.started_at.desc(), Scan.id.desc()).limit(limit)).scalars())
+
+    def delete_scan(self, scan_id: int) -> None:
+        with Session(self.engine) as s:
+            fids = select(FindingRow.id).where(FindingRow.scan_id == scan_id)
+            s.execute(delete(FrameworkView).where(FrameworkView.finding_id.in_(fids)))
+            s.execute(delete(FindingRow).where(FindingRow.scan_id == scan_id))
+            s.execute(delete(Baseline).where(Baseline.scan_id == scan_id))
+            s.execute(delete(Scan).where(Scan.id == scan_id))
+            s.commit()
+
+    def prune_scans(self, keep_per_host: int) -> int:
+        deleted = 0
+        with Session(self.engine) as s:
+            host_ids = list(s.execute(select(Host.id)).scalars())
+        for hid in host_ids:
+            ids = [sc.id for sc in self.host_history(hid, limit=10_000)]
+            for sid in ids[keep_per_host:]:
+                self.delete_scan(sid)
+                deleted += 1
+        return deleted
+
+    def materialize_fleet_rollup(self) -> int | None:
+        """Temporary scan = latest done scan of every host, evidence['host'] set. Caller deletes it."""
+        summary = [x for x in self.fleet_summary() if x.scan_id is not None]
+        if not summary:
+            return None
+        with Session(self.engine) as s:
+            roll = Scan(started_at=utcnow(), finished_at=utcnow(), host_fingerprint="fleet", mode="user",
+                        status="done", label="fleet-rollup", probe_versions={},
+                        tool_versions={"hosts": len(summary)}, scan_uuid=str(uuid.uuid4()))
+            s.add(roll)
+            s.flush()
+            for x in summary:
+                for r in s.execute(select(FindingRow).where(FindingRow.scan_id == x.scan_id)).scalars().all():
+                    nf = FindingRow(scan_id=roll.id, probe_id=r.probe_id, algorithm=r.algorithm,
+                                    classification=r.classification, severity=r.severity, title=r.title,
+                                    evidence={**(r.evidence or {}), "host": x.host.hostname},
+                                    remediation=r.remediation, created_at=r.created_at)
+                    s.add(nf)
+                    s.flush()
+                    for v in s.execute(select(FrameworkView).where(FrameworkView.finding_id == r.id)).scalars():
+                        s.add(FrameworkView(finding_id=nf.id, framework=v.framework, clause=v.clause,
+                                            verdict=v.verdict, deadline=v.deadline))
+            s.commit()
+            return roll.id
