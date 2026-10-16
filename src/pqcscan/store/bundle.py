@@ -55,6 +55,14 @@ def _iso(v: datetime | date | None) -> str | None:
     return v.isoformat() if v is not None else None
 
 
+def _req_str(d: dict[str, Any], key: str, *, nonempty: bool = False) -> str:
+    """Identity field: must be a str (non-empty when `nonempty`); absent optional fields default to ''."""
+    v = d.get(key) if nonempty else d.get(key, "")
+    if not isinstance(v, str) or (nonempty and not v):
+        raise BundleInvalid(f"{key} must be a {'non-empty ' if nonempty else ''}string")
+    return v
+
+
 def dump_bundle(repo: Repo, scan_id: int, host: HostIdentity) -> bytes:
     scan = repo.get_scan(scan_id)
     if scan is None:
@@ -106,22 +114,22 @@ def load_bundle(data: bytes) -> ScanBundle:
         raise BundleInvalid(f"bad json: {e}") from e
     if not isinstance(doc, dict) or doc.get("schema_version") != BUNDLE_SCHEMA_VERSION:
         raise BundleInvalid("unsupported or missing schema_version")
-    try:
-        h, scan, findings = doc["host"], doc["scan"], doc.get("findings") or []
-        labels = h.get("labels") or {} if isinstance(h, dict) else None
-        if not (isinstance(h, dict) and isinstance(labels, dict) and isinstance(scan, dict)
-                and isinstance(findings, list)):
-            raise BundleInvalid("host, host.labels and scan must be objects and findings a list")
-        if len(findings) > MAX_FINDINGS:
-            raise BundleTooLarge(f"bundle has {len(findings)} findings; cap {MAX_FINDINGS}")
-        if not all(isinstance(f, dict) for f in findings):
-            raise BundleInvalid("every finding must be an object")
-        host = HostIdentity(machine_id=str(h["machine_id"]), hostname=str(h.get("hostname", "")),
-                            os=str(h.get("os", "")), labels=dict(labels),
-                            agent_version=str(h.get("agent_version", "")))
-        return ScanBundle(schema_version=1, scan_uuid=str(doc["scan_uuid"]), host=host,
-                          scan=dict(scan), findings=findings)
-    except (BundleInvalid, BundleTooLarge):  # both subclass ValueError; keep them intact
-        raise
-    except (KeyError, TypeError, ValueError, RecursionError) as e:
-        raise BundleInvalid(f"missing or malformed field: {e!r}") from e
+    h, scan = doc.get("host"), doc.get("scan")
+    findings = doc.get("findings")
+    labels = h.get("labels") if isinstance(h, dict) else None
+    findings = [] if findings is None else findings
+    labels = {} if labels is None else labels
+    if not (isinstance(h, dict) and isinstance(scan, dict) and isinstance(labels, dict)
+            and isinstance(findings, list)):
+        raise BundleInvalid("host, host.labels and scan must be objects and findings a list")
+    if len(findings) > MAX_FINDINGS:
+        raise BundleTooLarge(f"bundle has {len(findings)} findings; cap {MAX_FINDINGS}")
+    if not all(isinstance(f, dict) for f in findings):
+        raise BundleInvalid("every finding must be an object")
+    if not all(isinstance(v, str) for v in labels.values()):
+        raise BundleInvalid("host.labels values must be strings")
+    host = HostIdentity(machine_id=_req_str(h, "machine_id", nonempty=True),
+                        hostname=_req_str(h, "hostname"), os=_req_str(h, "os"),
+                        labels=dict(labels), agent_version=_req_str(h, "agent_version"))
+    return ScanBundle(schema_version=BUNDLE_SCHEMA_VERSION, scan_uuid=_req_str(doc, "scan_uuid", nonempty=True),
+                      host=host, scan=dict(scan), findings=findings)

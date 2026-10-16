@@ -90,6 +90,19 @@ def test_load_accepts_minimal_valid_doc():
     {"host": {"machine_id": "m", "labels": ["x"]}},
     {"host": "web01"},
     {"scan": "abc"},
+    {"findings": {}},
+    {"host": {"machine_id": "m", "labels": 0}},
+    {"host": {"machine_id": "m", "labels": {"a": {"b": 1}}}},
+    {"scan_uuid": None},
+    {"scan_uuid": ""},
+    {"scan_uuid": 7},
+    {"host": {"machine_id": None}},
+    {"host": {"machine_id": ""}},
+    {"host": {}},
+    {"host": {"machine_id": "m", "hostname": 5}},
+    {"host": {"machine_id": "m", "hostname": None}},
+    {"host": {"machine_id": "m", "os": 1}},
+    {"host": {"machine_id": "m", "agent_version": []}},
 ])
 def test_load_rejects_malformed_structure(over):
     with pytest.raises(BundleInvalid):
@@ -104,3 +117,8 @@ def test_load_rejects_too_many_findings():
 def test_load_rejects_deeply_nested_json():
     with pytest.raises(BundleInvalid):
         load_bundle(gzip.compress(b"[" * 2000 + b"]" * 2000))
+
+
+def test_load_accepts_empty_optional_identity_fields():
+    b = load_bundle(_doc(host={"machine_id": "m", "hostname": "", "os": "", "agent_version": "", "labels": {}}))
+    assert b.host.hostname == "" and b.host.machine_id == "m" and b.scan_uuid == "u"
