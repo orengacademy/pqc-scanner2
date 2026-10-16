@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import socket
 import sys
 from pathlib import Path
 
@@ -18,6 +19,10 @@ from pqcscan.util.paths import default_db_path
               help="Serve HTTPS: PEM certificate (with --tls-key).")
 @click.option("--tls-key", type=click.Path(path_type=Path, exists=True), default=None,
               help="Serve HTTPS: PEM private key (with --tls-cert).")
+@click.option("--allow-host", "allow_hosts", multiple=True,
+              help="Extra Host header value to accept (repeatable), e.g. the name "
+                   "behind your reverse proxy. Loopback names, --bind and this "
+                   "machine's hostname are always accepted.")
 @click.option(
     "--token", default=None, envvar="PQCSCAN_TOKEN",
     help="Bearer/cookie token required on every request ($PQCSCAN_TOKEN). "
@@ -25,7 +30,7 @@ from pqcscan.util.paths import default_db_path
 )
 def daemon_cmd(
     port: int, bind: str, db: Path | None, tls_cert: Path | None, tls_key: Path | None,
-    token: str | None,
+    allow_hosts: tuple[str, ...], token: str | None,
 ) -> None:
     """Run the daemon (HTTP + SSE on 127.0.0.1; HTTPS with --tls-cert/--tls-key)."""
     if bool(tls_cert) != bool(tls_key):
@@ -41,7 +46,10 @@ def daemon_cmd(
         sys.exit(2)
     db_path = db or default_db_path()
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    app = create_app(db_path=db_path, token=token)
+    app = create_app(
+        db_path=db_path, token=token,
+        allowed_hosts=(bind, socket.gethostname(), *allow_hosts),
+    )
     uvicorn.run(
         app, host=bind, port=port, log_level="info",
         ssl_certfile=str(tls_cert) if tls_cert else None,

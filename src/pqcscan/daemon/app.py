@@ -5,6 +5,8 @@ import hmac
 import ipaddress
 import os
 import secrets
+import socket
+from collections.abc import Iterable
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -37,13 +39,33 @@ _LOGIN_FORM = """<!doctype html><title>pqcscan login</title>
 
 
 def is_loopback(bind: str) -> bool:
-    """True for 127.0.0.0/8, ::1 and 'localhost'."""
-    if bind in ("localhost", ""):
-        return True
+    """True only when every address `bind` resolves to is loopback.
+
+    An empty string makes uvicorn listen on all interfaces, so it is NOT
+    loopback; a hostname (incl. 'localhost') is resolved rather than trusted
+    by name, so an /etc/hosts entry can't widen the bind silently."""
+    if not bind:
+        return False
     try:
         return ipaddress.ip_address(bind.strip("[]")).is_loopback
     except ValueError:
+        pass
+    try:
+        infos = socket.getaddrinfo(bind, None)
+    except socket.gaierror:
         return False
+    return bool(infos) and all(ipaddress.ip_address(i[4][0]).is_loopback for i in infos)
+
+
+LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "[::1]"})
+
+
+def _host_only(netloc: str) -> str:
+    """Strip the port from a Host/Origin netloc ('[::1]:8765' -> '[::1]')."""
+    netloc = netloc.lower()
+    if netloc.startswith("["):
+        return netloc.partition("]")[0] + "]"
+    return netloc.partition(":")[0]
 
 
 def _origin_matches_host(request: Request) -> bool:
@@ -55,8 +77,15 @@ def _origin_matches_host(request: Request) -> bool:
     return urlsplit(origin).netloc.lower() == request.headers.get("host", "").lower()
 
 
+def _host_allowed(request: Request, allowed: frozenset[str]) -> bool:
+    """DNS-rebinding guard: the Host header must name us, not an attacker's
+    domain that happens to resolve to this address."""
+    return _host_only(request.headers.get("host", "")) in allowed
+
+
 def create_app(
     *, db_path: Path, registry: Registry | None = None, token: str | None = None,
+    allowed_hosts: Iterable[str] = (),
 ) -> FastAPI:
     """Build the daemon app.
 
@@ -67,13 +96,21 @@ def create_app(
     ids held in memory, so a restart logs browsers out. Without a token the
     daemon trusts whoever can reach the socket, which is only acceptable on
     loopback — `pqcscan daemon` refuses a non-loopback --bind without one.
+
+    `allowed_hosts` extends the Host allowlist (loopback names are always
+    in; `pqcscan daemon` adds the bind address and this machine's hostname).
+    Requests whose Host header is not on it get 400 — the DNS-rebinding
+    guard, since Origin==Host alone is satisfied by a rebound domain.
     """
     app = FastAPI(title="pqcscan", version=__version__)
     token = token if token is not None else os.environ.get("PQCSCAN_TOKEN") or None
+    hosts = frozenset(LOOPBACK_HOSTS | {_host_only(h) for h in allowed_hosts if h})
     sessions: set[str] = set()
 
     @app.middleware("http")
     async def _guard(request: Request, call_next):
+        if not _host_allowed(request, hosts):
+            return JSONResponse({"detail": "host not allowed"}, status_code=400)
         if request.method not in ("GET", "HEAD", "OPTIONS") and not _origin_matches_host(request):
             return JSONResponse({"detail": "cross-origin request rejected"}, status_code=403)
         if token and request.url.path not in ("/api/health", "/login"):

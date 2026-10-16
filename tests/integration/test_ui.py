@@ -7,7 +7,7 @@ from pqcscan.daemon.app import create_app
 
 @pytest.fixture
 def client(tmp_db_path, fast_registry):
-    return TestClient(create_app(db_path=tmp_db_path, registry=fast_registry))
+    return TestClient(create_app(db_path=tmp_db_path, registry=fast_registry), base_url="http://127.0.0.1")
 
 
 def test_dashboard_page(client):

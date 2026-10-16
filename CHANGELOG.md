@@ -35,7 +35,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (browser) on every request; `/api/health` stays open. A **non-loopback
   `--bind` is refused without a token** (H1).
 - **CSRF guard**: state-changing requests whose browser `Origin` doesn't match
-  `Host` get 403 (M1).
+  `Host` get 403 (M1). **Host allowlist** (loopback names, `--bind`, this
+  machine's hostname, `--allow-host …`): any other `Host` gets 400 — the
+  DNS-rebinding guard. `is_loopback` resolves names and treats an empty bind
+  as non-loopback.
+- OPC UA `SecurityPolicy#None` endpoints are `sangat-tinggi` (were `info`), so
+  the NACSA `ot-no-crypto` clause covers them.
 - **SQLite DB created `0600`** (-wal/-shm inherit) (H3).
 - **Release integrity**: `SHA256SUMS.txt` asset + GitHub build-provenance
   attestation on every release (H5).
