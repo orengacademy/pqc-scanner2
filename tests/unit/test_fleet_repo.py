@@ -1,7 +1,12 @@
 """Fleet store: host upsert, idempotent ingest, summary, history, pruning, rollup."""
+import pytest
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
 from pqcscan.core.types import Classification, Finding, Severity
 from pqcscan.store.bundle import HostIdentity, ScanBundle, dump_bundle, load_bundle
 from pqcscan.store.repo import Repo
+from pqcscan.store.schema import ComponentRow, GraphEdge
 
 WEB01 = HostIdentity(machine_id="m-web01", hostname="web01", os="linux", labels={"env": "prod"})
 WEB02 = HostIdentity(machine_id="m-web02", hostname="web02", os="linux", labels={"env": "dr"})
@@ -82,3 +87,72 @@ def test_materialize_fleet_rollup_unions_latest_per_host(tmp_db_path, tmp_path):
     assert fleet.get_scan(rid).label == "fleet-rollup"
     fleet.delete_scan(rid)
     assert fleet.get_scan(rid) is None and fleet.list_findings(rid) == []
+
+
+def test_ordering_uses_server_scan_id_not_client_started_at(tmp_db_path, tmp_path):
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    h = fleet.upsert_host(WEB01)
+    first = _bundle(src, WEB01, ["RSA-1024"])
+    last = _bundle(src, WEB01, ["RSA-2048", "ECDSA-P256"])
+    first.scan["started_at"] = "2030-01-01T00:00:00"      # client claims the earlier scan is newest
+    last.scan["started_at"] = "2020-01-01T00:00:00"
+    fleet.ingest_bundle(first, h.id)
+    r_last = fleet.ingest_bundle(last, h.id)
+    assert fleet.host_history(h.id)[0].id == r_last.scan_id
+    assert fleet.fleet_summary()[0].scan_id == r_last.scan_id
+    assert fleet.get_scan(r_last.scan_id).started_at.year == 2020      # reported value still stored
+
+
+def test_ingest_rejects_unknown_status(tmp_db_path, tmp_path):
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    h = fleet.upsert_host(WEB01)
+    b = _bundle(src, WEB01, ["RSA-2048"])
+    b.scan["status"] = "bogus"
+    assert fleet.get_scan(fleet.ingest_bundle(b, h.id).scan_id).status == "done"
+    b2 = _bundle(src, WEB01, [])
+    b2.scan["status"] = "failed"
+    assert fleet.get_scan(fleet.ingest_bundle(b2, h.id).scan_id).status == "failed"
+
+
+def test_prune_rejects_keep_below_one_and_is_exact(tmp_db_path, tmp_path):
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    h = fleet.upsert_host(WEB01)
+    with pytest.raises(ValueError):
+        fleet.prune_scans(keep_per_host=0)
+    ids = [fleet.ingest_bundle(_bundle(src, WEB01, []), h.id).scan_id for _ in range(5)]
+    assert fleet.prune_scans(keep_per_host=2) == 3
+    assert sorted(s.id for s in fleet.host_history(h.id)) == sorted(ids[-2:])
+
+
+def test_ingest_unknown_host_and_foreign_scan_uuid(tmp_db_path, tmp_path):
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    ha = fleet.upsert_host(WEB01); hb = fleet.upsert_host(WEB02)
+    b = _bundle(src, WEB01, ["RSA-2048"])
+    with pytest.raises(ValueError, match="host 999 not found"):
+        fleet.ingest_bundle(b, 999)
+    assert fleet.list_scans() == []
+    fleet.ingest_bundle(b, ha.id)
+    with pytest.raises(ValueError, match="another host"):
+        fleet.ingest_bundle(b, hb.id)
+    assert len(fleet.list_scans()) == 1
+
+
+def test_delete_scan_removes_components_and_edges(tmp_db_path, tmp_path):
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    h = fleet.upsert_host(WEB01)
+    sid = fleet.ingest_bundle(_bundle(src, WEB01, ["RSA-2048"]), h.id).scan_id
+    with Session(fleet.engine) as s:
+        c1 = ComponentRow(scan_id=sid, purl="pkg:a", type="lib", name="a", discovered_by="t")
+        c2 = ComponentRow(scan_id=sid, purl="pkg:b", type="lib", name="b", discovered_by="t")
+        s.add_all([c1, c2]); s.flush()
+        s.add(GraphEdge(scan_id=sid, src_id=c1.id, dst_id=c2.id, edge_type="uses"))
+        s.commit()
+    fleet.delete_scan(sid)
+    with Session(fleet.engine) as s:
+        assert s.execute(select(func.count()).select_from(ComponentRow)).scalar_one() == 0
+        assert s.execute(select(func.count()).select_from(GraphEdge)).scalar_one() == 0

@@ -13,7 +13,15 @@ from sqlalchemy.orm import Session
 
 from pqcscan.core.types import Finding
 from pqcscan.store import migrations
-from pqcscan.store.schema import Baseline, FindingRow, FrameworkView, Host, Scan
+from pqcscan.store.schema import (
+    Baseline,
+    ComponentRow,
+    FindingRow,
+    FrameworkView,
+    GraphEdge,
+    Host,
+    Scan,
+)
 from pqcscan.util.clock import utcnow
 
 if TYPE_CHECKING:  # bundle.py imports Repo; importing it eagerly here would be a cycle
@@ -27,6 +35,9 @@ def _parse_dt(v: object) -> datetime | None:
         return datetime.fromisoformat(str(v))
     except ValueError:
         return None
+
+
+_INGEST_STATUSES = frozenset({"done", "failed", "interrupted"})
 
 
 @dataclass(slots=True)
@@ -367,15 +378,22 @@ class Repo:
     def ingest_bundle(self, bundle: ScanBundle, host_id: int) -> IngestResult:
         """Store one bundle in a single transaction; a repeated scan_uuid is a no-op."""
         with Session(self.engine) as s:
-            existing = s.execute(select(Scan.id).where(Scan.scan_uuid == bundle.scan_uuid)).scalar_one_or_none()
+            if s.get(Host, host_id) is None:
+                raise ValueError(f"host {host_id} not found")
+            existing = s.execute(
+                select(Scan.id, Scan.host_id).where(Scan.scan_uuid == bundle.scan_uuid)
+            ).one_or_none()
             if existing is not None:
-                return IngestResult(scan_id=existing, stored_findings=0, stored_views=0, duplicate=True)
+                if existing.host_id != host_id:
+                    raise ValueError("scan_uuid belongs to another host")
+                return IngestResult(scan_id=existing.id, stored_findings=0, stored_views=0, duplicate=True)
             sc = bundle.scan
+            status = str(sc.get("status", "done"))
             scan = Scan(
                 started_at=_parse_dt(sc.get("started_at")) or utcnow(),
                 finished_at=_parse_dt(sc.get("finished_at")),
                 host_fingerprint=bundle.host.hostname, mode=str(sc.get("mode", "user")),
-                status=str(sc.get("status", "done")), label=None,
+                status=status if status in _INGEST_STATUSES else "done", label=None,
                 probe_versions=dict(sc.get("probe_versions") or {}),
                 tool_versions=dict(sc.get("tool_versions") or {}),
                 host_id=host_id, scan_uuid=bundle.scan_uuid,
@@ -412,7 +430,7 @@ class Repo:
             for h in s.execute(select(Host).order_by(Host.hostname, Host.id)).scalars().all():
                 latest = s.execute(
                     select(Scan).where(Scan.host_id == h.id, Scan.status == "done")
-                    .order_by(Scan.started_at.desc(), Scan.id.desc()).limit(1)
+                    .order_by(Scan.id.desc()).limit(1)
                 ).scalar_one_or_none()
                 s.expunge(h)
                 if latest is None:
@@ -433,7 +451,7 @@ class Repo:
     def host_history(self, host_id: int, limit: int = 50) -> list[Scan]:
         with Session(self.engine) as s:
             return list(s.execute(select(Scan).where(Scan.host_id == host_id)
-                                  .order_by(Scan.started_at.desc(), Scan.id.desc()).limit(limit)).scalars())
+                                  .order_by(Scan.id.desc()).limit(limit)).scalars())
 
     def delete_scan(self, scan_id: int) -> None:
         with Session(self.engine) as s:
@@ -441,16 +459,23 @@ class Repo:
             s.execute(delete(FrameworkView).where(FrameworkView.finding_id.in_(fids)))
             s.execute(delete(FindingRow).where(FindingRow.scan_id == scan_id))
             s.execute(delete(Baseline).where(Baseline.scan_id == scan_id))
+            s.execute(delete(GraphEdge).where(GraphEdge.scan_id == scan_id))
+            s.execute(delete(ComponentRow).where(ComponentRow.scan_id == scan_id))
             s.execute(delete(Scan).where(Scan.id == scan_id))
             s.commit()
 
     def prune_scans(self, keep_per_host: int) -> int:
+        """Delete each host's scans beyond the newest N (by server scan id); returns scans deleted."""
+        if keep_per_host < 1:
+            raise ValueError("keep_per_host must be >= 1")
         deleted = 0
         with Session(self.engine) as s:
             host_ids = list(s.execute(select(Host.id)).scalars())
         for hid in host_ids:
-            ids = [sc.id for sc in self.host_history(hid, limit=10_000)]
-            for sid in ids[keep_per_host:]:
+            with Session(self.engine) as s:
+                old = list(s.execute(select(Scan.id).where(Scan.host_id == hid)
+                                     .order_by(Scan.id.desc()).offset(keep_per_host)).scalars())
+            for sid in old:
                 self.delete_scan(sid)
                 deleted += 1
         return deleted
