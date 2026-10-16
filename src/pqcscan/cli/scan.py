@@ -55,6 +55,59 @@ def _gate_tripped(findings: Iterable[_HasSeverity], threshold: str) -> bool:
     return bool(_findings_at_or_over(findings, threshold))
 
 
+def run_local_scan(
+    *, db_path: Path, paths: Iterable[str] = (), target: str | None = None,
+    ot: Iterable[str] = (), watch: bool = False,
+) -> tuple[Repo, int]:
+    """Run one in-process scan; returns (repo, scan_id). Raises on failure."""
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    repo = Repo(db_path)
+    repo.init_schema()
+    bus = EventBus()
+    runner = ProbeRunner(registry=default_registry(), repo=repo, bus=bus)
+    scan_paths, server_target, ot_targets = parse_scan_inputs(
+        target=target, paths=list(paths), ot=list(ot),
+    )
+
+    async def _go() -> int:
+        watcher_task = None
+        if watch:
+            async def _watch() -> None:
+                async for ev in bus.subscribe():
+                    click.echo(f"[event] {type(ev).__name__}: {ev}", err=True)
+            watcher_task = asyncio.create_task(_watch())
+        scan_id = await runner.run(
+            mode=current_mode(),
+            available_capabilities=detect_capabilities(),
+            scan_paths=scan_paths,
+            server_target=server_target,
+            ot_targets=ot_targets,
+        )
+        if watcher_task:
+            watcher_task.cancel()
+        return scan_id
+
+    return repo, asyncio.run(_go())
+
+
+def _report_to_fleet(
+    repo: Repo, scan_id: int, *, server: str, enroll_token: str | None, agent_token: str | None,
+    labels: tuple[str, ...], state_dir: Path | None, ca_cert: Path | None, insecure: bool,
+) -> dict | None:
+    """Post the scan to the fleet daemon. Never raises: reporting must not change the scan's exit code."""
+    from pqcscan.cli._report import default_state_dir, make_client, report_scan
+    from pqcscan.util.hostid import parse_labels
+    try:
+        with make_client(ca_cert=ca_cert, insecure=insecure) as client:
+            return report_scan(
+                repo, scan_id, server=server, enroll_token=enroll_token, agent_token=agent_token,
+                labels=parse_labels(labels), state_dir=state_dir or default_state_dir(), client=client,
+            )
+    except Exception as e:  # reporting is best-effort
+        click.echo(f"report failed: {e}", err=True)
+        return None
+
+
 @click.command()
 @click.option("--db", type=click.Path(path_type=Path), default=None)
 @click.option("--json", "as_json", is_flag=True, help="Emit JSON to stdout.")
@@ -93,11 +146,23 @@ def _gate_tripped(findings: Iterable[_HasSeverity], threshold: str) -> bool:
     help="CI gate: exit 1 if any finding is at/above this severity. "
          "'none' disables the gate (always exit 0 unless an error).",
 )
+@click.option("--report-to", default=None, help="Fleet daemon URL; POST this scan's results after it finishes.")
+@click.option("--enroll-token", default=None, envvar="PQCSCAN_ENROLL_TOKEN",
+              help="Enroll on first contact (fleet). Stored per-agent token is reused afterwards.")
+@click.option("--agent-token", default=None, envvar="PQCSCAN_AGENT_TOKEN", help="Use this agent token directly.")
+@click.option("--labels", multiple=True, help="Host labels k=v (repeatable or comma-separated), e.g. env=prod.")
+@click.option("--state-dir", type=click.Path(path_type=Path), default=None,
+              help="Agent state (token, spool). Default: <db dir>/agent.")
+@click.option("--ca-cert", type=click.Path(path_type=Path, exists=True), default=None,
+              help="CA bundle for --report-to.")
+@click.option("--insecure", is_flag=True, help="Skip TLS verification for --report-to (lab only).")
 def scan_cmd(
     db: Path | None, as_json: bool, watch: bool,
     target: str | None, paths: tuple[str, ...], ot: tuple[str, ...],
     data_lifetime: float, migration_years: float, threat_years: float,
     fail_on: str,
+    report_to: str | None, enroll_token: str | None, agent_token: str | None,
+    labels: tuple[str, ...], state_dir: Path | None, ca_cert: Path | None, insecure: bool,
 ) -> None:
     """Run a scan in-process; persist to SQLite.
 
@@ -115,40 +180,7 @@ def scan_cmd(
     """
     try:
         db_path = db or default_db_path()
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-        repo = Repo(db_path)
-        repo.init_schema()
-        bus = EventBus()
-        registry = default_registry()
-        runner = ProbeRunner(registry=registry, repo=repo, bus=bus)
-
-        scan_paths, server_target, ot_targets = parse_scan_inputs(
-            target=target, paths=list(paths), ot=list(ot),
-        )
-    except Exception as e:  # documented "scan failed" exit
-        click.echo(f"scan failed: {e}", err=True)
-        sys.exit(2)
-
-    async def _go() -> int:
-        watcher_task = None
-        if watch:
-            async def _watch() -> None:
-                async for ev in bus.subscribe():
-                    click.echo(f"[event] {type(ev).__name__}: {ev}", err=True)
-            watcher_task = asyncio.create_task(_watch())
-        scan_id = await runner.run(
-            mode=current_mode(),
-            available_capabilities=detect_capabilities(),
-            scan_paths=scan_paths,
-            server_target=server_target,
-            ot_targets=ot_targets,
-        )
-        if watcher_task:
-            watcher_task.cancel()
-        return scan_id
-
-    try:
-        scan_id = asyncio.run(_go())
+        repo, scan_id = run_local_scan(db_path=db_path, paths=paths, target=target, ot=ot, watch=watch)
     except Exception as e:  # documented "scan failed" exit
         click.echo(f"scan failed: {e}", err=True)
         sys.exit(2)
@@ -165,6 +197,13 @@ def scan_cmd(
     )
     mosca = assess(mosca_inputs)
 
+    report: dict | None = None
+    if report_to:
+        report = _report_to_fleet(
+            repo, scan_id, server=report_to, enroll_token=enroll_token, agent_token=agent_token,
+            labels=labels, state_dir=state_dir, ca_cert=ca_cert, insecure=insecure,
+        )
+
     if as_json:
         click.echo(json.dumps({
             "scan_id": scan_id,
@@ -175,6 +214,7 @@ def scan_cmd(
             "gate_tripped": gate_tripped,
             "db": str(db_path),
             "mosca": mosca.as_dict(),
+            **({"report": report} if report_to else {}),
         }))
     else:
         click.echo(
@@ -194,6 +234,8 @@ def scan_cmd(
             f"→ verdict={mosca.verdict} (shelf-life gap {mosca.gap_years:g}y)."
         )
         click.echo(summary_lines(mosca, vulnerable_count=len(high_or_crit))["en"])
+        if report_to:
+            click.echo(f"Reported to {report_to}: {'ok' if report else 'spooled for retry'}.")
 
     sys.exit(1 if gate_tripped else 0)
 
