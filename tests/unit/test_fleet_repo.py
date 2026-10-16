@@ -200,6 +200,16 @@ def test_token_hash_never_unrevokes_only_unrevoke_host_does(tmp_db_path):
     assert repo.get_host(h.id).token_hash is None                 # agent must re-enroll
 
 
+def _age(repo: Repo, scan_id: int, hours: float = 2) -> None:
+    from datetime import timedelta
+
+    from pqcscan.store.schema import Scan
+    with Session(repo.engine) as s:
+        sc = s.get(Scan, scan_id)
+        sc.started_at -= timedelta(hours=hours)
+        s.commit()
+
+
 def test_delete_stale_rollups_sweeps_temporary_only(tmp_db_path, tmp_path):
     from pqcscan.store.merge import merge_dbs
     src = Repo(tmp_path / "src.db"); src.init_schema()
@@ -209,6 +219,9 @@ def test_delete_stale_rollups_sweeps_temporary_only(tmp_db_path, tmp_path):
     orphan = fleet.materialize_fleet_rollup()                       # simulates a hard kill: never deleted
     merged = merge_dbs(fleet, [tmp_path / "src.db"], rollup=True).rollup_scan_id   # persistent, same label
     assert merged is not None
+    assert fleet.delete_stale_rollups() == 0                        # under an hour old: may be rendering
+    _age(fleet, orphan)
+    _age(fleet, merged)
     assert fleet.delete_stale_rollups() == 1
     assert fleet.get_scan(orphan) is None
     assert fleet.get_scan(merged) is not None                       # merge's rollup is user data
@@ -221,8 +234,11 @@ def test_reconcile_and_prune_sweep_orphaned_rollup(tmp_db_path, tmp_path):
     h = fleet.upsert_host(WEB01)
     fleet.ingest_bundle(_bundle(src, WEB01, ["RSA-2048"]), h.id)
     r1 = fleet.materialize_fleet_rollup()
+    _age(fleet, r1)
     fleet.reconcile_running_scans()
     assert fleet.get_scan(r1) is None
     r2 = fleet.materialize_fleet_rollup()
+    fresh = fleet.materialize_fleet_rollup()                     # an export in flight
+    _age(fleet, r2)
     fleet.prune_scans(keep_per_host=5)
-    assert fleet.get_scan(r2) is None
+    assert fleet.get_scan(r2) is None and fleet.get_scan(fresh) is not None

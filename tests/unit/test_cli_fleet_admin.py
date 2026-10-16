@@ -191,3 +191,25 @@ def test_db_option_accepts_sqlalchemy_url(tmp_path):
     r = CliRunner().invoke(agents_cmd, ["list", "--db", "sqlite:///" + str(db), "--json"])
     assert r.exit_code == 0 and json.loads(r.output) == []
     assert db.exists()
+
+
+def test_ensure_db_parent_handles_paths_and_sqlite_urls(tmp_path):
+    from pqcscan.cli._db import ensure_db_parent
+    ensure_db_parent(tmp_path / "a" / "x.db")
+    ensure_db_parent(f"sqlite:///{tmp_path}/b/c/x.db")
+    ensure_db_parent("sqlite:///:memory:")
+    ensure_db_parent("postgresql+psycopg://u:pw@db.invalid/pqc")    # no local directory, no connection
+    assert (tmp_path / "a").is_dir() and (tmp_path / "b" / "c").is_dir()
+
+
+def test_scan_json_masks_db_url_password(tmp_path, monkeypatch):
+    from pqcscan.cli import scan as scan_mod
+    repo = Repo(tmp_path / "s.db"); repo.init_schema()
+    sid = repo.create_scan(mode="user", probe_versions={}, tool_versions={})
+    repo.finish_scan(sid, status="done")
+    monkeypatch.setattr(scan_mod, "run_local_scan", lambda **k: (repo, sid))
+    r = CliRunner().invoke(scan_mod.scan_cmd, ["--db", "postgresql+psycopg://u:s3cret@h/pqc", "--json",
+                                               "--fail-on", "none"])
+    assert r.exit_code == 0, r.output
+    out = json.loads(r.output)
+    assert "s3cret" not in r.output and out["db"] == "postgresql+psycopg://u:***@h/pqc"

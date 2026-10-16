@@ -57,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Unreadable machine-id files** fall through to the next identity source.
 - **SQLite file mode**: the 0600 chmod targets the file SQLAlchemy actually
   opens, including when `--db` is a `sqlite:///` URL.
-- **Keyed machine ids**: domain-separated SHA-256, never the raw machine id.
+- **Domain-separated machine ids**: SHA-256 over a `pqcscan|` prefix, never the raw machine id.
 - **Ingest validation and caps**: 8 MiB wire, 50 MiB raw, 200,000 findings,
   a per-host bucket of 10 bundles refilled at one per minute (duplicates and
   rejected bundles are free), bundle `machine_id` must match the token;

@@ -7,7 +7,7 @@ from pathlib import Path
 import click
 import uvicorn
 
-from pqcscan.cli._db import db_arg
+from pqcscan.cli._db import db_arg, ensure_db_parent
 from pqcscan.daemon.app import create_app, is_loopback
 
 
@@ -49,8 +49,7 @@ def daemon_cmd(
         )
         sys.exit(2)
     db_path = db_arg(db)
-    if isinstance(db_path, Path):
-        db_path.parent.mkdir(parents=True, exist_ok=True)
+    ensure_db_parent(db_path)
     app = create_app(
         db_path=db_path, token=token, enroll_token=enroll_token,
         allowed_hosts=(bind, socket.gethostname(), *allow_hosts),

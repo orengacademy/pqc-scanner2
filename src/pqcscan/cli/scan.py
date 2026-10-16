@@ -8,8 +8,9 @@ from pathlib import Path
 from typing import Protocol
 
 import click
+from sqlalchemy.engine import make_url
 
-from pqcscan.cli._db import db_arg
+from pqcscan.cli._db import db_arg, ensure_db_parent
 from pqcscan.core.mosca import MoscaInputs, assess, summary_lines
 from pqcscan.core.types import Severity
 from pqcscan.probes._registry import default_registry
@@ -60,8 +61,7 @@ def run_local_scan(
     ot: Iterable[str] = (), watch: bool = False,
 ) -> tuple[Repo, int]:
     """Run one in-process scan; returns (repo, scan_id). Raises on failure."""
-    if isinstance(db_path, Path):
-        db_path.parent.mkdir(parents=True, exist_ok=True)
+    ensure_db_parent(db_path)
     repo = Repo(db_path)
     repo.init_schema()
     bus = EventBus()
@@ -227,7 +227,8 @@ def scan_cmd(
             "fail_on": fail_on,
             "over_threshold_count": len(over_threshold),
             "gate_tripped": gate_tripped,
-            "db": str(db_path),
+            "db": str(db_path) if isinstance(db_path, Path)
+            else make_url(db_path).render_as_string(hide_password=True),
             "mosca": mosca.as_dict(),
             **({"report": report} if report_to else {}),
         }))

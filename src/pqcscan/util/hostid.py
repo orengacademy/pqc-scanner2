@@ -1,6 +1,6 @@
 """Stable machine identity for fleet enrollment (no PII beyond hostname).
 
-Ids are keyed sha256 hashes so the systemd machine-id (documented confidential) never reaches the collector.
+Ids are domain-separated sha256 hashes so the systemd machine-id (documented confidential) never reaches the collector.
 """
 from __future__ import annotations
 

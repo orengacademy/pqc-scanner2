@@ -3,11 +3,10 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
-from pathlib import Path
 
 import click
 
-from pqcscan.cli._db import db_arg
+from pqcscan.cli._db import db_arg, ensure_db_parent
 from pqcscan.probes._base import SniffConfig
 from pqcscan.probes._registry import default_registry
 from pqcscan.runner.capabilities import current_mode, detect_capabilities
@@ -42,8 +41,7 @@ def sniff_cmd(
     when run without privilege or off Linux.
     """
     db_path = db_arg(db)
-    if isinstance(db_path, Path):
-        db_path.parent.mkdir(parents=True, exist_ok=True)
+    ensure_db_parent(db_path)
     repo = Repo(db_path)
     repo.init_schema()
     bus = EventBus()

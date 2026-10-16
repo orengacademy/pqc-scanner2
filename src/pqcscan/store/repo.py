@@ -4,7 +4,7 @@ import contextlib
 import os
 import uuid
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -521,10 +521,12 @@ class Repo:
         """Delete orphaned temporary fleet rollups (left by a hard kill mid-export); returns count.
 
         Only rollups flagged temporary are swept: `pqcscan merge` also labels its persistent
-        rollup scan FLEET_ROLLUP_LABEL, and that one is user data."""
+        rollup scan FLEET_ROLLUP_LABEL, and that one is user data. Rollups younger than an hour
+        may still be rendering (a concurrent export), so they are left for a later sweep."""
+        cutoff = utcnow() - timedelta(hours=1)
         with Session(self.engine) as s:
             ids = [i for i, tv in s.execute(select(Scan.id, Scan.tool_versions)
-                                            .where(Scan.label == FLEET_ROLLUP_LABEL))
+                                            .where(Scan.label == FLEET_ROLLUP_LABEL, Scan.started_at < cutoff))
                    if (tv or {}).get("temporary") is True]
         for sid in ids:
             self.delete_scan(sid)

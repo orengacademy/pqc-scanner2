@@ -24,7 +24,7 @@ exports from them.
    The `/fleet` page in the web UI is planned for v0.10.1.
 4. **Exports.** `pqcscan export --scan fleet --format cbom|sarif|xlsx-bukukerja|pdf-tech … -o …`
    builds the export from the latest scan of every host, each finding attributed to its host via `evidence._fleet`.
-   The same works from the daemon API with `scan=fleet`.
+   The same works from the daemon API: `GET /api/scans/fleet/export/<fmt>`.
 5. **Parity (HA/DR).** `pqcscan diff --scan <dr scan> --baseline-scan <primary scan> --fail-on-drift`.
    `pqcscan merge -o fleet.db a.db b.db` still folds per-host DBs offline.
 6. **Admin.**
