@@ -7,7 +7,7 @@ from pathlib import Path
 
 import click
 
-from pqcscan.store.repo import Repo
+from pqcscan.store.repo import Repo, is_fleet_ref
 from pqcscan.util.paths import default_db_path
 
 
@@ -98,7 +98,7 @@ def _open_repo(db: Path | None) -> Repo:
 
 def resolve_scan_ref(repo: Repo, ref: str) -> tuple[int, bool]:
     """'fleet' -> a temporary rollup scan (caller must delete_scan when done); else int id."""
-    if ref.strip().lower() == "fleet":
+    if is_fleet_ref(ref):
         rid = repo.materialize_fleet_rollup()
         if rid is None:
             raise click.ClickException("no enrolled hosts with a completed scan")

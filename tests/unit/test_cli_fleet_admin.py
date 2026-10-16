@@ -112,15 +112,13 @@ def test_export_fleet_with_no_hosts_errors_cleanly(tmp_path):
     assert r.exit_code == 1 and "no enrolled hosts with a completed scan" in r.output
 
 
-def test_daemon_export_fleet(tmp_db_path, fast_registry, monkeypatch):
+def _daemon(tmp_db_path, fast_registry):
     app = create_app(db_path=tmp_db_path, registry=fast_registry)
-    c = TestClient(app, base_url="http://127.0.0.1")
-    repo = app.state.repo
-    r = c.get("/api/scans/fleet/export/cbom")                      # no hosts yet
-    assert r.status_code == 404 and "no enrolled hosts with a completed scan" in r.text
-    assert not _rollups(tmp_db_path)
+    return app, TestClient(app, base_url="http://127.0.0.1")
 
-    src = Repo(tmp_db_path.parent / "src.db"); src.init_schema()
+
+def _enroll_two_hosts(repo, tmp_path):
+    src = Repo(tmp_path / "src.db"); src.init_schema()
     for name in ("web01", "web02"):
         ident = HostIdentity(machine_id=f"m-{name}", hostname=name, os="linux")
         h = repo.upsert_host(ident, token_hash=name)
@@ -129,20 +127,58 @@ def test_daemon_export_fleet(tmp_db_path, fast_registry, monkeypatch):
                                         severity=Severity.HIGH, title=f"{name} t"))
         src.finish_scan(sid, status="done")
         repo.ingest_bundle(load_bundle(dump_bundle(src, sid, ident)), h.id)
-    r = c.get("/api/scans/FLEET/export/cbom")
+
+
+def test_daemon_export_fleet_without_hosts_is_404(tmp_db_path, fast_registry):
+    _, c = _daemon(tmp_db_path, fast_registry)
+    r = c.get("/api/scans/fleet/export/cbom")
+    assert r.status_code == 404 and "no enrolled hosts with a completed scan" in r.text
+    assert not _rollups(tmp_db_path)
+
+
+def test_daemon_export_fleet_renders_latest_per_host_and_cleans_up(tmp_db_path, fast_registry, tmp_path):
+    app, c = _daemon(tmp_db_path, fast_registry)
+    _enroll_two_hosts(app.state.repo, tmp_path)
+    r = c.get("/api/scans/FLEET/export/cbom")                      # case-insensitive
     assert r.status_code == 200
+    assert "pqcscan-fleet-cbom" in r.headers["content-disposition"]
     assert sum("RSA-2048" in x["name"] for x in r.json()["components"]) == 2
     assert not _rollups(tmp_db_path)
+
+
+def test_daemon_export_fleet_cleans_up_when_render_raises(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    app, c = _daemon(tmp_db_path, fast_registry)
+    _enroll_two_hosts(app.state.repo, tmp_path)
 
     def boom(*a, **k):
         raise RuntimeError("render failed")
     monkeypatch.setattr("pqcscan.cbom.builder.build_cbom", boom)
     with pytest.raises(RuntimeError):
-        TestClient(app, base_url="http://127.0.0.1", raise_server_exceptions=True).get(
-            "/api/scans/fleet/export/cbom")
-    assert not _rollups(tmp_db_path)                               # cleaned even though rendering raised
-    assert app.state.render_slots.acquire(blocking=False)          # slot released too
+        c.get("/api/scans/fleet/export/cbom")
+    assert not _rollups(tmp_db_path)                               # rollup deleted
+    assert app.state.render_slots.acquire(blocking=False)          # slot released
     app.state.render_slots.release()
 
+
+def test_daemon_export_rejects_bad_refs(tmp_db_path, fast_registry):
+    _, c = _daemon(tmp_db_path, fast_registry)
     assert c.get("/api/scans/999/export/cbom").status_code == 404
     assert c.get("/api/scans/nope/export/cbom").status_code == 422
+
+
+def test_agents_list_plain_text_shows_host_and_revoked_flag(tmp_path):
+    db = _fleet_db(tmp_path)
+    CliRunner().invoke(agents_cmd, ["revoke", "2", "--db", str(db)])
+    r = CliRunner().invoke(agents_cmd, ["list", "--db", str(db)])
+    lines = r.output.strip().splitlines()
+    assert r.exit_code == 0 and len(lines) == 2
+    assert "web01" in lines[0] and "(revoked)" not in lines[0]
+    assert "web02" in lines[1] and lines[1].endswith("(revoked)")
+
+
+def test_fleet_summary_plain_text_has_header_and_rows(tmp_path):
+    db = _fleet_db(tmp_path)
+    r = CliRunner().invoke(fleet_cmd, ["summary", "--db", str(db)])
+    lines = r.output.strip().splitlines()
+    assert r.exit_code == 0 and lines[0].split() == ["host", "readiness", "crit", "high", "total", "last", "scan"]
+    assert [ln.split()[0] for ln in lines[1:]] == ["web01", "web02"]

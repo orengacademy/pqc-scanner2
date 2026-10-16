@@ -38,6 +38,12 @@ def _parse_dt(v: object) -> datetime | None:
 
 
 _INGEST_STATUSES = frozenset({"done", "failed", "interrupted"})
+FLEET_ROLLUP_LABEL = "fleet-rollup"
+
+
+def is_fleet_ref(ref: str) -> bool:
+    """True when a scan reference means 'the whole fleet' (case/whitespace tolerant)."""
+    return ref.strip().lower() == "fleet"
 
 
 @dataclass(slots=True)
@@ -165,7 +171,9 @@ class Repo:
                 if scan.finished_at is None:
                     scan.finished_at = utcnow()
             s.commit()
-            return len(stale)
+            n = len(stale)
+        self.delete_stale_rollups()
+        return n
 
     def finish_scan(self, scan_id: int, *, status: str) -> None:
         with Session(self.engine) as s:
@@ -481,6 +489,7 @@ class Repo:
         """Delete each host's scans beyond the newest N (by server scan id); returns scans deleted."""
         if keep_per_host < 1:
             raise ValueError("keep_per_host must be >= 1")
+        self.delete_stale_rollups()
         deleted = 0
         with Session(self.engine) as s:
             host_ids = list(s.execute(select(Host.id)).scalars())
@@ -493,6 +502,19 @@ class Repo:
                 deleted += 1
         return deleted
 
+    def delete_stale_rollups(self) -> int:
+        """Delete orphaned temporary fleet rollups (left by a hard kill mid-export); returns count.
+
+        Only rollups flagged temporary are swept: `pqcscan merge` also labels its persistent
+        rollup scan FLEET_ROLLUP_LABEL, and that one is user data."""
+        with Session(self.engine) as s:
+            ids = [i for i, tv in s.execute(select(Scan.id, Scan.tool_versions)
+                                            .where(Scan.label == FLEET_ROLLUP_LABEL))
+                   if (tv or {}).get("temporary") is True]
+        for sid in ids:
+            self.delete_scan(sid)
+        return len(ids)
+
     def materialize_fleet_rollup(self) -> int | None:
         """Temporary scan = latest done scan of every host, evidence['host'] set. Caller deletes it."""
         summary = [x for x in self.fleet_summary() if x.scan_id is not None]
@@ -500,8 +522,8 @@ class Repo:
             return None
         with Session(self.engine) as s:
             roll = Scan(started_at=utcnow(), finished_at=utcnow(), host_fingerprint="fleet", mode="user",
-                        status="done", label="fleet-rollup", probe_versions={},
-                        tool_versions={"hosts": len(summary)}, scan_uuid=str(uuid.uuid4()))
+                        status="done", label=FLEET_ROLLUP_LABEL, probe_versions={},
+                        tool_versions={"hosts": len(summary), "temporary": True}, scan_uuid=str(uuid.uuid4()))
             s.add(roll)
             s.flush()
             for x in summary:

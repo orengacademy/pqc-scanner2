@@ -17,11 +17,11 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from pqcscan.store.repo import Repo
+from pqcscan.store.repo import FLEET_ROLLUP_LABEL, Repo
 from pqcscan.store.schema import FindingRow, FrameworkView, Scan
 from pqcscan.util.clock import utcnow
 
-ROLLUP_LABEL = "fleet-rollup"
+ROLLUP_LABEL = FLEET_ROLLUP_LABEL
 
 
 @dataclass(slots=True)

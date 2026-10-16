@@ -21,7 +21,7 @@ from pqcscan.runner.capabilities import current_mode, detect_capabilities
 from pqcscan.runner.event_bus import EventBus
 from pqcscan.runner.runner import ProbeRunner
 from pqcscan.runner.targets import parse_scan_inputs
-from pqcscan.store.repo import Repo
+from pqcscan.store.repo import Repo, is_fleet_ref
 from pqcscan.store.schema import Scan
 
 SESSION_COOKIE = "pqcscan_session"
@@ -294,7 +294,7 @@ def create_app(
 
         `scan_ref` is a scan id, or 'fleet' for a temporary rollup of the latest
         scan of every enrolled host (deleted again once rendered)."""
-        is_fleet = scan_ref.strip().lower() == "fleet"
+        is_fleet = is_fleet_ref(scan_ref)
         scan_id = 0
         if not is_fleet:
             if not scan_ref.isdecimal():
