@@ -39,7 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   recipe exempts `/api/ingest` and `/api/agents/enroll` from Basic auth.
 
 ### Security — hardening done during review
-- **Never lose a report**: a failed post spools the bundle and retries on the next run.
+- **Never lose a report**: a failed post spools the bundle and retries on the next run,
+  oldest first, so the newest scan stays the host's latest.
 - **State files** (agent token, spool) are written `0600` with `O_NOFOLLOW` / `O_EXCL`.
 - **https or loopback only** for `--report-to`; plain http needs `--allow-http`.
 - **Revoked hosts cannot re-enroll** until `pqcscan agents unrevoke`.
@@ -52,7 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   opens, including when `--db` is a `sqlite:///` URL.
 - **Keyed machine ids**: domain-separated SHA-256, never the raw machine id.
 - **Ingest validation and caps**: 8 MiB wire, 50 MiB raw, 200,000 findings,
-  one bundle per minute per host, bundle `machine_id` must match the token;
+  a per-host bucket of 10 bundles refilled at one per minute (duplicates and
+  rejected bundles are free), bundle `machine_id` must match the token;
   tokens are stored hashed.
 - **Ordering by server scan id**, not client timestamps, when picking each
   host's latest scan; temporary rollups are swept at daemon start and on prune.

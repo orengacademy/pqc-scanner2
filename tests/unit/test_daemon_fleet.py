@@ -71,7 +71,8 @@ def test_enroll_rejections(tmp_db_path, fast_registry):
     assert no_enroll.post("/api/agents/enroll", json={"enroll_token": "x", "host": HOST}).status_code == 503
 
 
-def test_ingest_rejections(tmp_db_path, fast_registry, tmp_path):
+def test_ingest_rejections(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    monkeypatch.setattr(fleet, "INGEST_BURST", 1)
     c = _client(tmp_db_path, fast_registry)
     tok = _enroll(c)["agent_token"]
     h = _hdr(tok)
@@ -80,7 +81,7 @@ def test_ingest_rejections(tmp_db_path, fast_registry, tmp_path):
     assert c.post("/api/ingest", content=b"garbage", headers=h).status_code == 400
     assert c.post("/api/ingest", content=_bundle(tmp_path, machine_id="other"), headers=h).status_code == 403
     assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 200
-    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 429   # 1/min/host
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 429   # bucket empty
     # incompressible body so the wire size, not the decompressed size, trips the cap
     assert c.post("/api/ingest", content=os.urandom(9 * 1024 * 1024), headers=h).status_code == 413
 
@@ -173,6 +174,24 @@ def test_rate_limit_interval_read_at_request_time(tmp_db_path, fast_registry, tm
     assert c.post("/api/ingest", content=data, headers=_hdr(tok)).status_code == 200
     r = c.post("/api/ingest", content=data, headers=_hdr(tok))
     assert r.status_code == 200 and r.json()["duplicate"] is True
+
+
+def test_token_bucket_burst_and_no_spend_on_duplicate_or_rejection(tmp_db_path, fast_registry, tmp_path,
+                                                                   monkeypatch):
+    monkeypatch.setattr(fleet, "INGEST_BURST", 2)
+    c = _client(tmp_db_path, fast_registry)
+    h = _hdr(_enroll(c)["agent_token"])
+    a = _bundle(tmp_path)
+    assert c.post("/api/ingest", content=a, headers=h).status_code == 200
+    for _ in range(3):                                            # resends are free
+        r = c.post("/api/ingest", content=a, headers=h)
+        assert r.status_code == 200 and r.json()["duplicate"] is True
+    real = Repo.ingest_bundle
+    monkeypatch.setattr(Repo, "ingest_bundle", lambda self, b, hid: (_ for _ in ()).throw(ValueError("bad")))
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 400   # refunded
+    monkeypatch.setattr(Repo, "ingest_bundle", real)
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 200   # second token
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 429
 
 
 def test_chunked_oversize_upload_is_413(tmp_db_path, fast_registry):

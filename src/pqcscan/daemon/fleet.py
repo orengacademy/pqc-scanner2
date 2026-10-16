@@ -30,7 +30,8 @@ from pqcscan.store.bundle import (
 from pqcscan.store.repo import IngestResult, Repo
 
 FLEET_BEARER_PATHS = ("/api/ingest", "/api/agents/enroll")
-INGEST_MIN_INTERVAL_S = 60.0
+INGEST_MIN_INTERVAL_S = 60.0   # one ingest token refilled per interval, per host
+INGEST_BURST = 10               # tokens a host can spend at once (spool replay after an outage)
 _TERMINAL_STATUSES = ("done", "failed", "interrupted")
 
 
@@ -38,21 +39,29 @@ def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-class _RateLimiter:
-    """One hit per key per INGEST_MIN_INTERVAL_S; the interval is read at call time so tests can patch it."""
+class _TokenBucket:
+    """Per-key bucket of INGEST_BURST tokens, one refilled every INGEST_MIN_INTERVAL_S.
+
+    Both constants are read at call time so tests can patch them."""
 
     def __init__(self) -> None:
-        self._last: dict[int, float] = {}
+        self._state: dict[int, tuple[float, float]] = {}   # key -> (tokens, monotonic time)
         self._lock = threading.Lock()
 
-    def allow(self, key: int) -> bool:
+    def take(self, key: int) -> bool:
         now = time.monotonic()
         with self._lock:
-            last = self._last.get(key)
-            if last is not None and now - last < INGEST_MIN_INTERVAL_S:
-                return False
-            self._last[key] = now
-            return True
+            tokens, then = self._state.get(key, (float(INGEST_BURST), now))
+            tokens = (min(float(INGEST_BURST), tokens + (now - then) / INGEST_MIN_INTERVAL_S)
+                      if INGEST_MIN_INTERVAL_S > 0 else float(INGEST_BURST))
+            ok = tokens >= 1
+            self._state[key] = (tokens - 1 if ok else tokens, now)
+            return ok
+
+    def refund(self, key: int) -> None:
+        with self._lock:
+            tokens, then = self._state[key]
+            self._state[key] = (min(float(INGEST_BURST), tokens + 1), then)
 
 
 def _host_dict(h: Any) -> dict[str, Any]:
@@ -64,7 +73,7 @@ def _host_dict(h: Any) -> dict[str, Any]:
 
 def build_fleet_router(repo: Repo, *, enroll_token: str | None) -> APIRouter:
     router = APIRouter()
-    limiter = _RateLimiter()
+    limiter = _TokenBucket()
 
     def _agent_host(request: Request):
         auth = request.headers.get("authorization", "")
@@ -133,10 +142,13 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None) -> APIRouter:
         status = bundle.scan.get("status")
         if status not in _TERMINAL_STATUSES:
             raise HTTPException(400, f"scan status {status!r} is not terminal; expected one of {_TERMINAL_STATUSES}")
-        if not limiter.allow(host.id):
-            raise HTTPException(429, "one bundle per minute per host")
+        if not limiter.take(host.id):
+            raise HTTPException(429, f"ingest rate limit: {INGEST_BURST} bundles, then one per "
+                                     f"{INGEST_MIN_INTERVAL_S:g} s per host")
+        stored = False                    # only a newly stored bundle spends the token
         try:
             res = await run_in_threadpool(_store, bundle, host.id)
+            stored = not res.duplicate
         except (ValueError, KeyError, TypeError) as e:
             raise HTTPException(400, f"invalid bundle content: {e}") from e
         except IntegrityError as e:
@@ -145,6 +157,9 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None) -> APIRouter:
             if existing is None:
                 raise HTTPException(400, "bundle violates a store constraint") from e
             return {"scan_id": existing, "stored_findings": 0, "stored_views": 0, "duplicate": True}
+        finally:
+            if not stored:
+                limiter.refund(host.id)
         return {"scan_id": res.scan_id, "stored_findings": res.stored_findings,
                 "stored_views": res.stored_views, "duplicate": res.duplicate}
 

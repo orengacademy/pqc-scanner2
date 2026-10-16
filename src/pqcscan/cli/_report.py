@@ -5,6 +5,7 @@ import contextlib
 import ipaddress
 import os
 import ssl
+import time
 import uuid
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -131,7 +132,8 @@ def post_bundle(server: str, token: str, data: bytes, client: httpx.Client) -> d
 
 
 def spool_bundle(state_dir: Path, data: bytes) -> Path:
-    p = state_dir / SPOOL_DIR / f"{uuid.uuid4()}.bundle.gz"
+    # Names sort chronologically, so replay is oldest-first and the newest scan stays the host's latest.
+    p = state_dir / SPOOL_DIR / f"{time.time_ns():020d}-{uuid.uuid4().hex}.bundle.gz"
     _write_private(p, data, 0o600, exclusive=True)
     return p
 

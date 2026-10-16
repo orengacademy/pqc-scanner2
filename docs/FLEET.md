@@ -52,7 +52,8 @@ exports from them.
 - **Tokens hashed at rest.** The collector stores only token hashes. The agent
   keeps its own token in a 0600 file written without following symlinks.
 - **Ingest limits.** A bundle is capped at 8 MiB on the wire, 50 MiB after
-  decompression and 200,000 findings. Each host may post one bundle per minute.
+  decompression and 200,000 findings. Each host may post a burst of 10 bundles,
+  refilled at one per minute; duplicates and rejected bundles do not count.
   The bundle `machine_id` must match the token that posted it.
 - **No key material.** Findings never carry key bytes. Machine ids are
   domain-separated hashes, not raw `/etc/machine-id` values.
