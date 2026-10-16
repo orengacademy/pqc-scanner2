@@ -9,14 +9,29 @@ Install: `pip install pqcscan[active]` (requires native liboqs >= 0.10 on host).
 """
 from __future__ import annotations
 
+import contextlib
+import logging
+import sys
 from typing import Any
 
 _oqs: Any = None
 _OQS_IMPORT_ERROR: BaseException | None = None
 try:
+    # liboqs-python attaches a logging.StreamHandler(sys.stdout) to its own
+    # logger at import and logs an INFO line ("faulthandler is disabled"),
+    # which corrupts `pqcscan scan --json` / SARIF-on-stdout pipelines.
+    # Import under a stdout->stderr redirect so the handler binds to stderr,
+    # then drop any stdout handlers it still holds.
     # Missing-import codes are handled by the mypy `oqs` override; only the
     # re-binding of the `_oqs: Any = None` sentinel needs suppressing here.
-    import oqs as _oqs  # type: ignore[no-redef]
+    with contextlib.redirect_stdout(sys.stderr):
+        import oqs as _oqs  # type: ignore[no-redef]
+    for _name in ("oqs", "oqs.oqs"):
+        _lg = logging.getLogger(_name)
+        for _h in list(_lg.handlers):
+            if getattr(_h, "stream", None) is sys.stdout:
+                _lg.removeHandler(_h)
+        _lg.setLevel(logging.WARNING)
 except (ImportError, OSError) as e:
     _OQS_IMPORT_ERROR = e
 

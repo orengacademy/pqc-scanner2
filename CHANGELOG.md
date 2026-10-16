@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.13] — 2026-10-16
+
 ### Fixed — `--path` / `--target` finally reach every probe
+- **`pqcscan scan --json` stdout was corrupted on hosts with `pqcscan[active]`**:
+  liboqs-python logs "faulthandler is disabled" to stdout at import. The import
+  is now stdout-redirected and its stdout handlers removed, so JSON/SARIF
+  pipelines parse again (this is what had CI red since 0.9.12).
 - **`--path` was ignored by ~90 file-walking probes** (`fs.*`, `code.ts.*`,
   `app.*`, `sbom.lang.*`, …): they walked only their hardcoded defaults
   (`/etc`, `/srv`, `/opt`, `/var/www`). The runner now binds a per-scan copy
@@ -888,5 +894,6 @@ frameworks, 9 web UI pages, cross-OS binary build) is fully met.
   implicit-string-concat (which Python 3.11 breaks at `b"\x00" * N`
   expressions) to explicit `+` concatenation. (Commit `ce8f584`.)
 
-[Unreleased]: https://github.com/orengacademy/pqc-scanner2/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/orengacademy/pqc-scanner2/compare/v0.9.13...HEAD
+[0.9.13]: https://github.com/orengacademy/pqc-scanner2/compare/v0.9.12...v0.9.13
 [0.1.0]: https://github.com/orengacademy/pqc-scanner2/releases/tag/v0.1.0

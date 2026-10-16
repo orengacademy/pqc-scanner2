@@ -35,24 +35,23 @@ off by default on loopback; the default `127.0.0.1` bind is the boundary.
 ## 1. Install the binary
 
 ```bash
-# The SHA256 is per-release — copy the current one from the release page:
-# https://github.com/orengacademy/pqc-scanner2/releases
-VERSION=v0.9.12
-SHA256=9c1811922ca3954460bcb222aa2019a326e9283eca504a1eb426209c58d934aa
+VERSION=v0.9.13
+BASE="https://github.com/orengacademy/pqc-scanner2/releases/download/${VERSION}"
 
-curl -fsSL -o /usr/local/bin/pqcscan \
-  "https://github.com/orengacademy/pqc-scanner2/releases/download/${VERSION}/pqcscan-linux-x86_64"
+curl -fsSL -o pqcscan-linux-x86_64 "${BASE}/pqcscan-linux-x86_64"
+curl -fsSL -o SHA256SUMS.txt       "${BASE}/SHA256SUMS.txt"
+sha256sum -c --ignore-missing SHA256SUMS.txt      # must print: pqcscan-linux-x86_64: OK
+# Optional, stronger: verify the GitHub build-provenance attestation.
+#   gh attestation verify pqcscan-linux-x86_64 -R orengacademy/pqc-scanner2
 
-echo "${SHA256}  /usr/local/bin/pqcscan" | sha256sum -c -    # must print: OK
-# From v0.9.13 every release also ships SHA256SUMS.txt and a build-provenance
-# attestation: `gh attestation verify /usr/local/bin/pqcscan -R orengacademy/pqc-scanner2`
+install -m 0755 pqcscan-linux-x86_64 /usr/local/bin/pqcscan
 chmod +x /usr/local/bin/pqcscan
 pqcscan --help
 ```
 
 `curl` and `sha256sum` use the system crypto libraries, so they work even on a
 host whose Python lacks a working `ssl` module. Verify the checksum prints `OK`
-**before** `chmod`. The Linux binary is built in a manylinux2014 container
+**before** installing. The Linux binary is built in a manylinux2014 container
 (`scripts/build-linux-compat.sh`), so it needs only glibc ≥ 2.17: RHEL /
 Oracle Linux 7.9, 8, and 9 all work. (Releases up to v0.6.9 were built on
 `ubuntu-latest` and required glibc ≥ 2.38 — those fail on OL7 with
