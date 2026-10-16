@@ -9,6 +9,16 @@ def _h(raw: str) -> str:
     return hashlib.sha256(f"pqcscan|{raw}".encode()).hexdigest()
 
 
+def test_test_machine_id_env_overrides_verbatim(monkeypatch, tmp_path: Path):
+    (tmp_path / "machine-id").write_text("abc123\n")
+    monkeypatch.setattr(hostid.sys, "platform", "linux")
+    monkeypatch.setattr(hostid, "_LINUX_ID_FILES", (tmp_path / "machine-id",))
+    monkeypatch.setenv("PQCSCAN_TEST_MACHINE_ID", "m-web01")
+    assert hostid.machine_id() == "m-web01"
+    monkeypatch.delenv("PQCSCAN_TEST_MACHINE_ID")
+    assert hostid.machine_id() == _h("abc123")
+
+
 def test_linux_machine_id_file(monkeypatch, tmp_path: Path):
     (tmp_path / "machine-id").write_text("abc123\n")
     monkeypatch.setattr(hostid.sys, "platform", "linux")

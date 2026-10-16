@@ -5,6 +5,7 @@ Ids are keyed sha256 hashes so the systemd machine-id (documented confidential) 
 from __future__ import annotations
 
 import hashlib
+import os
 import socket
 import subprocess
 import sys
@@ -53,6 +54,13 @@ def _raw_machine_id() -> str | None:
 
 
 def machine_id() -> str:
+    """Stable hashed machine id.
+
+    PQCSCAN_TEST_MACHINE_ID is TEST-ONLY: when set it is returned verbatim (unhashed) so several agents on one
+    box enroll as distinct hosts. Never set it in production.
+    """
+    if v := os.environ.get("PQCSCAN_TEST_MACHINE_ID"):
+        return v
     raw = _raw_machine_id()
     if raw is None:
         # Known limit: in a container without /etc/machine-id, hostname and uuid.getnode() can change between runs
