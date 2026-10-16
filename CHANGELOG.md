@@ -59,8 +59,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   opens, including when `--db` is a `sqlite:///` URL.
 - **Domain-separated machine ids**: SHA-256 over a `pqcscan|` prefix, never the raw machine id.
 - **Ingest validation and caps**: 8 MiB wire, 50 MiB raw, 200,000 findings,
-  a per-host bucket of 10 bundles refilled at one per minute (duplicates and
-  rejected bundles are free), bundle `machine_id` must match the token;
+  a per-host bucket of 10 bundles refilled at one per minute (only a duplicate
+  `scan_uuid` is free; rejected bundles spend a token), bundle `machine_id` must match the token;
   tokens are stored hashed.
 - **Ordering by server scan id**, not client timestamps, when picking each
   host's latest scan; temporary rollups are swept at daemon start and on prune.

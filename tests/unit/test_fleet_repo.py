@@ -84,6 +84,23 @@ def test_fleet_summary_counts_in_sql_not_per_finding(tmp_db_path, tmp_path):
         assert (x.total, x.crit, x.readiness) == (len(found), len(found), readiness_score(count_bands(found)))
 
 
+def test_failed_ingest_leaves_host_row_untouched(tmp_db_path, tmp_path):
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    h = fleet.upsert_host(WEB01)
+    good = _bundle(src, WEB01, ["RSA-2048"])
+    renamed = HostIdentity(machine_id="m-web01", hostname="renamed", os="linux", labels={"env": "x"})
+    bad = ScanBundle(schema_version=good.schema_version, scan_uuid="u-bad", host=renamed, scan=good.scan,
+                     findings=[{"title": "no probe_id"}])
+    with pytest.raises(KeyError):
+        fleet.ingest_bundle(bad, h.id)
+    after = fleet.get_host(h.id)
+    assert (after.hostname, after.labels, after.last_seen) == (h.hostname, h.labels, h.last_seen)
+    ok = ScanBundle(schema_version=good.schema_version, scan_uuid="u-ok", host=renamed, scan=good.scan, findings=[])
+    fleet.ingest_bundle(ok, h.id)
+    assert fleet.get_host(h.id).hostname == "renamed"             # a stored bundle refreshes the host row
+
+
 def test_prune_keeps_n_per_host(tmp_db_path, tmp_path):
     src = Repo(tmp_path / "src.db"); src.init_schema()
     fleet = Repo(tmp_db_path); fleet.init_schema()

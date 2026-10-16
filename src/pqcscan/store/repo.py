@@ -65,6 +65,14 @@ class HostSummary:
     total: int
 
 
+def _apply_identity(h: Host, identity: HostIdentity) -> None:
+    h.hostname = identity.hostname or h.hostname
+    h.os = identity.os or h.os
+    h.labels = {**(h.labels or {}), **identity.labels}
+    h.agent_version = identity.agent_version or h.agent_version
+    h.last_seen = utcnow()
+
+
 class Repo:
     def __init__(self, db_path: Path | str):
         # check_same_thread=False so a background-thread scanner can write
@@ -351,11 +359,7 @@ class Repo:
             if h is None:
                 h = Host(machine_id=identity.machine_id)
                 s.add(h)
-            h.hostname = identity.hostname or h.hostname
-            h.os = identity.os or h.os
-            h.labels = {**(h.labels or {}), **identity.labels}
-            h.agent_version = identity.agent_version or h.agent_version
-            h.last_seen = utcnow()
+            _apply_identity(h, identity)
             if token_hash is not None:
                 h.token_hash = token_hash   # never clears `revoked`: only unrevoke_host does
             s.commit()
@@ -404,9 +408,11 @@ class Repo:
             return True
 
     def ingest_bundle(self, bundle: ScanBundle, host_id: int) -> IngestResult:
-        """Store one bundle in a single transaction; a repeated scan_uuid is a no-op."""
+        """Store one bundle and refresh the host row from its identity in a single transaction;
+        a repeated scan_uuid is a no-op."""
         with Session(self.engine) as s:
-            if s.get(Host, host_id) is None:
+            h = s.get(Host, host_id)
+            if h is None:
                 raise ValueError(f"host {host_id} not found")
             existing = s.execute(
                 select(Scan.id, Scan.host_id).where(Scan.scan_uuid == bundle.scan_uuid)
@@ -445,9 +451,7 @@ class Repo:
                                         verdict=str(v["verdict"]),
                                         deadline=date.fromisoformat(v["deadline"]) if v.get("deadline") else None))
                     n_v += 1
-            h = s.get(Host, host_id)
-            if h is not None:
-                h.last_seen = utcnow()
+            _apply_identity(h, bundle.host)
             s.commit()
             return IngestResult(scan_id=scan.id, stored_findings=n_f, stored_views=n_v, duplicate=False)
 

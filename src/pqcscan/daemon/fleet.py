@@ -26,10 +26,9 @@ from pqcscan.store.bundle import (
     BundleInvalid,
     BundleTooLarge,
     HostIdentity,
-    ScanBundle,
     load_bundle,
 )
-from pqcscan.store.repo import IngestResult, Repo
+from pqcscan.store.repo import Repo
 
 FLEET_BEARER_PATHS = ("/api/ingest", "/api/agents/enroll")
 INGEST_MIN_INTERVAL_S = 60.0   # one ingest token refilled per interval, per host
@@ -140,48 +139,43 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None) -> APIRouter:
         logger.info("fleet: enrolled host {} ({})", host.hostname, host.machine_id)
         return {"host_id": host.id, "agent_token": token}
 
-    def _store(bundle: ScanBundle, host_id: int) -> IngestResult:
-        repo.upsert_host(bundle.host)
-        return repo.ingest_bundle(bundle, host_id)
-
     @router.post("/api/ingest")
     async def ingest(request: Request) -> dict:
         host = _agent_host(request)
         if not limiter.take(host.id):     # before reading or parsing anything
             raise HTTPException(429, f"ingest rate limit: {INGEST_BURST} bundles, then one per "
                                      f"{INGEST_MIN_INTERVAL_S:g} s per host")
-        stored = False                    # only a newly stored bundle spends the token
-        try:
-            data = await _read_capped(request, MAX_GZIP_BYTES)
-            async with parse_slots:
-                try:
-                    bundle = await run_in_threadpool(load_bundle, data)
-                except BundleTooLarge as e:
-                    raise HTTPException(413, str(e)) from e
-                except BundleInvalid as e:
-                    raise HTTPException(400, str(e)) from e
-                if bundle.host.machine_id != host.machine_id:
-                    raise HTTPException(403, "bundle machine_id does not match the agent token")
-                status = bundle.scan.get("status")
-                if status not in _TERMINAL_STATUSES:
-                    raise HTTPException(400, f"scan status {status!r} is not terminal; "
-                                             f"expected one of {_TERMINAL_STATUSES}")
-                try:
-                    res = await run_in_threadpool(_store, bundle, host.id)
-                    stored = not res.duplicate
-                except (ValueError, KeyError, TypeError) as e:
-                    raise HTTPException(400, f"invalid bundle content: {e}") from e
-                except OperationalError as e:     # e.g. SQLite busy past its timeout: the agent spools and retries
-                    raise HTTPException(503, "store busy, retry later", headers={"Retry-After": "5"}) from e
-                except IntegrityError as e:
-                    # Two requests with the same scan_uuid raced past the duplicate check; the loser is a duplicate.
-                    existing = repo.get_scan_id_by_uuid(bundle.scan_uuid)
-                    if existing is None:
-                        raise HTTPException(400, "bundle violates a store constraint") from e
-                    return {"scan_id": existing, "stored_findings": 0, "stored_views": 0, "duplicate": True}
-        finally:
-            if not stored:
+        # Every outcome spends the token except a duplicate scan_uuid (an idempotent retry, no side effects):
+        # refunding rejections would let one agent token replay malformed bundles through the parser unthrottled.
+        data = await _read_capped(request, MAX_GZIP_BYTES)
+        async with parse_slots:
+            try:
+                bundle = await run_in_threadpool(load_bundle, data)
+            except BundleTooLarge as e:
+                raise HTTPException(413, str(e)) from e
+            except BundleInvalid as e:
+                raise HTTPException(400, str(e)) from e
+            if bundle.host.machine_id != host.machine_id:
+                raise HTTPException(403, "bundle machine_id does not match the agent token")
+            status = bundle.scan.get("status")
+            if status not in _TERMINAL_STATUSES:
+                raise HTTPException(400, f"scan status {status!r} is not terminal; "
+                                         f"expected one of {_TERMINAL_STATUSES}")
+            try:
+                res = await run_in_threadpool(repo.ingest_bundle, bundle, host.id)
+            except (ValueError, KeyError, TypeError) as e:
+                raise HTTPException(400, f"invalid bundle content: {e}") from e
+            except OperationalError as e:     # e.g. SQLite busy past its timeout: the agent spools and retries
+                raise HTTPException(503, "store busy, retry later", headers={"Retry-After": "5"}) from e
+            except IntegrityError as e:
+                # Two requests with the same scan_uuid raced past the duplicate check; the loser is a duplicate.
+                existing = repo.get_scan_id_by_uuid(bundle.scan_uuid)
+                if existing is None:
+                    raise HTTPException(400, "bundle violates a store constraint") from e
                 limiter.refund(host.id)
+                return {"scan_id": existing, "stored_findings": 0, "stored_views": 0, "duplicate": True}
+        if res.duplicate:
+            limiter.refund(host.id)
         return {"scan_id": res.scan_id, "stored_findings": res.stored_findings,
                 "stored_views": res.stored_views, "duplicate": res.duplicate}
 

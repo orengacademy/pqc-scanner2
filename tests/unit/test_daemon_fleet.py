@@ -74,7 +74,7 @@ def test_enroll_rejections(tmp_db_path, fast_registry):
 
 
 def test_ingest_rejections(tmp_db_path, fast_registry, tmp_path, monkeypatch):
-    monkeypatch.setattr(fleet, "INGEST_BURST", 1)
+    monkeypatch.setattr(fleet, "INGEST_BURST", 4)                   # 401s are free; the next four spend
     c = _client(tmp_db_path, fast_registry)
     tok = _enroll(c)["agent_token"]
     h = _hdr(tok)
@@ -84,8 +84,8 @@ def test_ingest_rejections(tmp_db_path, fast_registry, tmp_path, monkeypatch):
     assert c.post("/api/ingest", content=_bundle(tmp_path, machine_id="other"), headers=h).status_code == 403
     # incompressible body so the wire size, not the decompressed size, trips the cap
     assert c.post("/api/ingest", content=os.urandom(9 * 1024 * 1024), headers=h).status_code == 413
-    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 200   # rejections were free
-    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 429   # bucket empty
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 200
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 429   # rejections spent tokens
 
 
 def test_revoked_token_is_401(tmp_db_path, fast_registry, tmp_path):
@@ -125,6 +125,18 @@ def test_ingest_malformed_content_is_400(tmp_db_path, fast_registry, tmp_path, m
     r = c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(tok))
     assert r.status_code == 400
     assert str(exc.args[0]) in r.json()["detail"] and "Error(" not in r.json()["detail"]   # message, not repr
+
+
+def test_rejected_store_does_not_touch_the_host_row(tmp_db_path, fast_registry, tmp_path):
+    import gzip
+    c = _client(tmp_db_path, fast_registry)
+    tok = _enroll(c)["agent_token"]
+    doc = json.loads(gzip.decompress(_bundle(tmp_path)))
+    doc["host"]["hostname"] = "renamed"
+    del doc["findings"][0]["probe_id"]                     # parses, then fails inside the store
+    r = c.post("/api/ingest", content=gzip.compress(json.dumps(doc).encode()), headers=_hdr(tok))
+    assert r.status_code == 400
+    assert Repo(tmp_db_path).get_host(1).hostname == "web01"
 
 
 def test_store_busy_is_503_with_retry_after(tmp_db_path, fast_registry, tmp_path, monkeypatch):
@@ -189,9 +201,8 @@ def test_rate_limit_interval_read_at_request_time(tmp_db_path, fast_registry, tm
     assert r.status_code == 200 and r.json()["duplicate"] is True
 
 
-def test_token_bucket_burst_and_no_spend_on_duplicate_or_rejection(tmp_db_path, fast_registry, tmp_path,
-                                                                   monkeypatch):
-    monkeypatch.setattr(fleet, "INGEST_BURST", 2)
+def test_token_bucket_only_duplicates_are_free(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    monkeypatch.setattr(fleet, "INGEST_BURST", 3)
     c = _client(tmp_db_path, fast_registry)
     h = _hdr(_enroll(c)["agent_token"])
     a = _bundle(tmp_path)
@@ -201,10 +212,11 @@ def test_token_bucket_burst_and_no_spend_on_duplicate_or_rejection(tmp_db_path, 
         assert r.status_code == 200 and r.json()["duplicate"] is True
     real = Repo.ingest_bundle
     monkeypatch.setattr(Repo, "ingest_bundle", lambda self, b, hid: (_ for _ in ()).throw(ValueError("bad")))
-    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 400   # refunded
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 400   # spends a token
     monkeypatch.setattr(Repo, "ingest_bundle", real)
-    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 200   # second token
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 200   # third token
     assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 429
+    assert c.post("/api/ingest", content=b"garbage", headers=h).status_code == 429          # malformed: throttled too
 
 
 def test_enroll_disabled_is_503_without_parsing_the_body(tmp_db_path, fast_registry, monkeypatch):
