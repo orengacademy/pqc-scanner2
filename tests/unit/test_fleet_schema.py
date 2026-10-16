@@ -47,3 +47,11 @@ def test_pre_fleet_db_is_upgraded_in_place(tmp_path: Path):
     repo.init_schema()                                  # idempotent second run
     sid = repo.create_scan(mode="user", probe_versions={}, tool_versions={})
     assert repo.get_scan(sid).scan_uuid
+
+
+def test_repo_accepts_full_sqlalchemy_url_or_plain_path(tmp_path: Path):
+    assert Repo("sqlite:///:memory:").engine.url.drivername == "sqlite"
+    plain = Repo(tmp_path / "plain.db")
+    plain.init_schema()
+    assert plain.engine.url.drivername == "sqlite"
+    assert plain.engine.url.database == str(tmp_path / "plain.db")

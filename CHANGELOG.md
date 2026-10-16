@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-10-16
+
+### Added — fleet mode, phase 1 (see `docs/FLEET.md`)
+- **Scan bundle** — a portable, versioned wire format for one host's scan
+  (`ScanBundle`), with a per-host machine id.
+- **Enroll + ingest** — the daemon gains `POST /api/agents/enroll` (enabled by
+  `--enroll-token` / `PQCSCAN_ENROLL_TOKEN`) and `POST /api/ingest` (per-agent
+  bearer token). `GET /api/fleet` and `GET /api/fleet/{host_id}` return the
+  fleet rollup.
+- **Hosts table** — new `hosts` table plus `scans.host_id` / `scans.scan_uuid`;
+  pre-fleet databases are upgraded in place.
+- **`pqcscan scan --report-to`** (`--enroll-token`, `--agent-token`, `--labels`,
+  `--state-dir`, `--ca-cert`, `--insecure`, `--allow-http`) — enrolls once,
+  stores the agent token, posts the bundle, and spools it if the collector is
+  unreachable.
+- **`pqcscan agents list|revoke|unrevoke`** and **`pqcscan fleet summary|prune --keep N`**.
+- **`pqcscan export --scan fleet`** (CLI and daemon API) — latest scan of every
+  host via a temporary rollup, `evidence.host` set, for CBOM, SARIF, XLSX and PDF.
+- **PostgreSQL option** — `--db` accepts a SQLAlchemy URL
+  (`postgresql://…`, `pip install 'pqcscan[fleet-pg]'`). Wired, not yet tested.
+
+### Security — hardening done during review
+- **Never lose a report**: a failed post spools the bundle and retries on the next run.
+- **State files** (agent token, spool) are written `0600` with `O_NOFOLLOW` / `O_EXCL`.
+- **https or loopback only** for `--report-to`; plain http needs `--allow-http`.
+- **Revoked hosts cannot re-enroll** until `pqcscan agents unrevoke`.
+- **Keyed machine ids**: domain-separated SHA-256, never the raw machine id.
+- **Ingest validation and caps**: 8 MiB wire, 50 MiB raw, 200,000 findings,
+  one bundle per minute per host, bundle `machine_id` must match the token;
+  tokens are stored hashed.
+- **Ordering by server scan id**, not client timestamps, when picking each
+  host's latest scan; temporary rollups are swept at daemon start and on prune.
+
 ## [0.9.13] — 2026-10-16
 
 ### Fixed — `--path` / `--target` finally reach every probe
@@ -894,6 +927,7 @@ frameworks, 9 web UI pages, cross-OS binary build) is fully met.
   implicit-string-concat (which Python 3.11 breaks at `b"\x00" * N`
   expressions) to explicit `+` concatenation. (Commit `ce8f584`.)
 
-[Unreleased]: https://github.com/orengacademy/pqc-scanner2/compare/v0.9.13...HEAD
+[Unreleased]: https://github.com/orengacademy/pqc-scanner2/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/orengacademy/pqc-scanner2/compare/v0.9.13...v0.10.0
 [0.9.13]: https://github.com/orengacademy/pqc-scanner2/compare/v0.9.12...v0.9.13
 [0.1.0]: https://github.com/orengacademy/pqc-scanner2/releases/tag/v0.1.0

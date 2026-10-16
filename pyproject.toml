@@ -39,6 +39,8 @@ dev = [
   "ruff>=0.4",
   "mypy>=1.10",
 ]
+# Fleet collector on PostgreSQL (--db postgresql://…); SQLite is the default.
+fleet-pg = ["psycopg[binary]>=3.1"]
 # Plan I.7.a — OQS active validation extras. Default install stays passive.
 # With this set, OQS-dependent probes register and can perform active
 # hybrid-KEX handshakes + ML-DSA signature verify + NIST FIPS 203/204/205

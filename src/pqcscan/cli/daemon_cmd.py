@@ -14,7 +14,8 @@ from pqcscan.util.paths import default_db_path
 @click.command()
 @click.option("--port", type=int, default=8765)
 @click.option("--bind", default="127.0.0.1", help="Bind address. Default 127.0.0.1.")
-@click.option("--db", type=click.Path(path_type=Path), default=None)
+@click.option("--db", type=str, default=None,
+              help="SQLite file path, or a SQLAlchemy URL such as postgresql://user:pw@host/db (fleet scale).")
 @click.option("--tls-cert", type=click.Path(path_type=Path, exists=True), default=None,
               help="Serve HTTPS: PEM certificate (with --tls-key).")
 @click.option("--tls-key", type=click.Path(path_type=Path, exists=True), default=None,
@@ -33,7 +34,7 @@ from pqcscan.util.paths import default_db_path
     help="Shared token agents present once to enroll (fleet mode). Without it, /api/agents/enroll is disabled.",
 )
 def daemon_cmd(
-    port: int, bind: str, db: Path | None, tls_cert: Path | None, tls_key: Path | None,
+    port: int, bind: str, db: str | None, tls_cert: Path | None, tls_key: Path | None,
     allow_hosts: tuple[str, ...], token: str | None, enroll_token: str | None,
 ) -> None:
     """Run the daemon (HTTP + SSE on 127.0.0.1; HTTPS with --tls-cert/--tls-key)."""
@@ -48,8 +49,12 @@ def daemon_cmd(
             err=True,
         )
         sys.exit(2)
-    db_path = db or default_db_path()
-    db_path.parent.mkdir(parents=True, exist_ok=True)
+    db_path: Path | str
+    if db and "://" in db:
+        db_path = db  # SQLAlchemy URL: Path() would collapse the "//"
+    else:
+        db_path = Path(db) if db else default_db_path()
+        db_path.parent.mkdir(parents=True, exist_ok=True)
     app = create_app(
         db_path=db_path, token=token, enroll_token=enroll_token,
         allowed_hosts=(bind, socket.gethostname(), *allow_hosts),

@@ -70,11 +70,15 @@ class Repo:
         # check_same_thread=False so a background-thread scanner can write
         # while the FastAPI request loop reads. SQLite handles concurrent
         # access via its built-in locking.
-        self.engine = create_engine(
-            f"sqlite:///{db_path}",
-            future=True,
-            connect_args={"check_same_thread": False},
-        )
+        # A "://" argument is a full SQLAlchemy URL (e.g. postgresql://…, fleet
+        # scale); anything else is a SQLite file path.
+        url = str(db_path)
+        if "://" not in url:
+            url = f"sqlite:///{db_path}"
+        kwargs: dict = {"future": True}
+        if url.startswith("sqlite"):
+            kwargs["connect_args"] = {"check_same_thread": False}
+        self.engine = create_engine(url, **kwargs)
 
         if self.engine.dialect.name == "sqlite":
             # WAL lets the daemon's background-thread writer coexist with request

@@ -35,7 +35,7 @@ off by default on loopback; the default `127.0.0.1` bind is the boundary.
 ## 1. Install the binary
 
 ```bash
-VERSION=v0.9.13
+VERSION=v0.10.0
 BASE="https://github.com/orengacademy/pqc-scanner2/releases/download/${VERSION}"
 
 curl -fsSL -o pqcscan-linux-x86_64 "${BASE}/pqcscan-linux-x86_64"
@@ -227,6 +227,7 @@ sudo setsebool -P httpd_can_network_connect 1
 | Port       | `--port`                           | `8765`                        |
 | DB path    | `--db` / `PQCSCAN_DB_PATH`         | `/var/lib/pqcscan/pqcscan.db` |
 | Auth token | `--token` / `PQCSCAN_TOKEN`        | none (loopback only)          |
+| Enroll token | `--enroll-token` / `PQCSCAN_ENROLL_TOKEN` | none (fleet off) |
 | HTTPS      | `--tls-cert` + `--tls-key`         | off (plain HTTP)              |
 | Host allowlist | `--allow-host` (repeatable)    | loopback, `--bind`, hostname  |
 

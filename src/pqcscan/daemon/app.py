@@ -85,7 +85,7 @@ def _host_allowed(request: Request, allowed: frozenset[str]) -> bool:
 
 
 def create_app(
-    *, db_path: Path, registry: Registry | None = None, token: str | None = None,
+    *, db_path: Path | str, registry: Registry | None = None, token: str | None = None,
     allowed_hosts: Iterable[str] = (), enroll_token: str | None = None,
 ) -> FastAPI:
     """Build the daemon app.
