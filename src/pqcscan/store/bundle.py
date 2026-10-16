@@ -22,6 +22,7 @@ from pqcscan.store.schema import FindingRow, FrameworkView
 BUNDLE_SCHEMA_VERSION = 1
 MAX_GZIP_BYTES = 8 * 1024 * 1024
 MAX_RAW_BYTES = 50 * 1024 * 1024
+MAX_FINDINGS = 200_000
 
 
 class BundleInvalid(ValueError):  # noqa: N818 - name fixed by the fleet interface
@@ -101,16 +102,26 @@ def load_bundle(data: bytes) -> ScanBundle:
         raise BundleTooLarge(f"bundle decompresses past {MAX_RAW_BYTES} bytes")
     try:
         doc = json.loads(raw)
-    except ValueError as e:
+    except (ValueError, RecursionError) as e:  # deeply nested input can exhaust the recursion limit
         raise BundleInvalid(f"bad json: {e}") from e
     if not isinstance(doc, dict) or doc.get("schema_version") != BUNDLE_SCHEMA_VERSION:
         raise BundleInvalid("unsupported or missing schema_version")
     try:
-        h = doc["host"]
+        h, scan, findings = doc["host"], doc["scan"], doc.get("findings") or []
+        labels = h.get("labels") or {} if isinstance(h, dict) else None
+        if not (isinstance(h, dict) and isinstance(labels, dict) and isinstance(scan, dict)
+                and isinstance(findings, list)):
+            raise BundleInvalid("host, host.labels and scan must be objects and findings a list")
+        if len(findings) > MAX_FINDINGS:
+            raise BundleTooLarge(f"bundle has {len(findings)} findings; cap {MAX_FINDINGS}")
+        if not all(isinstance(f, dict) for f in findings):
+            raise BundleInvalid("every finding must be an object")
         host = HostIdentity(machine_id=str(h["machine_id"]), hostname=str(h.get("hostname", "")),
-                            os=str(h.get("os", "")), labels=dict(h.get("labels") or {}),
+                            os=str(h.get("os", "")), labels=dict(labels),
                             agent_version=str(h.get("agent_version", "")))
         return ScanBundle(schema_version=1, scan_uuid=str(doc["scan_uuid"]), host=host,
-                          scan=dict(doc["scan"]), findings=list(doc.get("findings") or []))
-    except (KeyError, TypeError) as e:
-        raise BundleInvalid(f"missing field: {e}") from e
+                          scan=dict(scan), findings=findings)
+    except (BundleInvalid, BundleTooLarge):  # both subclass ValueError; keep them intact
+        raise
+    except (KeyError, TypeError, ValueError, RecursionError) as e:
+        raise BundleInvalid(f"missing or malformed field: {e!r}") from e

@@ -7,6 +7,7 @@ import pytest
 
 from pqcscan.core.types import Classification, Finding, Severity
 from pqcscan.store.bundle import (
+    MAX_FINDINGS,
     MAX_GZIP_BYTES,
     BundleInvalid,
     BundleTooLarge,
@@ -71,3 +72,35 @@ def test_load_rejects_oversize():
     zeros = gzip.compress(b"{" + b" " * (50 * 1024 * 1024 + 10) + b"}")
     with pytest.raises(BundleTooLarge):
         load_bundle(zeros)
+
+
+def _doc(**over):
+    d = {"schema_version": 1, "scan_uuid": "u", "host": {"machine_id": "m"}, "scan": {}, "findings": []}
+    d.update(over)
+    return gzip.compress(json.dumps(d).encode())
+
+
+def test_load_accepts_minimal_valid_doc():
+    assert load_bundle(_doc()).host.labels == {}
+
+
+@pytest.mark.parametrize("over", [
+    {"findings": "nope"},
+    {"findings": ["a string"]},
+    {"host": {"machine_id": "m", "labels": ["x"]}},
+    {"host": "web01"},
+    {"scan": "abc"},
+])
+def test_load_rejects_malformed_structure(over):
+    with pytest.raises(BundleInvalid):
+        load_bundle(_doc(**over))
+
+
+def test_load_rejects_too_many_findings():
+    with pytest.raises(BundleTooLarge):
+        load_bundle(_doc(findings=[{}] * (MAX_FINDINGS + 1)))
+
+
+def test_load_rejects_deeply_nested_json():
+    with pytest.raises(BundleInvalid):
+        load_bundle(gzip.compress(b"[" * 2000 + b"]" * 2000))
