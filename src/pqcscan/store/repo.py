@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import os
+import uuid
 from datetime import date
 from pathlib import Path
 
@@ -25,21 +26,22 @@ class Repo:
             connect_args={"check_same_thread": False},
         )
 
-        # WAL lets the daemon's background-thread writer coexist with request
-        # readers; busy_timeout turns writer contention into a short wait
-        # instead of an immediate "database is locked" error.
-        @event.listens_for(self.engine, "connect")
-        def _set_sqlite_pragmas(dbapi_conn, _record) -> None:
-            cursor = dbapi_conn.cursor()
-            cursor.execute("PRAGMA journal_mode=WAL")
-            cursor.execute("PRAGMA busy_timeout=5000")
-            cursor.close()
-            # The DB holds the host's full crypto inventory (key paths, weak
-            # configs): owner-only, whatever the umask. SQLite gives -wal/-shm
-            # the main file's mode, so one chmod covers all three.
-            with contextlib.suppress(OSError):
-                if os.path.isfile(str(db_path)):
-                    os.chmod(str(db_path), 0o600)
+        if self.engine.dialect.name == "sqlite":
+            # WAL lets the daemon's background-thread writer coexist with request
+            # readers; busy_timeout turns writer contention into a short wait
+            # instead of an immediate "database is locked" error.
+            @event.listens_for(self.engine, "connect")
+            def _set_sqlite_pragmas(dbapi_conn, _record) -> None:
+                cursor = dbapi_conn.cursor()
+                cursor.execute("PRAGMA journal_mode=WAL")
+                cursor.execute("PRAGMA busy_timeout=5000")
+                cursor.close()
+                # The DB holds the host's full crypto inventory (key paths, weak
+                # configs): owner-only, whatever the umask. SQLite gives -wal/-shm
+                # the main file's mode, so one chmod covers all three.
+                with contextlib.suppress(OSError):
+                    if os.path.isfile(str(db_path)):
+                        os.chmod(str(db_path), 0o600)
 
     def init_schema(self) -> None:
         migrations.apply(self.engine)
@@ -51,11 +53,13 @@ class Repo:
         probe_versions: dict[str, str],
         tool_versions: dict[str, str],
         host_fingerprint: str | None = None,
+        scan_uuid: str | None = None,
     ) -> int:
         with Session(self.engine) as s:
             scan = Scan(
                 started_at=utcnow(),
                 host_fingerprint=host_fingerprint,
+                scan_uuid=scan_uuid or str(uuid.uuid4()),
                 mode=mode,
                 status="running",
                 probe_versions=probe_versions,
@@ -77,6 +81,7 @@ class Repo:
         probe_versions: dict[str, str],
         tool_versions: dict[str, str],
         host_fingerprint: str | None = None,
+        scan_uuid: str | None = None,
     ) -> int | None:
         """Check-no-running-scan and insert the new 'running' row in ONE
         transaction, returning its id — or None if a scan is already running.
@@ -91,6 +96,7 @@ class Repo:
             scan = Scan(
                 started_at=utcnow(),
                 host_fingerprint=host_fingerprint,
+                scan_uuid=scan_uuid or str(uuid.uuid4()),
                 mode=mode,
                 status="running",
                 probe_versions=probe_versions,

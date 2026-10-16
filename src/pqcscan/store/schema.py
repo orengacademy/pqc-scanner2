@@ -5,6 +5,7 @@ from typing import Any
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     Date,
     DateTime,
     ForeignKey,
@@ -34,6 +35,27 @@ class Scan(Base):
     label: Mapped[str | None] = mapped_column(String(128), nullable=True)
     probe_versions: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     tool_versions: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    # Fleet: which enrolled host produced this scan (NULL for a local scan),
+    # and a stable id so a re-posted bundle is not stored twice.
+    host_id: Mapped[int | None] = mapped_column(ForeignKey("hosts.id"), nullable=True, index=True)
+    scan_uuid: Mapped[str | None] = mapped_column(String(36), nullable=True)
+
+
+class Host(Base):
+    """An enrolled agent host (fleet mode). One row per machine id."""
+    __tablename__ = "hosts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    machine_id: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    hostname: Mapped[str] = mapped_column(String(255), default="")
+    os: Mapped[str] = mapped_column(String(32), default="")
+    labels: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    agent_version: Mapped[str] = mapped_column(String(32), default="")
+    first_seen: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    last_seen: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    # SHA-256 hex of the per-agent bearer token; the token itself is never stored.
+    token_hash: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
+    revoked: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class ComponentRow(Base):
