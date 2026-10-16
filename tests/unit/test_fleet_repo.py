@@ -1,8 +1,9 @@
 """Fleet store: host upsert, idempotent ingest, summary, history, pruning, rollup."""
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import event, func, select
 from sqlalchemy.orm import Session
 
+from pqcscan.core.bands import count_bands, readiness_score
 from pqcscan.core.types import Classification, Finding, Severity
 from pqcscan.store.bundle import HostIdentity, ScanBundle, dump_bundle, load_bundle
 from pqcscan.store.repo import Repo
@@ -62,6 +63,27 @@ def test_fleet_summary_latest_done_scan_per_host(tmp_db_path, tmp_path):
     assert fleet.host_history(h1.id)[0].id == latest.scan_id   # newest first
 
 
+def test_fleet_summary_counts_in_sql_not_per_finding(tmp_db_path, tmp_path):
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    h1 = fleet.upsert_host(WEB01); h2 = fleet.upsert_host(WEB02)
+    fleet.upsert_host(HostIdentity(machine_id="m-new", hostname="new", os="linux"))     # no scan yet
+    fleet.ingest_bundle(_bundle(src, WEB01, ["RSA-2048"] * 30 + ["ML-KEM-768"] * 10), h1.id)
+    last = fleet.ingest_bundle(_bundle(src, WEB02, ["ECDSA-P256"] * 20), h2.id)
+    statements: list[str] = []
+    listener = lambda *a: statements.append(a[2])  # noqa: E731
+    event.listen(fleet.engine, "before_cursor_execute", listener)
+    try:
+        rows = {x.host.hostname: x for x in fleet.fleet_summary()}
+    finally:
+        event.remove(fleet.engine, "before_cursor_execute", listener)
+    assert len(statements) <= 3, statements
+    assert rows["new"].scan_id is None and rows["web02"].scan_id == last.scan_id
+    for x in (rows["web01"], rows["web02"]):
+        found = fleet.list_findings(x.scan_id)
+        assert (x.total, x.crit, x.readiness) == (len(found), len(found), readiness_score(count_bands(found)))
+
+
 def test_prune_keeps_n_per_host(tmp_db_path, tmp_path):
     src = Repo(tmp_path / "src.db"); src.init_schema()
     fleet = Repo(tmp_db_path); fleet.init_schema()
@@ -89,6 +111,7 @@ def test_materialize_fleet_rollup_unions_latest_per_host(tmp_db_path, tmp_path):
     assert {r.evidence["_fleet"]["machine_id"] for r in rows} == {h1.machine_id, h2.machine_id}
     assert {r.evidence["_fleet"]["host_id"] for r in rows} == {h1.id, h2.id}
     assert all("host" not in r.evidence for r in rows)  # the scan-target key is never overwritten
+    assert len(fleet.list_framework_views(rid)) == 2    # views travel with the copied findings
     fleet.delete_scan(rid)
     assert fleet.get_scan(rid) is None and fleet.list_findings(rid) == []
 

@@ -12,6 +12,7 @@ from urllib.parse import urlsplit
 
 from fastapi import Body, FastAPI, Form, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
+from starlette.concurrency import run_in_threadpool
 
 from pqcscan import __version__
 from pqcscan.daemon.fleet import FLEET_BEARER_PATHS, build_fleet_router
@@ -322,25 +323,20 @@ def create_app(
         acquire_render_slot(app)
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
             tmp_path = Path(tmp.name)
-        temp_rollup = False
-        try:
-            if is_fleet:
-                rid = repo.materialize_fleet_rollup()
-                if rid is None:
-                    raise HTTPException(404, "no enrolled hosts with a completed scan")
-                scan_id, temp_rollup = rid, True
+
+        def _render(sid: int) -> bytes:   # sync renderers and rollup copy: run off the event loop
             if fmt == "cbom":
                 import json as _json
 
                 from pqcscan.cbom.builder import build_cbom
-                tmp_path.write_text(_json.dumps(build_cbom(repo, scan_id), indent=2))
+                tmp_path.write_text(_json.dumps(build_cbom(repo, sid), indent=2))
             elif fmt == "sarif":
                 from pqcscan.renderers.sarif import render_sarif
-                render_sarif(repo, scan_id, tmp_path)
+                render_sarif(repo, sid, tmp_path)
             elif fmt == "pdf-tech":
                 try:
                     from pqcscan.renderers.pdf_technical import render_pdf_technical
-                    render_pdf_technical(repo, scan_id, tmp_path, lang=lang)
+                    render_pdf_technical(repo, sid, tmp_path, lang=lang)
                 except (ImportError, ModuleNotFoundError) as e:
                     raise HTTPException(
                         503,
@@ -352,7 +348,7 @@ def create_app(
             elif fmt == "pdf-exec":
                 try:
                     from pqcscan.renderers.pdf_executive import render_pdf_executive
-                    render_pdf_executive(repo, scan_id, tmp_path, lang=lang)
+                    render_pdf_executive(repo, sid, tmp_path, lang=lang)
                 except (ImportError, ModuleNotFoundError) as e:
                     raise HTTPException(
                         503,
@@ -363,15 +359,24 @@ def create_app(
                     ) from e
             elif fmt == "xlsx-bukukerja":
                 from pqcscan.renderers.xlsx_bukukerja import render_xlsx_bukukerja
-                render_xlsx_bukukerja(repo, scan_id, tmp_path, locale=lang)
+                render_xlsx_bukukerja(repo, sid, tmp_path, locale=lang)
             elif fmt == "xlsx-generic":
                 from pqcscan.renderers.xlsx_generic import render_xlsx_generic
-                render_xlsx_generic(repo, scan_id, tmp_path)
-            data = tmp_path.read_bytes()
+                render_xlsx_generic(repo, sid, tmp_path)
+            return tmp_path.read_bytes()
+
+        rollup_id: int | None = None
+        try:
+            if is_fleet:
+                rollup_id = await run_in_threadpool(repo.materialize_fleet_rollup)
+                if rollup_id is None:
+                    raise HTTPException(404, "no enrolled hosts with a completed scan")
+                scan_id = rollup_id
+            data = await run_in_threadpool(_render, scan_id)
         finally:
             try:
-                if temp_rollup:
-                    repo.delete_scan(scan_id)
+                if rollup_id is not None:
+                    await run_in_threadpool(repo.delete_scan, rollup_id)
             finally:
                 tmp_path.unlink(missing_ok=True)
                 app.state.render_slots.release()

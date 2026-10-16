@@ -8,7 +8,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from sqlalchemy import create_engine, delete, event, select
+from sqlalchemy import create_engine, delete, event, func, select
 from sqlalchemy.orm import Session
 
 from pqcscan.core.types import Finding
@@ -452,28 +452,36 @@ class Repo:
             return IngestResult(scan_id=scan.id, stored_findings=n_f, stored_views=n_v, duplicate=False)
 
     def fleet_summary(self) -> list[HostSummary]:
-        from pqcscan.core.bands import count_bands, readiness_score
-        out: list[HostSummary] = []
+        """Each host with its latest done scan (by server scan id) and counts; three statements in all."""
+        from pqcscan.core.bands import classify_band, empty_band_counts, readiness_score
+        latest_ids = (select(func.max(Scan.id)).where(Scan.status == "done", Scan.host_id.is_not(None))
+                      .group_by(Scan.host_id))
+        cols = (FindingRow.scan_id, FindingRow.classification, FindingRow.algorithm, FindingRow.probe_id,
+                FindingRow.severity)
         with Session(self.engine) as s:
-            for h in s.execute(select(Host).order_by(Host.hostname, Host.id)).scalars().all():
-                latest = s.execute(
-                    select(Scan).where(Scan.host_id == h.id, Scan.status == "done")
-                    .order_by(Scan.id.desc()).limit(1)
-                ).scalar_one_or_none()
-                s.expunge(h)
-                if latest is None:
-                    out.append(HostSummary(h, None, None, None, 0, 0, 0))
-                    continue
-                rows = s.execute(select(FindingRow).where(FindingRow.scan_id == latest.id)).scalars().all()
-                counts = count_bands(list(rows))
-                # A host with nothing rated is fully ready, not 0 (readiness_score is 0 on an empty denominator).
-                rated = counts["green"] + counts["yellow"] + counts["red"]
-                out.append(HostSummary(
-                    host=h, scan_id=latest.id, finished_at=latest.finished_at,
-                    readiness=readiness_score(counts) if rated else 100,
-                    crit=sum(1 for r in rows if r.severity == "crit"),
-                    high=sum(1 for r in rows if r.severity == "high"), total=len(rows),
-                ))
+            hosts = s.execute(select(Host).order_by(Host.hostname, Host.id)).scalars().all()
+            latest = {sc.host_id: sc for sc in s.execute(select(Scan).where(Scan.id.in_(latest_ids))).scalars()}
+            tally: dict[int, dict[str, int]] = {}
+            # Band and severity depend only on these columns: count distinct combinations, not finding rows.
+            for r in s.execute(select(*cols, func.count().label("n")).where(FindingRow.scan_id.in_(latest_ids))
+                               .group_by(*cols)):
+                t = tally.setdefault(r.scan_id, {**empty_band_counts(), "crit": 0, "high": 0})
+                t[classify_band(r)] += r.n
+                t["total"] += r.n
+                if r.severity in ("crit", "high"):
+                    t[r.severity] += r.n
+        out: list[HostSummary] = []
+        for h in hosts:
+            sc = latest.get(h.id)
+            if sc is None:
+                out.append(HostSummary(h, None, None, None, 0, 0, 0))
+                continue
+            t = tally.get(sc.id, {**empty_band_counts(), "crit": 0, "high": 0})
+            # A host with nothing rated is fully ready, not 0 (readiness_score is 0 on an empty denominator).
+            rated = t["green"] + t["yellow"] + t["red"]
+            out.append(HostSummary(host=h, scan_id=sc.id, finished_at=sc.finished_at,
+                                   readiness=readiness_score(t) if rated else 100,
+                                   crit=t["crit"], high=t["high"], total=t["total"]))
         return out
 
     def host_history(self, host_id: int, limit: int = 50) -> list[Scan]:
@@ -533,18 +541,19 @@ class Repo:
                         tool_versions={"hosts": len(summary), "temporary": True}, scan_uuid=str(uuid.uuid4()))
             s.add(roll)
             s.flush()
-            for x in summary:
-                for r in s.execute(select(FindingRow).where(FindingRow.scan_id == x.scan_id)).scalars().all():
-                    nf = FindingRow(scan_id=roll.id, probe_id=r.probe_id, algorithm=r.algorithm,
-                                    classification=r.classification, severity=r.severity, title=r.title,
-                                    evidence={**(r.evidence or {}), "_fleet": {
-                                        "host": x.host.hostname, "host_id": x.host.id,
-                                        "machine_id": x.host.machine_id}},
-                                    remediation=r.remediation, created_at=r.created_at)
-                    s.add(nf)
-                    s.flush()
-                    for v in s.execute(select(FrameworkView).where(FrameworkView.finding_id == r.id)).scalars():
-                        s.add(FrameworkView(finding_id=nf.id, framework=v.framework, clause=v.clause,
-                                            verdict=v.verdict, deadline=v.deadline))
+            for x in summary:                 # one batched insert per host, no per-row flush
+                src = s.execute(select(FindingRow).where(FindingRow.scan_id == x.scan_id)).scalars().all()
+                fleet = {"host": x.host.hostname, "host_id": x.host.id, "machine_id": x.host.machine_id}
+                new = [FindingRow(scan_id=roll.id, probe_id=r.probe_id, algorithm=r.algorithm,
+                                  classification=r.classification, severity=r.severity, title=r.title,
+                                  evidence={**(r.evidence or {}), "_fleet": fleet},
+                                  remediation=r.remediation, created_at=r.created_at) for r in src]
+                s.add_all(new)
+                s.flush()
+                new_id = {r.id: nf.id for r, nf in zip(src, new, strict=True)}
+                views = s.execute(select(FrameworkView).join(FindingRow, FrameworkView.finding_id == FindingRow.id)
+                                  .where(FindingRow.scan_id == x.scan_id)).scalars().all()
+                s.add_all([FrameworkView(finding_id=new_id[v.finding_id], framework=v.framework, clause=v.clause,
+                                         verdict=v.verdict, deadline=v.deadline) for v in views])
             s.commit()
             return roll.id

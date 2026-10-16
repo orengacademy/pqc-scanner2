@@ -5,7 +5,7 @@ import os
 import pytest
 from fastapi.testclient import TestClient
 from loguru import logger
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from starlette.requests import Request
 
 from pqcscan.core.types import Classification, Finding, Severity
@@ -125,6 +125,17 @@ def test_ingest_malformed_content_is_400(tmp_db_path, fast_registry, tmp_path, m
     r = c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(tok))
     assert r.status_code == 400
     assert str(exc.args[0]) in r.json()["detail"] and "Error(" not in r.json()["detail"]   # message, not repr
+
+
+def test_store_busy_is_503_with_retry_after(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    c = _client(tmp_db_path, fast_registry)
+    tok = _enroll(c)["agent_token"]
+
+    def busy(self, bundle, host_id):
+        raise OperationalError("INSERT", {}, Exception("database is locked"))
+    monkeypatch.setattr(Repo, "ingest_bundle", busy)
+    r = c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(tok))
+    assert r.status_code == 503 and r.headers["retry-after"] == "5"
 
 
 def test_concurrent_duplicate_scan_uuid_is_200_duplicate(tmp_db_path, fast_registry, tmp_path, monkeypatch):

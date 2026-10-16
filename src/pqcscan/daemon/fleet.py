@@ -18,7 +18,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from loguru import logger
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from starlette.concurrency import run_in_threadpool
 
 from pqcscan.store.bundle import (
@@ -171,6 +171,8 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None) -> APIRouter:
                     stored = not res.duplicate
                 except (ValueError, KeyError, TypeError) as e:
                     raise HTTPException(400, f"invalid bundle content: {e}") from e
+                except OperationalError as e:     # e.g. SQLite busy past its timeout: the agent spools and retries
+                    raise HTTPException(503, "store busy, retry later", headers={"Retry-After": "5"}) from e
                 except IntegrityError as e:
                     # Two requests with the same scan_uuid raced past the duplicate check; the loser is a duplicate.
                     existing = repo.get_scan_id_by_uuid(bundle.scan_uuid)
@@ -188,7 +190,7 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None) -> APIRouter:
         return [{**_host_dict(x.host), "scan_id": x.scan_id,
                  "finished_at": x.finished_at.isoformat() if x.finished_at else None,
                  "readiness": x.readiness, "crit": x.crit, "high": x.high, "total": x.total}
-                for x in repo.fleet_summary()]
+                for x in await run_in_threadpool(repo.fleet_summary)]
 
     @router.get("/api/fleet/{host_id}")
     async def fleet_host(host_id: int) -> dict:

@@ -47,7 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Re-enrolling** a non-revoked machine id rotates its token (and is logged).
 - **`/api/ingest` and `/api/agents/enroll`** bypass the site `--token` guard
   (agents use their own bearer token) but keep the Host and Origin guards.
-- **Ingest parse and store** run in a thread pool, off the event loop.
+- **Ingest parse and store**, fleet summaries and fleet exports run in a thread pool,
+  off the event loop; a busy store answers 503 with `Retry-After: 5`.
 - **Unreadable machine-id files** fall through to the next identity source.
 - **SQLite file mode**: the 0600 chmod targets the file SQLAlchemy actually
   opens, including when `--db` is a `sqlite:///` URL.
