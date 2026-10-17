@@ -395,11 +395,19 @@ def test_enroll_and_agent_lookup_run_off_the_event_loop(tmp_db_path, fast_regist
             return orig(self, *a, **kw)
         return wrapper
 
-    for name in ("get_host_by_machine_id", "upsert_host", "get_host_by_token_hash"):
+    for name in ("get_host_by_machine_id", "upsert_host", "get_host_by_token_hash", "get_scan_id_by_uuid"):
         monkeypatch.setattr(Repo, name, note(name, getattr(Repo, name)))
     c = _client(tmp_db_path, fast_registry)
     tok = _enroll(c)["agent_token"]
     assert c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(tok)).status_code == 200
+    real = Repo.ingest_bundle
+
+    def lose_race(self, bundle, host_id):      # the duplicate-scan_uuid recovery path looks the scan up again
+        real(self, bundle, host_id)
+        raise IntegrityError("INSERT", {}, Exception("UNIQUE constraint failed: scans.scan_uuid"))
+    monkeypatch.setattr(Repo, "ingest_bundle", lose_race)
+    monkeypatch.setattr(fleet, "INGEST_MIN_INTERVAL_S", 0.0)
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(tok)).json()["duplicate"] is True
     assert on_loop == []
 
 
