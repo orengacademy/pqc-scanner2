@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from pqcscan.core.parity import is_drift
+
 _VULNERABLE = {"sangat-tinggi", "tinggi", "sederhana"}
 # (prefixes, score, source label). First match wins, so order matters.
 _RULES: tuple[tuple[tuple[str, ...], int, str], ...] = (
@@ -50,7 +52,7 @@ class AgilityResult:
 def score_findings(findings: list) -> AgilityResult:
     """Mean agility of the quantum-vulnerable findings; ``fleet.drift`` bookkeeping findings never count."""
     rows = [f for f in findings
-            if str(getattr(f, "classification", "")) in _VULNERABLE and f.probe_id != "fleet.drift"]
+            if str(getattr(f, "classification", "")) in _VULNERABLE and not is_drift(f)]
     if not rows:
         return AgilityResult(100, "high", {})
     total = 0

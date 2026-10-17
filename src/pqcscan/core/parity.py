@@ -10,6 +10,13 @@ DRIFT_PROBE = "fleet.drift"
 
 MAX_TITLE_NORMALISE = 512   # titles and hosts come from agents: bound the work done per finding
 
+
+
+def is_drift(row: Any) -> bool:
+    """True for a `fleet.drift` change marker: not a finding, so never counted, scored or inventoried."""
+    return getattr(row, "probe_id", None) == DRIFT_PROBE
+
+
 _H16 = r"[0-9a-fA-F]{1,4}"
 _IPV6 = rf"(?:(?:{_H16}:){{7}}{_H16}|(?:{_H16}:){{0,6}}:(?:{_H16}(?::{_H16}){{0,5}})?)"
 _IPV4 = r"\d{1,3}(?:\.\d{1,3}){3}"
@@ -76,7 +83,8 @@ def drift_rows(previous: list, current: list) -> list[Finding]:
 
 
 def _drift(change: str, r: Any) -> Finding:
-    return Finding(probe_id=DRIFT_PROBE, algorithm=r.algorithm, classification=Classification.INFO,
+    # algorithm stays N/A: the drifted algorithm is in the title and evidence, never a band or inventory input.
+    return Finding(probe_id=DRIFT_PROBE, algorithm="N/A", classification=Classification.INFO,
                    severity=Severity.INFO, title=f"drift: {change} {r.probe_id} {r.algorithm}",
                    evidence={"change": change, "probe_id": r.probe_id, "algorithm": r.algorithm,
                              "title": r.title[:MAX_TITLE_NORMALISE]})

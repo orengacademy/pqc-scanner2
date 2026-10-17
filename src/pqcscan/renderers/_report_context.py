@@ -25,6 +25,7 @@ from pqcscan.core.bands import (
 from pqcscan.core.exposure import build_register, tier_counts
 from pqcscan.core.migration_score import score_findings
 from pqcscan.core.mosca import MoscaInputs, assess, summary_lines
+from pqcscan.core.parity import is_drift
 from pqcscan.renderers._report_text import report_translator
 from pqcscan.store.repo import Repo
 
@@ -154,7 +155,7 @@ def build_report_context(
     if mosca_inputs is None:
         mosca_inputs = mosca_from_labels(labels)
         source = "labels" if mosca_inputs else "default"
-    findings = repo.list_findings(scan_id)
+    findings = [f for f in repo.list_findings(scan_id) if not is_drift(f)]   # drift rows are markers, not findings
     framework_views = repo.list_framework_views(scan_id)
 
     verdicts_by_finding: dict[int, list[Any]] = defaultdict(list)

@@ -163,3 +163,38 @@ def test_parity_key_normalises_at_host_and_bare_ipv6():
     assert parity_key("p", "A", "listener at web01.example.org", {}) == parity_key("p", "A", "listener at dr-02", {})
     assert parity_key("p", "A", "peer 2001:db8::1 uses RSA", {}) == parity_key("p", "A", "peer fe80::2 uses RSA", {})
     assert parity_key("p", "A", "peer (10.0.0.9), ok", {}) == parity_key("p", "A", "peer (10.0.0.8), ok", {})
+
+
+def test_drift_rows_never_count_toward_readiness_or_totals(tmp_db_path, tmp_path, fast_registry):
+    # scan 1 = RSA + ML-KEM, scan 2 = RSA only: the "removed ML-KEM" drift marker must not read as a green asset
+    from fastapi.testclient import TestClient
+
+    from pqcscan.core.bands import classify_band
+    from pqcscan.daemon.app import create_app
+    from pqcscan.renderers._report_context import build_report_context
+    app = create_app(db_path=tmp_db_path, registry=fast_registry)
+    fleet = app.state.repo
+    src = Repo(tmp_path / "s.db"); src.init_schema()
+    ident = HostIdentity(machine_id="m", hostname="h", os="linux")
+    h = fleet.upsert_host(ident)
+    for algs in (["RSA-2048", "ML-KEM-768"], ["RSA-2048"]):
+        sid = src.create_scan(mode="user", probe_versions={}, tool_versions={})
+        for a in algs:
+            cls = Classification.PQC_READY if a.startswith("ML-") else Classification.TINGGI
+            src.record_finding(sid, Finding(probe_id="net.tls.https", algorithm=a, classification=cls,
+                                            severity=Severity.HIGH, title=f"server offers {a}"))
+        src.finish_scan(sid, status="done")
+        res = fleet.ingest_bundle(load_bundle(dump_bundle(src, sid, ident)), h.id)
+    (d,) = [r for r in fleet.list_findings(res.scan_id) if r.probe_id == "fleet.drift"]
+    assert d.algorithm == "N/A" and d.evidence["algorithm"] == "ML-KEM-768" and classify_band(d) == "grey"
+    ctx = build_report_context(fleet, res.scan_id)
+    assert (ctx["readiness"], ctx["bands"]["total"], ctx["total_findings"]) == (50, 1, 1)
+    html = TestClient(app, base_url="http://127.0.0.1").get(f"/scans/{res.scan_id}").text
+    assert "50/100" in html and "75/100" not in html
+    assert ">1 " in html and ">2 " not in html
+    from openpyxl import load_workbook
+
+    from pqcscan.renderers.xlsx_bukukerja import render_xlsx_bukukerja
+    render_xlsx_bukukerja(fleet, res.scan_id, tmp_path / "b.xlsx", locale="en")
+    inv = [r for r in load_workbook(tmp_path / "b.xlsx")["0_Inventory"].iter_rows(min_row=5, values_only=True) if r[0]]
+    assert len(inv) == 1 and inv[0][5] == "RSA-2048"       # no inventory asset made from the drift marker

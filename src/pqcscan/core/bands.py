@@ -17,6 +17,8 @@ commit?". Code/SBOM/static-cert probes → RED. Runtime/config → YELLOW.
 """
 from __future__ import annotations
 
+from pqcscan.core.parity import is_drift
+
 # Algorithm-name fragments that indicate PQC or hybrid PQC primitives.
 # Lowercase comparison; substring match.
 PQC_ALGO_FRAGMENTS: tuple[str, ...] = (
@@ -96,9 +98,11 @@ def empty_band_counts() -> dict[str, int]:
 
 
 def count_bands(findings: list) -> dict[str, int]:
-    """Aggregate findings into the 4 band buckets + total."""
+    """Aggregate findings into the 4 band buckets + total; `fleet.drift` markers are skipped."""
     counts = empty_band_counts()
     for f in findings:
+        if is_drift(f):
+            continue
         band = classify_band(f)
         if band in counts:
             counts[band] += 1
@@ -113,7 +117,7 @@ def surface_breakdown(findings: list) -> dict[str, dict[str, int]]:
     }
     for f in findings:
         s = classify_surface(f)
-        if s == "other":
+        if s == "other" or is_drift(f):
             continue
         b = classify_band(f)
         if b in breakdown[s]:
