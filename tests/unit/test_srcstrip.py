@@ -242,3 +242,9 @@ def test_text_block_and_raw_string_floods_are_linear():
     assert _strip_seconds('"""\n' + '\\"""\n' * (256 * 1024 // 5), "java") < 1.0
     # descending hash counts, each unterminated
     assert _strip_seconds("".join("r" + "#" * h + '"' for h in range(1400, 0, -1)), "rust") < 1.0
+
+
+def test_rust_well_formed_raw_after_unterminated_hashed_raw_is_blanked():
+    src = 'let a = r##"never closed\nlet b = r#"md5 inside"#; let c = md5::compute(x);\n'
+    out = strip_noncode(src, "rust")
+    assert out.count("md5") == 1 and "md5::compute(x)" in out
