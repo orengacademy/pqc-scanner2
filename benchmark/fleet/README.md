@@ -52,29 +52,30 @@ The Postgres path is wired and was run locally, against a `postgres:16-alpine` c
 untested in CI until the CI job from the evidence plan (Task 7) lands, and `docs/FLEET.md` should keep calling it
 untested until then.
 
-## Results (2026-10-17, commit in each row of `LOAD.md`)
+## Results (2026-10-17)
 
-Ingest p95 against the 2 s target, 300-finding bundles, staggered arrival, box load average 5 to 13 during these rows.
+`LOAD.md` has every run and the summary; commit and box load are in each row. Ingest p95, 300-finding bundles,
+staggered arrival, after the ingest bulk insert (commit 05289fd). Before it, 500 hosts timed out on both databases and
+the 2 s line was crossed between 60 and 90 hosts on SQLite and 30 and 60 on Postgres.
 
 | hosts (bundles/s offered) | SQLite p50 / p95 | Postgres p50 / p95 |
 |---|---|---|
-| 30 (0.5) | 0.36 s / 3.3 s | 1.1 s / 1.6 s |
-| 60 (1) | 0.39 s / 1.8 s | 1.7 s / 10 s |
-| 90 (1.5) | 0.46 s / 2.1 s | 2.6 s / 11 s |
-| 120 (2) | 2.7 s / 14 s | 18 s / 28 s |
-| 500 (8.3), staggered or herd | requests time out after 60 s | requests time out after 60 s |
+| 30 (0.5) | 75 ms / 260 ms | 300 ms / 870 ms |
+| 60 (1) | 67 ms / 1.4 s | 510 ms / 2.3 s |
+| 90 (1.5) | 65 ms / 210 ms | 340 ms / 690 ms |
+| 120 (2) | 81 ms / 2.9 s | 390 ms / 2.7 s |
+| 250 (4.2) | 100 ms / 540 ms | 1.2 s / 8.9 s |
+| 500 (8.3) | 2.0 s / 8.7 s | 50 s / 60 s, 307 timeouts |
+| 500, herd | 12 s / 44 s | 53 s / 60 s, 254 timeouts |
 
-The 500-host target is not met on either database. Completed bundles per second stay near 2 on SQLite (120 hosts:
-236 bundles in 120 s) and near 1.4 on Postgres. Past that the queue grows and clients give up at 60 s; the 3 requests
-per second in the 500-host rows are mostly those timeouts, since `rps` counts every completed request.
+The 500-host target is not met. Capacity at p95 under 2 s is about 250 hosts on SQLite and about 90 on Postgres,
+each posting once a minute. Rows near the line are noisy, so read the 60 to 250 host rows as a band, not a threshold.
+`rps` counts every completed request, timeouts included.
 
-Probable cause, from a cProfile of one SQLite `ingest_bundle` with 300 findings: about 1,450 SQL statements and 300
-ORM flushes (one per finding, to obtain its id for the views), most of the CPU time. That points at work inside one
-process, not at the database lock. Postgres being slower is then a statement round-trip cost (a hypothesis; not
-profiled). Making ingest cheaper is a product change and out of scope for this task. The p95 near the 2 s line is
-noisy with 60 to 180 requests per run. Treat the 30 to 90 host rows as "around the limit", not as exact capacity.
-`FLEET.md`'s "SQLite handles roughly 2,000 hosts daily" is consistent with this (2,000 bundles a day is 0.02 a second).
+What limited it: a 300-finding ingest used to issue about 1,450 SQL statements (one ORM flush per finding, cProfile of
+one SQLite ingest). It now issues 308 on SQLite (one cheap insert per finding, kept so ids stay in order) and 9 on
+Postgres, at about a tenth of the CPU. Why Postgres still trails SQLite was not profiled.
 
 Enrolment under load: before commit 41b9dea an enrolment waiting on SQLite's write lock blocked the whole event loop
-(enroll p95 22 s at 500 hosts) and a lock timeout escaped as a 500. After it, enroll p95 is 2.1 s (SQLite) and 1.6 s
-(Postgres) at 500 staggered hosts, and a busy store answers 503.
+(enroll p95 22 s at 500 hosts) and a lock timeout escaped as a 500. After it, enroll p95 is about 2 s and a busy store
+answers 503.

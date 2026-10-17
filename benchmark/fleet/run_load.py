@@ -3,7 +3,7 @@
     python -m benchmark.fleet.run_load --db sqlite|postgres --hosts 500 --spawn-rate 50 --duration 120s \
         --findings-per-bundle 300
 
-Writes benchmark/fleet/results/load-<db>-<YYYYMMDD>[-<hosts>h][-herd][-N].json and appends a row to LOAD.md.
+Writes benchmark/fleet/results/load-<db>-<YYYYMMDD>[-<hosts>h][-herd][-<tag>][-N].json and appends a row to LOAD.md.
 PASS means the ingest p95 is under 2 s. 429 and 503 are counted apart from errors.
 """
 from __future__ import annotations
@@ -60,7 +60,8 @@ def _stats(path: Path) -> dict[str, dict[str, str]]:
 
 
 def run(*, db: str, hosts: int, spawn_rate: int, duration_s: int, findings: int, interval_s: float = 60.0,
-        stagger: bool = True, results_dir: Path | None = None, record: bool = True, command: str = "") -> dict:
+        stagger: bool = True, tag: str = "", results_dir: Path | None = None, record: bool = True,
+        command: str = "") -> dict:
     """One load run; returns the result dict (also written to `results_dir` and LOAD.md when `record`)."""
     started = datetime.now(UTC)
     load_start = _load()
@@ -104,7 +105,8 @@ def run(*, db: str, hosts: int, spawn_rate: int, duration_s: int, findings: int,
     if record:
         out = results_dir or HERE / "results"
         out.mkdir(parents=True, exist_ok=True)
-        base = f"load-{db}-{started:%Y%m%d}" + (f"-{hosts}h" if hosts != 500 else "") + ("" if stagger else "-herd")
+        base = (f"load-{db}-{started:%Y%m%d}" + (f"-{hosts}h" if hosts != 500 else "") + ("" if stagger else "-herd")
+                + (f"-{tag}" if tag else ""))
         path, n = out / f"{base}.json", 1
         while path.exists():                  # never overwrite an earlier run's record
             n += 1
@@ -137,11 +139,13 @@ def main() -> int:
     ap.add_argument("--duration", default="120s", help="e.g. 120s, 2m")
     ap.add_argument("--findings-per-bundle", type=int, default=300)
     ap.add_argument("--herd", action="store_true", help="post as soon as spawned (default: random offset)")
+    ap.add_argument("--tag", default="", help="suffix for the result file name, e.g. a code revision label")
     ap.add_argument("--interval", type=float, default=60.0, help="seconds between bundles from one host")
     args = ap.parse_args()
     cmd = "python -m benchmark.fleet.run_load " + shlex.join(sys.argv[1:])
     r = run(db=args.db, hosts=args.hosts, spawn_rate=args.spawn_rate, duration_s=parse_duration(args.duration),
-            findings=args.findings_per_bundle, interval_s=args.interval, stagger=not args.herd, command=cmd)
+            findings=args.findings_per_bundle, interval_s=args.interval, stagger=not args.herd, tag=args.tag,
+            command=cmd)
     print(json.dumps({k: v for k, v in r.items() if k not in ("command", "locust_command")}, indent=2))
     return 0 if r["pass_p95_lt_2s"] and not r["errors"] else 1
 
