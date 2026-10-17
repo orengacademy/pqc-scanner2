@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- `net.tls.pqc_handshake` works with OpenSSL 3.5. Its group list named `X25519Kyber768Draft00`, which OpenSSL 3.5
+  no longer knows, so `s_client` refused the whole list and the probe never connected. It also now reads the
+  `Peer Temp Key:` line that OpenSSL 3.2+ prints for a classical group, so a classical fallback is flagged again.
 - `net.tls.versions`, `net.tls.kex_groups` and `net.tls.cert_chain_tls13` now offer the Ed25519, Ed448 and ML-DSA
   signature schemes. A server whose only certificate was EdDSA or ML-DSA aborted their handshakes, so
   `net.tls.versions` reported "does not support TLS 1.3" on fully post-quantum servers and the other two saw nothing.

@@ -24,16 +24,22 @@ import shutil
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 
+# Every name must be known to the local openssl: one unknown group makes
+# `s_client -groups` refuse the whole list before connecting. OpenSSL 3.5
+# dropped the X25519Kyber768Draft00 codepoint, which used to sit here.
 _DEFAULT_HYBRID_GROUPS = (
     "X25519MLKEM768",
     "SecP256r1MLKEM768",
-    "X25519Kyber768Draft00",
     "X25519",
     "secp256r1",
 )
+# s_client output meaning the *local* openssl cannot offer the groups.
+_LOCAL_UNSUPPORTED = ("unknown option", "unsupported", "unknown group", "ssl_conf_cmd(-groups")
 
+# "Server Temp Key" up to OpenSSL 3.1, "Peer Temp Key" from 3.2 (classical groups);
+# hybrid groups print "Negotiated TLS1.3 group".
 _GROUP_RE = re.compile(
-    r"(?:Negotiated TLS\s*[\d.]+\s*group|Server Temp Key)\s*:\s*([A-Za-z0-9_]+)",
+    r"(?:Negotiated TLS\s*[\d.]+\s*group|(?:Server|Peer) Temp Key)\s*:\s*([A-Za-z0-9_]+)",
     re.IGNORECASE,
 )
 _PROTO_RE = re.compile(r"^\s*Protocol\s*:\s*(\S+)", re.MULTILINE)
@@ -112,7 +118,7 @@ class NetTlsPqcHandshake(Probe):
         )
 
         text_lc = text.lower()
-        if "unknown option" in text_lc or "unsupported" in text_lc or "unknown group" in text_lc:
+        if any(marker in text_lc for marker in _LOCAL_UNSUPPORTED):
             emit(Finding(
                 probe_id=self.id,
                 algorithm="N/A",
