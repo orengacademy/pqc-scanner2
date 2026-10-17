@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-10-16
+
+### Added — fleet mode, phase 1 (see `docs/FLEET.md`)
+- **Scan bundle** — a portable, versioned wire format for one host's scan
+  (`ScanBundle`), with a per-host machine id.
+- **Enroll + ingest** — the daemon gains `POST /api/agents/enroll` (enabled by
+  `--enroll-token` / `PQCSCAN_ENROLL_TOKEN`) and `POST /api/ingest` (per-agent
+  bearer token). `GET /api/fleet` and `GET /api/fleet/{host_id}` return the
+  fleet rollup.
+- **Hosts table** — new `hosts` table plus `scans.host_id` / `scans.scan_uuid`;
+  pre-fleet databases are upgraded in place.
+- **`pqcscan scan --report-to`** (`--enroll-token`, `--agent-token`, `--labels`,
+  `--state-dir`, `--ca-cert`, `--insecure`, `--allow-http`) — enrolls once,
+  stores the agent token, posts the bundle, and spools it if the collector is
+  unreachable.
+- **`pqcscan agents list|revoke|unrevoke`** and **`pqcscan fleet summary|prune --keep N`**.
+- **`pqcscan export --scan fleet`** (CLI and daemon API) — latest scan of every
+  host via a temporary rollup, for CBOM, SARIF, XLSX and PDF. Each rollup finding
+  carries `evidence._fleet` (`host`, `host_id`, `machine_id`); the fleet CBOM
+  exposes it as `pqcscan:host` (the contributing fleet host) and `pqcscan:machine_id`.
+- **PostgreSQL option** — every CLI command and the daemon accept a SQLAlchemy URL
+  for `--db` (`postgresql+psycopg://…`, `pip install 'pqcscan[fleet-pg]'`).
+  Wired, not yet tested.
+- `pqcscan agents list` now shows `first_seen` (table and `--json`); the nginx
+  recipe exempts `/api/ingest` and `/api/agents/enroll` from Basic auth.
+
+### Changed
+- **`pqcscan merge` rollups** record the contributing host in `evidence._fleet.host`
+  instead of overwriting `evidence.host`, which net probes use for the scan target.
+  `_fleet` is collector-only: ingest strips it from agent bundles.
+
+### Security — hardening done during review
+- **Never lose a report**: a failed post spools the bundle and retries on the next run,
+  oldest first, so the newest scan stays the host's latest.
+- **State files** (agent token, spool) are written `0600` with `O_NOFOLLOW` / `O_EXCL`.
+- **https or loopback only** for `--report-to`; plain http needs `--allow-http`.
+- **Revoked hosts cannot re-enroll** until `pqcscan agents unrevoke`.
+- **Rejected agent token (401)**: with `--enroll-token` the agent discards its stored
+  token, re-enrolls once and resends; without it the bundle is spooled and the
+  message says to re-run with `--enroll-token` or delete `<state dir>/agent.token`.
+- **Agent state** defaults to `<db dir>/agent` for a file `--db`; a spool write
+  failure is reported ("report failed (not spooled)") instead of raising.
+- **Re-enrolling** a non-revoked machine id rotates its token (and is logged).
+- **`/api/ingest` and `/api/agents/enroll`** bypass the site `--token` guard
+  (agents use their own bearer token) but keep the Host and Origin guards.
+- **Ingest parse and store**, fleet summaries and fleet exports run in a thread pool,
+  off the event loop; a busy store answers 503 with `Retry-After: 5`.
+- **Unreadable machine-id files** fall through to the next identity source.
+- **SQLite file mode**: the 0600 chmod targets the file SQLAlchemy actually
+  opens, including when `--db` is a `sqlite:///` URL.
+- **Domain-separated machine ids**: SHA-256 over a `pqcscan|` prefix, never the raw machine id.
+- **Ingest validation and caps**: 8 MiB wire, 50 MiB raw, 200,000 findings,
+  a per-host bucket of 10 bundles refilled at one per minute (only a duplicate
+  `scan_uuid` is free; rejected bundles spend a token), bundle `machine_id` must match the token;
+  tokens are stored hashed.
+- **Ordering by server scan id**, not client timestamps, when picking each
+  host's latest scan; temporary rollups are swept at daemon start and on prune.
+
 ## [0.9.13] — 2026-10-16
 
 ### Fixed — `--path` / `--target` finally reach every probe
@@ -894,6 +952,7 @@ frameworks, 9 web UI pages, cross-OS binary build) is fully met.
   implicit-string-concat (which Python 3.11 breaks at `b"\x00" * N`
   expressions) to explicit `+` concatenation. (Commit `ce8f584`.)
 
-[Unreleased]: https://github.com/orengacademy/pqc-scanner2/compare/v0.9.13...HEAD
+[Unreleased]: https://github.com/orengacademy/pqc-scanner2/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/orengacademy/pqc-scanner2/compare/v0.9.13...v0.10.0
 [0.9.13]: https://github.com/orengacademy/pqc-scanner2/compare/v0.9.12...v0.9.13
 [0.1.0]: https://github.com/orengacademy/pqc-scanner2/releases/tag/v0.1.0

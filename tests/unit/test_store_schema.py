@@ -6,13 +6,13 @@ from sqlalchemy.orm import Session
 from pqcscan.store.schema import Base, FindingRow, Scan
 
 
-def test_create_all_yields_six_tables(tmp_db_path):
+def test_create_all_yields_seven_tables(tmp_db_path):
     engine = create_engine(f"sqlite:///{tmp_db_path}")
     Base.metadata.create_all(engine)
     table_names = set(Base.metadata.tables.keys())
     expected = {
         "scans", "components", "findings",
-        "graph_edges", "framework_views", "baselines",
+        "graph_edges", "framework_views", "baselines", "hosts",
     }
     assert table_names == expected
 

@@ -8,7 +8,9 @@ from pathlib import Path
 from typing import Protocol
 
 import click
+from sqlalchemy.engine import make_url
 
+from pqcscan.cli._db import db_arg, ensure_db_parent
 from pqcscan.core.mosca import MoscaInputs, assess, summary_lines
 from pqcscan.core.types import Severity
 from pqcscan.probes._registry import default_registry
@@ -17,7 +19,6 @@ from pqcscan.runner.event_bus import EventBus
 from pqcscan.runner.runner import ProbeRunner
 from pqcscan.runner.targets import parse_scan_inputs
 from pqcscan.store.repo import Repo
-from pqcscan.util.paths import default_db_path
 
 # --fail-on threshold names, ordered least → most severe. "none" disables the
 # CI gate entirely (the scan always exits 0 unless an internal error occurs).
@@ -55,8 +56,70 @@ def _gate_tripped(findings: Iterable[_HasSeverity], threshold: str) -> bool:
     return bool(_findings_at_or_over(findings, threshold))
 
 
+def run_local_scan(
+    *, db_path: Path | str, paths: Iterable[str] = (), target: str | None = None,
+    ot: Iterable[str] = (), watch: bool = False,
+) -> tuple[Repo, int]:
+    """Run one in-process scan; returns (repo, scan_id). Raises on failure."""
+    ensure_db_parent(db_path)
+    repo = Repo(db_path)
+    repo.init_schema()
+    bus = EventBus()
+    runner = ProbeRunner(registry=default_registry(), repo=repo, bus=bus)
+    scan_paths, server_target, ot_targets = parse_scan_inputs(
+        target=target, paths=list(paths), ot=list(ot),
+    )
+
+    async def _go() -> int:
+        watcher_task = None
+        if watch:
+            async def _watch() -> None:
+                async for ev in bus.subscribe():
+                    click.echo(f"[event] {type(ev).__name__}: {ev}", err=True)
+            watcher_task = asyncio.create_task(_watch())
+        scan_id = await runner.run(
+            mode=current_mode(),
+            available_capabilities=detect_capabilities(),
+            scan_paths=scan_paths,
+            server_target=server_target,
+            ot_targets=ot_targets,
+        )
+        if watcher_task:
+            watcher_task.cancel()
+        return scan_id
+
+    return repo, asyncio.run(_go())
+
+
+def _report_to_fleet(
+    repo: Repo, scan_id: int, *, server: str, enroll_token: str | None, agent_token: str | None,
+    labels: tuple[str, ...], state_dir: Path | None, ca_cert: Path | None, insecure: bool, allow_http: bool,
+    db_path: Path | str,
+) -> tuple[dict | None, str]:
+    """Post the scan to the fleet daemon; returns (response, outcome). Never raises: reporting must not
+    change the scan's exit code."""
+    from pqcscan.cli._report import ReportError, check_server_scheme, default_state_dir, make_client, report_scan
+    from pqcscan.util.hostid import parse_labels
+    try:
+        check_server_scheme(server, allow_http)
+    except ReportError as e:
+        click.echo(f"report not sent: {e.detail}", err=True)
+        return None, "not sent"
+    try:
+        with make_client(ca_cert=ca_cert, insecure=insecure) as client:
+            report = report_scan(
+                repo, scan_id, server=server, enroll_token=enroll_token, agent_token=agent_token,
+                labels=parse_labels(labels), state_dir=state_dir or default_state_dir(db_path), client=client,
+                allow_http=allow_http,
+            )
+    except Exception as e:  # reporting is best-effort; report_scan spools every failure after the dump
+        click.echo(f"report failed (not spooled): {e}", err=True)
+        return None, "not sent"
+    return report, "ok" if report else "spooled for retry"
+
+
 @click.command()
-@click.option("--db", type=click.Path(path_type=Path), default=None)
+@click.option("--db", type=str, default=None, help="SQLite file path or SQLAlchemy URL (postgresql://…).")
 @click.option("--json", "as_json", is_flag=True, help="Emit JSON to stdout.")
 @click.option("--watch", is_flag=True, help="Stream events to stderr while scanning.")
 @click.option(
@@ -93,11 +156,26 @@ def _gate_tripped(findings: Iterable[_HasSeverity], threshold: str) -> bool:
     help="CI gate: exit 1 if any finding is at/above this severity. "
          "'none' disables the gate (always exit 0 unless an error).",
 )
+@click.option("--report-to", default=None, help="Fleet daemon URL; POST this scan's results after it finishes.")
+@click.option("--enroll-token", default=None, envvar="PQCSCAN_ENROLL_TOKEN",
+              help="Enroll on first contact (fleet). Stored per-agent token is reused afterwards.")
+@click.option("--agent-token", default=None, envvar="PQCSCAN_AGENT_TOKEN", help="Use this agent token directly.")
+@click.option("--labels", multiple=True, help="Host labels k=v (repeatable or comma-separated), e.g. env=prod.")
+@click.option("--state-dir", type=click.Path(path_type=Path), default=None,
+              help="Agent state (token, spool). Default: <db dir>/agent.")
+@click.option("--ca-cert", type=click.Path(path_type=Path, exists=True), default=None,
+              help="CA bundle for --report-to.")
+@click.option("--insecure", is_flag=True, help="Skip TLS verification for --report-to (lab only).")
+@click.option("--allow-http", "allow_http", is_flag=True,
+              help="Allow --report-to over plain http to a non-loopback host (credentials in clear text).")
 def scan_cmd(
-    db: Path | None, as_json: bool, watch: bool,
+    db: str | None, as_json: bool, watch: bool,
     target: str | None, paths: tuple[str, ...], ot: tuple[str, ...],
     data_lifetime: float, migration_years: float, threat_years: float,
     fail_on: str,
+    report_to: str | None, enroll_token: str | None, agent_token: str | None,
+    labels: tuple[str, ...], state_dir: Path | None, ca_cert: Path | None, insecure: bool,
+    allow_http: bool,
 ) -> None:
     """Run a scan in-process; persist to SQLite.
 
@@ -114,41 +192,8 @@ def scan_cmd(
     ('high') fails the build on any high or critical finding.
     """
     try:
-        db_path = db or default_db_path()
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-        repo = Repo(db_path)
-        repo.init_schema()
-        bus = EventBus()
-        registry = default_registry()
-        runner = ProbeRunner(registry=registry, repo=repo, bus=bus)
-
-        scan_paths, server_target, ot_targets = parse_scan_inputs(
-            target=target, paths=list(paths), ot=list(ot),
-        )
-    except Exception as e:  # documented "scan failed" exit
-        click.echo(f"scan failed: {e}", err=True)
-        sys.exit(2)
-
-    async def _go() -> int:
-        watcher_task = None
-        if watch:
-            async def _watch() -> None:
-                async for ev in bus.subscribe():
-                    click.echo(f"[event] {type(ev).__name__}: {ev}", err=True)
-            watcher_task = asyncio.create_task(_watch())
-        scan_id = await runner.run(
-            mode=current_mode(),
-            available_capabilities=detect_capabilities(),
-            scan_paths=scan_paths,
-            server_target=server_target,
-            ot_targets=ot_targets,
-        )
-        if watcher_task:
-            watcher_task.cancel()
-        return scan_id
-
-    try:
-        scan_id = asyncio.run(_go())
+        db_path = db_arg(db)
+        repo, scan_id = run_local_scan(db_path=db_path, paths=paths, target=target, ot=ot, watch=watch)
     except Exception as e:  # documented "scan failed" exit
         click.echo(f"scan failed: {e}", err=True)
         sys.exit(2)
@@ -165,6 +210,15 @@ def scan_cmd(
     )
     mosca = assess(mosca_inputs)
 
+    report: dict | None = None
+    report_outcome = ""
+    if report_to:
+        report, report_outcome = _report_to_fleet(
+            repo, scan_id, server=report_to, enroll_token=enroll_token, agent_token=agent_token,
+            labels=labels, state_dir=state_dir, ca_cert=ca_cert, insecure=insecure, allow_http=allow_http,
+            db_path=db_path,
+        )
+
     if as_json:
         click.echo(json.dumps({
             "scan_id": scan_id,
@@ -173,8 +227,10 @@ def scan_cmd(
             "fail_on": fail_on,
             "over_threshold_count": len(over_threshold),
             "gate_tripped": gate_tripped,
-            "db": str(db_path),
+            "db": str(db_path) if isinstance(db_path, Path)
+            else make_url(db_path).render_as_string(hide_password=True),
             "mosca": mosca.as_dict(),
+            **({"report": report} if report_to else {}),
         }))
     else:
         click.echo(
@@ -194,15 +250,17 @@ def scan_cmd(
             f"→ verdict={mosca.verdict} (shelf-life gap {mosca.gap_years:g}y)."
         )
         click.echo(summary_lines(mosca, vulnerable_count=len(high_or_crit))["en"])
+        if report_to:
+            click.echo(f"Reported to {report_to}: {report_outcome}.")
 
     sys.exit(1 if gate_tripped else 0)
 
 
 @click.command()
-@click.option("--db", type=click.Path(path_type=Path), default=None)
-def scans_cmd(db: Path | None) -> None:
+@click.option("--db", type=str, default=None, help="SQLite file path or SQLAlchemy URL (postgresql://…).")
+def scans_cmd(db: str | None) -> None:
     """List scans."""
-    repo = Repo(db or default_db_path())
+    repo = Repo(db_arg(db))
     repo.init_schema()
     for s in repo.list_scans():
         click.echo(f"{s.id}\t{s.started_at.isoformat()}\t{s.status}\t{s.mode}")
@@ -210,10 +268,10 @@ def scans_cmd(db: Path | None) -> None:
 
 @click.command()
 @click.option("--id", "scan_id", type=int, required=True)
-@click.option("--db", type=click.Path(path_type=Path), default=None)
-def status_cmd(scan_id: int, db: Path | None) -> None:
+@click.option("--db", type=str, default=None, help="SQLite file path or SQLAlchemy URL (postgresql://…).")
+def status_cmd(scan_id: int, db: str | None) -> None:
     """Show one scan's status."""
-    repo = Repo(db or default_db_path())
+    repo = Repo(db_arg(db))
     repo.init_schema()
     s = repo.get_scan(scan_id)
     if s is None:

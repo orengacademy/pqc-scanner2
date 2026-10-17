@@ -5,7 +5,7 @@ run the binary on every host, collect the DBs, and merge them here. Every
 source scan is copied verbatim (new ids, original timestamps, host fingerprint
 kept or taken from the file name) so per-host drill-down and `pqcscan diff`
 still work; a synthetic **rollup** scan unions the latest completed scan of
-each source with `evidence["host"]` set, so every existing export (CBOM,
+each source with `evidence["_fleet"]["host"]` set, so every existing export (CBOM,
 SARIF, BUKUKERJA, PDF, readiness score) runs unchanged against the whole
 fleet by pointing it at the rollup scan id.
 """
@@ -17,11 +17,11 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from pqcscan.store.repo import Repo
+from pqcscan.store.repo import FLEET_ROLLUP_LABEL, Repo
 from pqcscan.store.schema import FindingRow, FrameworkView, Scan
 from pqcscan.util.clock import utcnow
 
-ROLLUP_LABEL = "fleet-rollup"
+ROLLUP_LABEL = FLEET_ROLLUP_LABEL
 
 
 @dataclass(slots=True)
@@ -95,7 +95,9 @@ def merge_dbs(out: Repo, sources: list[Path], *, rollup: bool = True) -> MergeRe
                         nf = FindingRow(
                             scan_id=roll.id, probe_id=r.probe_id, algorithm=r.algorithm,
                             classification=r.classification, severity=r.severity,
-                            title=r.title, evidence={**(r.evidence or {}), "host": host},
+                            title=r.title,
+                            evidence={**(r.evidence or {}),
+                                      "_fleet": {"host": host, "host_id": None, "machine_id": None}},
                             remediation=r.remediation, created_at=r.created_at,
                         )
                         dst.add(nf)

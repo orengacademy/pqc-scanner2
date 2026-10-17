@@ -3,21 +3,20 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
-from pathlib import Path
 
 import click
 
+from pqcscan.cli._db import db_arg, ensure_db_parent
 from pqcscan.probes._base import SniffConfig
 from pqcscan.probes._registry import default_registry
 from pqcscan.runner.capabilities import current_mode, detect_capabilities
 from pqcscan.runner.event_bus import EventBus
 from pqcscan.runner.runner import ProbeRunner
 from pqcscan.store.repo import Repo
-from pqcscan.util.paths import default_db_path
 
 
 @click.command()
-@click.option("--db", type=click.Path(path_type=Path), default=None)
+@click.option("--db", type=str, default=None, help="SQLite file path or SQLAlchemy URL (postgresql://…).")
 @click.option("--json", "as_json", is_flag=True, help="Emit JSON to stdout.")
 @click.option(
     "--iface", default=None,
@@ -32,7 +31,7 @@ from pqcscan.util.paths import default_db_path
     help="Stop after this many captured frames.",
 )
 def sniff_cmd(
-    db: Path | None, as_json: bool,
+    db: str | None, as_json: bool,
     iface: str | None, seconds: float, max_packets: int,
 ) -> None:
     """Live passive TLS capture (Linux, needs CAP_NET_RAW/root).
@@ -41,8 +40,8 @@ def sniff_cmd(
     the KEX / cipher / certificate crypto seen on the wire. Skips gracefully
     when run without privilege or off Linux.
     """
-    db_path = db or default_db_path()
-    db_path.parent.mkdir(parents=True, exist_ok=True)
+    db_path = db_arg(db)
+    ensure_db_parent(db_path)
     repo = Repo(db_path)
     repo.init_schema()
     bus = EventBus()

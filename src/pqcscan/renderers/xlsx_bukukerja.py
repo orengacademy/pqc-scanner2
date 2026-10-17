@@ -271,11 +271,12 @@ _KAWALAN: dict[str, tuple[str, str]] = {
 
 def _kawalan_sedia_ada(finding: FindingRow, locale: str = "ms") -> str:
     ev = finding.evidence or {}
+    vals = [v for k, v in ev.items() if k != "_fleet"]  # fleet attribution is not a control
     controls: list[str] = []
     if any("MLKEM" in str(v).upper() or "KYBER" in str(v).upper() or "PQC" in str(v).upper()
-           for v in ev.values()):
+           for v in vals):
         controls.append(_pick(_KAWALAN["hybrid"], locale))
-    if any("FIPS" in str(v).upper() for v in ev.values()):
+    if any("FIPS" in str(v).upper() for v in vals):
         controls.append(_pick(_KAWALAN["fips140"], locale))
     if ev.get("network") == "isolated" or ev.get("airgap"):
         controls.append(_pick(_KAWALAN["airgap"], locale))

@@ -12,15 +12,17 @@ from urllib.parse import urlsplit
 
 from fastapi import Body, FastAPI, Form, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
+from starlette.concurrency import run_in_threadpool
 
 from pqcscan import __version__
+from pqcscan.daemon.fleet import FLEET_BEARER_PATHS, build_fleet_router
 from pqcscan.daemon.sse import sse_stream
 from pqcscan.probes._registry import Registry, default_registry
 from pqcscan.runner.capabilities import current_mode, detect_capabilities
 from pqcscan.runner.event_bus import EventBus
 from pqcscan.runner.runner import ProbeRunner
 from pqcscan.runner.targets import parse_scan_inputs
-from pqcscan.store.repo import Repo
+from pqcscan.store.repo import Repo, is_fleet_ref
 from pqcscan.store.schema import Scan
 
 SESSION_COOKIE = "pqcscan_session"
@@ -84,8 +86,8 @@ def _host_allowed(request: Request, allowed: frozenset[str]) -> bool:
 
 
 def create_app(
-    *, db_path: Path, registry: Registry | None = None, token: str | None = None,
-    allowed_hosts: Iterable[str] = (),
+    *, db_path: Path | str, registry: Registry | None = None, token: str | None = None,
+    allowed_hosts: Iterable[str] = (), enroll_token: str | None = None,
 ) -> FastAPI:
     """Build the daemon app.
 
@@ -104,6 +106,7 @@ def create_app(
     """
     app = FastAPI(title="pqcscan", version=__version__)
     token = token if token is not None else os.environ.get("PQCSCAN_TOKEN") or None
+    enroll_token = enroll_token if enroll_token is not None else os.environ.get("PQCSCAN_ENROLL_TOKEN") or None
     hosts = frozenset(LOOPBACK_HOSTS | {_host_only(h) for h in allowed_hosts if h})
     sessions: set[str] = set()
 
@@ -113,7 +116,8 @@ def create_app(
             return JSONResponse({"detail": "host not allowed"}, status_code=400)
         if request.method not in ("GET", "HEAD", "OPTIONS") and not _origin_matches_host(request):
             return JSONResponse({"detail": "cross-origin request rejected"}, status_code=403)
-        if token and request.url.path not in ("/api/health", "/login"):
+        if (token and request.url.path not in ("/api/health", "/login")
+                and request.url.path not in FLEET_BEARER_PATHS):
             auth = request.headers.get("authorization", "")
             if auth.lower().startswith("bearer "):
                 ok = hmac.compare_digest(auth[7:].strip().encode(), token.encode())
@@ -280,16 +284,25 @@ def create_app(
             "common": diff["common"],
         }
 
-    @app.get("/api/scans/{scan_id}/export/{fmt}")
-    async def export_scan(scan_id: int, fmt: str, lang: str = "ms") -> Response:
+    @app.get("/api/scans/{scan_ref}/export/{fmt}")
+    async def export_scan(scan_ref: str, fmt: str, lang: str = "ms") -> Response:
         """Render a scan to one of 5 formats and return as a binary download.
 
         Mirrors the CLI surface (`pqcscan export --format <fmt>`) but pipes the
         result back through HTTP so the web UI's export buttons work without
         users having to touch the CLI. PDF formats degrade gracefully (HTTP 503
-        with a helpful message) when the optional weasyprint dep is absent."""
-        if repo.get_scan(scan_id) is None:
-            raise HTTPException(404, "scan not found")
+        with a helpful message) when the optional weasyprint dep is absent.
+
+        `scan_ref` is a scan id, or 'fleet' for a temporary rollup of the latest
+        scan of every enrolled host (deleted again once rendered)."""
+        is_fleet = is_fleet_ref(scan_ref)
+        scan_id = 0
+        if not is_fleet:
+            if not scan_ref.isdecimal():
+                raise HTTPException(422, "scan must be a scan id or 'fleet'")
+            scan_id = int(scan_ref)
+            if repo.get_scan(scan_id) is None:
+                raise HTTPException(404, "scan not found")
 
         import tempfile
 
@@ -310,19 +323,20 @@ def create_app(
         acquire_render_slot(app)
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
             tmp_path = Path(tmp.name)
-        try:
+
+        def _render(sid: int) -> bytes:   # sync renderers and rollup copy: run off the event loop
             if fmt == "cbom":
                 import json as _json
 
                 from pqcscan.cbom.builder import build_cbom
-                tmp_path.write_text(_json.dumps(build_cbom(repo, scan_id), indent=2))
+                tmp_path.write_text(_json.dumps(build_cbom(repo, sid), indent=2))
             elif fmt == "sarif":
                 from pqcscan.renderers.sarif import render_sarif
-                render_sarif(repo, scan_id, tmp_path)
+                render_sarif(repo, sid, tmp_path)
             elif fmt == "pdf-tech":
                 try:
                     from pqcscan.renderers.pdf_technical import render_pdf_technical
-                    render_pdf_technical(repo, scan_id, tmp_path, lang=lang)
+                    render_pdf_technical(repo, sid, tmp_path, lang=lang)
                 except (ImportError, ModuleNotFoundError) as e:
                     raise HTTPException(
                         503,
@@ -334,7 +348,7 @@ def create_app(
             elif fmt == "pdf-exec":
                 try:
                     from pqcscan.renderers.pdf_executive import render_pdf_executive
-                    render_pdf_executive(repo, scan_id, tmp_path, lang=lang)
+                    render_pdf_executive(repo, sid, tmp_path, lang=lang)
                 except (ImportError, ModuleNotFoundError) as e:
                     raise HTTPException(
                         503,
@@ -345,22 +359,37 @@ def create_app(
                     ) from e
             elif fmt == "xlsx-bukukerja":
                 from pqcscan.renderers.xlsx_bukukerja import render_xlsx_bukukerja
-                render_xlsx_bukukerja(repo, scan_id, tmp_path, locale=lang)
+                render_xlsx_bukukerja(repo, sid, tmp_path, locale=lang)
             elif fmt == "xlsx-generic":
                 from pqcscan.renderers.xlsx_generic import render_xlsx_generic
-                render_xlsx_generic(repo, scan_id, tmp_path)
-            data = tmp_path.read_bytes()
+                render_xlsx_generic(repo, sid, tmp_path)
+            return tmp_path.read_bytes()
+
+        rollup_id: int | None = None
+        try:
+            if is_fleet:
+                rollup_id = await run_in_threadpool(repo.materialize_fleet_rollup)
+                if rollup_id is None:
+                    raise HTTPException(404, "no enrolled hosts with a completed scan")
+                scan_id = rollup_id
+            data = await run_in_threadpool(_render, scan_id)
         finally:
-            tmp_path.unlink(missing_ok=True)
-            app.state.render_slots.release()
+            try:
+                if rollup_id is not None:
+                    await run_in_threadpool(repo.delete_scan, rollup_id)
+            finally:
+                tmp_path.unlink(missing_ok=True)
+                app.state.render_slots.release()
 
         lang_tag = "-en" if (fmt == "xlsx-bukukerja" and lang == "en") else ""
-        filename = f"pqcscan-scan{scan_id}-{name}{lang_tag}{suffix}"
+        filename = f"pqcscan-{'fleet' if is_fleet else f'scan{scan_id}'}-{name}{lang_tag}{suffix}"
         return Response(
             content=data,
             media_type=content_type,
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
+
+    app.include_router(build_fleet_router(repo, enroll_token=enroll_token))
 
     # Mount the web UI (Jinja + HTMX + SSE).
     from pqcscan.ui.routes import mount_static
