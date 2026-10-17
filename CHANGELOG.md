@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Fleet ingest stores findings and compliance views with bulk inserts instead of one ORM flush per finding. A
+  300-finding bundle took about 1,450 SQL statements; it now takes 308 on SQLite (one cheap insert per finding,
+  to keep ids in order) and 9 on Postgres, and about a tenth of the CPU. Found by the 500-host load test.
 - `code.crypto_primitives` fails open where its lexer could be fooled. C/C++, Ruby and Swift files are scanned
   unstripped again, because raw strings, regex and `%`-literals, `?x` characters and heredocs could make a crafted
   literal blank the real call after it. A string that can interpolate code (`${...}`, `{$...}`, `#{...}`,

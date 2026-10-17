@@ -7,7 +7,7 @@ from pqcscan.core.bands import count_bands, readiness_score
 from pqcscan.core.types import Classification, Finding, Severity
 from pqcscan.store.bundle import HostIdentity, ScanBundle, dump_bundle, load_bundle
 from pqcscan.store.repo import Repo
-from pqcscan.store.schema import ComponentRow, GraphEdge, Host
+from pqcscan.store.schema import ComponentRow, FindingRow, FrameworkView, GraphEdge, Host
 
 WEB01 = HostIdentity(machine_id="m-web01", hostname="web01", os="linux", labels={"env": "prod"})
 WEB02 = HostIdentity(machine_id="m-web02", hostname="web02", os="linux", labels={"env": "dr"})
@@ -396,3 +396,28 @@ def test_host_already_over_the_cap_keeps_labels_and_still_ingests_and_enrolls(tm
     labels = fleet.get_host(host.id).labels
     assert len(labels) == 100 and labels["old5"] == "new" and "fresh" not in labels
     assert len(fleet.host_history(host.id)) == 1
+
+
+def test_ingest_issues_a_bounded_number_of_statements(tmp_db_path, tmp_path):
+    """Views must not cost a statement each: 40 findings with 5 views apiece stay near one statement per finding."""
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    host = fleet.upsert_host(WEB01)
+    sid = src.create_scan(mode="user", probe_versions={}, tool_versions={})
+    for i in range(40):
+        fid = src.record_finding(sid, Finding(probe_id="fs.cert.x509", algorithm=f"RSA-{i}",
+                                              classification=Classification.SANGAT_TINGGI, severity=Severity.CRIT,
+                                              title=f"t{i}"))
+        for k in range(5):
+            src.record_framework_view(fid, framework=f"fw{k}", clause=f"c{i}", verdict="non-compliant", deadline=None)
+    src.finish_scan(sid, status="done")
+    b = load_bundle(dump_bundle(src, sid, WEB01))
+    n = []
+    event.listen(fleet.engine, "before_cursor_execute", lambda *a: n.append(1))
+    r = fleet.ingest_bundle(b, host.id)
+    assert (r.stored_findings, r.stored_views) == (40, 200)
+    assert len(n) <= 40 + 20
+    with Session(fleet.engine) as s:     # each view is attached to its own finding, in order
+        pairs = s.execute(select(FindingRow.title, func.count(FrameworkView.id)).join(
+            FrameworkView, FrameworkView.finding_id == FindingRow.id).group_by(FindingRow.id)).all()
+    assert len(pairs) == 40 and all(c == 5 for _, c in pairs)

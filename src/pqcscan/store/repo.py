@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 from loguru import logger
-from sqlalchemy import create_engine, delete, event, func, select
+from sqlalchemy import create_engine, delete, event, func, insert, select
 from sqlalchemy.orm import Session
 
 from pqcscan.core.parity import DRIFT_PROBE, drift_rows, parity_key
@@ -485,29 +485,31 @@ class Repo:
             )
             s.add(scan)
             s.flush()
-            n_f = n_v = 0
-            for f in bundle.findings:
-                row = FindingRow(
-                    scan_id=scan.id, probe_id=str(f["probe_id"]), algorithm=str(f.get("algorithm", "N/A")),
-                    classification=str(f.get("classification", "info")), severity=str(f.get("severity", "info")),
-                    title=str(f.get("title", "")), evidence=dict(f.get("evidence") or {}),
-                    remediation=dict(f.get("remediation") or {}),
-                    created_at=_parse_dt(f.get("created_at")) or utcnow(),
-                )
-                s.add(row)
-                s.flush()
-                n_f += 1
-                for v in f.get("views") or []:
-                    s.add(FrameworkView(finding_id=row.id, framework=str(v["framework"]), clause=str(v["clause"]),
-                                        verdict=str(v["verdict"]),
-                                        deadline=date.fromisoformat(v["deadline"]) if v.get("deadline") else None))
-                    n_v += 1
-            for d in drift:
-                s.add(FindingRow(
-                    scan_id=scan.id, probe_id=d.probe_id, algorithm=d.algorithm,
-                    classification=d.classification.value, severity=d.severity.value, title=d.title,
-                    evidence=d.evidence, remediation=d.remediation, created_at=d.created_at,
-                ))
+            # Two executemany inserts (findings, then their views) instead of a flush per finding.
+            rows = [{
+                "scan_id": scan.id, "probe_id": str(f["probe_id"]), "algorithm": str(f.get("algorithm", "N/A")),
+                "classification": str(f.get("classification", "info")), "severity": str(f.get("severity", "info")),
+                "title": str(f.get("title", "")), "evidence": dict(f.get("evidence") or {}),
+                "remediation": dict(f.get("remediation") or {}),
+                "created_at": _parse_dt(f.get("created_at")) or utcnow(),
+            } for f in bundle.findings]
+            n_f = len(rows)
+            rows += [{
+                "scan_id": scan.id, "probe_id": d.probe_id, "algorithm": d.algorithm,
+                "classification": d.classification.value, "severity": d.severity.value, "title": d.title,
+                "evidence": d.evidence, "remediation": d.remediation, "created_at": d.created_at,
+            } for d in drift]
+            if rows:
+                ids = s.scalars(insert(FindingRow).returning(FindingRow.id, sort_by_parameter_order=True),
+                                rows).all()
+                view_rows = [{
+                    "finding_id": fid, "framework": str(v["framework"]), "clause": str(v["clause"]),
+                    "verdict": str(v["verdict"]),
+                    "deadline": date.fromisoformat(v["deadline"]) if v.get("deadline") else None,
+                } for fid, f in zip(ids, bundle.findings, strict=False) for v in f.get("views") or []]
+                if view_rows:
+                    s.execute(insert(FrameworkView), view_rows)
+            n_v = len(view_rows) if rows else 0
             _apply_identity(h, bundle.host)
             s.commit()
             return IngestResult(scan_id=scan.id, stored_findings=n_f, stored_views=n_v, duplicate=False,
