@@ -18,6 +18,11 @@ LOCALES: dict[str, dict[str, str]] = {
     "en": {
         "nav.dashboard": "Dashboard",
         "nav.scans": "Scans",
+        "nav.fleet": "Fleet", "fleet.title": "Fleet", "fleet.host": "Host", "fleet.labels": "Labels",
+        "fleet.last_seen": "Last seen", "fleet.readiness": "Readiness", "fleet.crit": "Critical",
+        "fleet.high": "High", "fleet.total": "Findings", "fleet.stale": "stale",
+        "fleet.none": "No enrolled hosts yet. Run pqcscan scan --report-to on a host.",
+        "fleet.history": "Scan history", "fleet.diff_with": "Parity check against a primary:",
         "nav.frameworks": "Frameworks",
         "nav.baselines": "Baselines",
         "nav.probes": "Probes",
@@ -188,6 +193,11 @@ LOCALES: dict[str, dict[str, str]] = {
     "ms": {
         "nav.dashboard": "Papan Pemuka",
         "nav.scans": "Imbasan",
+        "nav.fleet": "Armada", "fleet.title": "Armada", "fleet.host": "Hos", "fleet.labels": "Label",
+        "fleet.last_seen": "Terakhir dilihat", "fleet.readiness": "Kesediaan", "fleet.crit": "Kritikal",
+        "fleet.high": "Tinggi", "fleet.total": "Penemuan", "fleet.stale": "lapuk",
+        "fleet.none": "Tiada hos berdaftar lagi. Jalankan pqcscan scan --report-to pada hos.",
+        "fleet.history": "Sejarah imbasan", "fleet.diff_with": "Semakan pariti terhadap hos utama:",
         "nav.frameworks": "Rangka Kerja",
         "nav.baselines": "Garis Dasar",
         "nav.probes": "Penyiasat",

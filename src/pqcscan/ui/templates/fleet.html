@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block body %}
+
+<section class="mb-6 flex items-end justify-between gap-6 flex-wrap">
+  <div>
+    <p class="text-xs font-mono uppercase tracking-[0.2em] text-zinc-500 mb-2">{{ t('nav.fleet') }}</p>
+    <h1 class="text-3xl font-semibold tracking-tight text-zinc-50">{{ t('fleet.title') }}</h1>
+    <p class="mt-2 text-sm text-zinc-400">{{ rows|length }} {{ t('fleet.host') }}</p>
+  </div>
+  <form method="get" action="/fleet" class="flex items-center gap-2">
+    <label for="fleet-label" class="text-xs font-mono uppercase tracking-wider text-zinc-500">{{ t('fleet.labels') }}</label>
+    <input id="fleet-label" type="text" name="label" value="{{ label }}" placeholder="env=prod"
+           class="px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-sm font-mono text-zinc-200">
+  </form>
+</section>
+
+<div class="card overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="text-xs uppercase tracking-wider text-zinc-500">
+      <tr class="border-b border-zinc-800/80">
+        <th class="text-left font-medium py-3 px-5">{{ t('fleet.host') }}</th>
+        <th class="text-left font-medium py-3 px-5">{{ t('fleet.labels') }}</th>
+        <th class="text-left font-medium py-3 px-5">{{ t('fleet.last_seen') }}</th>
+        <th class="text-right font-medium py-3 px-5">{{ t('fleet.readiness') }}</th>
+        <th class="text-right font-medium py-3 px-5">{{ t('fleet.crit') }}</th>
+        <th class="text-right font-medium py-3 px-5">{{ t('fleet.high') }}</th>
+        <th class="text-right font-medium py-3 px-5">{{ t('fleet.total') }}</th>
+        <th class="py-3 px-5"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-zinc-800/60">
+      {% for row in rows %}
+        <tr class="row-hover">
+          <td class="py-2.5 px-5 font-mono text-zinc-200">
+            <a href="/fleet/{{ row.host.id }}" class="text-blue-400 hover:text-blue-300">{{ row.host.hostname or row.host.machine_id }}</a>
+            {% if row.stale %}<span class="sev-chip ml-2">{{ t('fleet.stale') }}</span>{% endif %}
+          </td>
+          <td class="py-2.5 px-5 font-mono text-xs text-zinc-400">
+            {% for k, v in (row.host.labels or {}).items() %}{{ k }}={{ v }}{% if not loop.last %}, {% endif %}{% endfor %}
+          </td>
+          <td class="py-2.5 px-5 font-mono text-xs text-zinc-500">{{ row.host.last_seen }}</td>
+          <td class="py-2.5 px-5 text-right font-mono tabular-nums">
+            {% if row.readiness is none %}<span class="text-zinc-600">&mdash;</span>
+            {% else %}
+              <span class="{{ 'text-emerald-400' if row.readiness >= 67 else ('text-amber-400' if row.readiness >= 34 else 'text-red-400') }}">{{ row.readiness }}</span>
+            {% endif %}
+          </td>
+          <td class="py-2.5 px-5 text-right font-mono tabular-nums text-zinc-300">{{ row.crit }}</td>
+          <td class="py-2.5 px-5 text-right font-mono tabular-nums text-zinc-300">{{ row.high }}</td>
+          <td class="py-2.5 px-5 text-right font-mono tabular-nums text-zinc-300">{{ row.total }}</td>
+          <td class="py-2.5 px-5 text-right">
+            {% if row.scan_id %}<a href="/scans/{{ row.scan_id }}" class="text-blue-400 hover:text-blue-300 text-xs">#{{ row.scan_id }} &rarr;</a>{% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr>
+          <td colspan="8" class="py-12 text-center text-sm text-zinc-500">{{ t('fleet.none') }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

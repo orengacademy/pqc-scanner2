@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 from collections import OrderedDict
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -11,6 +11,7 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.concurrency import run_in_threadpool
 
 from pqcscan import __version__ as _pqc_version
 from pqcscan.core.bands import (
@@ -30,6 +31,7 @@ from pqcscan.ui.i18n import (
     get_locale,
     t,
 )
+from pqcscan.util.clock import utcnow
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -493,3 +495,37 @@ async def scan_diff(
             "common": diff["common"],
         },
     )
+
+
+_STALE_AFTER = timedelta(hours=48)
+
+
+def _is_stale(last_seen: object, now: object) -> bool:
+    return bool(last_seen and now - last_seen > _STALE_AFTER)  # type: ignore[operator]
+
+
+@router.get("/fleet", response_class=HTMLResponse)
+async def fleet_page(request: Request, label: str | None = None) -> HTMLResponse:
+    if label and label.count("=") != 1:
+        raise HTTPException(400, "label filter must be key=value")
+    rows = await run_in_threadpool(request.app.state.repo.fleet_summary)
+    if label:
+        k, _, v = label.partition("=")
+        rows = [x for x in rows if (x.host.labels or {}).get(k) == v]
+    now = utcnow()
+    view = [{"host": x.host, "scan_id": x.scan_id, "finished_at": x.finished_at, "readiness": x.readiness,
+             "crit": x.crit, "high": x.high, "total": x.total, "stale": _is_stale(x.host.last_seen, now)}
+            for x in rows]
+    return _render(request, "fleet.html", {"rows": view, "label": label or ""})
+
+
+@router.get("/fleet/{host_id}", response_class=HTMLResponse)
+async def fleet_host_page(request: Request, host_id: int) -> HTMLResponse:
+    repo = request.app.state.repo
+    host = await run_in_threadpool(repo.get_host, host_id)
+    if host is None:
+        raise HTTPException(404, "host not found")
+    scans = await run_in_threadpool(repo.host_history, host_id)
+    return _render(request, "fleet_host.html", {
+        "host": host, "scans": scans, "stale": _is_stale(host.last_seen, utcnow()),
+    })
