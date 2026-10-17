@@ -98,6 +98,11 @@ _RAW_PATTERNS: tuple[tuple[str, str, Classification], ...] = (
     (r"SLH[-_ ]?DSA|\bSPHINCS", "SLH-DSA", _PQC),
     (r"\bFalcon\b", "Falcon", _PQC),
     (r"\bliboqs\b|\bpqcrypto\b|\boqs\.", "liboqs/pqcrypto", _PQC),
+    # Stateful hash-based signatures (SP 800-208). LMS stays in crypto contexts:
+    # the bare acronym is common outside cryptography.
+    (r"(?<![A-Za-z])XMSS(?:\^?MT)?(?![A-Za-z])", "XMSS", _PQC),
+    (r"HSS[-_/]?LMS|(?<![A-Za-z])LMS[-_](?:SHA|SHAKE)|(?<![A-Za-z])lms_(?:sign|verify|keypair|keygen|key|signature)"
+     r"|generate_lms", "LMS", _PQC),
     # --- RSA key-gen sizes ---
     (
         r"RSA.{0,20}(?:1024|2048)|generate_private_key[\s\S]{0,60}?(?:1024|2048)"

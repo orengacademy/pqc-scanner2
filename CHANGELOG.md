@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- XMSS, XMSS^MT, LMS and HSS/LMS (NIST SP 800-208 stateful hash-based signatures) are recognised as
+  `pqc-ready` everywhere. Certificates signed with them are recognised by their X.509 OIDs, and `HSS/LMS` names
+  classify. `code.crypto_primitives` finds them in source (`"XMSS-SHA2_10_256"`, `lms_sign`, `HSS-LMS`). Found by
+  the scanner bake-off.
 - `code.crypto_primitives` no longer flags algorithm names that appear only in comments or prose strings. It
   matched raw text, so `// MD5 is banned` or `"never use md5 here"` fired on every language it scans (30 of 30
   such corpus cases). Matches now go through the comment/string lexer: comments never count, and a string counts

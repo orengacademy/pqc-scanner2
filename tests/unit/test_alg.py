@@ -199,3 +199,15 @@ def test_every_standardized_pqc_oid_is_recognized(oid: str, name: str) -> None:
     # for every standardized PQC OID — the measured recall baseline.
     assert normalise(oid) == name
     assert classify(oid) == Classification.PQC_READY
+
+
+
+def test_stateful_hash_signatures_are_pqc_ready():
+    # NIST SP 800-208: XMSS, XMSS^MT, LMS and HSS/LMS — by name and by X.509 OID.
+    from pqcscan.core.alg import classify, normalise
+    from pqcscan.core.types import Classification
+
+    for name in ("XMSS", "XMSS-SHA2_10_256", "XMSSMT", "XMSS^MT", "LMS", "LMS_SHA256_M32_H10", "HSS-LMS", "HSS/LMS",
+                 "1.3.6.1.5.5.7.6.34", "1.3.6.1.5.5.7.6.35", "1.2.840.113549.1.9.16.3.17"):
+        assert classify(name) is Classification.PQC_READY, name
+    assert normalise("1.2.840.113549.1.9.16.3.17") == "HSS-LMS"

@@ -177,3 +177,18 @@ async def test_real_use_still_fires(tmp_path: Path, name: str, body: str):
 async def test_first_counting_occurrence_is_reported(tmp_path: Path):
     found = await _run(tmp_path, "a.py", "# md5 is banned\nimport hashlib\nd = hashlib.md5(b'x')\n")
     assert _by_alg(found, "MD5").evidence["line"] == 3
+
+
+
+@pytest.mark.asyncio
+async def test_stateful_hash_signatures_are_pqc_ready(tmp_path: Path):
+    body = ('sig = oqs.Signature("XMSS-SHA2_10_256")\n'
+            "kp = generate_lms_keypair()\ns = lms_sign(message, kp)\n"
+            "# our LMS (learning management system) export\n")
+    found = {f.algorithm: f.classification for f in await _run(tmp_path, "pqc.py", body)}
+    assert found["XMSS"] is Classification.PQC_READY
+    assert found["LMS"] is Classification.PQC_READY
+    other = tmp_path / "other"
+    other.mkdir()
+    found = {f.algorithm for f in await _run(other, "lms.py", "course = lms.Course()  # LMS integration\n")}
+    assert "LMS" not in found
