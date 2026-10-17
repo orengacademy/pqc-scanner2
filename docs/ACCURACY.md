@@ -1,4 +1,4 @@
-Measured on commit `23646a5` (probe code; `src/` is unchanged in the commit that updates this page) with `PYTHONPATH=src python benchmark/run_benchmark.py --by-family --accept-fp-file benchmark/corpus/accepted_fp.txt`; corpus sha256 `563e427b9eec600c94b9c234b2c514ceba02bdc26d38707431a5aae02b068e0c` (sha256 of `benchmark/corpus/CORPUS.sha256`).
+Measured on commit `9ad4f61` (probe code; `src/` is unchanged in the commit that updates this page) with `PYTHONPATH=src python benchmark/run_benchmark.py --by-family --accept-fp-file benchmark/corpus/accepted_fp.txt`; corpus sha256 `563e427b9eec600c94b9c234b2c514ceba02bdc26d38707431a5aae02b068e0c` (sha256 of `benchmark/corpus/CORPUS.sha256`).
 
 # Detection accuracy
 
