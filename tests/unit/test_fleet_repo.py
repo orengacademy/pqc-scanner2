@@ -220,6 +220,18 @@ def test_daemon_keep_scans_per_host_minimum_is_two():
     assert r.exit_code == 2 and "keep-scans-per-host" in r.output
 
 
+def test_rollup_skips_views_of_drift_rows(tmp_db_path, tmp_path):
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    h = fleet.upsert_host(WEB01)
+    sid = fleet.ingest_bundle(_bundle(src, WEB01, ["RSA-2048"]), h.id).scan_id
+    fid = fleet.record_finding(sid, Finding(probe_id="fleet.drift", algorithm="N/A", classification=Classification.INFO,
+                                            severity=Severity.INFO, title="drift: added x"))
+    fleet.record_framework_view(fid, framework="cnsa2", clause="c", verdict="info", deadline=None)
+    roll = fleet.materialize_fleet_rollup()             # no KeyError on the drift row's view
+    assert len(fleet.list_framework_views(roll)) == 1
+
+
 def test_ingest_unknown_host_and_foreign_scan_uuid(tmp_db_path, tmp_path):
     src = Repo(tmp_path / "src.db"); src.init_schema()
     fleet = Repo(tmp_db_path); fleet.init_schema()

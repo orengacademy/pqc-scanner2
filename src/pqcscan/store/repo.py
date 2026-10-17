@@ -614,7 +614,8 @@ class Repo:
                 s.flush()
                 new_id = {r.id: nf.id for r, nf in zip(src, new, strict=True)}
                 views = s.execute(select(FrameworkView).join(FindingRow, FrameworkView.finding_id == FindingRow.id)
-                                  .where(FindingRow.scan_id == x.scan_id)).scalars().all()
+                                  .where(FindingRow.scan_id == x.scan_id, FindingRow.probe_id != DRIFT_PROBE)
+                                  ).scalars().all()
                 s.add_all([FrameworkView(finding_id=new_id[v.finding_id], framework=v.framework, clause=v.clause,
                                          verdict=v.verdict, deadline=v.deadline) for v in views])
             s.commit()
