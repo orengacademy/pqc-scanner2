@@ -427,6 +427,17 @@ def more_source_fixtures() -> None:
         w(f"{lang}-md5-real/{fname}", real)
         w(f"{lang}-comment-md5/{fname}", comment)
         w(f"{lang}-string-md5/{fname}", string)
+    # Evasion attempts against code.crypto_primitives (security review): code
+    # inside an interpolated literal, and literals the lexers must not trust.
+    w("js-template-md5/app.js", "const s = `digest ${md5(x)}`;\n")
+    w("py-fstring-md5/src.py", 'import hashlib\n\ns = f"digest {hashlib.md5(b\'x\').hexdigest()}"\n')
+    # Ruby ?" is a one-char literal and Swift #"a"b"# a raw string holding a quote;
+    # a Java-style lexer would pair the stray quote with a later one and blank the
+    # real call between them.
+    w("rb-charliteral-then-md5/hash.rb",
+      'q = ?"; d = Digest::MD5.hexdigest(x); r = "done"\n')
+    w("swift-rawstring-then-md5/Hash.swift",
+      'let s = #"a"b"#; let d = Insecure.MD5.hash(data: x); let e = "done"\n')
     w("kt-clean-sha256/Hash.kt",
       "import java.security.MessageDigest\n\nfun f(): ByteArray =\n"
       '    MessageDigest.getInstance("SHA-256").digest("x".toByteArray())\n')

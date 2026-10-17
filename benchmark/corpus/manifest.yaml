@@ -908,3 +908,26 @@
   probe: code.crypto_primitives
   kind: negative
   input: cases/swift-string-md5
+
+# code.crypto_primitives evasion attempts: interpolated literals hold code; Ruby/Swift literals are
+# not lexed (fail-open), so a crafted one cannot hide the real call after it.
+- id: cp-js-template-md5
+  probe: code.crypto_primitives
+  kind: positive
+  input: cases/js-template-md5
+  expect: {algorithm_contains: MD5}
+- id: cp-py-fstring-md5
+  probe: code.crypto_primitives
+  kind: positive
+  input: cases/py-fstring-md5
+  expect: {algorithm_contains: MD5}
+- id: cp-rb-charliteral-then-md5
+  probe: code.crypto_primitives
+  kind: positive
+  input: cases/rb-charliteral-then-md5
+  expect: {algorithm_contains: MD5}
+- id: cp-swift-rawstring-then-md5
+  probe: code.crypto_primitives
+  kind: positive
+  input: cases/swift-rawstring-then-md5
+  expect: {algorithm_contains: MD5}

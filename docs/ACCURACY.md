@@ -1,10 +1,10 @@
-Measured on commit `d9e3b84` (probe code; `src/` is unchanged in the commit that updates this page) with `PYTHONPATH=src python benchmark/run_benchmark.py --by-family`; corpus sha256 `bc637f9355dea9c9621c1d67ca9776b0029db75591ab20b7e51c23f0f1d4eddc` (sha256 of `benchmark/corpus/CORPUS.sha256`).
+Measured on commit `7469e2a` (probe code; `src/` is unchanged in the commit that updates this page) with `PYTHONPATH=src python benchmark/run_benchmark.py --by-family`; corpus sha256 `6a2e4d115fc6703fe9b8bbaa0b4e67a612f77b117c56bb04c5936bb0e76e8ec5` (sha256 of `benchmark/corpus/CORPUS.sha256`).
 
 # Detection accuracy
 
-pqcscan's probes are scored against a labelled corpus of 167 cases: 87 positives, where the probe should fire, and 80 negatives, where it should stay silent. The cases cover certificates, keys, keystores, local TLS endpoints, source snippets, config files, SQLite files and two OCI container images. A probe "fires" when it emits a finding in a weak or quantum-vulnerable tier (`sangat-tinggi`, `tinggi`, `sederhana`, `rendah`). INFO, ERROR and `pqc-ready` findings never count. A positive with an `expect` block counts only when the matching finding fires. See `benchmark/README.md` for the scoring rule.
+pqcscan's probes are scored against a labelled corpus of 171 cases: 91 positives, where the probe should fire, and 80 negatives, where it should stay silent. The cases cover certificates, keys, keystores, local TLS endpoints, source snippets, config files, SQLite files and two OCI container images. A probe "fires" when it emits a finding in a weak or quantum-vulnerable tier (`sangat-tinggi`, `tinggi`, `sederhana`, `rendah`). INFO, ERROR and `pqc-ready` findings never count. A positive with an `expect` block counts only when the matching finding fires. See `benchmark/README.md` for the scoring rule.
 
-Overall: **precision 1.000, recall 0.989** (TP 86, FP 0, FN 1, TN 80; no cases skipped or errored on this host). A case whose probe or fixture raises is recorded as ERROR, kept out of the counts and fails the run, so a crash can never pass as a plain FN.
+Overall: **precision 0.918, recall 0.989** (TP 90, FP 8, FN 1, TN 72; no cases skipped or errored on this host). All 8 false positives are a deliberate fail-open choice in `code.crypto_primitives` (see Limits). Without them, precision is 1.000, and the gate fails on any other false positive. A case whose probe or fixture raises is recorded as ERROR, kept out of the counts and fails the run, so a crash can never pass as a plain FN.
 
 ## Per family
 
@@ -12,7 +12,7 @@ A family is the probe id up to the second dot.
 
 | family | probes | TP | FP | FN | TN | precision | recall |
 |---|---|---:|---:|---:|---:|---:|---:|
-| code.crypto_primitives | crypto_primitives (13 suffixes) | 13 | 0 | 0 | 30 | 1.000 | 1.000 |
+| code.crypto_primitives | crypto_primitives (13 suffixes) | 17 | 8 | 0 | 22 | 0.680 | 1.000 |
 | code.ts | csharp, go, java (incl. Kotlin), javascript, php, python, rust | 20 | 0 | 0 | 27 | 1.000 | 1.000 |
 | fs.binary | crypto | 1 | 0 | 0 | 1 | 1.000 | 1.000 |
 | fs.cert | x509, privkey, privkey_encrypted | 15 | 0 | 0 | 4 | 1.000 | 1.000 |
@@ -22,12 +22,13 @@ A family is the probe id up to the second dot.
 | fs.ssh | host_keys | 4 | 0 | 0 | 1 | 1.000 | 1.000 |
 | net.tls | versions, kex_groups, https, cert_chain, cert_chain_tls13, pqc_handshake | 18 | 0 | 1 | 8 | 1.000 | 0.947 |
 | sbom.crypto_map | crypto_map | 1 | 0 | 0 | 1 | 1.000 | 1.000 |
-| **overall** | 28 probes | **86** | **0** | **1** | **80** | **1.000** | **0.989** |
+| **overall** | 28 probes | **90** | **8** | **1** | **72** | **0.918** | **0.989** |
 
 ## Probes below 1.0
 
 | probe | TP | FP | FN | TN | precision | recall | miss |
 |---|---:|---:|---:|---:|---:|---:|---|
+| code.crypto_primitives | 17 | 8 | 0 | 22 | 0.680 | 1.000 | comment and prose-string mentions in C, C++, Ruby and Swift fire by design (fail-open, see Limits) |
 | net.tls.https | 6 | 0 | 1 | 0 | 1.000 | 0.857 | `ep-mtls-https`: the endpoint requires a client certificate |
 
 Every other probe scores 1.000 on both measures. Full per-probe and per-case numbers are in `benchmark/last_report.json`.
@@ -55,6 +56,7 @@ The scanner bake-off (`docs/BAKEOFF.md`) found two gaps. `code.crypto_primitives
 | commit | problem | corpus cases | before | now |
 |---|---|---|---|---|
 | `4df285e` | `code.crypto_primitives` matched raw text, so an algorithm name in a comment or a prose string fired on every language it scans. Matches now go through the comment/string lexer: comments never count, and a string counts only when it is a bare identifier such as `"MD5"` or `"AES/GCM/NoPadding"`. The probe anchors on the algorithm token itself, so masking strings outright would lose `getInstance("MD5")`. The lexer gains C/C++, Python and Ruby; Swift uses the Java rules and TypeScript the JavaScript rules. | 13 positives (real MD5 use, one per scanned suffix) and 30 negatives (comment-only and prose-string-only, every suffix, including the text-block and raw-string cases) | P 0.302 (30 FP) | P 1.000, R 1.000 |
+| `7469e2a` | Security review of `4df285e`, which ruled that a false positive is cheaper than a hidden MD5. C/C++, Ruby and Swift are no longer lexed, because raw strings, regex and `%`-literals, `?x` characters and heredocs could make a crafted literal blank real code. A string that can interpolate code (`${…}`, `{$…}`, `#{…}`, Python f-strings, C# `$"…"`) counts as code. | 4 positives: `cp-js-template-md5`, `cp-py-fstring-md5`, `cp-rb-charliteral-then-md5` (`?"` followed by a real call), `cp-swift-rawstring-then-md5` (`#"a"b"#` followed by a real call). All 4 are FN on `d9e3b84` and TP now. | — | P 0.680 by design: the 8 C/C++/Ruby/Swift comment/string negatives fire |
 | `d9e3b84` | XMSS, XMSS^MT, LMS and HSS/LMS (SP 800-208) were not recognised by their X.509 OIDs or as `HSS/LMS` names, and `code.crypto_primitives` did not see them in source. | none: `pqc-ready` never counts as a fire, so unit tests cover it | — | — |
 
 ## Security-review fixes
@@ -74,7 +76,7 @@ A security review of the fixes above found three more problems. Each was fixed i
 
 ## Limits
 
-- **Hybrid-KEM negatives need OpenSSL 3.5 or newer.** Python's `ssl` cannot pick groups: `set_ecdh_curve` takes one classical group. OpenSSL 3.5 offers `X25519MLKEM768` first by default, and the Python here links OpenSSL 3.5.7, so the hybrid endpoints are real. They carry `requires_openssl: [3, 5]` and are recorded as SKIP on older builds, such as a system Python on Ubuntu 24.04 with OpenSSL 3.0. The CI accuracy job on `ubuntu-latest` uses the real OpenSSL 3.0.13 ([run 39036012109](https://github.com/orengacademy/pqc-scanner2/actions/runs/39036012109)). It measured precision 1.000 and **recall 0.973**: 71 of 73 scored positives, with those 8 cases skipped. That run missed `ep-tls13-x25519-pqc-handshake` as well as `ep-mtls-https`. `net.tls.pqc_handshake` could only report that the local openssl does not support hybrid groups, because OpenSSL 3.0's `s_client` rejects the `X25519MLKEM768` name. `2fc607a` fixes that: the probe now asks the server through the raw ClientHello of `net.tls.kex_groups`, which offers the hybrid groups without local support. Loopback unit tests stub `s_client` to fail as it does on 3.0, and the X25519-only server is flagged. The expected CI recall after the fix is 72/73 = 0.986 on that 124-case corpus, and 85/86 = 0.988 on the current 167-case corpus. Neither is measured yet. An earlier simulated OpenSSL 3.0 run that forced only the version check gave 0.985; it did not exercise the 3.0 `s_client`, which is why it missed this.
+- **Hybrid-KEM negatives need OpenSSL 3.5 or newer.** Python's `ssl` cannot pick groups: `set_ecdh_curve` takes one classical group. OpenSSL 3.5 offers `X25519MLKEM768` first by default, and the Python here links OpenSSL 3.5.7, so the hybrid endpoints are real. They carry `requires_openssl: [3, 5]` and are recorded as SKIP on older builds, such as a system Python on Ubuntu 24.04 with OpenSSL 3.0. The CI accuracy job on `ubuntu-latest` uses the real OpenSSL 3.0.13 ([run 39036012109](https://github.com/orengacademy/pqc-scanner2/actions/runs/39036012109)). It measured precision 1.000 and **recall 0.973**: 71 of 73 scored positives, with those 8 cases skipped. That run missed `ep-tls13-x25519-pqc-handshake` as well as `ep-mtls-https`. `net.tls.pqc_handshake` could only report that the local openssl does not support hybrid groups, because OpenSSL 3.0's `s_client` rejects the `X25519MLKEM768` name. `2fc607a` fixes that: the probe now asks the server through the raw ClientHello of `net.tls.kex_groups`, which offers the hybrid groups without local support. Loopback unit tests stub `s_client` to fail as it does on 3.0, and the X25519-only server is flagged. The expected CI recall after the fix is 72/73 = 0.986 on that 124-case corpus, and 89/90 = 0.989 on the current 171-case corpus. Neither is measured yet. An earlier simulated OpenSSL 3.0 run that forced only the version check gave 0.985; it did not exercise the 3.0 `s_client`, which is why it missed this.
 - **No RC4 or 3DES servers.** OpenSSL 3.x builds do not ship those TLS suites, so `NULL-SHA256` stands in as the weak-cipher endpoint.
 - **No live daemon probes.** `container.image.sbom`, `container.runtime.detect` and `sbom.syft` need docker, podman or syft and emit only INFO findings, so they are not scored. pqcscan has no native OCI image reader.
 - **Image fixtures are a flattened rootfs.** The harness applies the layers of a single-layer OCI layout and points the file probes at the result, which emulates `docker export` followed by `pqcscan scan --path`. Whiteouts are not handled. The bundled `libssl` is ELF magic plus an OpenSSL version banner, so the `DT_NEEDED` linkage path of `fs.binary.crypto` is not exercised.
@@ -82,6 +84,7 @@ A security review of the fixes above found three more problems. Each was fixed i
 - **TLS probes are paired by protocol.** `net.tls.cert_chain` reads the TLS 1.2 Certificate message and is paired only with TLS 1.0–1.2 endpoints. `net.tls.kex_groups`, `net.tls.cert_chain_tls13` and `net.tls.pqc_handshake` are paired only with TLS 1.3 endpoints.
 - **No encrypted post-quantum negatives.** A PKCS#12 or encrypted PKCS#8 file whose password the probe does not know is flagged from its container format alone (`PKCS12-ENCRYPTED`, `PKCS8-PBES2`). The probe cannot see what is inside, so a "negative" label would be untestable. `cryptography` also cannot put an ML-DSA key in a PKCS#12 file.
 - **OpenSSH coverage is public keys only.** `fs.ssh.host_keys` reads `*.pub` and `authorized_keys`. No probe reads OpenSSH-format private keys. Encrypted OpenSSH keys need the `bcrypt` package, which is not a dependency.
+- **`code.crypto_primitives` fails open for C, C++, Ruby and Swift.** No lexer is trusted for them, and a wrong one would let a crafted literal hide real code. So those files are scanned unstripped, and a comment or prose-string mention there fires. These are the corpus's 8 false positives, accepted by name in the gate. In the stripped languages, a literal that can interpolate code counts as code.
 - **Kotlin has no probe of its own.** `.kt` files are scanned by `code.ts.java`.
 - **Scoring is per case, not per finding.** A wrong extra finding next to a correct one is invisible to the score. The false "accepts TLS 1.1" report was found by inspecting findings, not by the numbers.
 - **The corpus is small and synthetic.** Each probe has a handful of cases, so one miss moves a score by 0.1 to 0.3.

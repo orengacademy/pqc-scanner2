@@ -1,23 +1,23 @@
 {
   "overall": {
-    "tp": 86,
-    "fp": 0,
+    "tp": 90,
+    "fp": 8,
     "fn": 1,
-    "tn": 80,
-    "precision": 1.0,
-    "recall": 0.9885057471264368,
-    "positives": 87,
+    "tn": 72,
+    "precision": 0.9183673469387755,
+    "recall": 0.989010989010989,
+    "positives": 91,
     "negatives": 80,
-    "cases": 167
+    "cases": 171
   },
-  "corpus_sha256": "bc637f9355dea9c9621c1d67ca9776b0029db75591ab20b7e51c23f0f1d4eddc",
+  "corpus_sha256": "6a2e4d115fc6703fe9b8bbaa0b4e67a612f77b117c56bb04c5936bb0e76e8ec5",
   "per_probe": {
     "code.crypto_primitives": {
-      "tp": 13,
-      "fp": 0,
+      "tp": 17,
+      "fp": 8,
       "fn": 0,
-      "tn": 30,
-      "precision": 1.0,
+      "tn": 22,
+      "precision": 0.68,
       "recall": 1.0
     },
     "code.ts.csharp": {
@@ -239,11 +239,11 @@
   },
   "per_family": {
     "code.crypto_primitives": {
-      "tp": 13,
-      "fp": 0,
+      "tp": 17,
+      "fp": 8,
       "fn": 0,
-      "tn": 30,
-      "precision": 1.0,
+      "tn": 22,
+      "precision": 0.68,
       "recall": 1.0
     },
     "code.ts": {
@@ -326,6 +326,54 @@
       "probe": "net.tls.https",
       "outcome": "FN",
       "note": "expected a detection, none fired"
+    },
+    {
+      "id": "cp-rb-comment-md5",
+      "probe": "code.crypto_primitives",
+      "outcome": "FP",
+      "note": "false positive: fired MD5/crit"
+    },
+    {
+      "id": "cp-rb-string-md5",
+      "probe": "code.crypto_primitives",
+      "outcome": "FP",
+      "note": "false positive: fired MD5/crit"
+    },
+    {
+      "id": "cp-c-comment-md5",
+      "probe": "code.crypto_primitives",
+      "outcome": "FP",
+      "note": "false positive: fired MD5/crit"
+    },
+    {
+      "id": "cp-c-string-md5",
+      "probe": "code.crypto_primitives",
+      "outcome": "FP",
+      "note": "false positive: fired MD5/crit"
+    },
+    {
+      "id": "cp-cpp-comment-md5",
+      "probe": "code.crypto_primitives",
+      "outcome": "FP",
+      "note": "false positive: fired MD5/crit"
+    },
+    {
+      "id": "cp-cpp-string-md5",
+      "probe": "code.crypto_primitives",
+      "outcome": "FP",
+      "note": "false positive: fired MD5/crit"
+    },
+    {
+      "id": "cp-swift-comment-md5",
+      "probe": "code.crypto_primitives",
+      "outcome": "FP",
+      "note": "false positive: fired MD5/crit"
+    },
+    {
+      "id": "cp-swift-string-md5",
+      "probe": "code.crypto_primitives",
+      "outcome": "FP",
+      "note": "false positive: fired MD5/crit"
     }
   ],
   "cases": [
@@ -1948,72 +1996,132 @@
       "id": "cp-rb-comment-md5",
       "probe": "code.crypto_primitives",
       "kind": "negative",
-      "outcome": "TN",
-      "fired": false,
-      "detections": [],
-      "note": ""
+      "outcome": "FP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": "false positive: fired MD5/crit"
     },
     {
       "id": "cp-rb-string-md5",
       "probe": "code.crypto_primitives",
       "kind": "negative",
-      "outcome": "TN",
-      "fired": false,
-      "detections": [],
-      "note": ""
+      "outcome": "FP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": "false positive: fired MD5/crit"
     },
     {
       "id": "cp-c-comment-md5",
       "probe": "code.crypto_primitives",
       "kind": "negative",
-      "outcome": "TN",
-      "fired": false,
-      "detections": [],
-      "note": ""
+      "outcome": "FP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": "false positive: fired MD5/crit"
     },
     {
       "id": "cp-c-string-md5",
       "probe": "code.crypto_primitives",
       "kind": "negative",
-      "outcome": "TN",
-      "fired": false,
-      "detections": [],
-      "note": ""
+      "outcome": "FP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": "false positive: fired MD5/crit"
     },
     {
       "id": "cp-cpp-comment-md5",
       "probe": "code.crypto_primitives",
       "kind": "negative",
-      "outcome": "TN",
-      "fired": false,
-      "detections": [],
-      "note": ""
+      "outcome": "FP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": "false positive: fired MD5/crit"
     },
     {
       "id": "cp-cpp-string-md5",
       "probe": "code.crypto_primitives",
       "kind": "negative",
-      "outcome": "TN",
-      "fired": false,
-      "detections": [],
-      "note": ""
+      "outcome": "FP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": "false positive: fired MD5/crit"
     },
     {
       "id": "cp-swift-comment-md5",
       "probe": "code.crypto_primitives",
       "kind": "negative",
-      "outcome": "TN",
-      "fired": false,
-      "detections": [],
-      "note": ""
+      "outcome": "FP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": "false positive: fired MD5/crit"
     },
     {
       "id": "cp-swift-string-md5",
       "probe": "code.crypto_primitives",
       "kind": "negative",
-      "outcome": "TN",
-      "fired": false,
-      "detections": [],
+      "outcome": "FP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": "false positive: fired MD5/crit"
+    },
+    {
+      "id": "cp-js-template-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cp-py-fstring-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cp-rb-charliteral-then-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cp-swift-rawstring-then-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
       "note": ""
     }
   ]
