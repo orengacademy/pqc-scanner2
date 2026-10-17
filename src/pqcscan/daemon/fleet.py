@@ -88,7 +88,7 @@ def _host_dict(h: Any) -> dict[str, Any]:
             "last_seen": h.last_seen.isoformat() if h.last_seen else None, "revoked": bool(h.revoked)}
 
 
-def build_fleet_router(repo: Repo, *, enroll_token: str | None) -> APIRouter:
+def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_host: int = 12) -> APIRouter:
     router = APIRouter()
     limiter = _TokenBucket()
     # Per router (one per app): an asyncio.Semaphore binds to the loop it first blocks on.
@@ -169,6 +169,11 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None) -> APIRouter:
                 if existing is None:
                     raise HTTPException(400, "bundle violates a store constraint") from e
                 return {"scan_id": existing, "stored_findings": 0, "stored_views": 0, "duplicate": True}
+            if not res.duplicate:             # after the write: drift was computed against the older scans
+                try:
+                    await run_in_threadpool(repo.prune_host, host.id, keep_scans_per_host)
+                except Exception:             # the scan is stored; a failed trim must not make the agent resend
+                    logger.opt(exception=True).warning("fleet: retention prune failed for host {}", host.id)
         return {"scan_id": res.scan_id, "stored_findings": res.stored_findings,
                 "stored_views": res.stored_views, "duplicate": res.duplicate, "drift": res.drift}
 

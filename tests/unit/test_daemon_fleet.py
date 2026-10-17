@@ -174,6 +174,25 @@ def test_non_terminal_status_is_400(tmp_db_path, fast_registry, tmp_path, monkey
         assert c.post("/api/ingest", content=_bundle(tmp_path, status=status), headers=_hdr(tok)).status_code == 200
 
 
+def test_ingest_prunes_to_keep(tmp_db_path, fast_registry, tmp_path):
+    c = _client(tmp_db_path, fast_registry, keep_scans_per_host=2)
+    tok = _enroll(c)["agent_token"]
+    ids = [c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(tok)).json()["scan_id"] for _ in range(3)]
+    kept = [s.id for s in Repo(tmp_db_path).host_history(1)]
+    assert sorted(kept) == sorted(ids[1:])                  # the oldest went, the one just ingested stayed
+    assert len(c.get("/api/fleet/1").json()["scans"]) == 2
+
+
+def test_ingest_succeeds_when_prune_fails(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    def boom(self, host_id, keep):
+        raise OperationalError("s", {}, Exception("busy"))
+    monkeypatch.setattr(Repo, "prune_host", boom)
+    c = _client(tmp_db_path, fast_registry)
+    tok = _enroll(c)["agent_token"]
+    r = c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(tok))
+    assert r.status_code == 200 and r.json()["duplicate"] is False       # stored scan is not reported as a failure
+
+
 def test_reenroll_logs_warning_and_rotates_token(tmp_db_path, fast_registry):
     c = _client(tmp_db_path, fast_registry)
     seen: list[str] = []

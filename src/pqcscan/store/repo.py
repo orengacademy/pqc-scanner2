@@ -548,22 +548,25 @@ class Repo:
             s.execute(delete(Scan).where(Scan.id == scan_id))
             s.commit()
 
+    def prune_host(self, host_id: int, keep: int) -> int:
+        """Delete one host's scans beyond the newest `keep` (by server scan id); returns scans deleted."""
+        if keep < 1:
+            raise ValueError("keep must be >= 1")
+        with Session(self.engine) as s:
+            old = list(s.execute(select(Scan.id).where(Scan.host_id == host_id)
+                                 .order_by(Scan.id.desc()).offset(keep)).scalars())
+        for sid in old:
+            self.delete_scan(sid)
+        return len(old)
+
     def prune_scans(self, keep_per_host: int) -> int:
         """Delete each host's scans beyond the newest N (by server scan id); returns scans deleted."""
         if keep_per_host < 1:
             raise ValueError("keep_per_host must be >= 1")
         self.delete_stale_rollups()
-        deleted = 0
         with Session(self.engine) as s:
             host_ids = list(s.execute(select(Host.id)).scalars())
-        for hid in host_ids:
-            with Session(self.engine) as s:
-                old = list(s.execute(select(Scan.id).where(Scan.host_id == hid)
-                                     .order_by(Scan.id.desc()).offset(keep_per_host)).scalars())
-            for sid in old:
-                self.delete_scan(sid)
-                deleted += 1
-        return deleted
+        return sum(self.prune_host(hid, keep_per_host) for hid in host_ids)
 
     def delete_stale_rollups(self) -> int:
         """Delete orphaned temporary fleet rollups (left by a hard kill mid-export); returns count.

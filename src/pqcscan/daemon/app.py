@@ -87,7 +87,7 @@ def _host_allowed(request: Request, allowed: frozenset[str]) -> bool:
 
 def create_app(
     *, db_path: Path | str, registry: Registry | None = None, token: str | None = None,
-    allowed_hosts: Iterable[str] = (), enroll_token: str | None = None,
+    allowed_hosts: Iterable[str] = (), enroll_token: str | None = None, keep_scans_per_host: int = 12,
 ) -> FastAPI:
     """Build the daemon app.
 
@@ -103,6 +103,9 @@ def create_app(
     in; `pqcscan daemon` adds the bind address and this machine's hostname).
     Requests whose Host header is not on it get 400 — the DNS-rebinding
     guard, since Origin==Host alone is satisfied by a rebound domain.
+
+    `keep_scans_per_host` is the fleet retention: after each ingest the host's
+    scans beyond the newest N are deleted.
     """
     app = FastAPI(title="pqcscan", version=__version__)
     token = token if token is not None else os.environ.get("PQCSCAN_TOKEN") or None
@@ -389,7 +392,7 @@ def create_app(
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
-    app.include_router(build_fleet_router(repo, enroll_token=enroll_token))
+    app.include_router(build_fleet_router(repo, enroll_token=enroll_token, keep_scans_per_host=keep_scans_per_host))
 
     # Mount the web UI (Jinja + HTMX + SSE).
     from pqcscan.ui.routes import mount_static

@@ -171,6 +171,22 @@ def test_prune_rejects_keep_below_one_and_is_exact(tmp_db_path, tmp_path):
     assert sorted(s.id for s in fleet.host_history(h.id)) == sorted(ids[-2:])
 
 
+def test_prune_host_keeps_newest_n_and_leaves_other_hosts_and_rollups(tmp_db_path, tmp_path):
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    h1, h2 = fleet.upsert_host(WEB01), fleet.upsert_host(WEB02)
+    ids1 = [fleet.ingest_bundle(_bundle(src, WEB01, ["RSA-2048"]), h1.id).scan_id for _ in range(4)]
+    ids2 = [fleet.ingest_bundle(_bundle(src, WEB02, ["RSA-2048"]), h2.id).scan_id for _ in range(3)]
+    rollup = fleet.materialize_fleet_rollup()
+    assert fleet.prune_host(h1.id, 2) == 2
+    assert sorted(s.id for s in fleet.host_history(h1.id)) == sorted(ids1[-2:])
+    assert sorted(s.id for s in fleet.host_history(h2.id)) == sorted(ids2)     # other host untouched
+    assert fleet.get_scan(rollup) is not None                                  # host_id=None rollup untouched
+    assert fleet.prune_host(h1.id, 2) == 0                                     # idempotent
+    with pytest.raises(ValueError):
+        fleet.prune_host(h1.id, 0)
+
+
 def test_ingest_unknown_host_and_foreign_scan_uuid(tmp_db_path, tmp_path):
     src = Repo(tmp_path / "src.db"); src.init_schema()
     fleet = Repo(tmp_db_path); fleet.init_schema()
