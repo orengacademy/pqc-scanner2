@@ -8,6 +8,37 @@ checkpqc.app, wiz.io/pqc-tester, pqscan.io, et al.).
 We already cover the majority of what they do; the items below are the
 gaps worth filling, ranked by leverage.
 
+## Fleet mode — shipped in v0.10.0–v0.10.2 (2026-10-17)
+
+Design: `docs/superpowers/specs/2026-10-16-pqcscan-fleet-agent-design.md`;
+operator guide: `docs/FLEET.md`.
+
+- [x] Bundle format, enroll/ingest API, hosts table, fleet exports, `agents`/`fleet` CLI (v0.10.0)
+- [x] `pqcscan agent` loop, `/fleet` pages (EN/MS), deployment recipes (v0.10.1)
+- [x] Host-agnostic parity key + `fleet.drift` on ingest, labels → Mosca inputs,
+      crypto-agility score, per-host retention (v0.10.2)
+
+### Open items (deferred by ruling)
+- [ ] **Split-on-413 resend** (spec §5): bundles over the raw cap fail at dump time; split
+      into several bundles instead.
+- [ ] **Label removal on re-enroll**: `upsert_host` merges labels, so a label can never be
+      removed without `agents revoke`/re-enroll.
+- [ ] **Plain-HTTP warning on a non-loopback daemon bind** (spec §3.3).
+- [ ] **Render fleet exports from scan-id lists** instead of copying rows into a temporary
+      rollup (the copy is batched but still O(hosts × findings) per export).
+- [ ] **Run `packaging/fleet/windows-task.ps1` on a Windows host**: reviewed by reading only;
+      the owner check depends on the default-owner policy for elevated admins.
+- [ ] **Postgres collector**: wired (`pip install 'pqcscan[fleet-pg]'`, `postgresql+psycopg://`)
+      but untested; add a CI job against a service container.
+- [ ] **Parity key refinements**: `word:digits` tokens are normalised lossily, URL and
+      IPv6-zone forms are not; values containing `=` cannot be used in the `/fleet` label filter.
+- [ ] **`criticality` host label → exposure weighting** (spec §3.1): only the Mosca labels are wired.
+- [ ] **Per-host crypto-agility on `/fleet`**: the score exists per scan in reports; `fleet_summary`
+      returns grouped counts only, so a per-host score needs a cheap aggregate (store it on the scan row).
+- [ ] **Collector load test** (spec §4): 500 concurrent bundles, p95 ingest < 2 s; manual follow-up.
+- [ ] **Stable machine id in containers**: persist a generated id in the state dir when no
+      `/etc/machine-id` exists.
+
 ## Roadmap — post-v0.9.11 (2026-07-21)
 
 **Detection coverage is done.** Five deep-research passes (see
