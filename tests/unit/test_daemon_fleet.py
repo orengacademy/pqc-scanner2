@@ -1,4 +1,5 @@
 """Enroll → ingest → fleet view, with every rejection path."""
+import gzip
 import json
 import os
 
@@ -194,7 +195,6 @@ def test_ingest_succeeds_when_prune_fails(tmp_db_path, fast_registry, tmp_path, 
 
 
 def test_ingest_sweeps_stale_rollups_and_logs_dropped_drift(tmp_db_path, fast_registry, tmp_path):
-    import gzip
     from datetime import timedelta
 
     from sqlalchemy.orm import Session
@@ -219,6 +219,29 @@ def test_ingest_sweeps_stale_rollups_and_logs_dropped_drift(tmp_db_path, fast_re
     assert r.status_code == 200, r.text
     assert repo.get_scan(rollup) is None                 # swept after the prune
     assert any("dropped 1 agent-sent fleet.drift" in m and "host 1" in m for m in seen)
+
+
+def test_enroll_caps_host_labels(tmp_db_path, fast_registry):
+    c = _client(tmp_db_path, fast_registry)
+    for bad in ({f"k{i}": "v" for i in range(65)}, {"x" * 65: "v"}, {"k": "v" * 257}):
+        r = c.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": {**HOST, "labels": bad}})
+        assert r.status_code == 400 and "host.labels" in r.json()["detail"]
+    assert Repo(tmp_db_path).get_host_by_machine_id("m-1") is None
+    _enroll(c)
+
+
+def test_fleet_summary_reports_drift_count(tmp_db_path, fast_registry, tmp_path):
+    c = _client(tmp_db_path, fast_registry)
+    tok = _enroll(c)["agent_token"]
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(tok)).status_code == 200
+    doc = json.loads(gzip.decompress(_bundle(tmp_path)))
+    doc["findings"][0]["algorithm"] = "RSA-1024"           # one removed + one added
+    sid = c.post("/api/ingest", content=gzip.compress(json.dumps(doc).encode()),
+                 headers=_hdr(tok)).json()["scan_id"]
+    (row,) = c.get("/api/fleet").json()
+    assert row["drift"] == 2 and row["total"] == 1          # drift counted apart from the findings
+    assert "drift 2" in c.get("/fleet").text
+    assert "drift 2" in c.get("/fleet/1").text and Repo(tmp_db_path).drift_counts([sid - 1, sid]) == {sid: 2}
 
 
 def test_reenroll_logs_warning_and_rotates_token(tmp_db_path, fast_registry):

@@ -171,7 +171,8 @@ def fleet_summary(db: str | None, as_json: bool) -> None:
     repo = _open_repo(db)
     rows = [{"host_id": x.host.id, "hostname": x.host.hostname, "labels": x.host.labels or {},
              "scan_id": x.scan_id, "finished_at": x.finished_at.isoformat() if x.finished_at else None,
-             "readiness": x.readiness, "crit": x.crit, "high": x.high, "total": x.total}
+             "readiness": x.readiness, "crit": x.crit, "high": x.high, "total": x.total,
+             "drift": x.drift}
             for x in repo.fleet_summary()]
     if as_json:
         click.echo(json.dumps(rows))

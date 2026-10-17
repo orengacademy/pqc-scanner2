@@ -56,6 +56,7 @@ def test_fleet_summary_and_prune(tmp_path):
     r = CliRunner().invoke(fleet_cmd, ["summary", "--db", str(db), "--json"])
     rows = json.loads(r.output)
     assert r.exit_code == 0 and rows[0]["hostname"] == "web01" and rows[0]["high"] == 1
+    assert isinstance(rows[0]["drift"], int)
     r = CliRunner().invoke(fleet_cmd, ["prune", "--keep", "1", "--db", str(db)])
     assert r.exit_code == 0 and "4 scans" in r.output
     assert len(Repo(db).list_scans()) == 2

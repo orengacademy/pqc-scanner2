@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Drift is capped at 500 rows per scan plus one summary row with the full counts; the ingest JSON `drift` reports
   every change.
 - Retention (default 12, minimum 2) never deletes baselined scans or the host's newest completed scan.
+- `fleet summary --json`, `/api/fleet` and `/fleet` report each host's drift count; `/fleet/<host_id>` shows it per scan.
+- Host labels are capped at 64 per host (keys 64 characters, values 256) at enrollment and ingest; over the cap is a 400.
 
 ## [0.10.1] — 2026-10-17
 

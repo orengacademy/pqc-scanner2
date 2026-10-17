@@ -514,7 +514,8 @@ async def fleet_page(request: Request, label: str | None = None) -> HTMLResponse
         rows = [x for x in rows if (x.host.labels or {}).get(k) == v]
     now = utcnow()
     view = [{"host": x.host, "scan_id": x.scan_id, "finished_at": x.finished_at, "readiness": x.readiness,
-             "crit": x.crit, "high": x.high, "total": x.total, "stale": _is_stale(x.host.last_seen, now)}
+             "crit": x.crit, "high": x.high, "total": x.total, "drift": x.drift,
+             "stale": _is_stale(x.host.last_seen, now)}
             for x in rows]
     return _render(request, "fleet.html", {"rows": view, "label": label or ""})
 
@@ -526,6 +527,7 @@ async def fleet_host_page(request: Request, host_id: int) -> HTMLResponse:
     if host is None:
         raise HTTPException(404, "host not found")
     scans = await run_in_threadpool(repo.host_history, host_id)
+    drift = await run_in_threadpool(repo.drift_counts, [s.id for s in scans])
     return _render(request, "fleet_host.html", {
-        "host": host, "scans": scans, "stale": _is_stale(host.last_seen, utcnow()),
+        "host": host, "scans": scans, "drift": drift, "stale": _is_stale(host.last_seen, utcnow()),
     })

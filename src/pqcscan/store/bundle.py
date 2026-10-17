@@ -24,6 +24,7 @@ BUNDLE_SCHEMA_VERSION = 1
 MAX_GZIP_BYTES = 8 * 1024 * 1024
 MAX_RAW_BYTES = 50 * 1024 * 1024
 MAX_FINDINGS = 200_000
+MAX_LABELS, MAX_LABEL_KEY, MAX_LABEL_VALUE = 64, 64, 256
 # fleet.drift findings are derived by the collector at ingest; load_bundle drops any an agent sends.
 # Fleet attribution (evidence["_fleet"]) is set by the collector, never by the agent.
 # evidence["host"] is the scan target (net probes) and stays.
@@ -67,6 +68,17 @@ def _req_str(d: dict[str, Any], key: str, *, nonempty: bool = False) -> str:
     if not isinstance(v, str) or (nonempty and not v):
         raise BundleInvalid(f"{key} must be a {'non-empty ' if nonempty else ''}string")
     return v
+
+
+def check_labels(labels: dict) -> None:
+    """Host labels come from agents: string values, at most MAX_LABELS, bounded key and value length."""
+    if len(labels) > MAX_LABELS:
+        raise BundleInvalid(f"host.labels has {len(labels)} entries; cap {MAX_LABELS}")
+    for k, v in labels.items():
+        if not isinstance(v, str):
+            raise BundleInvalid("host.labels values must be strings")
+        if len(k) > MAX_LABEL_KEY or len(v) > MAX_LABEL_VALUE:
+            raise BundleInvalid(f"host.labels keys are capped at {MAX_LABEL_KEY} and values at {MAX_LABEL_VALUE} chars")
 
 
 def dump_bundle(repo: Repo, scan_id: int, host: HostIdentity) -> bytes:
@@ -140,8 +152,7 @@ def load_bundle(data: bytes) -> ScanBundle:
         if isinstance(ev, dict):
             for k in _SERVER_EVIDENCE_KEYS:
                 ev.pop(k, None)
-    if not all(isinstance(v, str) for v in labels.values()):
-        raise BundleInvalid("host.labels values must be strings")
+    check_labels(labels)
     host = HostIdentity(machine_id=_req_str(h, "machine_id", nonempty=True),
                         hostname=_req_str(h, "hostname"), os=_req_str(h, "os"),
                         labels=dict(labels), agent_version=_req_str(h, "agent_version"))

@@ -35,6 +35,7 @@
           <td class="py-2.5 px-5 font-mono text-zinc-500 text-xs">{{ s.started_at }}</td>
           <td class="py-2.5 px-5">
             <span class="status-pill" data-status="{{ s.status }}"><span class="pulse"></span>{{ s.status }}</span>
+            {% if drift.get(s.id) %}<span class="sev-chip ml-2">{{ t('fleet.drift') }} {{ drift[s.id] }}</span>{% endif %}
           </td>
           <td class="py-2.5 px-5 text-right">
             <a href="/scans/{{ s.id }}" class="text-blue-400 hover:text-blue-300 text-xs">{{ t('common.view') }} &rarr;</a>

@@ -66,6 +66,7 @@ class HostSummary:
     crit: int
     high: int
     total: int
+    drift: int = 0          # fleet.drift rows in the latest done scan, as stored (a summary row counts as 1)
 
 
 def _apply_identity(h: Host, identity: HostIdentity) -> None:
@@ -510,11 +511,13 @@ class Repo:
             latest = {sc.host_id: sc for sc in s.execute(select(Scan).where(Scan.id.in_(latest_ids))).scalars()}
             tally: dict[int, dict[str, int]] = {}
             # Band and severity depend only on these columns: count distinct combinations, not finding rows.
-            # fleet.drift rows are change markers, not findings, so they stay out of the counts.
-            for r in s.execute(select(*cols, func.count().label("n")).where(FindingRow.scan_id.in_(latest_ids),
-                                                                            FindingRow.probe_id != DRIFT_PROBE)
+            # fleet.drift rows are change markers, not findings: counted apart, never in the band totals.
+            for r in s.execute(select(*cols, func.count().label("n")).where(FindingRow.scan_id.in_(latest_ids))
                                .group_by(*cols)):
-                t = tally.setdefault(r.scan_id, {**empty_band_counts(), "crit": 0, "high": 0})
+                t = tally.setdefault(r.scan_id, {**empty_band_counts(), "crit": 0, "high": 0, "drift": 0})
+                if r.probe_id == DRIFT_PROBE:
+                    t["drift"] += r.n
+                    continue
                 t[classify_band(r)] += r.n
                 t["total"] += r.n
                 if r.severity in ("crit", "high"):
@@ -525,13 +528,21 @@ class Repo:
             if sc is None:
                 out.append(HostSummary(h, None, None, None, 0, 0, 0))
                 continue
-            t = tally.get(sc.id, {**empty_band_counts(), "crit": 0, "high": 0})
+            t = tally.get(sc.id, {**empty_band_counts(), "crit": 0, "high": 0, "drift": 0})
             # A host with nothing rated is fully ready, not 0 (readiness_score is 0 on an empty denominator).
             rated = t["green"] + t["yellow"] + t["red"]
             out.append(HostSummary(host=h, scan_id=sc.id, finished_at=sc.finished_at,
                                    readiness=readiness_score(t) if rated else 100,
-                                   crit=t["crit"], high=t["high"], total=t["total"]))
+                                   crit=t["crit"], high=t["high"], total=t["total"], drift=t["drift"]))
         return out
+
+    def drift_counts(self, scan_ids: list[int]) -> dict[int, int]:
+        """fleet.drift rows per scan, one grouped query; scans without drift are absent."""
+        with Session(self.engine) as s:
+            rows = s.execute(select(FindingRow.scan_id, func.count())
+                             .where(FindingRow.scan_id.in_(scan_ids), FindingRow.probe_id == DRIFT_PROBE)
+                             .group_by(FindingRow.scan_id))
+            return {sid: n for sid, n in rows}
 
     def host_history(self, host_id: int, limit: int = 50) -> list[Scan]:
         with Session(self.engine) as s:

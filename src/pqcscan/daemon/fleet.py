@@ -26,6 +26,7 @@ from pqcscan.store.bundle import (
     BundleInvalid,
     BundleTooLarge,
     HostIdentity,
+    check_labels,
     load_bundle,
 )
 from pqcscan.store.repo import Repo
@@ -122,9 +123,13 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_h
         labels = h.get("labels") or {}
         if not isinstance(labels, dict):
             raise HTTPException(400, "host.labels must be an object")
+        labels = {str(k): str(v) for k, v in labels.items()}
+        try:
+            check_labels(labels)
+        except BundleInvalid as e:
+            raise HTTPException(400, str(e)) from e
         ident = HostIdentity(machine_id=str(h["machine_id"]), hostname=str(h.get("hostname", "")),
-                             os=str(h.get("os", "")), labels={str(k): str(v) for k, v in labels.items()},
-                             agent_version=str(h.get("agent_version", "")))
+                             os=str(h.get("os", "")), labels=labels, agent_version=str(h.get("agent_version", "")))
         prior = repo.get_host_by_machine_id(ident.machine_id)
         if prior is not None and prior.revoked:
             raise HTTPException(403, f"host is revoked; an operator must run `pqcscan agents unrevoke {prior.id}`")
@@ -185,7 +190,8 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_h
     async def fleet() -> list[dict]:
         return [{**_host_dict(x.host), "scan_id": x.scan_id,
                  "finished_at": x.finished_at.isoformat() if x.finished_at else None,
-                 "readiness": x.readiness, "crit": x.crit, "high": x.high, "total": x.total}
+                 "readiness": x.readiness, "crit": x.crit, "high": x.high, "total": x.total,
+                 "drift": x.drift}
                 for x in await run_in_threadpool(repo.fleet_summary)]
 
     @router.get("/api/fleet/{host_id}")

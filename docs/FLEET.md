@@ -22,6 +22,8 @@ exports from them.
    verification), `--allow-http` (see Security).
 3. **Fleet view.** `GET /api/fleet` (JSON), `pqcscan fleet summary --db …`.
    In the web UI, `/fleet` lists every host with its latest scan, readiness band and crit/high/total counts.
+   A `drift N` chip marks a host whose latest scan changed since the one before (also `drift` in the JSON);
+   `/fleet/<host_id>` shows the same count per scan.
    Hosts not seen for 48 hours are flagged stale. Filter with `/fleet?label=env=prod`; `/fleet/<host_id>` shows one host's scan history.
    Host labels `data_lifetime`, `migration_years` and `threat_years` (all in years) set the Mosca X, Y and Z inputs in that host's reports; without them the defaults apply, and invalid labels are ignored.
    Labels merge, so one the agent stops sending stays on the host. To drop it, have the agent send an invalid value
@@ -140,6 +142,7 @@ as change. `pqcscan diff --parity` uses the same key to compare a primary with i
 - **Ingest limits.** A bundle is capped at 8 MiB on the wire, 50 MiB after
   decompression and 200,000 findings. Each host may post a burst of 10 bundles,
   refilled at one per minute; only a duplicate resend is free.
+  Host labels are capped at 64 per host, keys at 64 characters and values at 256, at enrollment and ingest.
   The bundle `machine_id` must match the token that posted it.
 - **No key material.** Findings never carry key bytes. Machine ids are
   domain-separated hashes, not raw `/etc/machine-id` values.

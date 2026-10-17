@@ -232,6 +232,21 @@ def test_rollup_skips_views_of_drift_rows(tmp_db_path, tmp_path):
     assert len(fleet.list_framework_views(roll)) == 1
 
 
+def test_keep_two_with_drift_still_stores_drift(tmp_db_path, tmp_path):
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    h = fleet.upsert_host(WEB01)
+    ids, results = [], []
+    for algs in (["RSA-2048"], ["RSA-2048", "RSA-1024"], ["RSA-1024"]):
+        res = fleet.ingest_bundle(_bundle(src, WEB01, algs), h.id)
+        fleet.prune_host(h.id, 2)
+        ids.append(res.scan_id); results.append(res)
+    assert results[2].drift == 1                            # RSA-2048 removed, against the surviving second scan
+    drift = [f for f in fleet.list_findings(ids[2]) if f.probe_id == "fleet.drift"]
+    assert [f.evidence["change"] for f in drift] == ["removed"]
+    assert sorted(s.id for s in fleet.host_history(h.id)) == ids[1:]
+
+
 def test_ingest_unknown_host_and_foreign_scan_uuid(tmp_db_path, tmp_path):
     src = Repo(tmp_path / "src.db"); src.init_schema()
     fleet = Repo(tmp_db_path); fleet.init_schema()
