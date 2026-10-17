@@ -52,12 +52,20 @@ def classify_cipher_token(token: str) -> Classification:
     return Classification.INFO
 
 
+# OpenSSL suite-name prefixes for every key exchange other than static RSA
+# (which has no prefix: AES128-SHA, AES256-GCM-SHA384, CAMELLIA256-SHA, ...).
+_OPENSSL_NON_RSA_KX: tuple[str, ...] = (
+    "ECDHE-", "ECDH-", "DHE-", "EDH-", "DH-", "ADH-", "AECDH-", "PSK-", "RSA-PSK-", "SRP-", "GOST",
+)
+
+
 def classify_suite(name: str) -> Classification:
     """Classify a TLS cipher suite by its RFC name for PQC exposure.
 
     Weak symmetric primitives (RC4/3DES/DES/MD5/NULL/EXPORT/anon) and legacy
     CBC-mode-with-SHA1 suites are SANGAT_TINGGI; static-RSA key transport and
-    classical (EC)DHE key exchange are quantum-broken -> TINGGI. Bare TLS 1.3
+    classical (EC)DHE key exchange are quantum-broken -> TINGGI. OpenSSL-style
+    names (``AES256-GCM-SHA384``, ``DHE-RSA-AES128-SHA``) are understood too. Bare TLS 1.3
     AEAD suites carry no KEX in the name (that lives in key_share) -> INFO.
     """
     up = name.upper()
@@ -70,4 +78,9 @@ def classify_suite(name: str) -> Classification:
         return Classification.TINGGI
     if "ECDHE" in up or "ECDH_" in up or "DHE_" in up:  # classical KEX
         return Classification.TINGGI
+    if "-" in up and "_" not in up:  # OpenSSL name, as ssl.SSLSocket.cipher() reports it
+        if up.startswith(("DHE-", "EDH-", "DH-")):  # classical finite-field DH
+            return Classification.TINGGI
+        if not up.startswith(_OPENSSL_NON_RSA_KX):  # no KEX prefix = static-RSA key transport
+            return Classification.TINGGI
     return base

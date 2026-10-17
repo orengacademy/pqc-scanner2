@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- The OS-ssl TLS probes (`net.tls.https`/`imaps`/`ldaps`/`smtps`/`pop3s`/`mqtts`, the STARTTLS probes,
+  `net.db.postgres_tls`, `net.starttls.ldap`) now connect to legacy servers when verification is off. The stock client
+  context refused TLS 1.0, static-RSA key transport and NULL suites, so the weakest servers yielded only "connection
+  failed". The negotiated suite is now classified with the suite classifier, which also understands OpenSSL names:
+  `AES256-GCM-SHA384` (static RSA) and `DHE-*` are `tinggi`, `NULL-*` is `sangat-tinggi`; they were `info`.
 - `net.tls.pqc_handshake` works with OpenSSL 3.5. Its group list named `X25519Kyber768Draft00`, which OpenSSL 3.5
   no longer knows, so `s_client` refused the whole list and the probe never connected. It also now reads the
   `Peer Temp Key:` line that OpenSSL 3.2+ prints for a classical group, so a classical fallback is flagged again.

@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import ssl
+import warnings
 from collections.abc import Callable
 
 from cryptography import x509
@@ -11,7 +12,26 @@ from cryptography import x509
 from pqcscan.core.alg import classify, normalise
 from pqcscan.core.types import Classification, Finding, Severity
 from pqcscan.probes._keyalg import key_algorithm as _key_algorithm
-from pqcscan.probes._severity import sev_for
+from pqcscan.probes._severity import classify_suite, sev_for
+
+
+def inventory_ssl_context(verify: bool) -> ssl.SSLContext:
+    """Client context for the OS-ssl TLS probes.
+
+    With verification off (inventory mode) the client accepts every protocol
+    and suite the local OpenSSL can still speak — TLS 1.0, static-RSA key
+    transport, NULL encryption. The stock context refuses those, so the weakest
+    servers, the ones an inventory must see, used to yield only "connection
+    failed". With ``verify`` the stock, strict context is kept."""
+    sslctx = ssl.create_default_context()
+    if not verify:
+        sslctx.check_hostname = False
+        sslctx.verify_mode = ssl.CERT_NONE
+        with warnings.catch_warnings():  # TLSVersion.TLSv1 is deprecated; offering it is the point
+            warnings.simplefilter("ignore", DeprecationWarning)
+            sslctx.minimum_version = ssl.TLSVersion.TLSv1
+        sslctx.set_ciphers("ALL:eNULL:@SECLEVEL=0")
+    return sslctx
 
 
 async def run_tls_probe(
@@ -28,10 +48,7 @@ async def run_tls_probe(
     On connect failure emits an INFO finding describing the error;
     callers (e.g., net.tls.* probes) treat this as best-effort.
     """
-    sslctx = ssl.create_default_context()
-    if not verify:
-        sslctx.check_hostname = False
-        sslctx.verify_mode = ssl.CERT_NONE
+    sslctx = inventory_ssl_context(verify)
 
     try:
         _, writer = await asyncio.wait_for(
@@ -61,7 +78,7 @@ async def run_tls_probe(
 
     if cipher:
         cname, tlsver, _ = cipher
-        cls = classify(cname)
+        cls = classify_suite(cname)
         emit(Finding(
             probe_id=probe_id,
             algorithm=normalise(cname),
