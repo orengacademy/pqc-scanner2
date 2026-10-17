@@ -109,7 +109,9 @@ When a host's bundle is ingested, the collector compares it with that host's pre
 Each finding that appeared or vanished becomes one `fleet.drift` finding (severity info) in the new scan,
 with `evidence.change` set to `added` or `removed`. The first scan of a host, and any failed or interrupted
 scan, produces none. Drift rows are left out of the fleet counts and of the fleet rollup. The ingest response
-reports how many were stored as `drift`.
+reports the number of changes as `drift`. At most 500 change rows are stored per scan; beyond that one summary row
+(`evidence.change` = `summary`) carries the full added and removed counts. When the two scans hold more than
+50,000 findings together, only the summary row is stored and changes are counted on the raw title.
 
 Findings are matched by a host-agnostic key, so host names, addresses and `at <host>` phrases do not count
 as change. `pqcscan diff --parity` uses the same key to compare a primary with its DR peer, and with

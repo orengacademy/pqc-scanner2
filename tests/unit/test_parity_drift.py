@@ -35,7 +35,8 @@ def test_drift_rows_added_and_removed(tmp_db_path):
     b = repo.create_scan(mode="user", probe_versions={}, tool_versions={})
     repo.record_finding(a, _f("RSA-2048", "x")); repo.record_finding(a, _f("RSA-1024", "y"))
     repo.record_finding(b, _f("RSA-2048", "x")); repo.record_finding(b, _f("ECDSA-P256", "z"))
-    rows = drift_rows(repo.list_findings(a), repo.list_findings(b))
+    rows, total = drift_rows(repo.list_findings(a), repo.list_findings(b))
+    assert total == 2
     changes = sorted((r.evidence["change"], r.evidence["algorithm"]) for r in rows)
     assert changes == [("added", "ECDSA-P256"), ("removed", "RSA-1024")]
     assert all(r.probe_id == "fleet.drift" and r.classification is Classification.INFO for r in rows)
@@ -47,7 +48,7 @@ def test_drift_rows_ignore_prior_drift(tmp_db_path):
     b = repo.create_scan(mode="user", probe_versions={}, tool_versions={})
     repo.record_finding(a, _f("RSA-2048", "x")); repo.record_finding(b, _f("RSA-2048", "x"))
     repo.record_finding(a, _f("RSA-1024", "old", probe="fleet.drift"))
-    assert drift_rows(repo.list_findings(a), repo.list_findings(b)) == []
+    assert drift_rows(repo.list_findings(a), repo.list_findings(b)) == ([], 0)
 
 
 def test_ingest_emits_drift_against_previous_scan(tmp_db_path, tmp_path):
@@ -145,7 +146,7 @@ def test_empty_scan_after_findings_reports_every_removal(tmp_db_path):
     b = repo.create_scan(mode="user", probe_versions={}, tool_versions={})
     for i in range(4):
         repo.record_finding(a, _f("RSA-2048", f"cert {i}"))
-    rows = drift_rows(repo.list_findings(a), repo.list_findings(b))
+    rows, _ = drift_rows(repo.list_findings(a), repo.list_findings(b))
     assert [r.evidence["change"] for r in rows] == ["removed"] * 4
 
 
@@ -155,7 +156,7 @@ def test_parity_key_caps_title_and_path_at_512():
     assert parity_key("p", "A", "t", {"path": "/" + "d" * 600 + "1"}) == \
         parity_key("p", "A", "t", {"path": "/" + "d" * 600 + "2"})
     long_title = "y" * 600
-    d = drift_rows([], [type("R", (), {"probe_id": "p", "algorithm": "A", "title": long_title, "evidence": {}})()])
+    d, _ = drift_rows([], [type("R", (), {"probe_id": "p", "algorithm": "A", "title": long_title, "evidence": {}})()])
     assert len(d[0].evidence["title"]) == 512
 
 
@@ -198,3 +199,30 @@ def test_drift_rows_never_count_toward_readiness_or_totals(tmp_db_path, tmp_path
     render_xlsx_bukukerja(fleet, res.scan_id, tmp_path / "b.xlsx", locale="en")
     inv = [r for r in load_workbook(tmp_path / "b.xlsx")["0_Inventory"].iter_rows(min_row=5, values_only=True) if r[0]]
     assert len(inv) == 1 and inv[0][5] == "RSA-2048"       # no inventory asset made from the drift marker
+
+
+def test_drift_rows_capped_with_summary_and_true_total(tmp_db_path, tmp_path, monkeypatch):
+    from pqcscan.core import parity
+    src = Repo(tmp_path / "s.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    ident = HostIdentity(machine_id="m", hostname="h", os="linux")
+    h = fleet.upsert_host(ident)
+    for side in ("a", "b"):                    # two disjoint 600-finding scans: 600 removed + 600 added
+        sid = src.create_scan(mode="user", probe_versions={}, tool_versions={})
+        for i in range(600):
+            src.record_finding(sid, _f("RSA-2048", f"cert {side}{i}"))
+        src.finish_scan(sid, status="done")
+        res = fleet.ingest_bundle(load_bundle(dump_bundle(src, sid, ident)), h.id)
+    drift = [r for r in fleet.list_findings(res.scan_id) if r.probe_id == "fleet.drift"]
+    assert res.drift == 1200 and len(drift) == 501
+    summary = [r for r in drift if r.evidence["change"] == "summary"]
+    assert len(summary) == 1 and summary[0].title == "drift: 600 added, 600 removed (truncated)"
+    assert summary[0].evidence == {"change": "summary", "added": 600, "removed": 600, "truncated": True}
+    assert sum(r.evidence["change"] == "added" for r in drift) == 500          # sorted by change: added first
+    # above MAX_DRIFT_NORMALISE findings in all, only the summary row is produced; counts stay exact
+    prev = [_f("RSA-2048", f"p{i}") for i in range(3)]
+    cur = [_f("RSA-2048", f"p{i}") for i in range(1, 5)]
+    monkeypatch.setattr(parity, "MAX_DRIFT_NORMALISE", 5)
+    rows, total = drift_rows(prev, cur)
+    assert total == 3 and [r.evidence for r in rows] == [
+        {"change": "summary", "added": 2, "removed": 1, "truncated": True}]

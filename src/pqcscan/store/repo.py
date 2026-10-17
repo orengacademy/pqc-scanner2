@@ -418,23 +418,24 @@ class Repo:
             s.commit()
             return True
 
-    def _bundle_drift(self, bundle: ScanBundle, host_id: int) -> list[Finding]:
-        """fleet.drift findings for a bundle against the host's previous done scan (none if there is none).
+    def _bundle_drift(self, bundle: ScanBundle, host_id: int) -> tuple[list[Finding], int]:
+        """fleet.drift rows (capped) and the true change count for a bundle against the host's previous
+        done scan (none if there is none).
 
         A failed or interrupted scan is partial, so comparing it would report false removals.
         Reads in its own short session; a scan ingested for the same host in between is not seen."""
         status = str(bundle.scan.get("status", "done"))
         if status in _INGEST_STATUSES and status != "done":
-            return []
+            return [], 0
         with Session(self.engine) as s:
             if s.execute(select(Scan.id).where(Scan.scan_uuid == bundle.scan_uuid)).first() is not None:
-                return []
+                return [], 0
             prev_id = s.execute(
                 select(Scan.id).where(Scan.host_id == host_id, Scan.status == "done")
                 .order_by(Scan.id.desc()).limit(1)
             ).scalar_one_or_none()
             if prev_id is None:
-                return []
+                return [], 0
             prev = list(s.execute(select(FindingRow).where(FindingRow.scan_id == prev_id)).scalars())
         cur = [SimpleNamespace(probe_id=str(f["probe_id"]), algorithm=str(f.get("algorithm", "N/A")),
                                title=str(f.get("title", "")), evidence=dict(f.get("evidence") or {}))
@@ -444,7 +445,7 @@ class Repo:
     def ingest_bundle(self, bundle: ScanBundle, host_id: int) -> IngestResult:
         """Store one bundle and refresh the host row from its identity in a single transaction;
         a repeated scan_uuid is a no-op."""
-        drift = self._bundle_drift(bundle, host_id)       # CPU work and reads happen before the write begins
+        drift, n_drift = self._bundle_drift(bundle, host_id)       # CPU work and reads happen before the write begins
         with Session(self.engine) as s:
             h = s.get(Host, host_id)
             if h is None:
@@ -495,7 +496,7 @@ class Repo:
             _apply_identity(h, bundle.host)
             s.commit()
             return IngestResult(scan_id=scan.id, stored_findings=n_f, stored_views=n_v, duplicate=False,
-                                drift=len(drift))
+                                drift=n_drift)
 
     def fleet_summary(self) -> list[HostSummary]:
         """Each host with its latest done scan (by server scan id) and counts; three statements in all."""

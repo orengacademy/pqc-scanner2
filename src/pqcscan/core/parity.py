@@ -9,6 +9,8 @@ from pqcscan.core.types import Classification, Finding, Severity
 DRIFT_PROBE = "fleet.drift"
 
 MAX_TITLE_NORMALISE = 512   # titles and hosts come from agents: bound the work done per finding
+MAX_DRIFT_ROWS = 500        # drift rows stored per ingest, plus one summary row when truncated
+MAX_DRIFT_NORMALISE = 50_000  # findings on both sides above which drift is counted on raw titles, summary only
 
 
 
@@ -69,17 +71,36 @@ def parity_key(probe_id: str, algorithm: str, title: str, evidence: dict[str, An
     return probe_id, algorithm, norm
 
 
-def drift_rows(previous: list, current: list) -> list[Finding]:
-    """One INFO `fleet.drift` finding per parity key that appeared in or vanished from `current`.
+def drift_rows(previous: list, current: list) -> tuple[list[Finding], int]:
+    """INFO `fleet.drift` findings for parity keys that appeared in or vanished from `current`, and the true count.
 
     Rows are FindingRow-like (probe_id, algorithm, title, evidence). Earlier drift rows are ignored.
+    At most MAX_DRIFT_ROWS change rows are kept (sorted by change, then key) plus one summary row with the
+    full counts. Above MAX_DRIFT_NORMALISE findings in all, titles are not normalised: changes are counted on
+    the raw (probe_id, algorithm, title) triple and only the summary row is returned.
     """
-    def keys(rows: list) -> dict[tuple[str, str, str], Any]:
-        return {parity_key(r.probe_id, r.algorithm, r.title, r.evidence or {}): r
-                for r in rows if r.probe_id != DRIFT_PROBE}
-    prev, cur = keys(previous), keys(current)
-    return ([_drift("added", r) for k, r in cur.items() if k not in prev]
-            + [_drift("removed", r) for k, r in prev.items() if k not in cur])
+    prev_rows = [r for r in previous if not is_drift(r)]
+    cur_rows = [r for r in current if not is_drift(r)]
+    if len(prev_rows) + len(cur_rows) > MAX_DRIFT_NORMALISE:
+        p = {(r.probe_id, r.algorithm, r.title) for r in prev_rows}
+        c = {(r.probe_id, r.algorithm, r.title) for r in cur_rows}
+        added, removed = len(c - p), len(p - c)
+        return ([_summary(added, removed)] if added or removed else []), added + removed
+    prev = {parity_key(r.probe_id, r.algorithm, r.title, r.evidence or {}): r for r in prev_rows}
+    cur = {parity_key(r.probe_id, r.algorithm, r.title, r.evidence or {}): r for r in cur_rows}
+    changes = sorted([("added", k, r) for k, r in cur.items() if k not in prev]
+                     + [("removed", k, r) for k, r in prev.items() if k not in cur], key=lambda x: (x[0], x[1]))
+    rows = [_drift(change, r) for change, _, r in changes[:MAX_DRIFT_ROWS]]
+    if len(changes) > MAX_DRIFT_ROWS:
+        added = sum(1 for x in changes if x[0] == "added")
+        rows.append(_summary(added, len(changes) - added))
+    return rows, len(changes)
+
+
+def _summary(added: int, removed: int) -> Finding:
+    return Finding(probe_id=DRIFT_PROBE, algorithm="N/A", classification=Classification.INFO,
+                   severity=Severity.INFO, title=f"drift: {added} added, {removed} removed (truncated)",
+                   evidence={"change": "summary", "added": added, "removed": removed, "truncated": True})
 
 
 def _drift(change: str, r: Any) -> Finding:
