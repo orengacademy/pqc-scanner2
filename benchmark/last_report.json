@@ -1,16 +1,16 @@
 {
   "overall": {
-    "tp": 68,
+    "tp": 73,
     "fp": 0,
     "fn": 1,
-    "tn": 48,
+    "tn": 50,
     "precision": 1.0,
-    "recall": 0.9855072463768116,
-    "positives": 69,
-    "negatives": 48,
-    "cases": 117
+    "recall": 0.9864864864864865,
+    "positives": 74,
+    "negatives": 50,
+    "cases": 124
   },
-  "corpus_sha256": "6c00870b27d27388932bc63a55a4b784f92f6cd6e1e5051c98095f7ec13f3c69",
+  "corpus_sha256": "f37b8344c0428c80c2eabeb62cc2d9417460392869275272621b0e9769a94c3c",
   "per_probe": {
     "code.ts.csharp": {
       "tp": 3,
@@ -29,10 +29,10 @@
       "recall": 1.0
     },
     "code.ts.java": {
-      "tp": 4,
+      "tp": 6,
       "fp": 0,
       "fn": 0,
-      "tn": 6,
+      "tn": 8,
       "precision": 1.0,
       "recall": 1.0
     },
@@ -157,7 +157,7 @@
       "recall": 1.0
     },
     "fs.keystore.pkcs12": {
-      "tp": 4,
+      "tp": 6,
       "fp": 0,
       "fn": 0,
       "tn": 1,
@@ -189,12 +189,12 @@
       "recall": 1.0
     },
     "net.tls.https": {
-      "tp": 5,
+      "tp": 6,
       "fp": 0,
       "fn": 1,
       "tn": 0,
       "precision": 1.0,
-      "recall": 0.8333333333333334
+      "recall": 0.8571428571428571
     },
     "net.tls.kex_groups": {
       "tp": 1,
@@ -231,10 +231,10 @@
   },
   "per_family": {
     "code.ts": {
-      "tp": 18,
+      "tp": 20,
       "fp": 0,
       "fn": 0,
-      "tn": 25,
+      "tn": 27,
       "precision": 1.0,
       "recall": 1.0
     },
@@ -271,7 +271,7 @@
       "recall": 1.0
     },
     "fs.keystore": {
-      "tp": 4,
+      "tp": 6,
       "fp": 0,
       "fn": 0,
       "tn": 1,
@@ -287,12 +287,12 @@
       "recall": 1.0
     },
     "net.tls": {
-      "tp": 17,
+      "tp": 18,
       "fp": 0,
       "fn": 1,
       "tn": 8,
       "precision": 1.0,
-      "recall": 0.9444444444444444
+      "recall": 0.9473684210526315
     },
     "sbom.crypto_map": {
       "tp": 1,
@@ -1508,6 +1508,82 @@
       "outcome": "TN",
       "fired": false,
       "detections": [],
+      "note": ""
+    },
+    {
+      "id": "java-textblock-evasion",
+      "probe": "code.ts.java",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "java-textblock-md5-string",
+      "probe": "code.ts.java",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "kt-rawstring-evasion",
+      "probe": "code.ts.java",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "kt-rawstring-trailing-quote-md5",
+      "probe": "code.ts.java",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "p12-weak-plus-garbage-ca",
+      "probe": "fs.keystore.pkcs12",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "RSA-1024",
+        "Ed25519"
+      ],
+      "note": ""
+    },
+    {
+      "id": "p12-garbage-ca-sibling-scanned",
+      "probe": "fs.keystore.pkcs12",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "RSA-1024",
+        "Ed25519"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ep-cbc-sha1-https",
+      "probe": "net.tls.https",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "AES128-SHA",
+        "RSA-2048"
+      ],
       "note": ""
     }
   ]

@@ -1,10 +1,10 @@
-Measured on commit `2e3b85d` (probe code; `src/` is unchanged in the commit that adds this page) with `PYTHONPATH=src python benchmark/run_benchmark.py --by-family`; corpus sha256 `6c00870b27d27388932bc63a55a4b784f92f6cd6e1e5051c98095f7ec13f3c69` (sha256 of `benchmark/corpus/CORPUS.sha256`).
+Measured on commit `9a43eff` (probe code; `src/` is unchanged in the commit that updates this page) with `PYTHONPATH=src python benchmark/run_benchmark.py --by-family`; corpus sha256 `f37b8344c0428c80c2eabeb62cc2d9417460392869275272621b0e9769a94c3c` (sha256 of `benchmark/corpus/CORPUS.sha256`).
 
 # Detection accuracy
 
-pqcscan's probes are scored against a labelled corpus of 117 cases: 69 positives, where the probe should fire, and 48 negatives, where it should stay silent. The cases cover certificates, keys, keystores, local TLS endpoints, source snippets, config files, SQLite files and two OCI container images. A probe "fires" when it emits a finding in a weak or quantum-vulnerable tier (`sangat-tinggi`, `tinggi`, `sederhana`, `rendah`). INFO, ERROR and `pqc-ready` findings never count. A positive with an `expect` block counts only when the matching finding fires. See `benchmark/README.md` for the scoring rule.
+pqcscan's probes are scored against a labelled corpus of 124 cases: 74 positives, where the probe should fire, and 50 negatives, where it should stay silent. The cases cover certificates, keys, keystores, local TLS endpoints, source snippets, config files, SQLite files and two OCI container images. A probe "fires" when it emits a finding in a weak or quantum-vulnerable tier (`sangat-tinggi`, `tinggi`, `sederhana`, `rendah`). INFO, ERROR and `pqc-ready` findings never count. A positive with an `expect` block counts only when the matching finding fires. See `benchmark/README.md` for the scoring rule.
 
-Overall: **precision 1.000, recall 0.986** (TP 68, FP 0, FN 1, TN 48, no cases skipped on this host).
+Overall: **precision 1.000, recall 0.986** (TP 73, FP 0, FN 1, TN 50, no cases skipped on this host).
 
 ## Per family
 
@@ -12,22 +12,22 @@ A family is the probe id up to the second dot.
 
 | family | probes | TP | FP | FN | TN | precision | recall |
 |---|---|---:|---:|---:|---:|---:|---:|
-| code.ts | csharp, go, java (incl. Kotlin), javascript, php, python, rust | 18 | 0 | 0 | 25 | 1.000 | 1.000 |
+| code.ts | csharp, go, java (incl. Kotlin), javascript, php, python, rust | 20 | 0 | 0 | 27 | 1.000 | 1.000 |
 | fs.binary | crypto | 1 | 0 | 0 | 1 | 1.000 | 1.000 |
 | fs.cert | x509, privkey, privkey_encrypted | 15 | 0 | 0 | 4 | 1.000 | 1.000 |
 | fs.conf | f5, haproxy, netscaler, nginx, openssl_cnf, sshd | 7 | 0 | 0 | 6 | 1.000 | 1.000 |
 | fs.db | crypto | 1 | 0 | 0 | 1 | 1.000 | 1.000 |
-| fs.keystore | pkcs12 | 4 | 0 | 0 | 1 | 1.000 | 1.000 |
+| fs.keystore | pkcs12 | 6 | 0 | 0 | 1 | 1.000 | 1.000 |
 | fs.ssh | host_keys | 4 | 0 | 0 | 1 | 1.000 | 1.000 |
-| net.tls | versions, kex_groups, https, cert_chain, cert_chain_tls13, pqc_handshake | 17 | 0 | 1 | 8 | 1.000 | 0.944 |
+| net.tls | versions, kex_groups, https, cert_chain, cert_chain_tls13, pqc_handshake | 18 | 0 | 1 | 8 | 1.000 | 0.947 |
 | sbom.crypto_map | crypto_map | 1 | 0 | 0 | 1 | 1.000 | 1.000 |
-| **overall** | 27 probes | **68** | **0** | **1** | **48** | **1.000** | **0.986** |
+| **overall** | 27 probes | **73** | **0** | **1** | **50** | **1.000** | **0.986** |
 
 ## Probes below 1.0
 
 | probe | TP | FP | FN | TN | precision | recall | miss |
 |---|---:|---:|---:|---:|---:|---:|---|
-| net.tls.https | 5 | 0 | 1 | 0 | 1.000 | 0.833 | `ep-mtls-https`: the endpoint requires a client certificate |
+| net.tls.https | 6 | 0 | 1 | 0 | 1.000 | 0.857 | `ep-mtls-https`: the endpoint requires a client certificate |
 
 Every other probe scores 1.000 on both measures. Full per-probe and per-case numbers are in `benchmark/last_report.json`.
 
@@ -41,11 +41,21 @@ Five probes scored under 0.9 on the first run of the extended corpus, with overa
 | fs.keystore.pkcs12 | R 0.750 | The CA list from a PKCS#12 file was discarded, so a cert-only truststore of RSA CAs gave no finding. | `6d7f0c6`, `601f378` | R 1.000 |
 | net.tls.versions | P 0.667 | The ClientHello offered no Ed25519 or ML-DSA signature scheme. Servers with such a certificate aborted, and the probe reported "no TLS 1.3" on both hybrid-PQC endpoints. It also took any ServerHello as acceptance, so a TLS-1.0-only server "accepted" TLS 1.1. | `b31dc24` | P 1.000 |
 | net.tls.pqc_handshake | R 0.000 | The `-groups` list named `X25519Kyber768Draft00`, which OpenSSL 3.5 rejects, so `s_client` never connected. OpenSSL 3.2+ also prints `Peer Temp Key:`, which the parser did not read. | `593649a` | R 1.000 |
-| net.tls.https | R 0.333 | The stock client context refused TLS 1.0, static-RSA and NULL servers. `classify()` also rated OpenSSL suite names such as `AES256-GCM-SHA384` and `NULL-SHA256` as info. | `2e3b85d` | R 0.833 |
+| net.tls.https | R 0.333 | The stock client context refused TLS 1.0, static-RSA and NULL servers. `classify()` also rated OpenSSL suite names such as `AES256-GCM-SHA384` and `NULL-SHA256` as info. | `2e3b85d` | R 0.857 |
 
 The same `b31dc24` fix also applies to `net.tls.kex_groups` and `net.tls.cert_chain_tls13`. Before it, both scored their hybrid negatives as TN only because the handshake failed. They now report `X25519MLKEM768` and the ML-DSA-65 leaf as `pqc-ready`.
 
 **Residual `net.tls.https` miss, not fixed.** The mTLS endpoint requires a client certificate. Python's `ssl` client cannot finish that handshake, so it never exposes the server certificate. Recovering it would mean parsing the handshake by hand, which `net.tls.cert_chain` already does, and that probe detects the endpoint's RSA-2048 certificate (`ep-mtls-cert-chain` is a TP). For mTLS endpoints, rely on `net.tls.cert_chain`.
+
+## Security-review fixes
+
+A security review of the fixes above found three more problems. Each was fixed in its own commit with unit tests and a CHANGELOG entry. Each also got corpus cases, and every new positive scores FN on the pre-review code (`10f789c`) and TP now.
+
+| commit | problem | corpus cases |
+|---|---|---|
+| `a8a23a0` | The `5db4f0a` text-block rule closed on an escaped `\"""` and on the first quote of a closing run. A crafted string could make the stripper blank a real `MessageDigest.getInstance("MD5")` after it, which is a scanner evasion. Java text blocks now honour escapes, need a line break after the opening `"""` and close on the final quote run. Kotlin and Scala raw strings have their own rule with no escapes. | `java-textblock-evasion`, `kt-rawstring-evasion` (positive); `java-textblock-md5-string`, `kt-rawstring-trailing-quote-md5` (negative) |
+| `15823df` | `fs.keystore.pkcs12` raised on a CA cert with an unknown key type, which ended the walk. One crafted `.p12` hid every other keystore. Each cert and each file is now guarded and reported as an INFO `UNKNOWN` finding. | `p12-weak-plus-garbage-ca`, `p12-garbage-ca-sibling-scanned` (positive) |
+| `9a43eff` | The OpenSSL-name branch of `classify_suite` rated anonymous, export, DES/3DES and CBC-with-SHA-1 suites (`AES128-SHA`, `ECDHE-RSA-AES128-SHA`) as `tinggi` or `info`, below their RFC spelling. OpenSSL names now get the RFC grade, pinned by a parity test. | `ep-cbc-sha1-https` (positive, must be `sangat-tinggi`) |
 
 ## Limits
 

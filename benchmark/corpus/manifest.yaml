@@ -683,3 +683,39 @@
   kind: negative
   fixture: endpoint
   input: cases/endpoint-tls13-hybrid-mldsa65/endpoint.yaml
+
+# ---- security-review additions (stripper evasion, fail-open keystore, suite grades)
+- id: java-textblock-evasion      # text block with \""" then a REAL MD5 call -> must fire
+  probe: code.ts.java
+  kind: positive
+  input: cases/java-textblock-evasion
+  expect: {algorithm_contains: MD5, min_severity: crit}
+- id: java-textblock-md5-string   # MD5 only inside a text block
+  probe: code.ts.java
+  kind: negative
+  input: cases/java-textblock-md5-string
+- id: kt-rawstring-evasion        # """x"""" then a REAL MD5 call on the same line -> must fire
+  probe: code.ts.java
+  kind: positive
+  input: cases/kt-rawstring-evasion
+  expect: {algorithm_contains: MD5, min_severity: crit}
+- id: kt-rawstring-trailing-quote-md5   # MD5 only inside a raw string ending in an extra quote
+  probe: code.ts.java
+  kind: negative
+  input: cases/kt-rawstring-trailing-quote-md5
+- id: p12-weak-plus-garbage-ca    # RSA-1024 leaf + a CA whose key type cannot be parsed
+  probe: fs.keystore.pkcs12
+  kind: positive
+  input: cases/p12-weak-plus-garbage-ca
+  expect: {algorithm_contains: RSA-1024, min_severity: crit}
+- id: p12-garbage-ca-sibling-scanned    # the other keystore in that directory is still read
+  probe: fs.keystore.pkcs12
+  kind: positive
+  input: cases/p12-weak-plus-garbage-ca
+  expect: {algorithm_contains: Ed25519}
+- id: ep-cbc-sha1-https           # CBC + SHA-1 MAC suite (DES-CBC3-SHA or AES128-SHA) -> sangat-tinggi
+  probe: net.tls.https
+  kind: positive
+  fixture: endpoint
+  input: cases/endpoint-cbc-sha1/endpoint.yaml
+  expect: {algorithm_contains: "-SHA", min_severity: crit}

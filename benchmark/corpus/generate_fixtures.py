@@ -305,6 +305,18 @@ def cert_fixtures() -> None:
     wb("p12-truststore-rsa2048/truststore.p12", pkcs12.serialize_key_and_certificates(
         b"truststore", None, None, [make_cert(ca, "truststore-rsa-ca.example")],
         BestAvailableEncryption(b"changeit")), keep=True)
+    # A CA cert whose SPKI names an unknown key type: it loads, but public_key()
+    # raises. Next to it, a second keystore that must still be scanned.
+    garbage = seeded_ed25519("p12-garbage-ca")
+    der = make_cert(garbage, "garbage-ca.example").public_bytes(Encoding.DER)
+    spki = b"\x30\x05\x06\x03\x2b\x65\x70\x03\x21\x00"   # AlgorithmIdentifier(Ed25519) + BIT STRING
+    garbage_ca = x509.load_der_x509_certificate(der.replace(spki, spki[:6] + b"\x7f" + spki[7:]))
+    weak = seeded_rsa(1024, "p12-weak-leaf")
+    wb("p12-weak-plus-garbage-ca/weak.p12", pkcs12.serialize_key_and_certificates(
+        b"weak", weak, make_cert(weak, "p12-weak.example"), [garbage_ca], NoEncryption()), keep=True)
+    other = seeded_ed25519("p12-sibling")
+    wb("p12-weak-plus-garbage-ca/other.p12", pkcs12.serialize_key_and_certificates(
+        b"other", other, make_cert(other, "p12-sibling.example"), None, NoEncryption()), keep=True)
     wb("p12-truststore-mldsa65/truststore.p12", pkcs12.serialize_key_and_certificates(
         b"truststore", None, None, [make_cert(seeded_mldsa65("p12-ts-mldsa"), "truststore-mldsa.example")],
         BestAvailableEncryption(b"changeit")), keep=True)
@@ -382,6 +394,20 @@ def more_source_fixtures() -> None:
       "fun f() = \"never call MessageDigest.getInstance('MD5')\"\n")
     w("kt-raw-string-md5/Hash.kt",
       'fun f() = """\n    MessageDigest.getInstance("MD5")\n"""\n')
+    # Stripper evasion attempts (security review of the text-block rule): a crafted
+    # string must not make the stripper blank the real call after it.
+    w("java-textblock-evasion/E.java",
+      "import java.security.MessageDigest;\n\nclass E {\n"
+      '    String a = """\n        escaped \\""" still inside\n        """;\n'
+      '    void f() throws Exception { MessageDigest.getInstance("MD5"); }\n'
+      '    String b = """\n        tail\n        """;\n}\n')
+    w("java-textblock-md5-string/S.java",
+      'class S {\n    String doc = """\n        call MessageDigest.getInstance("MD5") here\n        """;\n}\n')
+    w("kt-rawstring-evasion/E.kt",
+      "import java.security.MessageDigest\n\n"
+      'fun f(b: ByteArray): String = """prefix"""" + MessageDigest.getInstance("MD5").digest(b).size\n')
+    w("kt-rawstring-trailing-quote-md5/S.kt",
+      'val s = """MessageDigest.getInstance("MD5")""""\n')
     w("kt-clean-sha256/Hash.kt",
       "import java.security.MessageDigest\n\nfun f(): ByteArray =\n"
       '    MessageDigest.getInstance("SHA-256").digest("x".toByteArray())\n')
@@ -403,6 +429,9 @@ def endpoint_fixtures() -> None:
              {"min_version": "TLSv1.2", "max_version": "TLSv1.2", "ciphers": "AES256-GCM-SHA384"})
     endpoint("endpoint-null-cipher", seeded_rsa(2048, "ep-null"),
              {"min_version": "TLSv1.2", "max_version": "TLSv1.2", "ciphers": "NULL-SHA256:@SECLEVEL=0"})
+    # 3DES is compiled out of OpenSSL 3.x TLS, so this serves AES128-SHA there.
+    endpoint("endpoint-cbc-sha1", seeded_rsa(2048, "ep-cbc-sha1"),
+             {"min_version": "TLSv1.2", "max_version": "TLSv1.2", "ciphers": "DES-CBC3-SHA:AES128-SHA:@SECLEVEL=0"})
     endpoint("endpoint-tls12-ecdhe", seeded_rsa(2048, "ep-ecdhe"),
              {"min_version": "TLSv1.2", "max_version": "TLSv1.2", "ciphers": "ECDHE-RSA-AES128-GCM-SHA256"})
     endpoint("endpoint-mtls-tls12", seeded_rsa(2048, "ep-mtls"),
