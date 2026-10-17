@@ -52,7 +52,8 @@ Each cycle scans, flushes the spool, posts, and spools on failure, with the same
 and re-enroll rules as `scan --report-to`. A spooled report (collector down, 429, 5xx) is not
 a failure: the loop retries only the flush, on a backoff from 1 minute capped at 1 hour, and
 the next scheduled scan flushes it too. If the scan itself crashes, the agent backs off the same
-way and then scans again. The agent keeps its own DB at `<state-dir>/agent.db` and trims it to
+way and then scans again. A permanent rejection (400, 403, 413) is logged to stderr and the next
+scan stays on the normal interval: nothing is spooled and a rescan would be rejected too. The agent keeps its own DB at `<state-dir>/agent.db` and trims it to
 `--keep-local` scans (default 3). With any DB other than `<state-dir>/agent.db` it never prunes.
 The state dir is created mode 0700. SIGTERM or Ctrl-C stops the loop cleanly (exit 0, "agent: stopping"),
 after the cycle in progress finishes. `--interval` must be above zero.

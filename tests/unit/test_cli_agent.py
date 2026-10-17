@@ -308,3 +308,13 @@ def test_cmd_once_exits_one_on_permanent_rejection(tmp_path, monkeypatch):
     res = CliRunner().invoke(agent_cmd, ["--server", "http://127.0.0.1:8765", "--enroll-token", "E", "--once",
                                          "--state-dir", str(tmp_path / "s"), "--path", str(tmp_path)])
     assert res.exit_code == 1 and "rejected (403)" in res.output
+
+
+def test_permanent_rejection_keeps_normal_schedule(tmp_path, monkeypatch):
+    srv = _Srv()
+    srv.ingest = [413]
+    scans = _count_scans(monkeypatch)
+    clock = _Clock(monkeypatch, 3)
+    res = _loop(tmp_path, monkeypatch, srv, "--interval", "1h", "--jitter", "0s")
+    assert res.exit_code == 0 and clock.waits == [3600, 3600, 3600]
+    assert len(scans) == 3 and srv.posts == 3             # one scan and one POST per interval, no flush ticks

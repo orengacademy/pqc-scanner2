@@ -172,17 +172,19 @@ def agent_cmd(server: str, enroll_token: str | None, labels: tuple[str, ...], in
         with contextlib.suppress(ValueError):  # not the main thread: no handler to install or restore
             previous = signal.signal(signal.SIGTERM, lambda *_: stop.set())
     failures = retries = 0
+    rejected = False
     next_scan = 0.0
     try:
         with make_client(ca_cert=ca_cert, insecure=insecure) as client:
             while not stop.is_set():
                 if _monotonic() >= next_scan:
+                    rejected = False
                     try:
                         r = agent_cycle(cfg, client)
-                        if not (r.reported or r.spooled):     # permanently rejected: count as a failure
-                            failures, retries = failures + 1, 0
-                        else:
-                            failures, retries = 0, 0 if r.reported else 1
+                        # Permanently rejected: exit 1 under --once, but nothing is spooled and a rescan would be
+                        # rejected too, so keep the normal schedule (no crash backoff, no flush ticks).
+                        rejected = not (r.reported or r.spooled)
+                        failures, retries = 0, 1 if r.spooled else 0
                         if r.reported:
                             click.echo(f"agent: scan {r.scan_id} reported")
                         elif r.spooled:
@@ -200,7 +202,7 @@ def agent_cmd(server: str, enroll_token: str | None, labels: tuple[str, ...], in
                         drained = False
                     retries = 0 if drained else retries + 1
                 if once:
-                    sys.exit(0 if failures == 0 else 1)
+                    sys.exit(1 if failures or rejected else 0)
                 wait = next_scan - _monotonic()
                 if retries:
                     wait = min(wait, next_delay(base, jit, retries))
