@@ -353,3 +353,22 @@ def test_exempt_paths_keep_host_and_origin_guards(tmp_db_path, fast_registry, pa
     body = {"enroll_token": "ENROLL", "host": HOST}
     assert c.post(path, json=body, headers={"host": "evil.example"}).status_code == 400
     assert c.post(path, json=body, headers={"origin": "http://evil.example"}).status_code == 403
+
+
+def test_ingest_and_reenroll_reject_labels_past_the_per_host_cap(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    monkeypatch.setattr(fleet, "INGEST_MIN_INTERVAL_S", 0)
+    c = _client(tmp_db_path, fast_registry)
+    tok = _enroll(c)["agent_token"]
+    fill = {f"k{i}": "v" for i in range(63)}                       # env + 63 = 64
+    r = c.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": {**HOST, "labels": fill}})
+    assert r.status_code == 201
+    tok = r.json()["agent_token"]
+    r = c.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": {**HOST, "labels": {"extra": "v"}}})
+    assert r.status_code == 400 and "labels" in r.json()["detail"]
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    sid = src.create_scan(mode="user", probe_versions={}, tool_versions={})
+    src.finish_scan(sid, status="done")
+    blob = dump_bundle(src, sid, HostIdentity("m-1", "web01", "linux", {"extra": "v"}, "x"))
+    r = c.post("/api/ingest", content=blob, headers=_hdr(tok))
+    assert r.status_code == 400 and "labels" in r.json()["detail"]
+    assert len(Repo(tmp_db_path).get_host(1).labels) == 64 and not Repo(tmp_db_path).host_history(1)

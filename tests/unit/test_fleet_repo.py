@@ -352,3 +352,24 @@ def test_ingest_stores_drift_rows_only_when_findings_change(tmp_db_path, tmp_pat
     third = fleet.ingest_bundle(_bundle(src, WEB01, ["RSA-2048", "ECDSA-P256"]), host.id)
     assert third.drift == 0
     assert not [f for f in fleet.list_findings(third.scan_id) if f.probe_id == "fleet.drift"]
+
+
+def test_merged_host_labels_stay_within_the_cap(tmp_db_path, tmp_path):
+    # labels merge across bundles, so the per-bundle cap alone let a host accumulate any number of keys
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    host = fleet.upsert_host(WEB01, token_hash="t")
+    first = HostIdentity("m-web01", "web01", "linux", {f"a{i}": "v" for i in range(63)})
+    fleet.ingest_bundle(_bundle(src, first, ["RSA-2048"]), host.id)
+    assert len(fleet.get_host(host.id).labels) == 64                 # env + 63 more
+    same = HostIdentity("m-web01", "web01", "linux", {"a0": "changed", "a1": "v"})
+    fleet.ingest_bundle(_bundle(src, same, ["RSA-2048"]), host.id)   # existing keys may change
+    assert fleet.get_host(host.id).labels["a0"] == "changed"
+    over = HostIdentity("m-web01", "web01", "linux", {"one-too-many": "v"})
+    before = [s.id for s in fleet.host_history(host.id)]
+    with pytest.raises(ValueError, match="labels"):
+        fleet.ingest_bundle(_bundle(src, over, ["RSA-2048"]), host.id)
+    assert [s.id for s in fleet.host_history(host.id)] == before     # rejected as a whole
+    assert "one-too-many" not in fleet.get_host(host.id).labels
+    with pytest.raises(ValueError, match="labels"):
+        fleet.upsert_host(over)

@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- The 64-label cap now holds per host, as FLEET.md says. Labels merge across bundles and the cap was only checked per
+  bundle, so an agent could add 64 new keys on every ingest and grow its host row, and `/api/fleet`, without bound. A bundle
+  or enrollment that would take the merged set past 64 is now rejected with 400. Found by the new fuzz targets.
 - Drift and `diff --parity` keys no longer outgrow their cap. A 512-character title of short host-like tokens normalised
   to as many as 1,800 characters, because `<host>` is longer than the text it replaces. The normalised title is now cut
   at 512 characters. Found by the new hypothesis fuzz targets.

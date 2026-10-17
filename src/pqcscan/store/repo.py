@@ -70,9 +70,13 @@ class HostSummary:
 
 
 def _apply_identity(h: Host, identity: HostIdentity) -> None:
+    from pqcscan.store.bundle import MAX_LABELS  # bundle.py imports Repo: a module-level import would be a cycle
     h.hostname = identity.hostname or h.hostname
     h.os = identity.os or h.os
-    h.labels = {**(h.labels or {}), **identity.labels}
+    merged = {**(h.labels or {}), **identity.labels}
+    if len(merged) > MAX_LABELS:                    # labels merge, so the per-bundle cap alone does not bound a host
+        raise ValueError(f"host labels would reach {len(merged)} entries; cap {MAX_LABELS} per host")
+    h.labels = merged
     h.agent_version = identity.agent_version or h.agent_version
     h.last_seen = utcnow()
 

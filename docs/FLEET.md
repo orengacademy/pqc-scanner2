@@ -143,6 +143,8 @@ as change. `pqcscan diff --parity` uses the same key to compare a primary with i
   decompression and 200,000 findings. Each host may post a burst of 10 bundles,
   refilled at one per minute; only a duplicate resend is free.
   Host labels are capped at 64 per host, keys at 64 characters and values at 256, at enrollment and ingest.
+  Labels merge across bundles, so a bundle or enrollment that would take a host past 64 is rejected with 400.
+  There is no command to delete a label.
   The bundle `machine_id` must match the token that posted it.
 - **No key material.** Findings never carry key bytes. Machine ids are
   domain-separated hashes, not raw `/etc/machine-id` values.

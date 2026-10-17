@@ -136,7 +136,10 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_h
         if prior is not None and prior.token_hash:
             logger.warning("fleet: re-enrollment rotated the token for host {} ({})", ident.hostname, ident.machine_id)
         token = secrets.token_urlsafe(32)
-        host = repo.upsert_host(ident, token_hash=hash_token(token))
+        try:
+            host = repo.upsert_host(ident, token_hash=hash_token(token))
+        except ValueError as e:           # merged labels would pass the per-host cap
+            raise HTTPException(400, str(e)) from e
         logger.info("fleet: enrolled host {} ({})", host.hostname, host.machine_id)
         return {"host_id": host.id, "agent_token": token}
 
