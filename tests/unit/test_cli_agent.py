@@ -318,3 +318,14 @@ def test_permanent_rejection_keeps_normal_schedule(tmp_path, monkeypatch):
     res = _loop(tmp_path, monkeypatch, srv, "--interval", "1h", "--jitter", "0s")
     assert res.exit_code == 0 and clock.waits == [3600, 3600, 3600]
     assert len(scans) == 3 and srv.posts == 3             # one scan and one POST per interval, no flush ticks
+
+
+def test_partial_flush_restarts_backoff(tmp_path, monkeypatch):
+    from pqcscan.cli._report import spool_bundle
+    spool_bundle(tmp_path / "s", b"a")
+    spool_bundle(tmp_path / "s", b"b")
+    srv = _Srv()
+    srv.ingest = [429, 429, 200, 429]      # cycle: flush 429, post 429 (spooled); tick: a sent, b throttled
+    clock = _Clock(monkeypatch, 2)
+    _loop(tmp_path, monkeypatch, srv)
+    assert clock.waits == [60, 60]         # progress resets the ladder: 60 again, not 120

@@ -69,6 +69,7 @@ class CycleResult:
     reported: bool
     spooled: bool
     re_enrolled: bool
+    sent: int = 0                 # spooled bundles delivered by flush_only
 
 
 def owns_db(cfg: AgentConfig) -> bool:
@@ -122,7 +123,7 @@ def flush_only(cfg: AgentConfig, client: httpx.Client) -> CycleResult:
         click.echo(f"agent: sent {sent} spooled report(s)")
     if rejected:
         click.echo(f"agent: {rejected} spooled report(s) rejected; moved to spool/rejected", err=True)
-    return CycleResult(0, reported=kept == 0, spooled=kept > 0, re_enrolled=False)
+    return CycleResult(0, reported=kept == 0, spooled=kept > 0, re_enrolled=False, sent=sent)
 
 
 @click.command("agent")
@@ -196,11 +197,12 @@ def agent_cmd(server: str, enroll_token: str | None, labels: tuple[str, ...], in
                     next_scan = _monotonic() + next_delay(base, jit, failures)    # from cycle end, not start
                 else:
                     try:
-                        drained = flush_only(cfg, client).reported
+                        tick = flush_only(cfg, client)
                     except Exception as e:  # a bad tick must not kill the loop
                         logger.exception("agent: spool flush failed: {}", e)
-                        drained = False
-                    retries = 0 if drained else retries + 1
+                        tick = CycleResult(0, reported=False, spooled=True, re_enrolled=False)
+                    # progress (a partial drain after a 429) restarts the backoff ladder instead of climbing it
+                    retries = 0 if tick.reported else 1 if tick.sent else retries + 1
                 if once:
                     sys.exit(1 if failures or rejected else 0)
                 wait = next_scan - _monotonic()

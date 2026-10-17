@@ -108,6 +108,6 @@ To get a non-zero exit when the collector permanently rejects a report, change t
 - **Permanent rejections are not retried.** A bundle the ingest endpoint answers with 400, 403 or
   413 is never spooled; a 400 or 403 at enroll time still spools it. A spooled file that gets one of these moves to `<state dir>/spool/rejected/`
   and flushing continues. Nothing prunes that directory, so clear it by hand. A revoked host's
-  reports are dropped this way until you unrevoke it.
+  ingest gets 401 and its re-enroll gets 403, so its bundles spool and replay after `agents unrevoke`.
 - **Postgres is wired but untested.** The URL is accepted and `fleet-pg` installs
   the driver, but the fleet test suite runs on SQLite only.
