@@ -43,7 +43,6 @@ FOLLOW_UPS: dict[tuple[str, str, str], str] = {
         "completeness is at stake."),
     ("cryptoscan", "code", "hybridkem"): _HYBRID,
     ("cryptoscan", "code", "compositesignature"): _HYBRID,
-    ("cryptoscan", "code", "chacha20-poly1305"): _CHACHA,
     ("cryptoscan", "code", "poly1305"): _CHACHA,
     ("cryptoscan", "code", "tls"): (
         "**scope:** a TLS option block is configuration, not an algorithm. pqcscan covers TLS settings through the "
@@ -59,8 +58,10 @@ SHORT = {"anvil": "anvil", "quantaseek": "QuantaSeek", "quantaseek-noverify": "Q
 TECHNIQUE = {
     "pqcscan": "in-process probes: TLS handshakes, X.509 and PKCS#12 parsing, tree-sitter and regex source scan",
     "anvil": "advertised key-exchange groups only, no full handshake; TLS and SSH",
-    "quantaseek": "rustls handshake, parses ServerHello; verifies the chain against public roots",
-    "quantaseek-noverify": "same binary, certificate and signature checks accepted (one patch)",
+    "quantaseek": ("rustls handshake, parses ServerHello; verifies the chain against public roots. Built with one "
+                   "`[lib]` edit to `Cargo.toml` because the pinned commit does not compile"),
+    "quantaseek-noverify": ("patched rebuild ([patch](../benchmark/bakeoff/quantaseek-noverify.patch)): certificate "
+                            "and signature checks accepted, plus the same `[lib]` edit"),
     "cryptoscan": "regex over source and config files; does not parse certificate contents",
 }
 
@@ -108,7 +109,10 @@ def render(result: dict[str, Any]) -> str:
     tools = [t for t in ORDER if t in result["summary"]]
     sha, d = result["commit"][:7], result["date"]
     n_cert, n_code = len(result["targets"]["cert"]), len(result["targets"]["code"])
-    out = [f"**Run:** commit `{sha}` · `{result['command']}` · {d[:4]}-{d[4:6]}-{d[6:]} · {result['box']}", "",
+    runner = result.get("runner_commit")
+    out = [f"**Run:** measured commit `{sha}` (pqcscan {result['tools']['pqcscan'].get('version')})"
+           + (f", runner `{runner}`" if runner else "")
+           + f" · `{result['command']}` · {d[:4]}-{d[4:6]}-{d[6:]} · {result['box']}", "",
            "# Bake-off: pqcscan against competing FOSS scanners", "",
            "Every tool scans the same targets from the accuracy corpus. Raw output is kept in "
            f"`benchmark/bakeoff/results/{d}/raw/`. `benchmark/bakeoff/normalise.py` maps each tool's output to one "
@@ -128,7 +132,10 @@ def render(result: dict[str, Any]) -> str:
 
     out += ["", "## Per-target diff", "",
             "Distinct `(target, surface, algorithm)` keys. *pqcscan-only* and *tool-only* are keys one side reports "
-            "and the other does not; *both* is the overlap. Each tool is compared only on the surfaces it claims.", "",
+            "and the other does not; *both* is the overlap. Each tool is compared on the surfaces it claims. anvil "
+            "lists accepted key-exchange groups and nothing else, so it is also shown against pqcscan's group rows "
+            "alone (scoped), which is the fair comparison; the raw counts include every pqcscan finding anvil does "
+            "not try to make.", "",
             "| Target | Tool | pqcscan-only | tool-only | both |", "|---|---|---:|---:|---:|"]
 
     def in_samples(t: str) -> bool:
@@ -150,12 +157,27 @@ def render(result: dict[str, Any]) -> str:
             out += [f"| {label} | {SHORT[tool]} | " + " | ".join(map(str, _counts(diff, surface, keep))) + " |"
                     for label, keep in rows]
 
-    out += ["", "Totals per tool and surface:", "",
-            "| Tool | Surface | pqcscan-only | tool-only | both |", "|---|---|---:|---:|---:|"]
     for tool in tools:
-        diff = result["summary"][tool]["diff"]
-        out += [f"| {SHORT[tool]} | {s} | " + " | ".join(map(str, _counts(diff, s))) + " |"
-                for s in result["summary"][tool]["surfaces"]]
+        scoped = result["summary"][tool].get("scoped")
+        if scoped:
+            out += ["", f"{SHORT[tool]}, scoped to {scoped['label']} (pqcscan side: net.tls.kex_groups and "
+                        "net.tls.pqc_handshake rows):", "",
+                    "| Target | pqcscan-only | tool-only | both |", "|---|---:|---:|---:|"]
+            out += [f"| {t} | " + " | ".join(map(str, _counts(scoped["diff"], "tls", lambda x, t=t: x == t))) + " |"
+                    for t in result["targets"]["tls"]]
+
+    out += ["", "Totals per tool and surface (raw counts, and scoped where a tool has a scope):", "",
+            "| Tool | Surface | Comparison | pqcscan-only | tool-only | both |", "|---|---|---|---:|---:|---:|"]
+    for tool in tools:
+        summary = result["summary"][tool]
+        for s in summary["surfaces"]:
+            out.append(f"| {SHORT[tool]} | {s} | raw | " + " | ".join(map(str, _counts(summary["diff"], s))) + " |")
+            if summary.get("scoped") and s == "tls":
+                out.append(f"| {SHORT[tool]} | {s} | scoped: {summary['scoped']['label']} | "
+                           + " | ".join(map(str, _counts(summary["scoped"]["diff"], s))) + " |")
+    for tool in tools:
+        if result["tools"][tool].get("note"):
+            out += ["", f"{SHORT[tool]} {result['tools'][tool]['note']}."]
 
     out += ["", "## What each tool finds that pqcscan misses", ""]
     for tool in tools:
@@ -187,7 +209,7 @@ def notes(result: dict[str, Any]) -> list[str]:
     out += [
         "- **QuantaSeek, stock, completed no handshake.** It checks the chain against bundled public roots and the "
         "server name, has no flag to relax either (`--ignore-mismatch` is parsed and ignored), and the fixtures are "
-        "private-CA and carry no subjectAltName. The checks-off row is the same binary with those checks accepted.",
+        "private-CA and carry no subjectAltName. The checks-off row is a patched rebuild that accepts them.",
         "- **QuantaSeek dials port 443 only.** The target's port is ignored and its port loop is not used for the real "
         "handshake, so the run bridges each fixture to 127.0.0.1:443 inside a private network namespace. The pinned "
         "commit also fails to compile until the library crate is named `quanta_seek`.",

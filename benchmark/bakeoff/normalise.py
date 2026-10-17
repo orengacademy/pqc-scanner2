@@ -63,6 +63,8 @@ def canonical(algorithm: str) -> str:
     ver = re.fullmatch(r"(?:tls|ssl)v?(\d(?:\.\d)?)", low.replace(" ", ""))
     if ver:
         return "tls" + ver.group(1)
+    if flat.startswith("chacha20"):  # the bare primitive, before _suite() mistakes ChaCha20-Poly1305 for a TLS suite
+        return "chacha20"
     suite = _suite(raw)
     if suite:
         return suite
@@ -87,8 +89,6 @@ def canonical(algorithm: str) -> str:
         return "aes-ecb"  # a weakness in its own right, kept apart from the AES family
     if flat.startswith("aes"):
         return "aes"
-    if flat.startswith("chacha20"):
-        return "chacha20"
     if flat in {"postquantumcryptolibrary", "liboqspqcrypto", "liboqs", "pqcrypto"}:
         return "pqc-library"  # cryptoscan "Post-Quantum Cryptography Library" == pqcscan "liboqs / pqcrypto" import
     if flat in _HASHES:

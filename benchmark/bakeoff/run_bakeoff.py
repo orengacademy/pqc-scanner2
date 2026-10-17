@@ -78,14 +78,18 @@ PQC_CODE_PREFIX = "code."
 TOOLS: dict[str, dict[str, Any]] = {
     "pqcscan": {"title": "pqcscan (this repo)", "surfaces": ["tls", "cert", "code"], "repo": None},
     "anvil": {"title": "anvilsecure/pqcscan", "surfaces": ["tls"], "repo": "https://github.com/anvilsecure/pqcscan",
-              "image": "bakeoff-anvil", "lang": "Rust"},
+              "image": "bakeoff-anvil", "lang": "Rust",
+              # it lists accepted key-exchange groups and nothing else: also compare it on pqcscan's group rows only
+              "scope": {"label": "key-exchange groups only",
+                        "probes": ["net.tls.kex_groups", "net.tls.pqc_handshake"]}},
     "quantaseek": {"title": "Mehrn0ush/QuantaSeek", "surfaces": ["tls"], "dockerfile": "quantaseek", "target": "stock",
-                   "repo": "https://github.com/Mehrn0ush/QuantaSeek", "image": "bakeoff-quantaseek", "lang": "Rust"},
+                   "repo": "https://github.com/Mehrn0ush/QuantaSeek", "image": "bakeoff-quantaseek", "lang": "Rust",
+                   "note": "completed no handshake on any target, so every pqcscan-only key is by construction"},
     "quantaseek-noverify": {"title": "QuantaSeek, cert checks off", "surfaces": ["tls"], "dockerfile": "quantaseek",
                             "target": "noverify", "repo": "https://github.com/Mehrn0ush/QuantaSeek",
                             "image": "bakeoff-quantaseek-noverify", "lang": "Rust"},
-    "cryptoscan": {"title": "csnp/cryptoscan", "surfaces": ["cert", "code"], "repo": "https://github.com/csnp/cryptoscan",
-                   "image": "bakeoff-cryptoscan", "lang": "Go"},
+    "cryptoscan": {"title": "csnp/cryptoscan", "surfaces": ["cert", "code"],
+                   "repo": "https://github.com/csnp/cryptoscan", "image": "bakeoff-cryptoscan", "lang": "Go"},
 }
 RELAY_IMAGE = "bakeoff-relay"
 
@@ -349,6 +353,10 @@ def collect(tools: list[str], raw_dir: Path, work: Path, cli_check: bool) -> dic
     if "cryptoscan" in tools:
         keep("cryptoscan", "certs", run_cryptoscan(certs))
         keep("cryptoscan", "code", run_cryptoscan(tree))
+    if any(t.startswith("quantaseek") for t in tools):  # its repo ships no Cargo.lock: keep what the build resolved
+        lock = sh(["docker", "run", "--rm", "--entrypoint", "cat", TOOLS["quantaseek"]["image"],
+                   "/usr/share/quantaseek-Cargo.lock"]).stdout
+        (raw_dir.parent / "quantaseek-Cargo.lock").write_text(lock, encoding="utf-8")
     for tool in tools:
         if tool.startswith("quantaseek"):
             meta["versions"][tool] = sh(["docker", "run", "--rm", TOOLS[tool]["image"], "-V"]
@@ -427,8 +435,19 @@ def negative_hits(rows: list[nm.Row], only_probe_prefix: str = "") -> dict[str, 
             "of": sum(1 for c in CODE_CASES if NOT_REAL.search(c))}
 
 
+def _diff(theirs: list[nm.Row], mine: list[nm.Row]) -> dict[str, Any]:
+    d = nm.diff_sets(theirs, mine)
+    by_target: dict[str, dict[str, int]] = {}
+    for bucket, keys in d.items():
+        for target, _surface, _alg in keys:
+            by_target.setdefault(target, {"pqcscan_only": 0, "tool_only": 0, "both": 0})[bucket] += 1
+    return {"totals": {k: len(v) for k, v in d.items()}, "by_target": by_target,
+            "diff": {k: [list(x) for x in v] for k, v in d.items()}}
+
+
 def summarise(rows: dict[str, list[nm.Row]]) -> dict[str, Any]:
-    """Per tool, per target: pqcscan-only / tool-only / both on (target, surface, canonical algorithm)."""
+    """Per tool: pqcscan-only / tool-only / both on (target, surface, canonical algorithm). A tool with a ``scope``
+    (anvil lists key-exchange groups only) also gets a ``scoped`` diff against pqcscan's rows from those probes."""
     base = rows.get("pqcscan", [])
     out: dict[str, Any] = {}
     for tool, tool_rows in rows.items():
@@ -437,14 +456,19 @@ def summarise(rows: dict[str, list[nm.Row]]) -> dict[str, Any]:
         surfaces = set(TOOLS[tool]["surfaces"])
         mine = [r for r in tool_rows if r["surface"] in surfaces]
         theirs = [r for r in base if r["surface"] in surfaces]
-        d = nm.diff_sets(theirs, mine)
-        by_target: dict[str, dict[str, int]] = {}
-        for bucket, keys in d.items():
-            for target, _surface, _alg in keys:
-                by_target.setdefault(target, {"pqcscan_only": 0, "tool_only": 0, "both": 0})[bucket] += 1
-        out[tool] = {"surfaces": sorted(surfaces), "totals": {k: len(v) for k, v in d.items()}, "by_target": by_target,
-                     "diff": {k: [list(x) for x in v] for k, v in d.items()}}
+        out[tool] = {"surfaces": sorted(surfaces), **_diff(theirs, mine)}
+        scope = TOOLS[tool].get("scope")
+        if scope:  # detail is "<probe id>: <title>"
+            only = tuple(p + ":" for p in scope["probes"])
+            out[tool]["scoped"] = {"label": scope["label"],
+                                   **_diff([r for r in theirs if r["detail"].startswith(only)], mine)}
     return out
+
+
+def runner_commit() -> str:
+    head = sh(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT).stdout.strip()
+    dirty = sh(["git", "status", "--porcelain", "--", "benchmark/bakeoff"], cwd=ROOT).stdout.strip()
+    return head + ("+dirty" if dirty else "")
 
 
 def environment() -> str:
@@ -481,6 +505,8 @@ def main(argv: list[str] | None = None) -> int:
     result = {
         "date": args.date, "box": old.get("box") or environment(),
         "commit": old.get("commit") or sh(["git", "rev-parse", "HEAD"], cwd=ROOT).stdout.strip(),
+        # the scan ran on `commit` (pqcscan source) with the runner and normalisers of `runner_commit`
+        "runner_commit": old.get("runner_commit") or runner_commit(),
         "command": old.get("command") or "PYTHONPATH=src .venv/bin/python benchmark/bakeoff/run_bakeoff.py "
                                          + " ".join(argv if argv is not None else sys.argv[1:]),
         "tools": {t: {**{k: v for k, v in TOOLS[t].items() if k != "image"},

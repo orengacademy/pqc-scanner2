@@ -23,8 +23,10 @@ PYTHONPATH=src .venv/bin/python benchmark/bakeoff/run_bakeoff.py --from-raw --da
 | [Mehrn0ush/QuantaSeek](https://github.com/Mehrn0ush/QuantaSeek) 0.1.0 | Rust | `bb4a06a28c515dee86602dbd6002ca99e0b3312e` | `Dockerfile.quantaseek`, targets `stock` and `noverify` |
 | [csnp/cryptoscan](https://github.com/csnp/cryptoscan) v1.4.1 | Go | `22aad8a9a2046f5bbfdd3c89ea6327888f51bee0` | `Dockerfile.cryptoscan` |
 
-The commit in each Dockerfile (`ARG COMMIT`) is the only place a pin lives; `run_bakeoff.py` and `docs/BAKEOFF.md`
-read it from there. There is no cargo or Java on the host, so Rust and Go build in containers.
+The commit in each Dockerfile (`ARG COMMIT`) is the only place a tool pin lives; `run_bakeoff.py` and `docs/BAKEOFF.md`
+read it from there. Base images are pinned by digest and `socat` by package version. QuantaSeek's repo ships no
+`Cargo.lock`, so its dependency versions float within `Cargo.toml` ranges; the lock the build resolved is saved at
+`results/<date>/quantaseek-Cargo.lock` (a rebuild later may resolve newer crates). There is no cargo or Java on the host, so Rust and Go build in containers.
 
 Not run:
 
@@ -43,6 +45,9 @@ bake-off does not move when the corpus grows. They are the cases committed at `1
 | tls | 8 local TLS servers: TLS 1.0 only, RSA key exchange, NULL cipher, TLS 1.2 ECDHE, mTLS, TLS 1.3 X25519, two TLS 1.3 hybrid (Ed25519 and ML-DSA-65 certificates) | `run_benchmark.tls_endpoint`, the harness helper, for every tool |
 | cert | 16 fixtures: RSA, ECDSA, Ed25519, ML-DSA-65 certificates in PEM and DER, and five PKCS#12 stores | copied side by side into one directory |
 | code | 43 fixtures in 8 languages (real weak call, same token in a comment, in a string, clean SHA-256), plus cryptoscan's own `crypto-samples/` (6 files) | copied into one tree |
+
+`endpoint-cbc-sha1` and the stripper-evasion cases (`java-textblock-*`, `kt-rawstring-*`) were added to the corpus after
+`10f789c`, so they are not targets; adding one means a rescan and a new dated result.
 
 The accuracy corpus was written against pqcscan's probes, so the cert and code sets favour pqcscan. The
 `crypto-samples/` files come out of the cryptoscan image (pinned commit) to give that tool home ground.
@@ -100,5 +105,7 @@ the rows when a tool states it.
   rates it the same way.
 - A tool that cannot parse a file (anvil on TLS 1.2, cryptoscan on a DER certificate) reports nothing, not an error,
   and shows up as *pqcscan-only*.
-- `commit` in `bakeoff.json` is the HEAD the run started from, which is the parent of the commit that added this
-  directory.
+- `commit` in `bakeoff.json` is the pqcscan source the probes ran on (the HEAD the scan started from); `runner_commit`
+  is the commit of the runner and normalisers that produced the raw files. `--from-raw` rebuilds the tables with the
+  current normalisers and does not change either.
+- The `scope` of a tool (anvil: key-exchange groups only) is a judgement; the raw counts are shown next to the scoped ones.

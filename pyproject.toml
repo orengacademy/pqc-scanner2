@@ -82,7 +82,10 @@ packages = ["src/pqcscan"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "-ra --strict-markers -m 'not fuzz'"
-markers = ["fuzz: hypothesis fuzz targets for fleet ingest (needs the `verify` extra; PQCSCAN_FUZZ_EXAMPLES raises the count)"]
+markers = [
+  "fuzz: hypothesis fuzz targets for fleet ingest (needs the `verify` extra; PQCSCAN_FUZZ_EXAMPLES raises the count)",
+  "benchmark: slow measurement runs (load harness, bake-off normalisers); not part of the accuracy gate",
+]
 
 [tool.ruff]
 line-length = 120

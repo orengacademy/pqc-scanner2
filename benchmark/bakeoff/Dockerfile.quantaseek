@@ -7,7 +7,7 @@
 # Stock QuantaSeek verifies every server against the bundled public roots and the server name, with no flag to
 # relax it, so it cannot complete a handshake with a private-CA or SAN-less server such as the corpus fixtures.
 # The noverify build shows what its ServerHello parsing reports once that gate is out of the way.
-FROM rust:1-slim AS build
+FROM rust:1-slim@sha256:4df2ae8cfdfebdfc13a65da7f253b73d68983dc0339f2719bc17a279c913b13d AS build
 ARG COMMIT=bb4a06a28c515dee86602dbd6002ca99e0b3312e
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates build-essential cmake \
     clang libclang-dev pkg-config libssl-dev && apt-get clean
@@ -22,13 +22,13 @@ FROM build AS build-noverify
 COPY quantaseek-noverify.patch /tmp/quantaseek-noverify.patch
 RUN git apply /tmp/quantaseek-noverify.patch && cargo build --release
 
-FROM debian:stable-slim AS stock
+FROM debian:stable-slim@sha256:eb593cf2c358cacef45ca0a424bbc7d30cfa3466265fc2662b9466a0ca6ba1c5 AS stock
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libssl3 && apt-get clean
 COPY --from=build /src/target/release/quantaseek /usr/local/bin/quantaseek
 COPY --from=build /src/Cargo.lock /usr/share/quantaseek-Cargo.lock
 ENTRYPOINT ["quantaseek"]
 
-FROM debian:stable-slim AS noverify
+FROM debian:stable-slim@sha256:eb593cf2c358cacef45ca0a424bbc7d30cfa3466265fc2662b9466a0ca6ba1c5 AS noverify
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libssl3 && apt-get clean
 COPY --from=build-noverify /src/target/release/quantaseek /usr/local/bin/quantaseek
 COPY --from=build /src/Cargo.lock /usr/share/quantaseek-Cargo.lock

@@ -109,6 +109,8 @@ def test_cryptoscan_on_certificates_names_the_artefact_not_the_key():
     ("TLS_AES_256_GCM_SHA384", "TLS13_AES_256_GCM_SHA384"), ("TLS 1.2", "TLSv1.2"),
     ("ECDHE-RSA-AES128-GCM-SHA256", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"),
     ("AES256-GCM-SHA384", "TLS_RSA_WITH_AES_256_GCM_SHA384"), ("SHA-1", "SHA1"), ("3DES", "TRIPLEDES"),
+    ("ChaCha20-Poly1305", "ChaCha20"),
+    ("TLS_CHACHA20_POLY1305_SHA256", "TLS13_CHACHA20_POLY1305_SHA256"),
 ])
 def test_canonical_folds_naming_differences(a, b):
     assert nm.canonical(a) == nm.canonical(b)
@@ -119,6 +121,7 @@ def test_canonical_folds_naming_differences(a, b):
     ("ECDSA-secp256r1", "SECP256R1"),                        # an EC key vs a key-exchange group
     ("ECDSA-SHA256", "ECDSA-secp256r1"), ("RSA-SHA256", "RSA-2048"),   # signature scheme vs key
     ("x25519", "X25519MLKEM768"), ("DES", "3DES"), ("MD5", "SHA-1"),
+    ("ECDHE-RSA-CHACHA20-POLY1305", "ChaCha20"),             # a TLS 1.2 suite is not the bare primitive
 ])
 def test_canonical_keeps_different_things_apart(a, b):
     assert nm.canonical(a) != nm.canonical(b)
