@@ -303,6 +303,7 @@
       "recall": 1.0
     }
   },
+  "errors": [],
   "misclassified": [
     {
       "id": "ep-mtls-https",

@@ -41,7 +41,9 @@ Fixture kinds (manifest ``fixture:``)
   (the ``docker export | pqcscan scan --path`` flow).
 
 A case the host cannot serve (e.g. an endpoint needing OpenSSL >= 3.5) is
-recorded as SKIP and excluded from every count.
+recorded as SKIP and excluded from every count. A case whose probe or fixture
+raises is recorded as ERROR: excluded from the counts, listed separately, and a
+failure of the run (exit 1; the pytest gate asserts there are none).
 
 Families: a probe's family is its id up to the second dot (``fs.cert.x509`` ->
 ``fs.cert``); ``--by-family`` prints the aggregated table and the JSON report
@@ -119,7 +121,7 @@ class CaseResult:
     id: str
     probe: str
     kind: str
-    outcome: str  # "TP" | "FP" | "FN" | "TN" | "SKIP"
+    outcome: str  # "TP" | "FP" | "FN" | "TN" | "SKIP" | "ERROR"
     fired: bool
     detections: list[str]  # algorithm names of real detections
     note: str = ""
@@ -164,6 +166,10 @@ class Report:
     def recall(self) -> float | None:
         denom = self.tp + self.fn
         return None if denom == 0 else self.tp / denom
+
+    @property
+    def errors(self) -> list[CaseResult]:
+        return [c for c in self.cases if c.outcome == "ERROR"]
 
     @property
     def misclassified(self) -> list[str]:
@@ -357,7 +363,7 @@ def evaluate(
         except UnservableFixtureError as exc:
             outcome, note, detections = "SKIP", str(exc), []
         except Exception as exc:  # one bad case must not abort the run
-            outcome, note, detections = "FN", f"error: {exc!r}", []
+            outcome, note, detections = "ERROR", f"{exc!r}", []
         result = CaseResult(
             id=case["id"],
             probe=case["probe"],
@@ -368,7 +374,7 @@ def evaluate(
             note=note,
         )
         report.cases.append(result)
-        if outcome == "SKIP":
+        if outcome in {"SKIP", "ERROR"}:
             continue
         score = report.probes.setdefault(case["probe"], ProbeScore(case["probe"]))
         setattr(score, outcome.lower(), getattr(score, outcome.lower()) + 1)
@@ -410,6 +416,10 @@ def print_table(report: Report, by_family: bool = False) -> None:
           f"positives: {report.positives}  negatives: {report.negatives}  skipped: {len(skipped)}")
     for c in skipped:
         print(f"  [SKIP] {c.id} ({c.probe}): {c.note}")
+    if report.errors:
+        print(f"\nerrors ({len(report.errors)}):")
+        for c in report.errors:
+            print(f"  [ERROR] {c.id} ({c.probe}): {c.note}")
     misc = [c for c in report.cases if c.outcome in {"FP", "FN"}]
     if misc:
         print("\nmisclassified:")
@@ -437,6 +447,7 @@ def report_to_dict(report: Report) -> dict[str, Any]:
         "corpus_sha256": corpus_hash(),
         "per_probe": _score_rows(report.probes),
         "per_family": _score_rows(report.families),
+        "errors": [{"id": c.id, "probe": c.probe, "note": c.note} for c in report.errors],
         "misclassified": [
             {"id": c.id, "probe": c.probe, "outcome": c.outcome, "note": c.note}
             for c in report.cases if c.outcome in {"FP", "FN"}
@@ -474,6 +485,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"\ncorpus sha256: {corpus_hash()}")
 
     exit_code = 0
+    if report.errors:
+        print(f"\nFAIL: {len(report.errors)} case(s) raised (see errors)", file=sys.stderr)
+        exit_code = 1
     if args.min_precision is not None:
         prec = report.precision if report.precision is not None else 0.0
         if prec < args.min_precision:

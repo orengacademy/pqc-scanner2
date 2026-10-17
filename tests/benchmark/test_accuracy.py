@@ -88,3 +88,15 @@ def test_accuracy_doc_names_current_corpus() -> None:
     doc = (BENCHMARK_DIR.parent / "docs" / "ACCURACY.md").read_text(encoding="utf-8")
     assert rb.corpus_hash() in doc.splitlines()[0], "docs/ACCURACY.md is stale: re-run --by-family"
     assert "| family |" in doc
+
+
+def test_no_case_errors(report: rb.Report) -> None:
+    # A probe or fixture that raises is ERROR, not FN: it must fail the gate.
+    assert not report.errors, [(c.id, c.note) for c in report.errors]
+
+
+def test_raising_case_is_error_not_fn(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    case = {"id": "boom", "probe": "fs.cert.x509", "kind": "positive", "fixture": "nonsense", "input": "x"}
+    r = rb.evaluate([case], corpus_dir=tmp_path)
+    assert [c.outcome for c in r.cases] == ["ERROR"]
+    assert (r.tp, r.fp, r.fn, r.tn, r.positives) == (0, 0, 0, 0, 0)
