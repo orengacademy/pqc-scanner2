@@ -145,8 +145,6 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_h
         token = secrets.token_urlsafe(32)
         try:
             host = await run_in_threadpool(repo.upsert_host, ident, token_hash=hash_token(token))
-        except ValueError as e:           # merged labels would pass the per-host cap
-            raise HTTPException(400, str(e)) from e
         except OperationalError as e:
             raise busy from e
         logger.info("fleet: enrolled host {} ({})", host.hostname, host.machine_id)

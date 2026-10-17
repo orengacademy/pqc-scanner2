@@ -7,7 +7,7 @@ from pqcscan.core.bands import count_bands, readiness_score
 from pqcscan.core.types import Classification, Finding, Severity
 from pqcscan.store.bundle import HostIdentity, ScanBundle, dump_bundle, load_bundle
 from pqcscan.store.repo import Repo
-from pqcscan.store.schema import ComponentRow, GraphEdge
+from pqcscan.store.schema import ComponentRow, GraphEdge, Host
 
 WEB01 = HostIdentity(machine_id="m-web01", hostname="web01", os="linux", labels={"env": "prod"})
 WEB02 = HostIdentity(machine_id="m-web02", hostname="web02", os="linux", labels={"env": "dr"})
@@ -354,22 +354,45 @@ def test_ingest_stores_drift_rows_only_when_findings_change(tmp_db_path, tmp_pat
     assert not [f for f in fleet.list_findings(third.scan_id) if f.probe_id == "fleet.drift"]
 
 
-def test_merged_host_labels_stay_within_the_cap(tmp_db_path, tmp_path):
-    # labels merge across bundles, so the per-bundle cap alone let a host accumulate any number of keys
+def _seed_labels(repo: Repo, host_id: int, labels: dict[str, str]) -> None:
+    with Session(repo.engine) as s:
+        s.get(Host, host_id).labels = labels
+        s.commit()
+
+
+def test_merged_host_labels_stop_at_the_cap_and_never_refuse_the_scan(tmp_db_path, tmp_path):
+    from loguru import logger
     src = Repo(tmp_path / "src.db"); src.init_schema()
     fleet = Repo(tmp_db_path); fleet.init_schema()
     host = fleet.upsert_host(WEB01, token_hash="t")
-    first = HostIdentity("m-web01", "web01", "linux", {f"a{i}": "v" for i in range(63)})
-    fleet.ingest_bundle(_bundle(src, first, ["RSA-2048"]), host.id)
-    assert len(fleet.get_host(host.id).labels) == 64                 # env + 63 more
-    same = HostIdentity("m-web01", "web01", "linux", {"a0": "changed", "a1": "v"})
-    fleet.ingest_bundle(_bundle(src, same, ["RSA-2048"]), host.id)   # existing keys may change
-    assert fleet.get_host(host.id).labels["a0"] == "changed"
-    over = HostIdentity("m-web01", "web01", "linux", {"one-too-many": "v"})
-    before = [s.id for s in fleet.host_history(host.id)]
-    with pytest.raises(ValueError, match="labels"):
-        fleet.ingest_bundle(_bundle(src, over, ["RSA-2048"]), host.id)
-    assert [s.id for s in fleet.host_history(host.id)] == before     # rejected as a whole
-    assert "one-too-many" not in fleet.get_host(host.id).labels
-    with pytest.raises(ValueError, match="labels"):
-        fleet.upsert_host(over)
+    seen: list[str] = []
+    sink = logger.add(lambda m: seen.append(str(m)), level="WARNING")
+    try:
+        fleet.ingest_bundle(_bundle(src, HostIdentity("m-web01", "web01", "linux", {f"a{i}": "v" for i in range(63)}),
+                                    ["RSA-2048"]), host.id)
+        assert len(fleet.get_host(host.id).labels) == 64 and not seen          # env + 63
+        # existing keys update, three new keys are dropped (sorted order), the scan is stored
+        res = fleet.ingest_bundle(_bundle(src, HostIdentity("m-web01", "web01", "linux",
+                                                            {"a0": "changed", "z3": "v", "z1": "v", "z2": "v"}),
+                                          ["RSA-2048"]), host.id)
+        assert not res.duplicate and res.stored_findings == 1
+    finally:
+        logger.remove(sink)
+    labels = fleet.get_host(host.id).labels
+    assert len(labels) == 64 and labels["a0"] == "changed" and not {"z1", "z2", "z3"} & labels.keys()
+    assert len(seen) == 1 and "web01" in seen[0] and "z1, z2, z3" in seen[0]
+    assert len(fleet.host_history(host.id)) == 2
+
+
+def test_host_already_over_the_cap_keeps_labels_and_still_ingests_and_enrolls(tmp_db_path, tmp_path):
+    # v0.10.2 enforced the cap per bundle only, so a collector may hold hosts with more than 64 labels
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    host = fleet.upsert_host(WEB01, token_hash="t")
+    _seed_labels(fleet, host.id, {f"old{i}": "v" for i in range(100)})
+    incoming = HostIdentity("m-web01", "web01", "linux", {"old5": "new", "fresh": "v"})
+    fleet.ingest_bundle(_bundle(src, incoming, ["RSA-2048"]), host.id)
+    fleet.upsert_host(incoming)
+    labels = fleet.get_host(host.id).labels
+    assert len(labels) == 100 and labels["old5"] == "new" and "fresh" not in labels
+    assert len(fleet.host_history(host.id)) == 1

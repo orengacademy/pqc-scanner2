@@ -355,23 +355,29 @@ def test_exempt_paths_keep_host_and_origin_guards(tmp_db_path, fast_registry, pa
     assert c.post(path, json=body, headers={"origin": "http://evil.example"}).status_code == 403
 
 
-def test_ingest_and_reenroll_reject_labels_past_the_per_host_cap(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+def test_over_cap_host_reenrolls_and_ingests_with_new_labels_dropped(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    from sqlalchemy.orm import Session
+
+    from pqcscan.store.schema import Host
     monkeypatch.setattr(fleet, "INGEST_MIN_INTERVAL_S", 0)
     c = _client(tmp_db_path, fast_registry)
-    tok = _enroll(c)["agent_token"]
-    fill = {f"k{i}": "v" for i in range(63)}                       # env + 63 = 64
-    r = c.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": {**HOST, "labels": fill}})
-    assert r.status_code == 201
-    tok = r.json()["agent_token"]
+    _enroll(c)
+    repo = Repo(tmp_db_path)
+    with Session(repo.engine) as s:                                 # a v0.10.2 host that grew past the cap
+        s.get(Host, 1).labels = {f"old{i}": "v" for i in range(100)}
+        s.commit()
     r = c.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": {**HOST, "labels": {"extra": "v"}}})
-    assert r.status_code == 400 and "labels" in r.json()["detail"]
+    assert r.status_code == 201, r.text
+    tok = r.json()["agent_token"]
     src = Repo(tmp_path / "src.db"); src.init_schema()
     sid = src.create_scan(mode="user", probe_versions={}, tool_versions={})
     src.finish_scan(sid, status="done")
-    blob = dump_bundle(src, sid, HostIdentity("m-1", "web01", "linux", {"extra": "v"}, "x"))
+    blob = dump_bundle(src, sid, HostIdentity("m-1", "web01", "linux", {"extra": "v", "old1": "x"}, "x"))
     r = c.post("/api/ingest", content=blob, headers=_hdr(tok))
-    assert r.status_code == 400 and "labels" in r.json()["detail"]
-    assert len(Repo(tmp_db_path).get_host(1).labels) == 64 and not Repo(tmp_db_path).host_history(1)
+    assert r.status_code == 200, r.text
+    labels = repo.get_host(1).labels
+    assert len(labels) == 100 and labels["old1"] == "x" and "extra" not in labels
+    assert len(repo.host_history(1)) == 1
 
 
 def test_enroll_and_agent_lookup_run_off_the_event_loop(tmp_db_path, fast_registry, tmp_path, monkeypatch):

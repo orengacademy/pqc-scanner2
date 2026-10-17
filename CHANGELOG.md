@@ -43,8 +43,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `code.ts.java` no longer flags crypto calls quoted inside a Java text block or a Kotlin raw string (`"""..."""`).
   The comment/string stripper did not know the triple-quoted form. Found by the extended accuracy corpus.
 - The 64-label cap now holds per host, as FLEET.md says. Labels merge across bundles and the cap was only checked per
-  bundle, so an agent could add 64 new keys on every ingest and grow its host row, and `/api/fleet`, without bound. A bundle
-  or enrollment that would take the merged set past 64 is now rejected with 400. Found by the new fuzz targets.
+  bundle, so an agent could add 64 new keys on every ingest and grow its host row, and `/api/fleet`, without bound. At the
+  cap the host keeps its labels, existing keys take their new values, new keys are dropped (sorted order) and one warning
+  names them. A scan is never refused over labels, so a host already past 64 keeps reporting. Found by the new fuzz targets.
 - Drift and `diff --parity` keys no longer outgrow their cap. A 512-character title of short host-like tokens normalised
   to as many as 1,800 characters, because `<host>` is longer than the text it replaces. The normalised title is now cut
   at 512 characters. Found by the new hypothesis fuzz targets.

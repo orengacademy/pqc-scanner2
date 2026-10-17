@@ -234,11 +234,11 @@ def test_host_labels_never_exceed_the_cap_across_bundles(tmp_path_factory, label
         doc = {"schema_version": 1, "scan_uuid": f"u-{i}", "host": {"machine_id": "m-lbl", "labels": labels},
                "scan": {"status": "done"}, "findings": []}
         before = dict(repo.get_host(host.id).labels or {})
-        try:
-            repo.ingest_bundle(load_bundle(_gz(doc)), host.id)
-        except ValueError:
-            assert repo.get_host(host.id).labels == before          # refused as a whole, nothing half-applied
-        assert len(repo.get_host(host.id).labels or {}) <= MAX_LABELS
+        repo.ingest_bundle(load_bundle(_gz(doc)), host.id)             # labels never make an ingest fail
+        after = repo.get_host(host.id).labels or {}
+        assert len(after) <= MAX_LABELS
+        assert before.keys() <= after.keys()                           # nothing already stored is lost
+        assert all(after[k] == v for k, v in labels.items() if k in after)   # existing and admitted keys take the new value
     repo.engine.dispose()
 
 

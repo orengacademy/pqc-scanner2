@@ -9,6 +9,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
+from loguru import logger
 from sqlalchemy import create_engine, delete, event, func, select
 from sqlalchemy.orm import Session
 
@@ -73,9 +74,18 @@ def _apply_identity(h: Host, identity: HostIdentity) -> None:
     from pqcscan.store.bundle import MAX_LABELS  # bundle.py imports Repo: a module-level import would be a cycle
     h.hostname = identity.hostname or h.hostname
     h.os = identity.os or h.os
-    merged = {**(h.labels or {}), **identity.labels}
-    if len(merged) > MAX_LABELS:                    # labels merge, so the per-bundle cap alone does not bound a host
-        raise ValueError(f"host labels would reach {len(merged)} entries; cap {MAX_LABELS} per host")
+    # Labels merge across bundles, so the per-bundle cap does not bound a host. Never refuse the scan over labels:
+    # keep what the host has, update existing keys, and take new keys (sorted) only while there is room.
+    merged = dict(h.labels or {})
+    dropped: list[str] = []
+    for k in sorted(identity.labels):
+        if k in merged or len(merged) < MAX_LABELS:
+            merged[k] = identity.labels[k]
+        else:
+            dropped.append(k)
+    if dropped:
+        logger.warning("fleet: host {} is at the {}-label cap; dropped {} new label(s): {}",
+                       h.hostname or h.machine_id, MAX_LABELS, len(dropped), ", ".join(dropped[:10]))
     h.labels = merged
     h.agent_version = identity.agent_version or h.agent_version
     h.last_seen = utcnow()
