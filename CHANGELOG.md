@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- `fs.keystore.pkcs12` keeps going past a certificate or keystore it cannot parse. One CA cert with an unknown key
+  type raised out of the probe and ended the walk, so a single crafted `.p12` hid every other keystore. Such a cert or
+  file now yields an INFO finding (`additional-cert-unparseable` / `keystore-unparseable`) and the scan continues.
 - The Java text-block rule added to the source stripper above could be steered to hide real code. It closed on an
   escaped `\"""` and on the first of a run of closing quotes, so a crafted string swallowed the `MessageDigest` call
   after it. Java text blocks now honour escapes, need a line break after the opening `"""` and close on the final run
