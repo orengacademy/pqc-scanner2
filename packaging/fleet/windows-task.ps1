@@ -1,4 +1,6 @@
 #Requires -RunAsAdministrator
+#Requires -Version 5.1
+#Requires -PSEdition Desktop
 <#
 .SYNOPSIS
   Register a daily pqcscan scheduled task that scans this host and reports to the fleet daemon.
@@ -53,10 +55,15 @@ $system = Get-AccountName "NT AUTHORITY\SYSTEM"
 $admins = Get-AccountName "BUILTIN\Administrators"
 $runAsName = Get-AccountName $RunAs
 
-# Fail closed: never reuse or repair a folder somebody else may have prepared. Fresh folders are created and
-# locked down at once (non-recursive: the new folder is empty and owned by the account running this script).
+# Fail closed: never reuse or repair a folder somebody else may have prepared. A fresh folder is created
+# atomically with its protected ACL (no window where it exists with default permissions), and the token is
+# written only after the file's ACL has been verified.
 $trusted = @($system, $admins)
 $allowed = @($system, $admins, $runAsName)
+$fsr   = [System.Security.AccessControl.FileSystemRights]
+$flags = [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit"
+$noProp = [System.Security.AccessControl.PropagationFlags]::None
+$allow = [System.Security.AccessControl.AccessControlType]::Allow
 
 function Assert-Acl([string]$Path) {
     # Owned by SYSTEM or Administrators, and only the expected principals on the ACL.
@@ -69,31 +76,46 @@ function Assert-Acl([string]$Path) {
     }
 }
 
-function Invoke-Icacls {
-    & icacls @args | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "icacls $($args -join ' ') failed with exit code $LASTEXITCODE" }
-}
-
-function Protect-Folder([string]$Path, [string[]]$Grants) {
+function Protect-Folder([string]$Path, $RunAsRights) {
     if (Test-Path -LiteralPath $Path) {
         throw "refusing to use ${Path}: already exists - move it aside or remove it, then re-run"
     }
-    New-Item -ItemType Directory -Path $Path | Out-Null
-    Invoke-Icacls $Path /inheritance:r /grant:r @Grants
+    # Protected (no inheritance from the parent), SYSTEM and Administrators full control, task account limited.
+    # Owner is Administrators: an elevated administrator may always assign that group as owner.
+    $sec = New-Object System.Security.AccessControl.DirectorySecurity
+    $sec.SetAccessRuleProtection($true, $false)
+    $sec.SetOwner((New-Object System.Security.Principal.NTAccount($admins)))
+    $grants = @(@($system, $fsr::FullControl), @($admins, $fsr::FullControl))
+    if ($runAsName -ne $system -and $runAsName -ne $admins -and $RunAsRights) { $grants += ,@($runAsName, $RunAsRights) }
+    foreach ($g in $grants) {
+        $sec.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
+            (New-Object System.Security.Principal.NTAccount($g[0])), $g[1], $flags, $noProp, $allow)))
+    }
+    [IO.Directory]::CreateDirectory($Path, $sec) | Out-Null
+    if (@(Get-ChildItem -LiteralPath $Path -Force).Count -ne 0) { throw "$Path is not empty right after creation" }
     Assert-Acl $Path
 }
 
+function Write-ProtectedFile([string]$Path, [string]$Content, [Text.Encoding]$Encoding) {
+    # CreateNew fails if the file exists; the inherited ACL is verified before any content is written.
+    [IO.File]::Open($Path, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write).Close()
+    Assert-Acl $Path
+    [IO.File]::WriteAllText($Path, $Content, $Encoding)
+}
+
+# Check both targets before creating either, so a failure on the second never leaves a half-made first.
+foreach ($path in @($Data, $Bin)) {
+    if (Test-Path -LiteralPath $path) {
+        throw "refusing to use ${path}: already exists - move it aside or remove it, then re-run"
+    }
+}
+
 # State: SYSTEM + Administrators full, the task account modify only.
-$stateGrants = @("${system}:(OI)(CI)F", "${admins}:(OI)(CI)F")
-if ($runAsName -ne $system -and $runAsName -ne $admins) { $stateGrants += "${runAsName}:(OI)(CI)M" }
-Protect-Folder $Data $stateGrants
-New-Item -ItemType Directory -Path $state | Out-Null
-Assert-Acl $state
+Protect-Folder $Data $fsr::Modify
+Protect-Folder $state $fsr::Modify
 
 # Code: SYSTEM + Administrators full, the task account read and execute.
-$codeGrants = @("${system}:(OI)(CI)F", "${admins}:(OI)(CI)F")
-if ($runAsName -ne $system -and $runAsName -ne $admins) { $codeGrants += "${runAsName}:(OI)(CI)RX" }
-Protect-Folder $Bin $codeGrants
+Protect-Folder $Bin $fsr::ReadAndExecute
 
 # Download the pinned binary and verify it.
 $tmp = Join-Path $Bin "download"
@@ -108,8 +130,7 @@ Remove-Item -Recurse -Force $tmp
 Assert-Acl $exe
 
 # Enrollment token for the first run, in a file only the principals above can read.
-Set-Content -Path $envFile -Value $EnrollToken -NoNewline -Encoding ascii
-Assert-Acl $envFile
+Write-ProtectedFile $envFile $EnrollToken ([Text.Encoding]::ASCII)
 
 # Wrapper: read the token, then `scan --report-to`. The task action itself carries no secret.
 $lab = if ($Labels) { " --labels `"$Labels`"" } else { "" }
@@ -119,8 +140,7 @@ $body = @"
 & "$exe" scan --fail-on none --report-to "$Server"$lab --db "$Data\pqcscan.db" --state-dir "$state"$ca
 exit `$LASTEXITCODE
 "@
-Set-Content -Path $wrapper -Value $body -Encoding utf8
-Assert-Acl $wrapper
+Write-ProtectedFile $wrapper $body (New-Object System.Text.UTF8Encoding($true))
 
 $action    = New-ScheduledTaskAction -Execute "powershell.exe" `
     -Argument "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$wrapper`""

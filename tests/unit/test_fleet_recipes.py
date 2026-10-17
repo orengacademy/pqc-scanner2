@@ -1,5 +1,4 @@
 import configparser
-import re
 from pathlib import Path
 
 import yaml
@@ -55,20 +54,18 @@ def test_windows_task_installs_code_under_program_files():
         assert needle in ps, needle
 
 
-def test_windows_task_never_reuses_or_repairs_existing_folders():
+def test_windows_task_creates_folders_atomically_and_verifies_before_writing_secret():
     ps = (ROOT / "windows-task.ps1").read_text()
-    assert "LASTEXITCODE" in ps and "Get-Acl" in ps and "already exists" in ps
-    assert "/setowner" not in ps and "ReparsePoint" not in ps
-    for line in ps.splitlines():
-        if "icacls" in line:
-            assert not re.search(r"\s/(T|C|reset)\b", line), line
+    for needle in ("CreateDirectory(", "DirectorySecurity", "CreateNew", "Get-Acl", "already exists"):
+        assert needle in ps, needle
+    assert "icacls" not in ps and "Set-Content" not in ps
+    assert ps.index("foreach ($path in @($Data, $Bin))") < ps.index("Protect-Folder $Data")
+    fn = ps[ps.index("function Write-ProtectedFile"):]
+    assert fn.index("CreateNew") < fn.index("Assert-Acl") < fn.index("WriteAllText")
 
 
-def test_windows_task_locks_folder_before_writing_and_labels_are_conditional():
-    ps = (ROOT / "windows-task.ps1").read_text()
-    writes = [i for i in (ps.find("Set-Content"), ps.find("Copy-Item")) if i != -1]
-    assert ps.index("/inheritance:r") < min(writes)
-    assert "if ($Labels)" in ps
+def test_windows_task_labels_are_conditional():
+    assert "if ($Labels)" in (ROOT / "windows-task.ps1").read_text()
 
 
 def test_bigfix_has_install_fixlet_and_reapplied_scan_task():
