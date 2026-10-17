@@ -46,5 +46,9 @@
   "command": "python -m benchmark.fleet.run_load --db postgres --hosts 500 --tag clean --spawn-rate 50 --duration 120s --findings-per-bundle 300",
   "locust_command": "/home/farzul/Projects/pqc-scanner2/.venv/bin/python -m locust -f /tmp/claude-1000/-home-farzul-Projects-pqc-scanner2/998c29a9-000f-4315-9bb9-8d80d49c06ff/scratchpad/wt-clean/benchmark/fleet/locustfile.py --headless -u 500 -r 50 -t 120s --stop-timeout 70 --csv /tmp/fleet-load-c49o0t6x/run --only-summary --host http://127.0.0.1:34815",
   "started_at": "2026-10-17T15:01:49.532387+00:00",
-  "provenance_note": "tree_dirty/dirty_files were wrong: the porcelain parser dropped the first path's leading characters, so LOAD.md (this harness's own output) was not excluded. The run was in a git worktree at the named commit with no other change."
+  "provenance_note": "tree_dirty and dirty_files were edited by hand after the run. As recorded they said true and listed only benchmark/fleet/LOAD.md (this harness's own output, mangled by a parser bug that dropped the first path's leading characters); every entry was under benchmark/fleet/. The run was in a git worktree at the named commit. src_hash is machine computed and covers src/pqcscan/daemon and src/pqcscan/store only, not core/.",
+  "post_edited_fields": [
+    "tree_dirty",
+    "dirty_files"
+  ]
 }

@@ -62,7 +62,7 @@ untested until then.
 
 `LOAD.md` has every run, the summary, and the commit and box load of each row. Ingest p50 / p95, 300-finding bundles,
 staggered arrival, from a clean worktree at commit 97c8578 (after the ingest bulk insert). Two seeds where run; the
-second seed ran on a busier box.
+second seed ran on a busier box, yet on SQLite it was faster at 90 and 250 hosts.
 
 | hosts (bundles/s offered) | SQLite seed 1 | SQLite seed 2 | Postgres seed 1 | Postgres seed 2 |
 |---|---|---|---|---|
@@ -74,9 +74,10 @@ second seed ran on a busier box.
 | 500 (8.3) | 5.0 s / 8.6 s | | 60 s / 60 s | |
 | 500, herd | 16 s / 32 s | | 60 s / 61 s | |
 
-The 500-host target is not met. Capacity at p95 under 2 s is about 120 hosts on SQLite and about 30 to 60 on
-Postgres, each posting once a minute. Rows near the line are noisy, so read them as a band, not a threshold.
-`rps` counts every completed request, timeouts included.
+The 500-host target is not met. Capacity at p95 under 2 s is a band: SQLite passed at 120 hosts in both seeds but at
+90 and 250 in only one, so it lies between 60 and 250; Postgres passed at 30 and in one of two seeds at 60 and 120, so
+treat it as 30 to 60. The rows are not monotone in host count and box load was 10 to 31, so do not read a threshold
+from them. `rps` counts every completed request, timeouts included.
 
 Probable cause of the old ceiling: a 300-finding ingest used to issue about 1,450 SQL statements (one ORM flush per
 finding, from a cProfile of one SQLite ingest). It now issues 308 on SQLite (one cheap insert per finding, kept so ids
