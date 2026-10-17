@@ -32,6 +32,10 @@ class ReportError(RuntimeError):
         self.detail = detail
 
 
+class PermanentRejectError(ReportError):
+    """The ingest endpoint refused this bundle for good (400/403/413). Enroll-time errors never use this."""
+
+
 def default_state_dir(db: Path | str | None = None) -> Path:
     """<db dir>/agent for a file --db; the default DB's directory for a URL or no --db."""
     return (db if isinstance(db, Path) else default_db_path()).parent / "agent"
@@ -191,7 +195,7 @@ def report_scan(repo: Repo, scan_id: int, *, server: str, enroll_token: str | No
                 labels: dict[str, str], state_dir: Path, client: httpx.Client,
                 allow_http: bool = False, on_reenroll: Callable[[], None] | None = None) -> dict | None:
     """Dump, enroll if needed, flush the spool, POST. Once the bundle exists, any failure spools it,
-    except a permanent rejection (400/403/413), which raises ReportError: retrying can never succeed.
+    except a permanent ingest rejection (400/403/413), which raises PermanentRejectError.
 
     on_reenroll is called when a rejected stored token is dropped and a fresh enroll is attempted."""
     from pqcscan.util.hostid import host_identity
@@ -203,7 +207,12 @@ def report_scan(repo: Repo, scan_id: int, *, server: str, enroll_token: str | No
         token = agent_token or ensure_agent_token(server, enroll_token=enroll_token, identity=identity,
                                                   state_dir=state_dir, client=client)
         flush_spool(server, token, state_dir, client)
-        return post_bundle(server, token, data, client)
+        try:
+            return post_bundle(server, token, data, client)
+        except ReportError as e:
+            if e.status in PERMANENT_REJECTS:
+                raise PermanentRejectError(e.status, f"{e.detail} (permanent rejection)") from e
+            raise
 
     try:
         try:
@@ -221,8 +230,8 @@ def report_scan(repo: Repo, scan_id: int, *, server: str, enroll_token: str | No
                 on_reenroll()
             return send()                        # once: a second 401 spools like any failure
     except Exception as e:  # a dumped bundle must never be lost
-        if isinstance(e, ReportError) and e.status in PERMANENT_REJECTS:
-            raise ReportError(e.status, f"{e.detail} (not spooled: permanent rejection)") from e
+        if isinstance(e, PermanentRejectError):
+            raise                                # retrying can never succeed; scan.py says "not spooled"
         try:
             p = spool_bundle(state_dir, data)
         except Exception as spool_err:

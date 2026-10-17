@@ -52,8 +52,10 @@ and re-enroll rules as `scan --report-to`. A spooled report (collector down, 429
 a failure: the loop retries only the flush, on a backoff from 1 minute capped at 1 hour, and
 the next scheduled scan flushes it too. If the scan itself crashes, the agent backs off the same
 way and then scans again. The agent keeps its own DB at `<state-dir>/agent.db` and trims it to
-`--keep-local` scans (default 3); with a shared `--db` it never prunes.
-Other flags: `--once` (one cycle; exit 1 only if the scan crashed, a spooled report exits 0), `--path` (repeatable),
+`--keep-local` scans (default 3). With any DB other than `<state-dir>/agent.db` it never prunes.
+The state dir is created mode 0700. SIGTERM or Ctrl-C stops the loop cleanly (exit 0, "agent: stopping"),
+after the cycle in progress finishes. `--interval` must be above zero.
+Other flags: `--once` (one cycle; exit 1 if the scan crashed or the collector permanently rejected the report, a spooled report exits 0), `--path` (repeatable),
 `--db`, `--state-dir`, `--ca-cert`, `--insecure`, `--allow-http`.
 
 ## Security
@@ -81,8 +83,8 @@ Other flags: `--once` (one cycle; exit 1 only if the scan crashed, a spooled rep
 
 - **No split-and-resend on 413.** Bundles are capped when they are dumped on the
   host. A scan larger than the raw cap fails to dump and is not reported.
-- **Permanent rejections are not retried.** A bundle the collector answers with 400, 403 or
-  413 is never spooled. A spooled file that gets one of these moves to `<state dir>/spool/rejected/`
+- **Permanent rejections are not retried.** A bundle the ingest endpoint answers with 400, 403 or
+  413 is never spooled; a 400 or 403 at enroll time still spools it. A spooled file that gets one of these moves to `<state dir>/spool/rejected/`
   and flushing continues. Nothing prunes that directory, so clear it by hand. A revoked host's
   reports are dropped this way until you unrevoke it.
 - **Postgres is wired but untested.** The URL is accepted and `fleet-pg` installs

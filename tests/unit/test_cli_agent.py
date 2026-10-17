@@ -124,7 +124,7 @@ def test_cmd_once_reports_and_exits_zero(tmp_path, monkeypatch):
     assert res.exit_code == 0 and "reported" in res.output and srv.posts == 1
 
 
-def test_cmd_once_exits_one_when_spooled(tmp_path, monkeypatch):
+def test_cmd_once_exits_zero_when_spooled(tmp_path, monkeypatch):
     srv = _Srv()
     srv.ingest = [503]
     monkeypatch.setattr(agent_mod, "make_client", lambda **_: _client(srv))
@@ -142,34 +142,125 @@ def test_cmd_once_exits_one_when_scan_raises(tmp_path, monkeypatch):
     assert res.exit_code == 1
 
 
+class _Clock:
+    """Fake monotonic clock + wait: records waits, advances time by them, stops after `limit` waits."""
+
+    def __init__(self, monkeypatch, limit):
+        self.now, self.waits, self.limit = 1000.0, [], limit
+        monkeypatch.setattr(agent_mod, "_monotonic", lambda: self.now)
+        monkeypatch.setattr(agent_mod, "_wait", self.wait)
+
+    def wait(self, stop, seconds):
+        self.waits.append(seconds)
+        self.now += seconds
+        if len(self.waits) >= self.limit:
+            raise KeyboardInterrupt
+
+
+def _loop(tmp_path, monkeypatch, srv, *extra):
+    monkeypatch.setattr(agent_mod, "make_client", lambda **_: _client(srv))
+    return CliRunner().invoke(agent_cmd, ["--server", "http://127.0.0.1:8765", "--enroll-token", "E",
+                                          "--state-dir", str(tmp_path / "s"), "--path", str(tmp_path), *extra])
+
+
+def _count_scans(monkeypatch, fail_first=0):
+    scans: list[int] = []
+    real = scan_mod.run_local_scan
+
+    def fake(**kw):
+        scans.append(1)
+        if len(scans) <= fail_first:
+            raise RuntimeError("scan crashed")
+        return real(**kw)
+    monkeypatch.setattr(scan_mod, "run_local_scan", fake)
+    return scans
+
+
 def test_backoff_tick_flushes_spool_without_rescanning(tmp_path, monkeypatch):
     srv = _Srv()
     srv.ingest = [503, 200]
-    monkeypatch.setattr(agent_mod, "make_client", lambda **_: _client(srv))
-    scans = []
-    real = scan_mod.run_local_scan
-    monkeypatch.setattr(scan_mod, "run_local_scan", lambda **kw: scans.append(1) or real(**kw))
-    sleeps = []
-
-    def fake_sleep(s):
-        sleeps.append(s)
-        if len(sleeps) == 2:
-            raise KeyboardInterrupt
-    monkeypatch.setattr(agent_mod.time, "sleep", fake_sleep)
-    state = tmp_path / "s"
-    CliRunner().invoke(agent_cmd, ["--server", "http://127.0.0.1:8765", "--enroll-token", "E",
-                                   "--state-dir", str(state), "--path", str(tmp_path)])
+    scans = _count_scans(monkeypatch)
+    clock = _Clock(monkeypatch, 2)
+    res = _loop(tmp_path, monkeypatch, srv)
     assert len(scans) == 1 and srv.posts == 2            # one scan; the second POST is the spool flush
-    assert sleeps[0] == 60 and not list((state / "spool").glob("*.bundle.gz"))
+    assert clock.waits[0] == 60 and not list((tmp_path / "s" / "spool").glob("*.bundle.gz"))
+    assert res.exit_code == 0 and "agent: stopping" in res.output and "sent 1 spooled" in res.output
 
 
-def test_keep_local_skipped_for_shared_db(tmp_path, capsys):
+def test_flush_tick_error_does_not_kill_loop(tmp_path, monkeypatch):
     srv = _Srv()
-    cfg = _cfg(tmp_path, db=tmp_path / "shared.db")      # outside state_dir
+    srv.ingest = [503]
+    monkeypatch.setattr(agent_mod, "flush_only", lambda *a, **k: (_ for _ in ()).throw(OSError("disk")))
+    clock = _Clock(monkeypatch, 3)
+    res = _loop(tmp_path, monkeypatch, srv)
+    assert res.exit_code == 0 and len(clock.waits) == 3 and clock.waits[1] == 120   # retries grew: 1 -> 2
+
+
+def test_backoff_after_crash_grows_and_is_measured_from_cycle_end(tmp_path, monkeypatch):
+    scans = _count_scans(monkeypatch, fail_first=99)
+    clock = _Clock(monkeypatch, 3)
+    real_scan = scan_mod.run_local_scan
+
+    def slow_crash(**kw):                                # the failing scan itself takes 500 s
+        clock.now += 500
+        return real_scan(**kw)
+    monkeypatch.setattr(scan_mod, "run_local_scan", slow_crash)
+    res = _loop(tmp_path, monkeypatch, _Srv())
+    assert res.exit_code == 0 and len(scans) == 3
+    assert clock.waits == [60, 120, 240]                 # positive even though the scan outlasted the backoff
+
+
+def test_crash_then_retry_then_normal_schedule(tmp_path, monkeypatch):
+    srv = _Srv()
+    scans = _count_scans(monkeypatch, fail_first=1)
+    clock = _Clock(monkeypatch, 2)
+    _loop(tmp_path, monkeypatch, srv, "--interval", "1h", "--jitter", "0s")
+    assert len(scans) == 2 and srv.posts == 1 and clock.waits == [60, 3600]
+
+
+def test_spool_retry_is_capped_at_next_scheduled_scan(tmp_path, monkeypatch):
+    srv = _Srv()
+    srv.ingest = [503]
+    scans = _count_scans(monkeypatch)
+    clock = _Clock(monkeypatch, 4)
+    _loop(tmp_path, monkeypatch, srv, "--interval", "90s", "--jitter", "0s")
+    # spooled -> retry in 60 s; flush fails -> 120 s wanted but only 30 s left; then a full scan again
+    assert clock.waits[:2] == [60, 30] and len(scans) >= 2
+
+
+def test_sigterm_stops_loop_cleanly(tmp_path, monkeypatch):
+    import signal
+    monkeypatch.setattr(agent_mod, "_wait", lambda stop, s: signal.raise_signal(signal.SIGTERM))
+    before = signal.getsignal(signal.SIGTERM)
+    res = _loop(tmp_path, monkeypatch, _Srv())
+    assert res.exit_code == 0 and "agent: stopping" in res.output
+    assert signal.getsignal(signal.SIGTERM) == before    # handler restored
+
+
+@pytest.mark.parametrize("interval", ["0s", "0m"])
+def test_cmd_rejects_non_positive_interval(tmp_path, interval):
+    res = CliRunner().invoke(agent_cmd, ["--server", "http://127.0.0.1:1", "--once", "--interval", interval,
+                                         "--state-dir", str(tmp_path / "s")])
+    assert res.exit_code == 2 and "--interval must be > 0" in res.output
+
+
+def test_state_dir_created_0700(tmp_path):
+    agent_cycle(_cfg(tmp_path), _client(_Srv()))
+    assert oct((tmp_path / "state").stat().st_mode & 0o777) == "0o700"
+
+
+def test_keep_local_prunes_only_the_default_agent_db(tmp_path, capsys):
+    srv = _Srv()
+    cfg = _cfg(tmp_path, db=tmp_path / "state" / "other.db")     # under state_dir, but not agent.db
     for _ in range(3):
         agent_cycle(cfg, _client(srv))
-    assert len(Repo(tmp_path / "shared.db").list_scans()) == 3
-    assert "--keep-local ignored: shared database" in capsys.readouterr().err
+    assert len(Repo(tmp_path / "state" / "other.db").list_scans()) == 3
+
+
+def test_cmd_notes_keep_local_ignored_once(tmp_path, monkeypatch):
+    srv = _Srv()
+    res = _loop(tmp_path, monkeypatch, srv, "--db", str(tmp_path / "shared.db"), "--once")
+    assert res.output.count("--keep-local ignored") == 1
 
 
 def test_cycle_permanent_rejection_is_neither_reported_nor_spooled(tmp_path):

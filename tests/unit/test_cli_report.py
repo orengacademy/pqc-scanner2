@@ -385,7 +385,7 @@ def test_report_scan_permanent_rejection_is_not_spooled(tmp_path, status):
     with pytest.raises(_report.ReportError) as ei:
         _report.report_scan(repo, sid, server="http://127.0.0.1", enroll_token="E", agent_token=None, labels={},
                             state_dir=state, client=_client(_Server(ingest_status=status)))
-    assert ei.value.status == status and "not spooled: permanent rejection" in str(ei.value)
+    assert ei.value.status == status and "(permanent rejection)" in str(ei.value) and "not spooled" not in str(ei.value)
     assert _spool_files(state) == []
 
 
@@ -420,3 +420,14 @@ def test_scan_cli_reports_permanent_rejection_and_exits_zero(tmp_path, monkeypat
                                         "--enroll-token", "E", "--state-dir", str(tmp_path / "s"),
                                         "--fail-on", "none"])
     assert res.exit_code == 0 and "report failed (not spooled)" in res.output
+
+
+@pytest.mark.parametrize("status", [400, 403])
+def test_enroll_time_rejection_spools_the_bundle(tmp_path, status):
+    repo, sid = _seed(tmp_path)
+    c = httpx.Client(transport=httpx.MockTransport(
+        lambda r: httpx.Response(status, json={"detail": "bad enroll"})), base_url="http://c")
+    state = tmp_path / "s"
+    assert _report.report_scan(repo, sid, server="http://127.0.0.1", enroll_token="E", agent_token=None,
+                               labels={}, state_dir=state, client=c) is None
+    assert len(_spool_files(state)) == 1
