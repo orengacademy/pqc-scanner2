@@ -71,17 +71,26 @@ _RUST_RAW = r'(?:b?r)(?P<rrhash>#*)"[\s\S]*?"(?P=rrhash)'
 # C# verbatim string: @"..." where an embedded quote is written "". Spans
 # newlines, so it must precede _DQ in the alternation (matched at the '@').
 _CSHARP_VERBATIM = r'@"(?:""|[^"])*"'
-# Java 15+ text block / Kotlin raw string: """...""" spanning newlines. Must
-# precede _DQ, which would otherwise match the leading "" as an empty string
-# and leave the body as code.
-_TRIPLE_DQ = r'"""[\s\S]*?"""'
+# Triple-quoted forms span newlines and must precede _DQ, which would otherwise
+# match the leading "" as an empty string and leave the body as code. A form
+# that closes too early hands the rest of the string to the scanner as code,
+# and one that closes too late hides real code after it (an evasion), so each
+# follows its language's rule exactly:
+# - Java 15+ text block: the opening """ must be followed by a line terminator;
+#   backslash escapes (incl. \""") never close; it closes on the final run of
+#   quotes, so a body ending in " is still inside.
+_JAVA_TEXT_BLOCK = r'"""[ \t\f]*\r?\n(?:\\[\s\S]|[^\\])*?"*"""'
+# - Kotlin / Scala raw string: no escapes; closes on a """ that is not followed
+#   by another quote ("""x"""" holds x").
+_RAW_TRIPLE = r'"""[\s\S]*?"""(?!")'
 
 # Per-language alternation members.  Order is immaterial for correctness (the
 # left-to-right scan disambiguates by start position; block vs line comments
 # disambiguate on their second character) but roughly follows likelihood.
 _LANG_FORMS: dict[str, tuple[str, ...]] = {
     "go": (_BLOCK, _LINE_SLASH, _BACKTICK, _DQ, _CHAR),
-    "java": (_BLOCK, _LINE_SLASH, _TRIPLE_DQ, _DQ, _CHAR),  # also Kotlin (.kt) / Scala
+    "java": (_BLOCK, _LINE_SLASH, _JAVA_TEXT_BLOCK, _DQ, _CHAR),
+    "kotlin": (_BLOCK, _LINE_SLASH, _RAW_TRIPLE, _DQ, _CHAR),  # also Scala
     "javascript": (_BLOCK, _LINE_SLASH, _BACKTICK, _DQ, _SQ_STR),
     "php": (_BLOCK, _LINE_SLASH, _LINE_HASH, _DQ, _SQ_STR),
     "rust": (_BLOCK, _LINE_SLASH, _RUST_RAW, _DQ, _CHAR),

@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- The Java text-block rule added to the source stripper above could be steered to hide real code. It closed on an
+  escaped `\"""` and on the first of a run of closing quotes, so a crafted string swallowed the `MessageDigest` call
+  after it. Java text blocks now honour escapes, need a line break after the opening `"""` and close on the final run
+  of quotes. Kotlin and Scala raw strings get their own rule (no escapes, close on the final run of quotes).
 - Fleet `enroll` and the agent-token lookup no longer block the daemon's event loop. Both ran SQLite calls on the
   loop thread, so one enrolment waiting on the write lock stalled every other request (500 hosts enrolling during
   ingest: enroll p95 22 s), and a lock timeout surfaced as an uncaught 500. They now run in the threadpool and

@@ -47,7 +47,8 @@ class CodeTsJava(Probe):
             self._scan(text, path, emit)
 
     def _scan(self, text: str, path: Path, emit: Emitter) -> None:
-        scan_text = strip_noncode(text, "java")
+        lang = "java" if path.suffix.lower() == ".java" else "kotlin"  # .kt / .scala raw strings
+        scan_text = strip_noncode(text, lang)
         for m in code_finditer(_WEAK_DIGEST_RE, text, scan_text):
             line_no = text[: m.start()].count("\n") + 1
             alg = m.group(1).upper()

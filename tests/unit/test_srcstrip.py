@@ -101,3 +101,40 @@ def test_java_text_block_and_kotlin_raw_string_blanked():
     assert "MessageDigest" not in out
     assert "code();" in out
     assert len(out) == len(src)
+
+
+def test_java_text_block_escaped_quotes_do_not_close_it():
+    # \""" inside a text block is an escape; closing there would turn the real
+    # closing """ into an opener that swallows the code after it (evasion).
+    src = (
+        'String a = """\n    x \\""" still inside\n    """;\n'
+        'void f() { MessageDigest.getInstance("MD5"); }\n'
+        'String b = """\n    tail\n    """;\n'
+    )
+    out = strip_noncode(src, "java")
+    assert "MessageDigest" in out
+    assert "still inside" not in out
+    assert "tail" not in out
+
+
+def test_java_text_block_closes_on_final_quote_run():
+    src = 'String a = """\n    ends with a quote""""; code();\n'
+    out = strip_noncode(src, "java")
+    assert "code();" in out
+    assert "quote" not in out
+
+
+def test_kotlin_raw_string_closes_on_final_quote_run():
+    # """x"""" holds x" — closing early leaves a stray " that pairs with a later
+    # quote on the line and blanks the real call between them (evasion).
+    src = 'val a = """x"""" + MessageDigest.getInstance("MD5").digest(b).size\n'
+    out = strip_noncode(src, "kotlin")
+    assert "MessageDigest" in out
+    assert "x" not in out.split("+")[0]
+    assert len(out) == len(src)
+
+
+def test_kotlin_raw_string_has_no_escapes():
+    src = 'val a = """C:\\path\\"""\nMessageDigest.getInstance("MD5")\n'
+    out = strip_noncode(src, "kotlin")
+    assert "MessageDigest" in out
