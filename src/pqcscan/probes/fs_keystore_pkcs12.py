@@ -8,6 +8,7 @@ from cryptography.hazmat.primitives.serialization import pkcs12
 from pqcscan.core.alg import classify
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._keyalg import key_algorithm
 from pqcscan.probes._severity import sev_for
 
 _EXTS = (".p12", ".pfx")
@@ -39,11 +40,11 @@ class FsKeystorePkcs12(Probe):
             data = path.read_bytes()
         except OSError:
             return
-        key, cert = None, None
+        key, cert, cas = None, None, []
         loaded = False
         for pw in _PASSWORDS:
             try:
-                key, cert, _ = pkcs12.load_key_and_certificates(data, pw)
+                key, cert, cas = pkcs12.load_key_and_certificates(data, pw)
                 loaded = True
                 break
             except (ValueError, TypeError):
@@ -86,6 +87,22 @@ class FsKeystorePkcs12(Probe):
                     "path": str(path),
                     "kind": "leaf-cert-signature",
                     "subject": cert.subject.rfc4514_string(),
+                },
+            ))
+        # Additional certs: the whole content of a cert-only truststore.
+        for extra in cas:
+            alg = key_algorithm(extra.public_key())
+            cls = classify(alg)
+            emit(Finding(
+                probe_id=self.id,
+                algorithm=alg,
+                classification=cls,
+                severity=sev_for(cls),
+                title=f"{path.name}: certificate {alg} ({extra.subject.rfc4514_string()})",
+                evidence={
+                    "path": str(path),
+                    "kind": "additional-cert",
+                    "subject": extra.subject.rfc4514_string(),
                 },
             ))
 

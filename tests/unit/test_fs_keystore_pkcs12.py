@@ -159,3 +159,17 @@ async def test_ignores_non_keystore_extensions(tmp_path: Path):
     (tmp_path / "cert.pem").write_bytes(b"-----BEGIN CERTIFICATE-----")
     found = await _run(tmp_path)
     assert found == []
+
+
+@pytest.mark.asyncio
+async def test_truststore_certs_are_inventoried(tmp_path: Path):
+    # A cert-only truststore (no private key) must still surface its CA keys.
+    ca_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    data = pkcs12.serialize_key_and_certificates(
+        name=b"ts", key=None, cert=None, cas=[_make_cert(ca_key, hashes.SHA256())],
+        encryption_algorithm=BestAvailableEncryption(b"changeit"),
+    )
+    (tmp_path / "truststore.p12").write_bytes(data)
+    found = await _run(tmp_path)
+    assert [(f.algorithm, f.evidence["kind"]) for f in found] == [("RSA-2048", "additional-cert")]
+    assert found[0].classification is Classification.SANGAT_TINGGI

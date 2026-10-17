@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- `fs.keystore.pkcs12` now reports the certificates in a cert-only PKCS#12 truststore. It read only the private key
+  and leaf, so a truststore of RSA CAs produced no finding at all. Found by the extended accuracy corpus.
 - `code.ts.java` no longer flags crypto calls quoted inside a Java text block or a Kotlin raw string (`"""..."""`).
   The comment/string stripper did not know the triple-quoted form. Found by the extended accuracy corpus.
 - The 64-label cap now holds per host, as FLEET.md says. Labels merge across bundles and the cap was only checked per
