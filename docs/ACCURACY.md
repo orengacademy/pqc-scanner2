@@ -1,4 +1,4 @@
-Measured on commit `9a43eff` (probe code; `src/` is unchanged in the commit that updates this page) with `PYTHONPATH=src python benchmark/run_benchmark.py --by-family`; corpus sha256 `f37b8344c0428c80c2eabeb62cc2d9417460392869275272621b0e9769a94c3c` (sha256 of `benchmark/corpus/CORPUS.sha256`).
+Measured on commit `3e5a785` (probe code; `src/` is unchanged in the commit that updates this page) with `PYTHONPATH=src python benchmark/run_benchmark.py --by-family`; corpus sha256 `f37b8344c0428c80c2eabeb62cc2d9417460392869275272621b0e9769a94c3c` (sha256 of `benchmark/corpus/CORPUS.sha256`).
 
 # Detection accuracy
 
@@ -54,6 +54,7 @@ A security review of the fixes above found three more problems. Each was fixed i
 | commit | problem | corpus cases |
 |---|---|---|
 | `a8a23a0` | The `5db4f0a` text-block rule closed on an escaped `\"""` and on the first quote of a closing run. A crafted string could make the stripper blank a real `MessageDigest.getInstance("MD5")` after it, which is a scanner evasion. Java text blocks now honour escapes, need a line break after the opening `"""` and close on the final quote run. Kotlin and Scala raw strings have their own rule with no escapes. | `java-textblock-evasion`, `kt-rawstring-evasion` (positive); `java-textblock-md5-string`, `kt-rawstring-trailing-quote-md5` (negative) |
+| `3e5a785` | Follow-up to `a8a23a0`: the lazy text-block body was ambiguous, because a quote matched two alternatives. Both triple-quoted rules now use a disjoint possessive body, so matching is linear. Inputs over 2 MiB are scanned unstripped with an INFO note. Unit tests strip 1 MiB quote-flood inputs in under 1 s. | (unit tests; corpus results unchanged) |
 | `15823df` | `fs.keystore.pkcs12` raised on a CA cert with an unknown key type, which ended the walk. One crafted `.p12` hid every other keystore. Each cert and each file is now guarded and reported as an INFO `UNKNOWN` finding. | `p12-weak-plus-garbage-ca`, `p12-garbage-ca-sibling-scanned` (positive) |
 | `9a43eff` | The OpenSSL-name branch of `classify_suite` rated anonymous, export, DES/3DES and CBC-with-SHA-1 suites (`AES128-SHA`, `ECDHE-RSA-AES128-SHA`) as `tinggi` or `info`, below their RFC spelling. OpenSSL names now get the RFC grade, pinned by a parity test. | `ep-cbc-sha1-https` (positive, must be `sangat-tinggi`) |
 
