@@ -19,6 +19,21 @@ that passed twice) and at most about 30 to 60 on Postgres.
 At 500 hosts on Postgres the collector stored 581 scans while the clients saw 240 succeed; 581 is a lower bound (counted
 right after locust exited). The server keeps working on requests the client abandoned at 60 s.
 
+Postgres re-measured at c4fe5b3 (round 3, rows dated 15:54 to 15:59 UTC, clean worktree at e4c753c whose daemon and
+store sources equal c4fe5b3; seed 1, source hash 0704bdb00921). Same host counts, p50 / p95, old code 97c8578 against new:
+
+| hosts | 97c8578 | c4fe5b3 | box load avg (old / new) |
+|---|---|---|---|
+| 60 | 380 ms / 830 ms | 480 ms / 1.3 s | 12 / 25 |
+| 120 | 570 ms / 1.7 s | 550 ms / 1.3 s | 11 / 17 |
+| 500 | 60 s / 60 s, 400 timeouts, 581 scans stored | 60 s / 61 s, 471 timeouts, 537 scans stored | 18 / 16 |
+
+One run each, on a box whose load differed. The new code is not measurably faster on Postgres and may be slightly slower:
+p50 at 60 hosts rose 26 % (with twice the box load), 120 hosts was equal or better, and at 500 hosts fewer scans were
+stored (537 against 581) with more timeouts. These differences are inside what the seed-to-seed gap showed, so the
+capacity band does not change: both versions passed 60 and 120 hosts in seed 1, and both time out at 500. Statements per
+300-finding ingest on Postgres: 9 before, 10 now (the id query is one extra round trip that RETURNING avoided).
+
 Provenance: the rows below dated 14:34 UTC and later are from a git worktree at commit 97c8578 (each JSON records the
 commit, a hash of the daemon and store sources, and the seed). The `tree_dirty` and `dirty_files` fields in those JSON
 files were edited by hand after the run; see each file's `provenance_note`. Rows marked "Superseded" ran on earlier
@@ -80,3 +95,6 @@ code with a dirty tree and are kept only for comparison. Commit c4fe5b3 later ch
 | 2026-10-17 15:20 | postgres | staggered | 90 | 50 | 120 s | 300 | 177 | 880 | 2400 | 3500 | 1.5 | 0 | 0 | 0 | FAIL | 31.0 / 31.2 | 97c8578a2 | `python -m benchmark.fleet.run_load --db postgres --hosts 90 --seed 2 --tag clean-s2 --spawn-rate 50 --duration 120s --findings-per-bundle 300` |
 | 2026-10-17 15:22 | postgres | staggered | 120 | 50 | 120 s | 300 | 233 | 1300 | 5700 | 6300 | 1.94 | 0 | 0 | 0 | FAIL | 30.4 / 27.1 | 97c8578a2 | `python -m benchmark.fleet.run_load --db postgres --hosts 120 --seed 2 --tag clean-s2 --spawn-rate 50 --duration 120s --findings-per-bundle 300` |
 | 2026-10-17 15:25 | postgres | staggered | 250 | 50 | 120 s | 300 | 371 | 57000 | 60000 | 60000 | 2.11 | 0 | 0 | 170 | FAIL | 27.1 / 31.1 | 97c8578a2 | `python -m benchmark.fleet.run_load --db postgres --hosts 250 --seed 2 --tag clean-s2 --spawn-rate 50 --duration 120s --findings-per-bundle 300` |
+| 2026-10-17 15:54 | postgres | staggered | 60 | 50 | 120 s | 300 | 120 | 480 | 1300 | 1400 | 1.01 | 0 | 0 | 0 | PASS | 25.3 / 18.3 | e4c753c6c | `python -m benchmark.fleet.run_load --db postgres --hosts 60 --spawn-rate 50 --duration 120s --findings-per-bundle 300 --tag c4fe5b3` |
+| 2026-10-17 15:56 | postgres | staggered | 120 | 50 | 120 s | 300 | 235 | 550 | 1300 | 2000 | 1.98 | 0 | 0 | 0 | PASS | 17.1 / 16.2 | e4c753c6c | `python -m benchmark.fleet.run_load --db postgres --hosts 120 --spawn-rate 50 --duration 120s --findings-per-bundle 300 --tag c4fe5b3` |
+| 2026-10-17 15:59 | postgres | staggered | 500 | 50 | 120 s | 300 | 661 | 60000 | 61000 | 62000 | 3.85 | 0 | 0 | 471 | FAIL | 16.2 / 18.3 | e4c753c6c | `python -m benchmark.fleet.run_load --db postgres --hosts 500 --spawn-rate 50 --duration 120s --findings-per-bundle 300 --tag c4fe5b3` |

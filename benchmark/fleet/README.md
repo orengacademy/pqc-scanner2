@@ -80,8 +80,9 @@ treat it as 30 to 60. The rows are not monotone in host count and box load was 1
 from them. `rps` counts every completed request, timeouts included.
 
 Probable cause of the old ceiling: a 300-finding ingest used to issue about 1,450 SQL statements (one ORM flush per
-finding, from a cProfile of one SQLite ingest). It now issues 308 on SQLite (one cheap insert per finding, kept so ids
-stay in order) and 9 on Postgres, at about a tenth of the CPU. Why Postgres still trails SQLite was not profiled.
+finding, from a cProfile of one SQLite ingest). It now issues 10 statements on both SQLite and Postgres (two executemany inserts and one id
+query), at about a tenth of the CPU. Postgres was re-measured on that code and is not measurably faster than with
+RETURNING (see LOAD.md). Why Postgres still trails SQLite was not profiled.
 
 Enrolment under load: before commit 41b9dea an enrolment waiting on SQLite's write lock blocked the whole event loop
 (enroll p95 22 s at 500 hosts) and a lock timeout escaped as a 500. After it, enroll p95 is about 2 s and a busy store

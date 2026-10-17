@@ -1,0 +1,47 @@
+{
+  "db": "postgres",
+  "hosts": 60,
+  "spawn_rate": 50,
+  "duration_s": 120,
+  "interval_s": 60.0,
+  "findings_per_bundle": 300,
+  "arrival": "staggered",
+  "requests": 120,
+  "p50_ms": 480.0,
+  "p95_ms": 1300.0,
+  "p99_ms": 1400.0,
+  "rps": 1.01,
+  "http_429": 0,
+  "http_503": 0,
+  "errors": 0,
+  "ingest_error_rate": 0.0,
+  "enroll_error_rate": 0.0,
+  "enroll_503": 0,
+  "stored_hosts": 60,
+  "stored_scans": 120,
+  "seed": 1,
+  "enroll_requests": 60,
+  "enroll_p95_ms": 360.0,
+  "failure_samples": [],
+  "pass_p95_lt_2s": true,
+  "commit": "e4c753c6c38224aff98e998f6c9bd99e3a36ac87",
+  "src_hash": "0704bdb0092d7112425f160501dfb2a0952ab3f470e32f326c3a5b62da4359aa",
+  "tree_dirty": false,
+  "dirty_files": [],
+  "box": {
+    "cpus": 8,
+    "cpu_model": "DO-Premium-Intel",
+    "mem_gb": 31
+  },
+  "box_load_start": {
+    "loadavg_1m": 25.3,
+    "cpu_pressure_avg60_pct": 71.02
+  },
+  "box_load_end": {
+    "loadavg_1m": 18.3,
+    "cpu_pressure_avg60_pct": 50.78
+  },
+  "command": "python -m benchmark.fleet.run_load --db postgres --hosts 60 --spawn-rate 50 --duration 120s --findings-per-bundle 300 --tag c4fe5b3",
+  "locust_command": "/home/farzul/Projects/pqc-scanner2/.venv/bin/python -m locust -f /tmp/claude-1000/-home-farzul-Projects-pqc-scanner2/998c29a9-000f-4315-9bb9-8d80d49c06ff/scratchpad/wt-r3/benchmark/fleet/locustfile.py --headless -u 60 -r 50 -t 120s --stop-timeout 70 --csv /tmp/fleet-load-c65bef9p/run --only-summary --host http://127.0.0.1:44463",
+  "started_at": "2026-10-17T15:54:37.222214+00:00"
+}
