@@ -282,8 +282,10 @@ Describe "windows-task.ps1 with a dedicated task account" {
         $script:Run = Invoke-Installer -Extra @("-RunAs", $Svc)
         Write-Host "installer (-RunAs $Svc) exit $($Run.ExitCode): $($Run.Output.Trim())"
         $f = [int][Security.AccessControl.FileSystemRights]::FullControl
-        $m = [int][Security.AccessControl.FileSystemRights]::Modify
-        $x = [int][Security.AccessControl.FileSystemRights]::ReadAndExecute
+        # Windows stores a Modify or ReadAndExecute grant with Synchronize added; that is the right asserted here.
+        $sync = [int][Security.AccessControl.FileSystemRights]::Synchronize
+        $m = [int][Security.AccessControl.FileSystemRights]::Modify -bor $sync
+        $x = [int][Security.AccessControl.FileSystemRights]::ReadAndExecute -bor $sync
         $script:State = @{ "NT AUTHORITY\SYSTEM" = $f; "BUILTIN\Administrators" = $f; $Svc = $m }
         $script:Code  = @{ "NT AUTHORITY\SYSTEM" = $f; "BUILTIN\Administrators" = $f; $Svc = $x }
     }
