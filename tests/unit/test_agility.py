@@ -72,7 +72,7 @@ def test_bukukerja_cbom_column_is_numeric_agility(tmp_db_path, tmp_path):
         out = tmp_path / f"{loc}.xlsx"
         render_xlsx_bukukerja(repo, sid, out, locale=loc)
         rows = list(load_workbook(out)["2_CBOM"].iter_rows(min_row=5, values_only=True))
-        assert [r[7] for r in rows if r[0]] == ["80"]
+        assert [r[7] for r in rows if r[0]] == ["80/100"]
 
 
 def test_pdf_html_shows_agility_line(tmp_db_path):

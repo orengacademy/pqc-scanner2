@@ -485,7 +485,7 @@ def render_xlsx_bukukerja(
     ]
     for idx, f in enumerate(cbom_findings, start=1):
         ev = f.evidence or {}
-        crypto_agility = str(finding_agility(f.probe_id, ev))
+        crypto_agility = f"{finding_agility(f.probe_id, ev)}/100"
         cbom_ws.append([
             f"CBOM #{idx}",
             str(_asset_name_for(f))[:120],
