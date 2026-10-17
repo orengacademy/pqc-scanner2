@@ -89,6 +89,18 @@ Hosts that already enrolled keep working, because they use their own agent token
 after a cloned VM image. Delete `<state-dir>/agent.token` on that host and run it again with `--enroll-token`.
 Bundles already in the spool that get the 403 move to `<state-dir>/spool/rejected/`. A bundle the host has just scanned and sent is not kept, so the next scan after re-enrolling reports instead.
 
+## Drift between scans
+
+When a host's bundle is ingested, the collector compares it with that host's previous completed scan.
+Each finding that appeared or vanished becomes one `fleet.drift` finding (severity info) in the new scan,
+with `evidence.change` set to `added` or `removed`. The first scan of a host, and any failed or interrupted
+scan, produces none. Drift rows are left out of the fleet counts and of the fleet rollup. The ingest response
+reports how many were stored as `drift`.
+
+Findings are matched by a host-agnostic key, so host names, addresses and `at <host>` phrases do not count
+as change. `pqcscan diff --parity` uses the same key to compare a primary with its DR peer, and with
+`--fail-on-drift` it exits 1 only on real differences.
+
 ## Security
 
 - **Enroll token.** Anyone holding `--enroll-token` can enroll any machine id.

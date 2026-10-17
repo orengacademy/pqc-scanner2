@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — fleet mode, phase 3
+- **Drift between scans** — ingest stores one `fleet.drift` finding per finding added or removed since the host's
+  previous completed scan, keyed host-agnostically; the ingest JSON gains `drift`. `pqcscan diff --parity` compares
+  two scans by the same key.
+
 ### Added
 - **Host labels drive Mosca inputs** — `data_lifetime`, `migration_years` and `threat_years` host labels (years) feed the
   Mosca X+Y>Z section of that host's reports. Explicit inputs win; invalid labels fall back to the defaults.

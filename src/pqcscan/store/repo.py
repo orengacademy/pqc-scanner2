@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import create_engine, delete, event, func, select
 from sqlalchemy.orm import Session
 
+from pqcscan.core.parity import DRIFT_PROBE, drift_rows, parity_key
 from pqcscan.core.types import Finding
 from pqcscan.store import migrations
 from pqcscan.store.schema import (
@@ -52,6 +53,7 @@ class IngestResult:
     stored_findings: int
     stored_views: int
     duplicate: bool
+    drift: int = 0
 
 
 @dataclass(slots=True)
@@ -329,9 +331,12 @@ class Repo:
             return s.get(Baseline, baseline_id)
 
     def diff_findings(
-        self, *, current_scan_id: int, baseline_scan_id: int
+        self, *, current_scan_id: int, baseline_scan_id: int, parity: bool = False
     ) -> dict:
         """Set-diff of findings between two scans by (probe_id, algorithm, title).
+
+        With `parity=True` the key is the host-agnostic `parity_key` and `fleet.drift` rows are
+        skipped, so a primary and its DR peer compare equal despite different names and addresses.
 
         Evidence dicts often carry timestamps and absolute paths that drift
         across scans, so identity uses the stable triple. Returns:
@@ -341,8 +346,13 @@ class Repo:
         """
         current = self.list_findings(current_scan_id)
         baseline = self.list_findings(baseline_scan_id)
+        if parity:
+            current = [f for f in current if f.probe_id != DRIFT_PROBE]
+            baseline = [f for f in baseline if f.probe_id != DRIFT_PROBE]
 
         def key(f: FindingRow) -> tuple[str, str, str]:
+            if parity:
+                return parity_key(f.probe_id, f.algorithm, f.title, f.evidence or {})
             return (f.probe_id, f.algorithm, f.title)
 
         baseline_keys = {key(f) for f in baseline}
@@ -435,6 +445,7 @@ class Repo:
             s.add(scan)
             s.flush()
             n_f = n_v = 0
+            new_rows: list[FindingRow] = []
             for f in bundle.findings:
                 row = FindingRow(
                     scan_id=scan.id, probe_id=str(f["probe_id"]), algorithm=str(f.get("algorithm", "N/A")),
@@ -445,15 +456,32 @@ class Repo:
                 )
                 s.add(row)
                 s.flush()
+                new_rows.append(row)
                 n_f += 1
                 for v in f.get("views") or []:
                     s.add(FrameworkView(finding_id=row.id, framework=str(v["framework"]), clause=str(v["clause"]),
                                         verdict=str(v["verdict"]),
                                         deadline=date.fromisoformat(v["deadline"]) if v.get("deadline") else None))
                     n_v += 1
+            n_drift = 0
+            prev_id = s.execute(
+                select(Scan.id).where(Scan.host_id == host_id, Scan.status == "done", Scan.id != scan.id)
+                .order_by(Scan.id.desc()).limit(1)
+            ).scalar_one_or_none()
+            # A failed or interrupted scan is partial, so comparing it would report false removals.
+            if prev_id is not None and scan.status == "done":
+                prev_rows = list(s.execute(select(FindingRow).where(FindingRow.scan_id == prev_id)).scalars())
+                for d in drift_rows(prev_rows, new_rows):
+                    s.add(FindingRow(
+                        scan_id=scan.id, probe_id=d.probe_id, algorithm=d.algorithm,
+                        classification=d.classification.value, severity=d.severity.value, title=d.title,
+                        evidence=d.evidence, remediation=d.remediation, created_at=d.created_at,
+                    ))
+                    n_drift += 1
             _apply_identity(h, bundle.host)
             s.commit()
-            return IngestResult(scan_id=scan.id, stored_findings=n_f, stored_views=n_v, duplicate=False)
+            return IngestResult(scan_id=scan.id, stored_findings=n_f, stored_views=n_v, duplicate=False,
+                                drift=n_drift)
 
     def fleet_summary(self) -> list[HostSummary]:
         """Each host with its latest done scan (by server scan id) and counts; three statements in all."""
@@ -467,7 +495,9 @@ class Repo:
             latest = {sc.host_id: sc for sc in s.execute(select(Scan).where(Scan.id.in_(latest_ids))).scalars()}
             tally: dict[int, dict[str, int]] = {}
             # Band and severity depend only on these columns: count distinct combinations, not finding rows.
-            for r in s.execute(select(*cols, func.count().label("n")).where(FindingRow.scan_id.in_(latest_ids))
+            # fleet.drift rows are change markers, not findings, so they stay out of the counts.
+            for r in s.execute(select(*cols, func.count().label("n")).where(FindingRow.scan_id.in_(latest_ids),
+                                                                            FindingRow.probe_id != DRIFT_PROBE)
                                .group_by(*cols)):
                 t = tally.setdefault(r.scan_id, {**empty_band_counts(), "crit": 0, "high": 0})
                 t[classify_band(r)] += r.n
@@ -548,7 +578,8 @@ class Repo:
             s.add(roll)
             s.flush()
             for x in summary:                 # one batched insert per host, no per-row flush
-                src = s.execute(select(FindingRow).where(FindingRow.scan_id == x.scan_id)).scalars().all()
+                src = s.execute(select(FindingRow).where(FindingRow.scan_id == x.scan_id,
+                                                         FindingRow.probe_id != DRIFT_PROBE)).scalars().all()
                 fleet = {"host": x.host.hostname, "host_id": x.host.id, "machine_id": x.host.machine_id}
                 new = [FindingRow(scan_id=roll.id, probe_id=r.probe_id, algorithm=r.algorithm,
                                   classification=r.classification, severity=r.severity, title=r.title,

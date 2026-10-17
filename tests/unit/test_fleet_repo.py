@@ -259,3 +259,20 @@ def test_reconcile_and_prune_sweep_orphaned_rollup(tmp_db_path, tmp_path):
     _age(fleet, r2)
     fleet.prune_scans(keep_per_host=5)
     assert fleet.get_scan(r2) is None and fleet.get_scan(fresh) is not None
+
+
+def test_ingest_stores_drift_rows_only_when_findings_change(tmp_db_path, tmp_path):
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    host = fleet.upsert_host(WEB01)
+    first = fleet.ingest_bundle(_bundle(src, WEB01, ["RSA-2048", "RSA-1024"]), host.id)
+    assert first.drift == 0                                   # no previous scan, nothing to compare
+    second = fleet.ingest_bundle(_bundle(src, WEB01, ["RSA-2048", "ECDSA-P256"]), host.id)
+    drift = [f for f in fleet.list_findings(second.scan_id) if f.probe_id == "fleet.drift"]
+    assert second.drift == 2 and len(drift) == 2
+    assert {(f.evidence["change"], f.evidence["algorithm"]) for f in drift} == {
+        ("removed", "RSA-1024"), ("added", "ECDSA-P256")}
+    assert all(f.severity == "info" for f in drift)
+    third = fleet.ingest_bundle(_bundle(src, WEB01, ["RSA-2048", "ECDSA-P256"]), host.id)
+    assert third.drift == 0
+    assert not [f for f in fleet.list_findings(third.scan_id) if f.probe_id == "fleet.drift"]

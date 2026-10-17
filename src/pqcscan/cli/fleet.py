@@ -54,8 +54,10 @@ def merge_cmd(sources: tuple[Path, ...], out: Path, no_rollup: bool, as_json: bo
 @click.option("--json", "as_json", is_flag=True)
 @click.option("--fail-on-drift", is_flag=True,
               help="Exit 1 when the scans differ (HA/DR parity gate).")
+@click.option("--parity", is_flag=True,
+              help="Compare host-agnostically: ignore host names, addresses and fleet.drift rows.")
 def diff_cmd(scan_id: int, baseline_id: int, db: str | None, as_json: bool,
-             fail_on_drift: bool) -> None:
+             fail_on_drift: bool, parity: bool) -> None:
     """Diff two scans by (probe, algorithm, title): added / removed / common.
 
     HA/DR parity: scan the primary and each peer (same DB, or merge them),
@@ -67,7 +69,7 @@ def diff_cmd(scan_id: int, baseline_id: int, db: str | None, as_json: bool,
         if repo.get_scan(sid) is None:
             click.echo(f"scan {sid} not found", err=True)
             sys.exit(3)
-    d = repo.diff_findings(current_scan_id=scan_id, baseline_scan_id=baseline_id)
+    d = repo.diff_findings(current_scan_id=scan_id, baseline_scan_id=baseline_id, parity=parity)
     drift = bool(d["added"] or d["removed"])
 
     def _row(f) -> dict:

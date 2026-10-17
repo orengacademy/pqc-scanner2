@@ -170,7 +170,7 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None) -> APIRouter:
                     raise HTTPException(400, "bundle violates a store constraint") from e
                 return {"scan_id": existing, "stored_findings": 0, "stored_views": 0, "duplicate": True}
         return {"scan_id": res.scan_id, "stored_findings": res.stored_findings,
-                "stored_views": res.stored_views, "duplicate": res.duplicate}
+                "stored_views": res.stored_views, "duplicate": res.duplicate, "drift": res.drift}
 
     @router.get("/api/fleet")
     async def fleet() -> list[dict]:
