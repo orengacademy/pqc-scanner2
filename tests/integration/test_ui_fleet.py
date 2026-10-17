@@ -109,3 +109,21 @@ def test_fleet_readiness_colour_bands_and_dash(tmp_db_path, fast_registry, tmp_p
         assert "&mdash;" not in row.split("tabular-nums")[1], name
     none_cell = rows["none01"].split("tabular-nums")[1]
     assert "&mdash;" in none_cell and "text-emerald-400" not in none_cell and "text-red-400" not in none_cell
+
+
+def test_fleet_pages_require_the_site_token(tmp_db_path, fast_registry, tmp_path):
+    _seed(tmp_db_path, tmp_path)
+    c = TestClient(create_app(db_path=tmp_db_path, registry=fast_registry, token="S"),
+                   base_url="http://127.0.0.1", follow_redirects=False)
+    html = {"accept": "text/html"}
+    for path in ("/scans", "/fleet", "/fleet/1"):          # /scans is the reference: fleet must behave identically
+        r = c.get(path, headers=html)
+        assert (r.status_code, r.headers["location"]) == (303, "/login"), path
+        assert c.get(path).status_code == 401, path
+        assert c.get(path, headers={"authorization": "Bearer wrong"}).status_code == 401, path
+        r = c.get(path, headers={"authorization": "Bearer S"})
+        assert r.status_code == 200, path
+    assert "web01" not in c.get("/fleet", headers=html).text
+    assert c.post("/login", data={"token": "S"}).status_code == 303    # session cookie now held by the client
+    assert "web01" in c.get("/fleet").text
+    assert c.get("/fleet/1").status_code == 200
