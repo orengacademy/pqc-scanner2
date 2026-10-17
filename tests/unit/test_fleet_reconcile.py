@@ -260,6 +260,20 @@ def test_fleet_summary_cli_shape_reports_revoked_and_last_seen_proxy_as_not_asse
     assert "finished_at) was used as a proxy" in md
 
 
+@pytest.mark.parametrize("entry, proxy_note", [
+    ({"hostname": "web01", "revoked": False}, False),                                   # neither key
+    ({"hostname": "web01", "revoked": False, "last_seen": None, "finished_at": OLD}, True),
+])
+def test_proxy_note_only_when_finished_at_stands_in_for_last_seen(tmp_path, entry, proxy_note):
+    inv = tmp_path / "inv.csv"
+    inv.write_text("hostname\nweb01\n")
+    fleet = tmp_path / "f.json"
+    fleet.write_text(json.dumps([entry]))
+    _, rows = _run({"inv": inv, "fleet": fleet, "out": tmp_path / "o"}, cbom=False)
+    assert ("finished_at) was used as a proxy" in (tmp_path / "o" / "discrepancies.md").read_text()) is proxy_note
+    assert _by_class(rows) == {"stale": ["web01"]}      # never reported, or old finished_at: stale either way
+
+
 def test_api_fleet_shape_has_no_revoked_or_proxy_notes(inputs):
     _run(inputs)
     md = (inputs["out"] / "discrepancies.md").read_text()

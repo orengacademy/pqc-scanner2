@@ -137,7 +137,7 @@ def load_fleet(path: Path) -> list[Observed]:
         out.append(Observed(hostname=str(h.get("hostname") or ""), machine_id=str(h.get("machine_id") or ""),
                             last_seen=_parse_ts(h.get("last_seen") or h.get("finished_at")),
                             revoked=bool(h.get("revoked")), from_fleet=True, has_revoked="revoked" in h,
-                            last_seen_is_proxy="last_seen" not in h))
+                            last_seen_is_proxy=not h.get("last_seen") and bool(h.get("finished_at"))))
     return out
 
 
