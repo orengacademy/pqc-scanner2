@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Fleet verification campaign. `docs/FLEET-EVIDENCE.md` grades each claim in `docs/FLEET.md` as evidenced, simulated,
+  asserted or contradicted, lists the findings, and lists what was not run. Its inputs: a STRIDE threat model with
+  hypothesis fuzz targets (`docs/security/THREAT-MODEL-FLEET.md`, `tests/fuzz/`), a 500-host load harness and a
+  30-host simulated soak with a real-fleet runbook (`benchmark/fleet/`), a 176-case labelled accuracy corpus with
+  per-family precision and recall (`docs/ACCURACY.md`), a bake-off against three FOSS scanners (`docs/BAKEOFF.md`), a
+  CBOM-vs-inventory reconciliation script and sign-off template (`benchmark/fleet/reconcile.py`,
+  `docs/ACCEPTANCE-TEMPLATE.md`), and a `verify` CI workflow (Postgres, Windows installer, fuzz, accuracy).
+  The `verify` extra and the `fuzz` and `benchmark` pytest markers are new; a plain `pytest` skips the fuzz tests.
+
 ### Fixed
 - `net.ports.tcp` no longer loses open ports when the box is busy. It timed each connect inside the event loop,
   and the scan's other probes block that loop with synchronous database writes, so a port that accepted at once read

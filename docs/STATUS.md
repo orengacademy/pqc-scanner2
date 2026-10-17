@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| **Date** | 2026-10-17 |
-| **Branch / commit** | `main` |
+| **Date** | 2026-10-18 |
+| **Branch / commit** | `main`; the fleet evidence work (§11) is on `verify/fleet-evidence`, not merged |
 | **Version** | `0.10.2` |
 | **Probes** | 180 registered across 14 families |
 | **Frameworks** | 19 compliance YAMLs |
-| **Tests** | 1583 passed / 5 skipped locally (Python 3.11) |
+| **Tests** | 1813 passed / 6 skipped / 42 fuzz tests deselected locally on `verify/fleet-evidence` (Python 3.11, `-p no:cacheprovider`, 260 s); 1583 passed / 5 skipped on `main` before that branch |
 | **Status** | Design-doc target shipped, plus four loops (§7 coverage+UX, §8 deferred-items + bilingual + any-OS, §9 the 0.8.x–0.9.4 precision/decision loop, §10 the 0.9.5–0.9.11 coverage-completeness + FOSS-verification loop). See `CHANGELOG.md` for the authoritative per-version record — it is kept current every release; this file is a coarser resume guide. |
 
 ## 1. TL;DR
@@ -296,4 +296,26 @@ asynchronously on push). The full suite runs in ~2.5 min locally
 
 ---
 
-_Last updated: 2026-10-16. Update this file at the end of any session that ships meaningful work._
+## 11. 2026-10-17 fleet evidence campaign (branch `verify/fleet-evidence`, not merged)
+
+A verification pass over `docs/FLEET.md`. The one-page result is **[docs/FLEET-EVIDENCE.md](FLEET-EVIDENCE.md)**:
+every claim graded evidenced, simulated, asserted or contradicted, the findings, and what was not run.
+
+| Spec item | Result |
+|---|---|
+| 1 Real-fleet soak | Simulated only (30 state dirs on one box). The real run needs hosts: `benchmark/fleet/soak-real.md` |
+| 2 Accuracy | Pass. 176 cases, precision 1.000 excluding 8 accepted false positives (raw 0.922), recall 0.990. `docs/ACCURACY.md` |
+| 3 Load | **Fail.** Ingest p95 at 500 hosts: SQLite 8.6 s, Postgres 61 s. Capacity at p95 < 2 s: SQLite 60 to 250 hosts, Postgres 30 to 60. `benchmark/fleet/LOAD.md` |
+| 4 Threat model and fuzz | Pass. 57 STRIDE rows, 42 fuzz tests. `docs/security/THREAT-MODEL-FLEET.md` |
+| 5 Bake-off | Delivered. `docs/BAKEOFF.md` |
+| 6 Acceptance | Tooling delivered, run blocked on prospect data. `benchmark/fleet/reconcile.py`, `docs/ACCEPTANCE-TEMPLATE.md` |
+
+No release tag until items 1 to 4 pass. New CI: `.github/workflows/verify.yml` (Postgres, Windows installer on
+`windows-2022` and `windows-latest`, fuzz, accuracy). Product bugs found and fixed on the branch are in the
+`[Unreleased]` section of `CHANGELOG.md`. Open items worth doing next: ingest throughput and load shedding (F7),
+bundle-size realism in the load run (F19), certificate subject in the fleet CBOM (F1), `windows-task.ps1` with a
+non-SYSTEM account (F6).
+
+---
+
+_Last updated: 2026-10-18. Update this file at the end of any session that ships meaningful work._

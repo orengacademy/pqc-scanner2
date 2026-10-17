@@ -35,7 +35,8 @@ and [`docs/STATUS.md` §10](docs/STATUS.md)):
   for hosts with no scheduler), the `/fleet` and `/fleet/{host}` web pages, and deployment
   recipes (systemd timer, Windows task, Ansible, BigFix, Wazuh/osquery). 0.10.2 adds drift findings between a
   host's scans, per-host risk inputs from labels (Mosca), a crypto-agility score, and retention
-  (the collector keeps 12 scans per host). See [`docs/FLEET.md`](docs/FLEET.md).
+  (the collector keeps 12 scans per host). See [`docs/FLEET.md`](docs/FLEET.md);
+  which of its claims are measured, simulated or only asserted is in [`docs/FLEET-EVIDENCE.md`](docs/FLEET-EVIDENCE.md).
 - **`--path` / `--target` reach every probe** (from 0.9.13) — `--path` scopes all ~90
   file-walking probes and `--target` drives every network probe
   (`runner.bind_context`); before, most probes silently walked their host
