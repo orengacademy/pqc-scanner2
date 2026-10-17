@@ -37,7 +37,11 @@ def test_fleet_page_lists_hosts_and_filters(tmp_db_path, fast_registry, tmp_path
     r = c.get("/fleet?label=env=dr")
     assert "dr01" in r.text and "web01" not in r.text
     assert 'href="/fleet"' in c.get("/").text                   # nav entry
-    assert "Armada" in c.get("/fleet", cookies={"pqcscan_locale": "ms"}).text
+    c.cookies.set("pqcscan_locale", "ms")
+    body = c.get("/fleet").text
+    assert "Armada" in body and "Terakhir dilihat" in body and "Kesediaan" in body   # body, not just nav
+    assert "Last seen" not in body
+    assert "Sejarah imbasan" in c.get("/fleet/1").text
 
 
 def test_fleet_host_page_and_stale_flag(tmp_db_path, fast_registry, tmp_path):
@@ -74,3 +78,34 @@ def test_fleet_pages_escape_host_data_and_show_empty_state(tmp_db_path, fast_reg
         body = c.get(path).text
         assert "<b>evil</b>" not in body and "<i>v</i>" not in body, path
         assert "&lt;b&gt;evil&lt;/b&gt;" in body, path
+
+
+def _host_with(fleet, tmp_path, name, findings):
+    """Enrol `name`; when `findings` is not None ingest one done scan holding (probe_id, algorithm, class) rows."""
+    h = fleet.upsert_host(HostIdentity(machine_id=f"m-{name}", hostname=name, os="linux"))
+    if findings is None:
+        return
+    src = Repo(tmp_path / f"{name}.db"); src.init_schema()
+    sid = src.create_scan(mode="user", probe_versions={}, tool_versions={})
+    for probe, alg, cls in findings:
+        src.record_finding(sid, Finding(probe_id=probe, algorithm=alg, classification=cls,
+                                        severity=Severity.INFO, title=f"{name} {alg}"))
+    src.finish_scan(sid, status="done")
+    fleet.ingest_bundle(load_bundle(dump_bundle(src, sid, HostIdentity(machine_id=f"m-{name}", hostname=name, os="linux"))), h.id)
+
+
+def test_fleet_readiness_colour_bands_and_dash(tmp_db_path, fast_registry, tmp_path):
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    _host_with(fleet, tmp_path, "green01", [("net.tls", "ML-KEM-768", Classification.PQC_READY)])          # 100
+    _host_with(fleet, tmp_path, "amber01", [("net.tls", "RSA-2048", Classification.SANGAT_TINGGI)])        # yellow: 50
+    _host_with(fleet, tmp_path, "red01", [("fs.cert.x509", "RSA-1024", Classification.SANGAT_TINGGI)])     # red: 0
+    _host_with(fleet, tmp_path, "none01", None)                                                            # no done scan
+    body = _client(tmp_db_path, fast_registry).get("/fleet").text
+    rows = {r.split("</a>", 1)[0].rsplit(">", 1)[1]: r for r in body.split('<tr class="row-hover">')[1:]}
+    for name, colour, score in (("green01", "text-emerald-400", "100"), ("amber01", "text-amber-400", "50"),
+                                ("red01", "text-red-400", "0")):
+        row = rows[name]
+        assert f'<span class="{colour}">{score}</span>' in row, name
+        assert "&mdash;" not in row.split("tabular-nums")[1], name
+    none_cell = rows["none01"].split("tabular-nums")[1]
+    assert "&mdash;" in none_cell and "text-emerald-400" not in none_cell and "text-red-400" not in none_cell
