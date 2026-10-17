@@ -192,31 +192,31 @@ def test_reenroll_logs_warning_and_rotates_token(tmp_db_path, fast_registry):
 
 
 def test_rate_limit_interval_read_at_request_time(tmp_db_path, fast_registry, tmp_path, monkeypatch):
-    c = _client(tmp_db_path, fast_registry)           # router built BEFORE the patch
+    monkeypatch.setattr(fleet, "INGEST_BURST", 1)
+    c = _client(tmp_db_path, fast_registry)           # router built BEFORE the interval patch
     tok = _enroll(c)["agent_token"]
-    monkeypatch.setattr(fleet, "INGEST_MIN_INTERVAL_S", 0.0)
-    data = _bundle(tmp_path)
-    assert c.post("/api/ingest", content=data, headers=_hdr(tok)).status_code == 200
-    r = c.post("/api/ingest", content=data, headers=_hdr(tok))
-    assert r.status_code == 200 and r.json()["duplicate"] is True
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(tok)).status_code == 200
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(tok)).status_code == 429
+    monkeypatch.setattr(fleet, "INGEST_MIN_INTERVAL_S", 0.0)   # refill instantly from now on
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(tok)).status_code == 200
 
 
-def test_token_bucket_only_duplicates_are_free(tmp_db_path, fast_registry, tmp_path, monkeypatch):
-    monkeypatch.setattr(fleet, "INGEST_BURST", 3)
+def test_token_bucket_every_outcome_spends_a_token(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    monkeypatch.setattr(fleet, "INGEST_BURST", 4)
     c = _client(tmp_db_path, fast_registry)
     h = _hdr(_enroll(c)["agent_token"])
     a = _bundle(tmp_path)
-    assert c.post("/api/ingest", content=a, headers=h).status_code == 200
-    for _ in range(3):                                            # resends are free
-        r = c.post("/api/ingest", content=a, headers=h)
-        assert r.status_code == 200 and r.json()["duplicate"] is True
+    assert c.post("/api/ingest", content=a, headers=h).status_code == 200                   # token 1
+    r = c.post("/api/ingest", content=a, headers=h)                                         # token 2: duplicate
+    assert r.status_code == 200 and r.json()["duplicate"] is True
     real = Repo.ingest_bundle
     monkeypatch.setattr(Repo, "ingest_bundle", lambda self, b, hid: (_ for _ in ()).throw(ValueError("bad")))
-    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 400   # spends a token
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 400   # token 3: rejected
     monkeypatch.setattr(Repo, "ingest_bundle", real)
-    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 200   # third token
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 200   # token 4
     assert c.post("/api/ingest", content=_bundle(tmp_path), headers=h).status_code == 429
-    assert c.post("/api/ingest", content=b"garbage", headers=h).status_code == 429          # malformed: throttled too
+    assert c.post("/api/ingest", content=a, headers=h).status_code == 429                   # duplicates throttled too
+    assert c.post("/api/ingest", content=b"garbage", headers=h).status_code == 429          # malformed too
 
 
 def test_enroll_disabled_is_503_without_parsing_the_body(tmp_db_path, fast_registry, monkeypatch):

@@ -61,10 +61,6 @@ class _TokenBucket:
             self._state[key] = (tokens - 1 if ok else tokens, now)
             return ok
 
-    def refund(self, key: int) -> None:
-        with self._lock:
-            tokens, then = self._state[key]
-            self._state[key] = (min(float(INGEST_BURST), tokens + 1), then)
 
 
 async def _read_capped(request: Request, cap: int) -> bytes:
@@ -145,8 +141,8 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None) -> APIRouter:
         if not limiter.take(host.id):     # before reading or parsing anything
             raise HTTPException(429, f"ingest rate limit: {INGEST_BURST} bundles, then one per "
                                      f"{INGEST_MIN_INTERVAL_S:g} s per host")
-        # Every outcome spends the token except a duplicate scan_uuid (an idempotent retry, no side effects):
-        # refunding rejections would let one agent token replay malformed bundles through the parser unthrottled.
+        # Every outcome spends the token, duplicates included: a free resend would let one agent token push
+        # 50 MiB through the parser endlessly, and the burst already absorbs a rare retry after a lost response.
         data = await _read_capped(request, MAX_GZIP_BYTES)
         async with parse_slots:
             try:
@@ -172,10 +168,7 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None) -> APIRouter:
                 existing = repo.get_scan_id_by_uuid(bundle.scan_uuid)
                 if existing is None:
                     raise HTTPException(400, "bundle violates a store constraint") from e
-                limiter.refund(host.id)
                 return {"scan_id": existing, "stored_findings": 0, "stored_views": 0, "duplicate": True}
-        if res.duplicate:
-            limiter.refund(host.id)
         return {"scan_id": res.scan_id, "stored_findings": res.stored_findings,
                 "stored_views": res.stored_views, "duplicate": res.duplicate}
 

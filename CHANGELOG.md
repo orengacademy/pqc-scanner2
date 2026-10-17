@@ -27,16 +27,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   host via a temporary rollup, for CBOM, SARIF, XLSX and PDF. Each rollup finding
   carries `evidence._fleet` (`host`, `host_id`, `machine_id`); the fleet CBOM
   exposes it as `pqcscan:host` (the contributing fleet host) and `pqcscan:machine_id`.
-
-### Changed
-- **`pqcscan merge` rollups** record the contributing host in `evidence._fleet.host`
-  instead of overwriting `evidence.host`, which net probes use for the scan target.
-  `_fleet` is collector-only: ingest strips it from agent bundles.
 - **PostgreSQL option** — every CLI command and the daemon accept a SQLAlchemy URL
   for `--db` (`postgresql+psycopg://…`, `pip install 'pqcscan[fleet-pg]'`).
   Wired, not yet tested.
 - `pqcscan agents list` now shows `first_seen` (table and `--json`); the nginx
   recipe exempts `/api/ingest` and `/api/agents/enroll` from Basic auth.
+
+### Changed
+- **`pqcscan merge` rollups** record the contributing host in `evidence._fleet.host`
+  instead of overwriting `evidence.host`, which net probes use for the scan target.
+  `_fleet` is collector-only: ingest strips it from agent bundles.
 
 ### Security — hardening done during review
 - **Never lose a report**: a failed post spools the bundle and retries on the next run,
