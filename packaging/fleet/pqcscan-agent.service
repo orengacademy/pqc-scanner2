@@ -1,0 +1,44 @@
+[Unit]
+Description=pqcscan one-shot scan + report to the fleet daemon
+Documentation=https://github.com/orengacademy/pqc-scanner2/blob/main/docs/FLEET.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Dedicated unprivileged user: create it first, e.g.
+#   useradd --system --home-dir /var/lib/pqcscan --shell /usr/sbin/nologin pqcscan
+User=pqcscan
+Group=pqcscan
+# /etc/pqcscan/agent.env (root:pqcscan, mode 0640) holds, one per line:
+#   PQCSCAN_SERVER=https://pqc.internal:8765
+#   PQCSCAN_LABELS=env=prod,group=web
+#   PQCSCAN_ENROLL_TOKEN=<enroll token, first run only; remove or rotate after rollout>
+# For a private CA, append  --ca-cert /etc/pqcscan/ca.pem  to ExecStart (do not skip TLS verification).
+Environment=PQCSCAN_LABELS=
+EnvironmentFile=-/etc/pqcscan/agent.env
+ExecStart=/usr/local/bin/pqcscan scan --fail-on none --report-to ${PQCSCAN_SERVER} --labels=${PQCSCAN_LABELS} --db /var/lib/pqcscan/pqcscan.db --state-dir /var/lib/pqcscan/agent
+# A scan that outruns this is killed; a spooled report is retried on the next run.
+TimeoutStartSec=2h
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# agent.token and the spool live under the state dir: private to the pqcscan user.
+StateDirectory=pqcscan
+StateDirectoryMode=0700
+
+# --- Sandbox: read the whole host, write only the state dir. ---
+# CAP_DAC_READ_SEARCH lets the non-root user read root-only configs and keys for the inventory (read only).
+# Drop both Capability lines to scan only what the pqcscan user can already read.
+AmbientCapabilities=CAP_DAC_READ_SEARCH
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/pqcscan
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK

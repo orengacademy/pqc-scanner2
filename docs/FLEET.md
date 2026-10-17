@@ -1,6 +1,6 @@
 # Fleet mode — thousands of hosts, one daemon
 
-Fleet mode (phase 1, v0.10.0) lets many hosts report their scan results to one
+Fleet mode (phase 1 in v0.10.0, phase 2 in v0.10.1) lets many hosts report their scan results to one
 `pqcscan daemon`. Each host runs a normal one-shot scan and posts the result.
 The collector keeps the latest scan per host and builds fleet-wide views and
 exports from them.
@@ -21,7 +21,8 @@ exports from them.
    `--state-dir`, `--ca-cert` (private CA), `--insecure` (lab only, skips TLS
    verification), `--allow-http` (see Security).
 3. **Fleet view.** `GET /api/fleet` (JSON), `pqcscan fleet summary --db …`.
-   The `/fleet` page in the web UI is planned for v0.10.1.
+   In the web UI, `/fleet` lists every host with its latest scan, readiness band and crit/high/total counts.
+   Hosts not seen for 48 hours are flagged stale. Filter with `/fleet?label=env=prod`; `/fleet/<host_id>` shows one host's scan history.
 4. **Exports.** `pqcscan export --scan fleet --format cbom|sarif|xlsx-bukukerja|pdf-tech … -o …`
    builds the export from the latest scan of every host, each finding attributed to its host via `evidence._fleet`.
    The same works from the daemon API: `GET /api/scans/fleet/export/<fmt>`.
@@ -57,6 +58,26 @@ The state dir is created mode 0700. SIGTERM or Ctrl-C stops the loop cleanly (ex
 after the cycle in progress finishes. `--interval` must be above zero.
 Other flags: `--once` (one cycle; exit 1 if the scan crashed or the collector permanently rejected the report, a spooled report exits 0), `--path` (repeatable),
 `--db`, `--state-dir`, `--ca-cert`, `--insecure`, `--allow-http`.
+
+## Deployment recipes
+
+Ready-to-adapt files live in [`packaging/fleet/`](../packaging/fleet/). Each one pins `v0.10.1`, uses https only,
+and keeps TLS verification on (use `--ca-cert` for a private CA). The enroll token is needed on the first run only:
+rotate it on the collector after rollout.
+
+| File | What it does |
+|---|---|
+| `pqcscan-agent.service` + `pqcscan-agent.timer` | systemd one-shot `scan --report-to`, daily with up to 2 h random delay. Runs as a dedicated `pqcscan` user with `ProtectSystem=strict`, write access to `/var/lib/pqcscan` only, read-only root access through `CAP_DAC_READ_SEARCH`. Settings come from `/etc/pqcscan/agent.env`. |
+| `windows-task.ps1` | Downloads the pinned `.exe`, verifies it against `SHA256SUMS.txt`, locks `%ProgramData%\pqcscan` to SYSTEM, Administrators and the task account, and registers a daily Scheduled Task (02:00 plus up to 2 h random delay). |
+| `ansible-playbook.yml` | Installs the verified binary, the `pqcscan` user, `agent.env` (0640, enroll token from a vaulted variable, `no_log`) and the timer. Rotate the token after rollout. |
+| `bigfix-fixlet.md` | Relevance clause and action script for BigFix. |
+| `osquery-wazuh.md` | Wazuh `command` wodle for the daily scan, plus an osquery query that spots a stuck spool. osquery only watches; the CM agent runs the binary. |
+
+The recipes run the one-shot `scan --report-to`, which exits 0 when the report was sent or spooled and 2 when the scan failed.
+To get a non-zero exit when the collector permanently rejects a report, change the command to
+`pqcscan agent --server "$PQCSCAN_SERVER" --labels "$PQCSCAN_LABELS" --once --db … --state-dir …`
+(it reads `PQCSCAN_ENROLL_TOKEN` from the same env file). For a long-running `pqcscan agent` under systemd, use
+`Type=simple`, `Restart=on-failure`, `KillSignal=SIGTERM` and `TimeoutStopSec=` longer than a scan.
 
 ## Security
 
