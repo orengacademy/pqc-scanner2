@@ -26,6 +26,7 @@ from pqcscan.store.bundle import (
     BundleInvalid,
     BundleTooLarge,
     HostIdentity,
+    check_labels,
     load_bundle,
 )
 from pqcscan.store.repo import Repo
@@ -88,7 +89,7 @@ def _host_dict(h: Any) -> dict[str, Any]:
             "last_seen": h.last_seen.isoformat() if h.last_seen else None, "revoked": bool(h.revoked)}
 
 
-def build_fleet_router(repo: Repo, *, enroll_token: str | None) -> APIRouter:
+def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_host: int = 12) -> APIRouter:
     router = APIRouter()
     limiter = _TokenBucket()
     # Per router (one per app): an asyncio.Semaphore binds to the loop it first blocks on.
@@ -122,9 +123,13 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None) -> APIRouter:
         labels = h.get("labels") or {}
         if not isinstance(labels, dict):
             raise HTTPException(400, "host.labels must be an object")
+        labels = {str(k): str(v) for k, v in labels.items()}
+        try:
+            check_labels(labels)
+        except BundleInvalid as e:
+            raise HTTPException(400, str(e)) from e
         ident = HostIdentity(machine_id=str(h["machine_id"]), hostname=str(h.get("hostname", "")),
-                             os=str(h.get("os", "")), labels={str(k): str(v) for k, v in labels.items()},
-                             agent_version=str(h.get("agent_version", "")))
+                             os=str(h.get("os", "")), labels=labels, agent_version=str(h.get("agent_version", "")))
         prior = repo.get_host_by_machine_id(ident.machine_id)
         if prior is not None and prior.revoked:
             raise HTTPException(403, f"host is revoked; an operator must run `pqcscan agents unrevoke {prior.id}`")
@@ -169,14 +174,24 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None) -> APIRouter:
                 if existing is None:
                     raise HTTPException(400, "bundle violates a store constraint") from e
                 return {"scan_id": existing, "stored_findings": 0, "stored_views": 0, "duplicate": True}
+        if bundle.dropped_drift:
+            logger.warning("fleet: dropped {} agent-sent fleet.drift rows from host {}", bundle.dropped_drift, host.id)
+        # After the write (drift was computed against the older scans) and outside parse_slots: these only delete.
+        if not res.duplicate:
+            try:
+                await run_in_threadpool(repo.prune_host, host.id, keep_scans_per_host)
+                await run_in_threadpool(repo.delete_stale_rollups)
+            except Exception:                 # the scan is stored; a failed trim must not make the agent resend
+                logger.opt(exception=True).warning("fleet: retention prune failed for host {}", host.id)
         return {"scan_id": res.scan_id, "stored_findings": res.stored_findings,
-                "stored_views": res.stored_views, "duplicate": res.duplicate}
+                "stored_views": res.stored_views, "duplicate": res.duplicate, "drift": res.drift}
 
     @router.get("/api/fleet")
     async def fleet() -> list[dict]:
         return [{**_host_dict(x.host), "scan_id": x.scan_id,
                  "finished_at": x.finished_at.isoformat() if x.finished_at else None,
-                 "readiness": x.readiness, "crit": x.crit, "high": x.high, "total": x.total}
+                 "readiness": x.readiness, "crit": x.crit, "high": x.high, "total": x.total,
+                 "drift": x.drift}
                 for x in await run_in_threadpool(repo.fleet_summary)]
 
     @router.get("/api/fleet/{host_id}")

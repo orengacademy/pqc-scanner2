@@ -54,12 +54,17 @@ def merge_cmd(sources: tuple[Path, ...], out: Path, no_rollup: bool, as_json: bo
 @click.option("--json", "as_json", is_flag=True)
 @click.option("--fail-on-drift", is_flag=True,
               help="Exit 1 when the scans differ (HA/DR parity gate).")
+@click.option("--parity", is_flag=True,
+              help="Compare host-agnostically: ignore host names, addresses and fleet.drift rows.")
 def diff_cmd(scan_id: int, baseline_id: int, db: str | None, as_json: bool,
-             fail_on_drift: bool) -> None:
-    """Diff two scans by (probe, algorithm, title): added / removed / common.
+             fail_on_drift: bool, parity: bool) -> None:
+    """Diff two scans: added / removed / common.
+
+    The plain diff keys on (probe, algorithm, title); `--parity` keys on a host-agnostic form of the
+    title (host names, addresses and `at <host>` phrases removed). `fleet.drift` rows are ignored.
 
     HA/DR parity: scan the primary and each peer (same DB, or merge them),
-    then `pqcscan diff --scan <peer> --baseline-scan <primary> --fail-on-drift`.
+    then `pqcscan diff --scan <peer> --baseline-scan <primary> --parity --fail-on-drift`.
     """
     repo = Repo(db_arg(db))
     repo.init_schema()
@@ -67,7 +72,7 @@ def diff_cmd(scan_id: int, baseline_id: int, db: str | None, as_json: bool,
         if repo.get_scan(sid) is None:
             click.echo(f"scan {sid} not found", err=True)
             sys.exit(3)
-    d = repo.diff_findings(current_scan_id=scan_id, baseline_scan_id=baseline_id)
+    d = repo.diff_findings(current_scan_id=scan_id, baseline_scan_id=baseline_id, parity=parity)
     drift = bool(d["added"] or d["removed"])
 
     def _row(f) -> dict:
@@ -166,7 +171,8 @@ def fleet_summary(db: str | None, as_json: bool) -> None:
     repo = _open_repo(db)
     rows = [{"host_id": x.host.id, "hostname": x.host.hostname, "labels": x.host.labels or {},
              "scan_id": x.scan_id, "finished_at": x.finished_at.isoformat() if x.finished_at else None,
-             "readiness": x.readiness, "crit": x.crit, "high": x.high, "total": x.total}
+             "readiness": x.readiness, "crit": x.crit, "high": x.high, "total": x.total,
+             "drift": x.drift}
             for x in repo.fleet_summary()]
     if as_json:
         click.echo(json.dumps(rows))

@@ -35,12 +35,17 @@ _STRINGS: dict[str, dict[str, str]] = {
         "mosca.years": "yr",
         "mosca.assumed": "Assumed defaults — supply --data-lifetime / "
                          "--migration-years / --threat-years to refine.",
+        "mosca.from_labels": "Inputs taken from host labels (data_lifetime / migration_years / threat_years).",
         "sec.readiness": "Readiness overview",
         "sec.migration": "Migration readiness score",
         "migration.intro": "Weighted migration posture: pure PQC counts 100%, "
                            "hybrid/composite 80%, weakened-but-not-quantum-broken "
                            "30%, and classically-broken 0%.",
         "migration.score": "Migration readiness",
+        "report.agility": "Crypto-agility",
+        "agility.band.high": "high",
+        "agility.band.medium": "medium",
+        "agility.band.low": "low",
         "migration.safe": "Quantum-safe",
         "migration.hybrid": "Hybrid",
         "migration.partial": "Partial",
@@ -182,12 +187,17 @@ _STRINGS: dict[str, dict[str, str]] = {
         "mosca.years": "thn",
         "mosca.assumed": "Andaian lalai — bekalkan --data-lifetime / "
                          "--migration-years / --threat-years untuk memperhalus.",
+        "mosca.from_labels": "Input diambil daripada label hos (data_lifetime / migration_years / threat_years).",
         "sec.readiness": "Gambaran kesediaan",
         "sec.migration": "Skor kesediaan migrasi",
         "migration.intro": "Postur migrasi berwajaran: PQC tulen 100%, "
                            "hibrid/komposit 80%, dilemahkan-tetapi-belum-dipecah-"
                            "kuantum 30%, dan dipecah secara klasik 0%.",
         "migration.score": "Kesediaan migrasi",
+        "report.agility": "Ketangkasan kripto",
+        "agility.band.high": "tinggi",
+        "agility.band.medium": "sederhana",
+        "agility.band.low": "rendah",
         "migration.safe": "Selamat-kuantum",
         "migration.hybrid": "Hibrid",
         "migration.partial": "Separa",

@@ -171,6 +171,82 @@ def test_prune_rejects_keep_below_one_and_is_exact(tmp_db_path, tmp_path):
     assert sorted(s.id for s in fleet.host_history(h.id)) == sorted(ids[-2:])
 
 
+def test_prune_host_keeps_newest_n_and_leaves_other_hosts_and_rollups(tmp_db_path, tmp_path):
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    h1, h2 = fleet.upsert_host(WEB01), fleet.upsert_host(WEB02)
+    ids1 = [fleet.ingest_bundle(_bundle(src, WEB01, ["RSA-2048"]), h1.id).scan_id for _ in range(4)]
+    ids2 = [fleet.ingest_bundle(_bundle(src, WEB02, ["RSA-2048"]), h2.id).scan_id for _ in range(3)]
+    rollup = fleet.materialize_fleet_rollup()
+    assert fleet.prune_host(h1.id, 2) == 2
+    assert sorted(s.id for s in fleet.host_history(h1.id)) == sorted(ids1[-2:])
+    assert sorted(s.id for s in fleet.host_history(h2.id)) == sorted(ids2)     # other host untouched
+    assert fleet.get_scan(rollup) is not None                                  # host_id=None rollup untouched
+    assert fleet.prune_host(h1.id, 2) == 0                                     # idempotent
+    with pytest.raises(ValueError):
+        fleet.prune_host(h1.id, 0)
+
+
+def test_prune_host_never_deletes_baselined_scans(tmp_db_path, tmp_path):
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    h = fleet.upsert_host(WEB01)
+    ids = [fleet.ingest_bundle(_bundle(src, WEB01, ["RSA-2048"]), h.id).scan_id for _ in range(5)]
+    fleet.create_baseline(scan_id=ids[0], label="golden")
+    assert fleet.prune_host(h.id, 2) == 2                   # baseline kept, and it does not use up a keep slot
+    assert sorted(s.id for s in fleet.host_history(h.id)) == [ids[0], ids[3], ids[4]]
+    assert [b.scan_id for b in fleet.list_baselines()] == [ids[0]]
+
+
+def test_prune_host_keeps_newest_done_scan_behind_failed_ones(tmp_db_path, tmp_path):
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    h = fleet.upsert_host(WEB01)
+    good = fleet.ingest_bundle(_bundle(src, WEB01, ["RSA-2048"]), h.id).scan_id
+    failed = []
+    for _ in range(3):
+        sid = src.create_scan(mode="user", probe_versions={}, tool_versions={})
+        src.finish_scan(sid, status="failed")
+        failed.append(fleet.ingest_bundle(load_bundle(dump_bundle(src, sid, WEB01)), h.id).scan_id)
+    assert fleet.prune_host(h.id, 2) == 1                   # oldest failed scan goes; the only done scan stays
+    assert sorted(s.id for s in fleet.host_history(h.id)) == [good, failed[1], failed[2]]
+
+
+def test_daemon_keep_scans_per_host_minimum_is_two():
+    from click.testing import CliRunner
+
+    from pqcscan.cli.daemon_cmd import daemon_cmd
+    r = CliRunner().invoke(daemon_cmd, ["--keep-scans-per-host", "1"])
+    assert r.exit_code == 2 and "keep-scans-per-host" in r.output
+
+
+def test_rollup_skips_views_of_drift_rows(tmp_db_path, tmp_path):
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    h = fleet.upsert_host(WEB01)
+    sid = fleet.ingest_bundle(_bundle(src, WEB01, ["RSA-2048"]), h.id).scan_id
+    fid = fleet.record_finding(sid, Finding(probe_id="fleet.drift", algorithm="N/A", classification=Classification.INFO,
+                                            severity=Severity.INFO, title="drift: added x"))
+    fleet.record_framework_view(fid, framework="cnsa2", clause="c", verdict="info", deadline=None)
+    roll = fleet.materialize_fleet_rollup()             # no KeyError on the drift row's view
+    assert len(fleet.list_framework_views(roll)) == 1
+
+
+def test_keep_two_with_drift_still_stores_drift(tmp_db_path, tmp_path):
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    h = fleet.upsert_host(WEB01)
+    ids, results = [], []
+    for algs in (["RSA-2048"], ["RSA-2048", "RSA-1024"], ["RSA-1024"]):
+        res = fleet.ingest_bundle(_bundle(src, WEB01, algs), h.id)
+        fleet.prune_host(h.id, 2)
+        ids.append(res.scan_id); results.append(res)
+    assert results[2].drift == 1                            # RSA-2048 removed, against the surviving second scan
+    drift = [f for f in fleet.list_findings(ids[2]) if f.probe_id == "fleet.drift"]
+    assert [f.evidence["change"] for f in drift] == ["removed"]
+    assert sorted(s.id for s in fleet.host_history(h.id)) == ids[1:]
+
+
 def test_ingest_unknown_host_and_foreign_scan_uuid(tmp_db_path, tmp_path):
     src = Repo(tmp_path / "src.db"); src.init_schema()
     fleet = Repo(tmp_db_path); fleet.init_schema()
@@ -259,3 +335,20 @@ def test_reconcile_and_prune_sweep_orphaned_rollup(tmp_db_path, tmp_path):
     _age(fleet, r2)
     fleet.prune_scans(keep_per_host=5)
     assert fleet.get_scan(r2) is None and fleet.get_scan(fresh) is not None
+
+
+def test_ingest_stores_drift_rows_only_when_findings_change(tmp_db_path, tmp_path):
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    host = fleet.upsert_host(WEB01)
+    first = fleet.ingest_bundle(_bundle(src, WEB01, ["RSA-2048", "RSA-1024"]), host.id)
+    assert first.drift == 0                                   # no previous scan, nothing to compare
+    second = fleet.ingest_bundle(_bundle(src, WEB01, ["RSA-2048", "ECDSA-P256"]), host.id)
+    drift = [f for f in fleet.list_findings(second.scan_id) if f.probe_id == "fleet.drift"]
+    assert second.drift == 2 and len(drift) == 2
+    assert {(f.evidence["change"], f.evidence["algorithm"]) for f in drift} == {
+        ("removed", "RSA-1024"), ("added", "ECDSA-P256")}
+    assert all(f.severity == "info" for f in drift)
+    third = fleet.ingest_bundle(_bundle(src, WEB01, ["RSA-2048", "ECDSA-P256"]), host.id)
+    assert third.drift == 0
+    assert not [f for f in fleet.list_findings(third.scan_id) if f.probe_id == "fleet.drift"]

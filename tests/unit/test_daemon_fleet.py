@@ -1,4 +1,5 @@
 """Enroll → ingest → fleet view, with every rejection path."""
+import gzip
 import json
 import os
 
@@ -172,6 +173,75 @@ def test_non_terminal_status_is_400(tmp_db_path, fast_registry, tmp_path, monkey
     monkeypatch.setattr(fleet, "INGEST_MIN_INTERVAL_S", 0.0)
     for status in ("failed", "interrupted"):
         assert c.post("/api/ingest", content=_bundle(tmp_path, status=status), headers=_hdr(tok)).status_code == 200
+
+
+def test_ingest_prunes_to_keep(tmp_db_path, fast_registry, tmp_path):
+    c = _client(tmp_db_path, fast_registry, keep_scans_per_host=2)
+    tok = _enroll(c)["agent_token"]
+    ids = [c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(tok)).json()["scan_id"] for _ in range(3)]
+    kept = [s.id for s in Repo(tmp_db_path).host_history(1)]
+    assert sorted(kept) == sorted(ids[1:])                  # the oldest went, the one just ingested stayed
+    assert len(c.get("/api/fleet/1").json()["scans"]) == 2
+
+
+def test_ingest_succeeds_when_prune_fails(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    def boom(self, host_id, keep):
+        raise OperationalError("s", {}, Exception("busy"))
+    monkeypatch.setattr(Repo, "prune_host", boom)
+    c = _client(tmp_db_path, fast_registry)
+    tok = _enroll(c)["agent_token"]
+    r = c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(tok))
+    assert r.status_code == 200 and r.json()["duplicate"] is False       # stored scan is not reported as a failure
+
+
+def test_ingest_sweeps_stale_rollups_and_logs_dropped_drift(tmp_db_path, fast_registry, tmp_path):
+    from datetime import timedelta
+
+    from sqlalchemy.orm import Session
+
+    from pqcscan.store.schema import Scan
+    c = _client(tmp_db_path, fast_registry)
+    tok = _enroll(c)["agent_token"]
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(tok)).status_code == 200
+    repo = Repo(tmp_db_path)
+    rollup = repo.materialize_fleet_rollup()             # an orphan left by a killed export, aged past the hour
+    with Session(repo.engine) as s:
+        s.get(Scan, rollup).started_at -= timedelta(hours=2)
+        s.commit()
+    doc = json.loads(gzip.decompress(_bundle(tmp_path)))
+    doc["findings"].append({**doc["findings"][0], "probe_id": "fleet.drift"})
+    seen: list[str] = []
+    sink = logger.add(lambda m: seen.append(str(m)), level="WARNING")
+    try:
+        r = c.post("/api/ingest", content=gzip.compress(json.dumps(doc).encode()), headers=_hdr(tok))
+    finally:
+        logger.remove(sink)
+    assert r.status_code == 200, r.text
+    assert repo.get_scan(rollup) is None                 # swept after the prune
+    assert any("dropped 1 agent-sent fleet.drift" in m and "host 1" in m for m in seen)
+
+
+def test_enroll_caps_host_labels(tmp_db_path, fast_registry):
+    c = _client(tmp_db_path, fast_registry)
+    for bad in ({f"k{i}": "v" for i in range(65)}, {"x" * 65: "v"}, {"k": "v" * 257}):
+        r = c.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": {**HOST, "labels": bad}})
+        assert r.status_code == 400 and "host.labels" in r.json()["detail"]
+    assert Repo(tmp_db_path).get_host_by_machine_id("m-1") is None
+    _enroll(c)
+
+
+def test_fleet_summary_reports_drift_count(tmp_db_path, fast_registry, tmp_path):
+    c = _client(tmp_db_path, fast_registry)
+    tok = _enroll(c)["agent_token"]
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(tok)).status_code == 200
+    doc = json.loads(gzip.decompress(_bundle(tmp_path)))
+    doc["findings"][0]["algorithm"] = "RSA-1024"           # one removed + one added
+    sid = c.post("/api/ingest", content=gzip.compress(json.dumps(doc).encode()),
+                 headers=_hdr(tok)).json()["scan_id"]
+    (row,) = c.get("/api/fleet").json()
+    assert row["drift"] == 2 and row["total"] == 1          # drift counted apart from the findings
+    assert "drift 2" in c.get("/fleet").text
+    assert "drift 2" in c.get("/fleet/1").text and Repo(tmp_db_path).drift_counts([sid - 1, sid]) == {sid: 2}
 
 
 def test_reenroll_logs_warning_and_rotates_token(tmp_db_path, fast_registry):

@@ -130,3 +130,19 @@ def test_load_rejects_deeply_nested_json():
 def test_load_accepts_empty_optional_identity_fields():
     b = load_bundle(_doc(host={"machine_id": "m", "hostname": "", "os": "", "agent_version": "", "labels": {}}))
     assert b.host.hostname == "" and b.host.machine_id == "m" and b.scan_uuid == "u"
+
+
+def test_load_drops_agent_sent_fleet_drift_findings():
+    fs = [{"probe_id": "fs.cert.x509", "algorithm": "RSA-2048"},
+          {"probe_id": "fleet.drift", "algorithm": "RSA-1024", "evidence": {"change": "added"}}]
+    b = load_bundle(_doc(findings=fs))
+    assert b.findings == [{"probe_id": "fs.cert.x509", "algorithm": "RSA-2048"}] and b.dropped_drift == 1
+
+
+def test_load_caps_host_labels():
+    ok = {f"k{i}": "v" * 256 for i in range(64)} | {"x" * 64: "v"}
+    del ok["k0"]
+    assert len(load_bundle(_doc(host={"machine_id": "m", "labels": ok})).host.labels) == 64
+    for bad in ({f"k{i}": "v" for i in range(65)}, {"x" * 65: "v"}, {"k": "v" * 257}):
+        with pytest.raises(BundleInvalid, match=r"host\.labels"):
+            load_bundle(_doc(host={"machine_id": "m", "labels": bad}))

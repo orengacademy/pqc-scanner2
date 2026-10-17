@@ -84,6 +84,7 @@
     <div class="card green"><div class="n">{{ ready }}</div><div class="l">{{ t('cls.pqc-ready') }}</div></div>
     <div class="card grey"><div class="n">{{ total_findings }}</div><div class="l">{{ t('col.total') }}</div></div>
   </div>
+  {% if agility %}<p class="muted">{{ t('report.agility') }}: {{ agility.score }}/100 ({{ t('agility.band.' ~ agility.band) }})</p>{% endif %}
   <p class="lede">{{ t('exec.narrative').format(crit=crit, high=high, ready=ready, score=r) }}</p>
   {% if hndl_count %}<div class="callout">⚠ {{ t('exec.hndl_call').format(n=hndl_count) }}</div>{% endif %}
 
@@ -104,6 +105,7 @@
   <p class="lede"><span class="pill pqc-ready">{{ t('verdict.compliant') }}</span> {{ mosca.summary }}</p>
   {% endif %}
   {% if mosca.assumed %}<p class="muted" style="font-size:8.5pt">{{ t('mosca.assumed') }}</p>{% endif %}
+  {% if mosca.source == 'labels' %}<p class="muted" style="font-size:8.5pt">{{ t('mosca.from_labels') }}</p>{% endif %}
   {% endif %}
 
   {% if migration_readiness %}

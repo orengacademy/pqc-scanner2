@@ -1,6 +1,6 @@
 # Fleet mode — thousands of hosts, one daemon
 
-Fleet mode (phase 1 in v0.10.0, phase 2 in v0.10.1) lets many hosts report their scan results to one
+Fleet mode (phase 1 in v0.10.0, phase 2 in v0.10.1, phase 3 in v0.10.2) lets many hosts report their scan results to one
 `pqcscan daemon`. Each host runs a normal one-shot scan and posts the result.
 The collector keeps the latest scan per host and builds fleet-wide views and
 exports from them.
@@ -22,11 +22,24 @@ exports from them.
    verification), `--allow-http` (see Security).
 3. **Fleet view.** `GET /api/fleet` (JSON), `pqcscan fleet summary --db …`.
    In the web UI, `/fleet` lists every host with its latest scan, readiness band and crit/high/total counts.
+   A `drift N` chip marks a host whose latest scan changed since the one before (also `drift` in the JSON);
+   `/fleet/<host_id>` shows the same count per scan.
    Hosts not seen for 48 hours are flagged stale. Filter with `/fleet?label=env=prod`; `/fleet/<host_id>` shows one host's scan history.
+   Host labels `data_lifetime`, `migration_years` and `threat_years` (all in years) set the Mosca X, Y and Z inputs in that host's reports; without them the defaults apply, and invalid labels are ignored.
+   Labels merge, so one the agent stops sending stays on the host. To drop it, have the agent send an invalid value
+   (for example `--labels data_lifetime=unset`) and the report falls back to the defaults.
+
+   **Crypto-agility score.** Reports also carry a 0 to 100 crypto-agility score: how cheaply the quantum-vulnerable
+   findings' cryptography can be changed (edit a config scores 90, rebuild or replace hardware scores 10). It is the
+   mean per-finding score and is shown in the executive and technical PDFs, the JSON report context, and the
+   BUKUKERJA CBOM sheet (per finding). Bands: `high` at 70 or more, `medium` at 40 or more, otherwise `low`.
+   Informational and `fleet.drift` findings are ignored; a scan with nothing vulnerable scores 100.
+   The fleet export's score is the same mean over every host's findings, so it is weighted by finding count:
+   hosts with many findings dominate it.
 4. **Exports.** `pqcscan export --scan fleet --format cbom|sarif|xlsx-bukukerja|pdf-tech … -o …`
    builds the export from the latest scan of every host, each finding attributed to its host via `evidence._fleet`.
    The same works from the daemon API: `GET /api/scans/fleet/export/<fmt>`.
-5. **Parity (HA/DR).** `pqcscan diff --scan <dr scan> --baseline-scan <primary scan> --fail-on-drift`.
+5. **Parity (HA/DR).** `pqcscan diff --scan <dr scan> --baseline-scan <primary scan> --parity --fail-on-drift`.
    `pqcscan merge -o fleet.db a.db b.db` still folds per-host DBs offline.
 6. **Admin.**
    - `pqcscan agents list` shows every host with `first_seen` and `last_seen` (also in `--json`).
@@ -34,12 +47,22 @@ exports from them.
      its stored token stays invalid, so the agent's next `scan --report-to … --enroll-token …` gets a 401,
      discards `<state dir>/agent.token`, re-enrolls and sends (spooled bundles included). Without
      `--enroll-token` it spools the bundle and tells you to re-run with it or delete the token file.
-   - `pqcscan fleet prune --keep 12` keeps the newest 12 scans per host.
+   - `pqcscan fleet prune --keep 12` keeps the newest 12 scans per host. It is for one-off trims: the daemon already does this after every ingest (see Retention).
 7. **Scale.** SQLite handles roughly 2,000 hosts daily. Past roughly 10k per day,
    run the daemon with `--db postgresql+psycopg://user:pw@host/db` (every CLI command
    takes the same `--db` URL; `fleet-pg` installs psycopg 3, so the URL needs
    the `+psycopg` driver suffix) after
    `pip install 'pqcscan[fleet-pg]'`. See Known limits.
+
+## Retention
+
+After each stored bundle the daemon deletes that host's scans beyond the newest 12 (by server scan id), so the
+database stops growing without a cron job. Change the number with `pqcscan daemon --keep-scans-per-host N`
+(or `PQCSCAN_KEEP_SCANS_PER_HOST`); the minimum is 2, there is no off switch. The scan just ingested is never
+removed, other hosts are untouched, and a duplicate bundle prunes nothing. If the trim itself fails the ingest
+still succeeds and a warning is logged. The agent's own `--keep-local` is a separate, client-side setting.
+Scans saved as a baseline are never pruned and do not count toward N, so a host keeps N other scans plus its baselines.
+Failed and interrupted scans count toward N, but the host's newest completed scan is always kept.
 
 ## Agent loop (fallback)
 
@@ -62,7 +85,7 @@ Other flags: `--once` (one cycle; exit 1 if the scan crashed or the collector pe
 
 ## Deployment recipes
 
-Ready-to-adapt files live in [`packaging/fleet/`](../packaging/fleet/). Each one pins `v0.10.1`, uses https only,
+Ready-to-adapt files live in [`packaging/fleet/`](../packaging/fleet/). Each one pins `v0.10.2`, uses https only,
 and keeps TLS verification on (use `--ca-cert` for a private CA). The enroll token is needed on the first run only:
 rotate it on the collector after rollout.
 
@@ -88,6 +111,20 @@ Hosts that already enrolled keep working, because they use their own agent token
 after a cloned VM image. Delete `<state-dir>/agent.token` on that host and run it again with `--enroll-token`.
 Bundles already in the spool that get the 403 move to `<state-dir>/spool/rejected/`. A bundle the host has just scanned and sent is not kept, so the next scan after re-enrolling reports instead.
 
+## Drift between scans
+
+When a host's bundle is ingested, the collector compares it with that host's previous completed scan.
+Each finding that appeared or vanished becomes one `fleet.drift` finding (severity info) in the new scan,
+with `evidence.change` set to `added` or `removed`. The first scan of a host, and any failed or interrupted
+scan, produces none. Drift rows are left out of the fleet counts and of the fleet rollup. The ingest response
+reports the number of changes as `drift`. At most 500 change rows are stored per scan; beyond that one summary row
+(`evidence.change` = `summary`) carries the full added and removed counts. When the two scans hold more than
+50,000 findings together, only the summary row is stored and changes are counted on the raw title.
+
+Findings are matched by a host-agnostic key, so host names, addresses and `at <host>` phrases do not count
+as change. `pqcscan diff --parity` uses the same key to compare a primary with its DR peer, and with
+`--fail-on-drift` it exits 1 only on real differences.
+
 ## Security
 
 - **Enroll token.** Anyone holding `--enroll-token` can enroll any machine id.
@@ -105,6 +142,7 @@ Bundles already in the spool that get the 403 move to `<state-dir>/spool/rejecte
 - **Ingest limits.** A bundle is capped at 8 MiB on the wire, 50 MiB after
   decompression and 200,000 findings. Each host may post a burst of 10 bundles,
   refilled at one per minute; only a duplicate resend is free.
+  Host labels are capped at 64 per host, keys at 64 characters and values at 256, at enrollment and ingest.
   The bundle `machine_id` must match the token that posted it.
 - **No key material.** Findings never carry key bytes. Machine ids are
   domain-separated hashes, not raw `/etc/machine-id` values.

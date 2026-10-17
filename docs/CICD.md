@@ -79,9 +79,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - id: scan
-        uses: orengacademy/pqc-scanner2@v0.10.1
+        uses: orengacademy/pqc-scanner2@v0.10.2
         with:
-          version: v0.10.1
+          version: v0.10.2
           path: .
           fail-on: high
           # target: example.com:8443   # optional TLS/STARTTLS endpoint
@@ -93,7 +93,7 @@ jobs:
           sarif_file: ${{ steps.scan.outputs.sarif }}
 ```
 
-Action inputs: `version` (release tag, default `v0.10.1`), `path` (scan path,
+Action inputs: `version` (release tag, default `v0.10.2`), `path` (scan path,
 default `.`), `fail-on` (default `high`), `target` (optional network endpoint).
 Output: `sarif` — the path to the exported SARIF file. The scan step fails the
 job when the gate trips; `if: always()` on the upload step ensures findings are
@@ -110,7 +110,7 @@ code fails the job.
 pqcscan:
   image: debian:stable-slim
   variables:
-    PQCSCAN_VERSION: v0.10.1
+    PQCSCAN_VERSION: v0.10.2
   before_script:
     - apt-get update && apt-get install -y curl
     - curl -fsSL -o /usr/local/bin/pqcscan
@@ -141,7 +141,7 @@ Download the binary, run the scan, and branch on the exit code:
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION=v0.10.1
+VERSION=v0.10.2
 curl -fsSL -o ./pqcscan \
   "https://github.com/orengacademy/pqc-scanner2/releases/download/${VERSION}/pqcscan-linux-x86_64"
 chmod +x ./pqcscan

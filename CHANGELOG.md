@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.2] — 2026-10-17
+
+### Added — fleet mode, phase 3
+- **Drift between scans** — ingest stores one `fleet.drift` finding per finding added or removed since the host's
+  previous completed scan, keyed host-agnostically; the ingest JSON gains `drift`. `pqcscan diff --parity` compares
+  two scans by the same key.
+- **Retention** — after each stored bundle the daemon keeps the newest 12 scans of that host and deletes the rest
+  (`pqcscan daemon --keep-scans-per-host N`, env `PQCSCAN_KEEP_SCANS_PER_HOST`, minimum 2). `fleet prune --keep`
+  stays for one-off trims. A failed trim is logged and never fails the ingest.
+
+### Added
+- **Crypto-agility score** — `core/agility.py` scores how cheaply each finding's crypto can be changed (0 to 100;
+  bands high >= 70, medium >= 40, low). Shown in the PDF reports, the report context and the BUKUKERJA CBOM column.
+- **Host labels drive Mosca inputs** — `data_lifetime`, `migration_years` and `threat_years` host labels (years) feed the
+  Mosca X+Y>Z section of that host's reports: labels, else the defaults; invalid labels fall back to the defaults.
+
+### Changed
+- `fleet.drift` rows are server-derived: any an agent sends are dropped at ingest (and logged). Drift rows store
+  algorithm `N/A`, and CBOM, `pqcscan diff`, readiness, totals, agility and the BUKUKERJA inventory ignore them.
+- Drift is capped at 500 rows per scan plus one summary row with the full counts; the ingest JSON `drift` reports
+  every change.
+- Retention (default 12, minimum 2) never deletes baselined scans or the host's newest completed scan.
+- `fleet summary --json`, `/api/fleet` and `/fleet` report each host's drift count; `/fleet/<host_id>` shows it per scan.
+- Host labels are capped at 64 per host (keys 64 characters, values 256) at enrollment and ingest; over the cap is a 400.
+
 ## [0.10.1] — 2026-10-17
 
 ### Added — fleet mode, phase 2 (see `docs/FLEET.md`)
@@ -971,7 +996,8 @@ frameworks, 9 web UI pages, cross-OS binary build) is fully met.
   implicit-string-concat (which Python 3.11 breaks at `b"\x00" * N`
   expressions) to explicit `+` concatenation. (Commit `ce8f584`.)
 
-[Unreleased]: https://github.com/orengacademy/pqc-scanner2/compare/v0.10.1...HEAD
+[Unreleased]: https://github.com/orengacademy/pqc-scanner2/compare/v0.10.2...HEAD
+[0.10.2]: https://github.com/orengacademy/pqc-scanner2/compare/v0.10.1...v0.10.2
 [0.10.1]: https://github.com/orengacademy/pqc-scanner2/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/orengacademy/pqc-scanner2/compare/v0.9.13...v0.10.0
 [0.9.13]: https://github.com/orengacademy/pqc-scanner2/compare/v0.9.12...v0.9.13

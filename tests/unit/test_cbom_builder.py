@@ -183,3 +183,15 @@ def test_cbom_no_host_properties_for_single_host_scan(tmp_db_path):
     repo.init_schema()
     props = _props(repo, {"path": "/x/server.pem"})
     assert "pqcscan:host" not in props and "pqcscan:machine_id" not in props
+
+
+def test_build_cbom_skips_fleet_drift_rows(tmp_db_path):
+    repo = Repo(tmp_db_path)
+    repo.init_schema()
+    scan_id = repo.create_scan(mode="user", probe_versions={}, tool_versions={})
+    for probe in ("fs.cert.x509", "fleet.drift"):
+        repo.record_finding(scan_id, Finding(
+            probe_id=probe, algorithm="RSA-2048", classification=Classification.TINGGI,
+            severity=Severity.HIGH, title=probe))
+    repo.finish_scan(scan_id, status="done")
+    assert len(build_cbom(repo, scan_id)["components"]) == 1

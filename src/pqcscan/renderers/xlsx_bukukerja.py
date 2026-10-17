@@ -30,6 +30,8 @@ from pathlib import Path
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment
 
+from pqcscan.core.agility import finding_agility
+from pqcscan.core.parity import is_drift
 from pqcscan.renderers._xlsx_safe import force_text
 from pqcscan.store.repo import Repo
 from pqcscan.store.schema import FindingRow
@@ -430,7 +432,8 @@ def render_xlsx_bukukerja(
     _delete_example_rows(inv)
     grouped: dict[tuple[str, str], list[FindingRow]] = defaultdict(list)
     for f in findings:
-        grouped[(_asset_type_for(f.probe_id), str(_asset_name_for(f)))].append(f)
+        if not is_drift(f):           # change markers are not assets
+            grouped[(_asset_type_for(f.probe_id), str(_asset_name_for(f)))].append(f)
     for idx, ((asset_type, asset_name), fs) in enumerate(sorted(grouped.items()), start=1):
         algos = sorted({f.algorithm for f in fs if f.algorithm and f.algorithm != "N/A"})
         sbom_present_pair = (("Ya", "Yes") if any(f.probe_id.startswith("sbom.") for f in fs)
@@ -482,8 +485,7 @@ def render_xlsx_bukukerja(
     ]
     for idx, f in enumerate(cbom_findings, start=1):
         ev = f.evidence or {}
-        crypto_agility = ((("Ya", "Tidak Diketahui"), ("Yes", "Unknown"))[1 if locale == "en" else 0]
-                          [0 if ev.get("crypto_agility") else 1])
+        crypto_agility = f"{finding_agility(f.probe_id, ev)}/100"
         cbom_ws.append([
             f"CBOM #{idx}",
             str(_asset_name_for(f))[:120],

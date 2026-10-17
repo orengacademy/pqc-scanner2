@@ -6,11 +6,13 @@ import uuid
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 from sqlalchemy import create_engine, delete, event, func, select
 from sqlalchemy.orm import Session
 
+from pqcscan.core.parity import DRIFT_PROBE, drift_rows, parity_key
 from pqcscan.core.types import Finding
 from pqcscan.store import migrations
 from pqcscan.store.schema import (
@@ -52,6 +54,7 @@ class IngestResult:
     stored_findings: int
     stored_views: int
     duplicate: bool
+    drift: int = 0
 
 
 @dataclass(slots=True)
@@ -63,6 +66,7 @@ class HostSummary:
     crit: int
     high: int
     total: int
+    drift: int = 0          # fleet.drift rows in the latest done scan, as stored (a summary row counts as 1)
 
 
 def _apply_identity(h: Host, identity: HostIdentity) -> None:
@@ -329,9 +333,12 @@ class Repo:
             return s.get(Baseline, baseline_id)
 
     def diff_findings(
-        self, *, current_scan_id: int, baseline_scan_id: int
+        self, *, current_scan_id: int, baseline_scan_id: int, parity: bool = False
     ) -> dict:
         """Set-diff of findings between two scans by (probe_id, algorithm, title).
+
+        `fleet.drift` rows are skipped on both sides. With `parity=True` the key is the host-agnostic
+        `parity_key`, so a primary and its DR peer compare equal despite different names and addresses.
 
         Evidence dicts often carry timestamps and absolute paths that drift
         across scans, so identity uses the stable triple. Returns:
@@ -341,8 +348,13 @@ class Repo:
         """
         current = self.list_findings(current_scan_id)
         baseline = self.list_findings(baseline_scan_id)
+        # Drift markers are derived data: never a difference, in either mode.
+        current = [f for f in current if f.probe_id != DRIFT_PROBE]
+        baseline = [f for f in baseline if f.probe_id != DRIFT_PROBE]
 
         def key(f: FindingRow) -> tuple[str, str, str]:
+            if parity:
+                return parity_key(f.probe_id, f.algorithm, f.title, f.evidence or {})
             return (f.probe_id, f.algorithm, f.title)
 
         baseline_keys = {key(f) for f in baseline}
@@ -407,9 +419,34 @@ class Repo:
             s.commit()
             return True
 
+    def _bundle_drift(self, bundle: ScanBundle, host_id: int) -> tuple[list[Finding], int]:
+        """fleet.drift rows (capped) and the true change count for a bundle against the host's previous
+        done scan (none if there is none).
+
+        A failed or interrupted scan is partial, so comparing it would report false removals.
+        Reads in its own short session; a scan ingested for the same host in between is not seen."""
+        status = str(bundle.scan.get("status", "done"))
+        if status in _INGEST_STATUSES and status != "done":
+            return [], 0
+        with Session(self.engine) as s:
+            if s.execute(select(Scan.id).where(Scan.scan_uuid == bundle.scan_uuid)).first() is not None:
+                return [], 0
+            prev_id = s.execute(
+                select(Scan.id).where(Scan.host_id == host_id, Scan.status == "done")
+                .order_by(Scan.id.desc()).limit(1)
+            ).scalar_one_or_none()
+            if prev_id is None:
+                return [], 0
+            prev = list(s.execute(select(FindingRow).where(FindingRow.scan_id == prev_id)).scalars())
+        cur = [SimpleNamespace(probe_id=str(f["probe_id"]), algorithm=str(f.get("algorithm", "N/A")),
+                               title=str(f.get("title", "")), evidence=dict(f.get("evidence") or {}))
+               for f in bundle.findings if f.get("probe_id") != DRIFT_PROBE]
+        return drift_rows(prev, cur)
+
     def ingest_bundle(self, bundle: ScanBundle, host_id: int) -> IngestResult:
         """Store one bundle and refresh the host row from its identity in a single transaction;
         a repeated scan_uuid is a no-op."""
+        drift, n_drift = self._bundle_drift(bundle, host_id)       # CPU work and reads happen before the write begins
         with Session(self.engine) as s:
             h = s.get(Host, host_id)
             if h is None:
@@ -451,9 +488,16 @@ class Repo:
                                         verdict=str(v["verdict"]),
                                         deadline=date.fromisoformat(v["deadline"]) if v.get("deadline") else None))
                     n_v += 1
+            for d in drift:
+                s.add(FindingRow(
+                    scan_id=scan.id, probe_id=d.probe_id, algorithm=d.algorithm,
+                    classification=d.classification.value, severity=d.severity.value, title=d.title,
+                    evidence=d.evidence, remediation=d.remediation, created_at=d.created_at,
+                ))
             _apply_identity(h, bundle.host)
             s.commit()
-            return IngestResult(scan_id=scan.id, stored_findings=n_f, stored_views=n_v, duplicate=False)
+            return IngestResult(scan_id=scan.id, stored_findings=n_f, stored_views=n_v, duplicate=False,
+                                drift=n_drift)
 
     def fleet_summary(self) -> list[HostSummary]:
         """Each host with its latest done scan (by server scan id) and counts; three statements in all."""
@@ -467,9 +511,13 @@ class Repo:
             latest = {sc.host_id: sc for sc in s.execute(select(Scan).where(Scan.id.in_(latest_ids))).scalars()}
             tally: dict[int, dict[str, int]] = {}
             # Band and severity depend only on these columns: count distinct combinations, not finding rows.
+            # fleet.drift rows are change markers, not findings: counted apart, never in the band totals.
             for r in s.execute(select(*cols, func.count().label("n")).where(FindingRow.scan_id.in_(latest_ids))
                                .group_by(*cols)):
-                t = tally.setdefault(r.scan_id, {**empty_band_counts(), "crit": 0, "high": 0})
+                t = tally.setdefault(r.scan_id, {**empty_band_counts(), "crit": 0, "high": 0, "drift": 0})
+                if r.probe_id == DRIFT_PROBE:
+                    t["drift"] += r.n
+                    continue
                 t[classify_band(r)] += r.n
                 t["total"] += r.n
                 if r.severity in ("crit", "high"):
@@ -480,13 +528,21 @@ class Repo:
             if sc is None:
                 out.append(HostSummary(h, None, None, None, 0, 0, 0))
                 continue
-            t = tally.get(sc.id, {**empty_band_counts(), "crit": 0, "high": 0})
+            t = tally.get(sc.id, {**empty_band_counts(), "crit": 0, "high": 0, "drift": 0})
             # A host with nothing rated is fully ready, not 0 (readiness_score is 0 on an empty denominator).
             rated = t["green"] + t["yellow"] + t["red"]
             out.append(HostSummary(host=h, scan_id=sc.id, finished_at=sc.finished_at,
                                    readiness=readiness_score(t) if rated else 100,
-                                   crit=t["crit"], high=t["high"], total=t["total"]))
+                                   crit=t["crit"], high=t["high"], total=t["total"], drift=t["drift"]))
         return out
+
+    def drift_counts(self, scan_ids: list[int]) -> dict[int, int]:
+        """fleet.drift rows per scan, one grouped query; scans without drift are absent."""
+        with Session(self.engine) as s:
+            rows = s.execute(select(FindingRow.scan_id, func.count())
+                             .where(FindingRow.scan_id.in_(scan_ids), FindingRow.probe_id == DRIFT_PROBE)
+                             .group_by(FindingRow.scan_id))
+            return {sid: n for sid, n in rows}
 
     def host_history(self, host_id: int, limit: int = 50) -> list[Scan]:
         with Session(self.engine) as s:
@@ -504,22 +560,32 @@ class Repo:
             s.execute(delete(Scan).where(Scan.id == scan_id))
             s.commit()
 
+    def prune_host(self, host_id: int, keep: int) -> int:
+        """Delete one host's scans beyond the newest `keep` (by server scan id); returns scans deleted.
+
+        Baselined scans are never deleted and do not count toward `keep`. The host's newest done scan is
+        never deleted either, so a run of failed or interrupted bundles cannot evict its only good scan."""
+        if keep < 1:
+            raise ValueError("keep must be >= 1")
+        with Session(self.engine) as s:
+            newest_done = s.execute(select(func.max(Scan.id))
+                                    .where(Scan.host_id == host_id, Scan.status == "done")).scalar()
+            old = list(s.execute(select(Scan.id).where(Scan.host_id == host_id,
+                                                       Scan.id.not_in(select(Baseline.scan_id)))
+                                 .order_by(Scan.id.desc()).offset(keep)).scalars())
+        old = [sid for sid in old if sid != newest_done]
+        for sid in old:
+            self.delete_scan(sid)
+        return len(old)
+
     def prune_scans(self, keep_per_host: int) -> int:
         """Delete each host's scans beyond the newest N (by server scan id); returns scans deleted."""
         if keep_per_host < 1:
             raise ValueError("keep_per_host must be >= 1")
         self.delete_stale_rollups()
-        deleted = 0
         with Session(self.engine) as s:
             host_ids = list(s.execute(select(Host.id)).scalars())
-        for hid in host_ids:
-            with Session(self.engine) as s:
-                old = list(s.execute(select(Scan.id).where(Scan.host_id == hid)
-                                     .order_by(Scan.id.desc()).offset(keep_per_host)).scalars())
-            for sid in old:
-                self.delete_scan(sid)
-                deleted += 1
-        return deleted
+        return sum(self.prune_host(hid, keep_per_host) for hid in host_ids)
 
     def delete_stale_rollups(self) -> int:
         """Delete orphaned temporary fleet rollups (left by a hard kill mid-export); returns count.
@@ -548,7 +614,8 @@ class Repo:
             s.add(roll)
             s.flush()
             for x in summary:                 # one batched insert per host, no per-row flush
-                src = s.execute(select(FindingRow).where(FindingRow.scan_id == x.scan_id)).scalars().all()
+                src = s.execute(select(FindingRow).where(FindingRow.scan_id == x.scan_id,
+                                                         FindingRow.probe_id != DRIFT_PROBE)).scalars().all()
                 fleet = {"host": x.host.hostname, "host_id": x.host.id, "machine_id": x.host.machine_id}
                 new = [FindingRow(scan_id=roll.id, probe_id=r.probe_id, algorithm=r.algorithm,
                                   classification=r.classification, severity=r.severity, title=r.title,
@@ -558,7 +625,8 @@ class Repo:
                 s.flush()
                 new_id = {r.id: nf.id for r, nf in zip(src, new, strict=True)}
                 views = s.execute(select(FrameworkView).join(FindingRow, FrameworkView.finding_id == FindingRow.id)
-                                  .where(FindingRow.scan_id == x.scan_id)).scalars().all()
+                                  .where(FindingRow.scan_id == x.scan_id, FindingRow.probe_id != DRIFT_PROBE)
+                                  ).scalars().all()
                 s.add_all([FrameworkView(finding_id=new_id[v.finding_id], framework=v.framework, clause=v.clause,
                                          verdict=v.verdict, deadline=v.deadline) for v in views])
             s.commit()
