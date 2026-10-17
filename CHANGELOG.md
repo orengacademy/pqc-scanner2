@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- `net.tls.pqc_handshake` no longer offers the pre-standard `X25519Kyber768Draft00` group (codepoint 0x6399). A server
+  that supports only that draft group now reads as a classical fallback. Before, the probe never connected on
+  OpenSSL 3.5, which rejects the name.
+- `net.tls.https` and the other OS-ssl TLS probes label negotiated-suite findings with the client mode
+  (`evidence.client`: `inventory (all suites offered)` or `strict (system defaults)`). An inventory scan offers every
+  suite, so "negotiated" means what the server chose from all of them.
 - The source stripper is linear on long lines and unterminated comments. An unterminated `"`/`'` used to be
   rescanned from every later quote on its line, about 10 s for one 40 k-character line of `\"` escapes, so the 2 MiB
   limit did not bound the work. Unterminated quotes are now left as code to the end of their line. Unterminated block

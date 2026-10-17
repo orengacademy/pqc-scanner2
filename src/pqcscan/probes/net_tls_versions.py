@@ -25,6 +25,7 @@ import struct
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._tls_sigalgs import SIG_ALGS
 
 # version code -> human-readable name
 _VERSIONS: dict[int, str] = {
@@ -39,15 +40,6 @@ _SWEEP_ORDER = [0x0300, 0x0301, 0x0302, 0x0303, 0x0304]
 
 _FIXED_RANDOM = bytes(range(32))  # deterministic; randomness is not security-relevant here
 
-# signature_algorithms: without ed25519/ed448 and ML-DSA a server whose only
-# certificate is EdDSA or ML-DSA aborts the handshake, which read as "TLS 1.3
-# not supported" on exactly the most modern servers.
-_SIG_ALGS = (
-    0x0403, 0x0804, 0x0401, 0x0805, 0x0806,   # ecdsa_secp256r1, rsa_pss_rsae_*, rsa_pkcs1_sha256
-    0x0503, 0x0603, 0x0501, 0x0601,           # ecdsa_secp384r1/521r1, rsa_pkcs1_sha384/512
-    0x0807, 0x0808,                           # ed25519, ed448
-    0x0904, 0x0905, 0x0906,                   # mldsa44, mldsa65, mldsa87
-)
 
 
 def _u16(n: int) -> bytes:
@@ -78,7 +70,7 @@ def build_client_hello(version: int, server_name: str | None = None,
     exts += _extension(0x000A, _vec16(                           # supported_groups
         _u16(0x001D) + _u16(0x0017) + _u16(0x0018) + _u16(0x11EC)
     ))
-    exts += _extension(0x000D, _vec16(b"".join(_u16(s) for s in _SIG_ALGS)))  # signature_algorithms
+    exts += _extension(0x000D, _vec16(b"".join(_u16(s) for s in SIG_ALGS)))  # signature_algorithms
     if is_tls13:
         exts += _extension(0x0033, _vec16(b""))                 # key_share: empty
     if server_name:

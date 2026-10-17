@@ -89,6 +89,7 @@ def test_legacy_server_is_inventoried_not_skipped(tmp_path: Path) -> None:
         asyncio.run(run_tls_probe(host="127.0.0.1", port=port, verify=False,
                                   probe_id="net.tls.https", emit=found.append))
     got = {(f.algorithm, f.classification) for f in found}
+    assert {f.evidence.get("client") for f in found if f.algorithm == "AES256-SHA"} == {"inventory (all suites offered)"}
     assert ("AES256-SHA", Classification.SANGAT_TINGGI) in got
     assert ("RSA-2048", Classification.SANGAT_TINGGI) in got
 

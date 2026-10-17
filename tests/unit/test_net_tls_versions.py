@@ -234,3 +234,10 @@ def test_client_hello_offers_eddsa_and_mldsa_signatures():
         ch = build_client_hello(v)
         for scheme in (0x0807, 0x0905):
             assert _u16(scheme) in ch
+
+
+def test_raw_tls_probes_share_one_signature_scheme_list():
+    from pqcscan.probes import _tls_sigalgs, net_tls_cert_chain_tls13, net_tls_kex_groups, net_tls_versions
+
+    for mod in (net_tls_versions, net_tls_kex_groups, net_tls_cert_chain_tls13):
+        assert mod.SIG_ALGS is _tls_sigalgs.SIG_ALGS

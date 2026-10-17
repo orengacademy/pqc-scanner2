@@ -85,7 +85,10 @@ async def run_tls_probe(
             classification=cls,
             severity=sev_for(cls),
             title=f"{tlsver} negotiated cipher {cname}",
-            evidence={"endpoint": f"{host}:{port}", "version": tlsver},
+            # The suite the server picked from what this client offered; in
+            # inventory mode that is every suite the local OpenSSL supports.
+            evidence={"endpoint": f"{host}:{port}", "version": tlsver,
+                      "client": "strict (system defaults)" if verify else "inventory (all suites offered)"},
         ))
 
     if cert_bin:
