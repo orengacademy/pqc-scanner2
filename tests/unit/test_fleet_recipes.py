@@ -49,15 +49,16 @@ def test_ansible_playbook_is_yaml_with_vaulted_token_hidden():
     assert env_task["ansible.builtin.copy"]["mode"] == "0640"
 
 
-def test_windows_task_takes_over_folders_and_installs_code_under_program_files():
+def test_windows_task_installs_code_under_program_files():
     ps = (ROOT / "windows-task.ps1").read_text()
-    for needle in ("/setowner", "/reset", "Get-Acl", "ProgramFiles"):
+    for needle in ("Get-Acl", "ProgramFiles"):
         assert needle in ps, needle
 
 
-def test_windows_task_fails_closed_and_checks_icacls():
+def test_windows_task_never_reuses_or_repairs_existing_folders():
     ps = (ROOT / "windows-task.ps1").read_text()
-    assert "ReparsePoint" in ps and "LASTEXITCODE" in ps
+    assert "LASTEXITCODE" in ps and "Get-Acl" in ps and "already exists" in ps
+    assert "/setowner" not in ps and "ReparsePoint" not in ps
     for line in ps.splitlines():
         if "icacls" in line:
-            assert not re.search(r"\s/C\b", line), line
+            assert not re.search(r"\s/(T|C|reset)\b", line), line
