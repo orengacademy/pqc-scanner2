@@ -9,15 +9,15 @@ from pqcscan.store.repo import Repo
 SERVER = "http://127.0.0.1"
 
 
-def test_spool_drains_after_outage_and_newest_run_stays_latest(tmp_path, fast_registry, monkeypatch):
+def test_spool_drains_after_outage_and_newest_run_stays_latest(tmp_path, tmp_db_path, fast_registry, monkeypatch):
     monkeypatch.setenv("PQCSCAN_TEST_MACHINE_ID", "m-agent")
     agent = Repo(tmp_path / "agent.db")
     agent.init_schema()
     state = tmp_path / "state"
-    up = TestClient(create_app(db_path=tmp_path / "fleet.db", registry=fast_registry, enroll_token="ENROLL"),
+    up = TestClient(create_app(db_path=tmp_db_path, registry=fast_registry, enroll_token="ENROLL"),
                     base_url=SERVER)
     down = httpx.Client(transport=httpx.MockTransport(lambda req: httpx.Response(503, json={"detail": "down"})))
-    fleet = Repo(tmp_path / "fleet.db")
+    fleet = Repo(tmp_db_path)
 
     def run(client) -> str:
         sid = agent.create_scan(mode="user", probe_versions={}, tool_versions={})

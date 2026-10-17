@@ -176,3 +176,13 @@ Sonar, and the offline [SARIF viewer](https://microsoft.github.io/sarif-web-comp
 among them. The gate (`--fail-on`) and the report (SARIF) are independent: fail
 the build on new high-severity crypto while still shipping the full inventory to
 your dashboard.
+
+---
+
+## This repository's own workflows
+
+| Workflow | Runs on | What it checks |
+| -------- | ------- | -------------- |
+| `ci.yml` | push to `main`, pull requests | Lint, type-check and the full test suite on Python 3.11 and 3.12; a PyInstaller binary smoke test on Linux, macOS and Windows. |
+| `release.yml` | version tags | Builds and publishes the release binaries and `SHA256SUMS.txt`. |
+| `verify.yml` | push to `main` and `verify/**`, pull requests, manual | Evidence for the fleet claims, as four jobs. `postgres`: the fleet store, daemon, parity and spool tests with every `tmp_db_path` a fresh database on `postgres:16-alpine` (set `PQCSCAN_TEST_DB_URL` to do the same locally). `windows-installer`: Pester 5 tests that run `packaging/fleet/windows-task.ps1` as shipped on `windows-2022` and `windows-latest`. `fuzz`: the hypothesis ingest fuzzers with 500 examples. `accuracy`: the labelled-corpus benchmark gate (precision 1.0, recall 0.95). |
