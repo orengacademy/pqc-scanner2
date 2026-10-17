@@ -72,10 +72,10 @@ def _git(*args: str, strip: bool = True) -> str:
     return out.strip() if strip else out
 
 
-def _src_hash() -> str:
-    """sha256 over the collector sources (daemon and store), file names and contents, in path order."""
+def _src_hash(dirs: tuple[str, ...] = SRC_DIRS) -> str:
+    """sha256 over the sources under `dirs` (default: the collector, daemon and store), names and contents, in order."""
     h = hashlib.sha256()
-    for d in SRC_DIRS:
+    for d in dirs:
         for f in sorted((REPO / d).rglob("*")):
             if f.is_file() and "__pycache__" not in f.parts:
                 h.update(f.relative_to(REPO).as_posix().encode() + b"\0" + f.read_bytes() + b"\0")

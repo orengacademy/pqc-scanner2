@@ -14,7 +14,7 @@ runbook is [`soak-real.md`](soak-real.md), and nothing in this file counts as ha
 | Item | Value |
 |---|---|
 | Box | 8 cores, 31 GB, Linux 7.0.0-38-generic, Python 3.11, Docker for Postgres. Shared with other work: load average 7 to 33 at cycle starts across all runs |
-| Provenance | `soak.py` and the smoke test were untracked when runs 1 to 3 were made and were committed afterwards (`e5c43e0`). The run-3 JSONs say so in `provenance_note`; the harness hash is unknown for them. Later runs record `src_hash`, `harness_hash` and `dirty_files` with untracked files counted |
+| Provenance | `soak.py` and the smoke test were untracked when runs 1 to 3 were made and were committed afterwards (`e5c43e0`). The run-3 JSONs say so in `provenance_note`; the harness hash is unknown for them. Later runs record `src_hash`, `harness_hash` and `dirty_files` with untracked files counted. `src_hash` first covered only `daemon` and `store`; it now covers all of `src/pqcscan` (the agents run the probes, runner and CLI), so a run-3 hash, if one is present, is not comparable |
 | Commits | Run 3 (the one tabled below): SQLite at `e4c753c`, Postgres at `9d086c3`, clean tree. Both include the ingest bulk-insert commit `05289fd` |
 | Command | `python -m benchmark.fleet.soak --db sqlite --hosts 30 --cycles 7 --interval 60 --fault-plan default`, and the same with `--db postgres` |
 | Results | `results/soak-simulated-<db>-20261017[-N].json`, one per run, with every per-host, per-cycle value, the collector log and the commands |

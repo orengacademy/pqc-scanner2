@@ -4,6 +4,9 @@ Posts real bundles from simulated agent hosts at the fleet collector (`pqcscan d
 latency, errors, and the collector's own throttling answers. Results live in [`LOAD.md`](LOAD.md) (one row per run)
 and `results/load-<db>-<YYYYMMDD>[-<hosts>h][-herd][-N].json` (full record with the exact commands and the git commit; the plain name is the 500-host staggered run, `N` numbers reruns, files are never overwritten; `*-prefix.json` ran before commit 41b9dea).
 
+Related: [`SOAK.md`](SOAK.md) is the simulated 30-host, 7-cycle soak with its faults and findings, and
+[`soak-real.md`](soak-real.md) is the runbook for the real one.
+
 ## Run it
 
 ```bash

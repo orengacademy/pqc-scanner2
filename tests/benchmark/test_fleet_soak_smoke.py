@@ -44,3 +44,33 @@ def test_observe_never_writes_to_the_collector_db(tmp_path, monkeypatch):
     assert db.read_bytes() == before                                    # no migration, no WAL switch, no write
     cols = [c[1] for c in sqlite3.connect(db).execute("pragma table_info(scans)")]
     assert "scan_uuid" not in cols
+
+
+def test_main_with_the_runbook_argv_observes_and_never_simulates(tmp_path, monkeypatch):
+    """soak-real.md section 3 starts `--observe ... --cycles 7 --interval 86400`; that must not reach run()."""
+    import sqlite3
+
+    db = tmp_path / "live.db"
+    con = sqlite3.connect(db)
+    con.executescript(
+        "create table hosts (id integer primary key, machine_id text, labels text, last_seen text);"
+        "create table scans (id integer primary key, host_id integer);"
+        "create table findings (id integer primary key, scan_id integer, probe_id text, title text);"
+    )
+    con.close()
+
+    def boom(**_):
+        raise AssertionError("run() reached: the simulation would start on the collector box")
+
+    seen = {}
+
+    def fake_observe(**kw):
+        seen.update(kw)
+        return {"result_file": "x.json"}
+
+    monkeypatch.setattr(soak, "run", boom)
+    monkeypatch.setattr(soak, "observe", fake_observe)
+    monkeypatch.setattr(sys, "argv", ["soak", "--observe", str(db), "--access-log", str(tmp_path / "a.log"),
+                                      "--cycles", "7", "--interval", "86400"])
+    assert soak.main() == 0
+    assert seen["target"] == str(db) and seen["cycles"] == 7 and seen["interval"] == 86400

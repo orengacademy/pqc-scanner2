@@ -476,7 +476,7 @@ def run(
         "command": command,
         "started_at": started.isoformat(),
         "commit": _git("rev-parse", "HEAD"),
-        "src_hash": _src_hash(),
+        "src_hash": _src_hash(("src/pqcscan",)),     # the whole package: the agents run its probes, CLI and runner
         "harness_hash": hashlib.sha256((HERE / "soak.py").read_bytes()).hexdigest(),
         "tree_dirty": bool(_dirty_files()),
         "dirty_files": _dirty_files(),
@@ -1024,6 +1024,16 @@ def main() -> int:
     args = ap.parse_args()
     if args.render:
         print("\n\n".join(render(json.loads(Path(p).read_text())) for p in args.render))
+        return 0
+    if args.observe:                # REAL soak: read a running collector, never start the simulation
+        r = observe(
+            target=args.observe,
+            access_log=args.access_log,
+            cycles=args.cycles,
+            interval=args.interval,
+            command="python -m benchmark.fleet.soak " + shlex.join(sys.argv[1:]),
+        )
+        print("result:", r["result_file"])
         return 0
     r = run(
         db=args.db,
