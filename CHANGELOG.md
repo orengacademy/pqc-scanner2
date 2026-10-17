@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- OpenSSL-spelled suite names now get the same grade as their RFC spelling. The new OpenSSL branch above rated
+  anonymous (`ADH-`/`AECDH-`), export, DES/3DES and CBC-with-SHA-1 suites (`AES128-SHA`, `ECDHE-RSA-AES128-SHA`)
+  as `tinggi` or `info`; they are `sangat-tinggi`, as `TLS_..._CBC_SHA` already was. PSK, SRP and GOST suites follow
+  their RFC grade.
 - `fs.keystore.pkcs12` keeps going past a certificate or keystore it cannot parse. One CA cert with an unknown key
   type raised out of the probe and ended the walk, so a single crafted `.p12` hid every other keystore. Such a cert or
   file now yields an INFO finding (`additional-cert-unparseable` / `keystore-unparseable`) and the scan continues.

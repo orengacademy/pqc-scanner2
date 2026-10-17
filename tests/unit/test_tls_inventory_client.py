@@ -22,10 +22,20 @@ from pqcscan.probes._tls_probe import inventory_ssl_context, run_tls_probe
 
 @pytest.mark.parametrize(("suite", "expected"), [
     ("AES256-GCM-SHA384", Classification.TINGGI),           # static-RSA key transport
-    ("AES128-SHA", Classification.TINGGI),
+    ("AES128-SHA", Classification.SANGAT_TINGGI),           # CBC + SHA-1 MAC
     ("DHE-RSA-AES128-GCM-SHA256", Classification.TINGGI),   # finite-field DH
     ("ECDHE-RSA-AES128-GCM-SHA256", Classification.TINGGI),
+    ("ECDHE-RSA-AES128-SHA", Classification.SANGAT_TINGGI), # CBC + SHA-1, like TLS_..._CBC_SHA
+    ("ADH-AES128-SHA", Classification.SANGAT_TINGGI),       # anonymous
+    ("AECDH-NULL-SHA", Classification.SANGAT_TINGGI),       # anonymous, no encryption
+    ("EXP-RC4-MD5", Classification.SANGAT_TINGGI),          # export
+    ("DES-CBC3-SHA", Classification.SANGAT_TINGGI),         # 3DES
+    ("DES-CBC-SHA", Classification.SANGAT_TINGGI),          # single DES
     ("NULL-SHA256", Classification.SANGAT_TINGGI),          # no encryption
+    ("PSK-AES128-GCM-SHA256", Classification.SEDERHANA),    # = TLS_PSK_WITH_AES_128_GCM_SHA256
+    ("RSA-PSK-AES256-GCM-SHA384", Classification.RENDAH),   # = TLS_RSA_PSK_WITH_AES_256_GCM_SHA384
+    ("PSK-AES128-CBC-SHA", Classification.SANGAT_TINGGI),   # = TLS_PSK_WITH_AES_128_CBC_SHA
+    ("DHE-PSK-AES128-GCM-SHA256", Classification.TINGGI),   # = TLS_DHE_PSK_WITH_*
     ("TLS_AES_256_GCM_SHA384", Classification.RENDAH),      # TLS 1.3 names unchanged
 ])
 def test_openssl_suite_names(suite: str, expected: Classification) -> None:
@@ -79,5 +89,18 @@ def test_legacy_server_is_inventoried_not_skipped(tmp_path: Path) -> None:
         asyncio.run(run_tls_probe(host="127.0.0.1", port=port, verify=False,
                                   probe_id="net.tls.https", emit=found.append))
     got = {(f.algorithm, f.classification) for f in found}
-    assert ("AES256-SHA", Classification.TINGGI) in got
+    assert ("AES256-SHA", Classification.SANGAT_TINGGI) in got
     assert ("RSA-2048", Classification.SANGAT_TINGGI) in got
+
+
+@pytest.mark.parametrize(("openssl", "rfc"), [
+    ("PSK-AES128-GCM-SHA256", "TLS_PSK_WITH_AES_128_GCM_SHA256"),
+    ("RSA-PSK-AES256-GCM-SHA384", "TLS_RSA_PSK_WITH_AES_256_GCM_SHA384"),
+    ("PSK-AES128-CBC-SHA", "TLS_PSK_WITH_AES_128_CBC_SHA"),
+    ("SRP-AES-128-CBC-SHA", "TLS_SRP_SHA_WITH_AES_128_CBC_SHA"),
+    ("ECDHE-RSA-AES128-SHA", "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA"),
+    ("DES-CBC3-SHA", "TLS_RSA_WITH_3DES_EDE_CBC_SHA"),
+    ("AES256-GCM-SHA384", "TLS_RSA_WITH_AES_256_GCM_SHA384"),
+])
+def test_openssl_and_rfc_spellings_agree(openssl: str, rfc: str) -> None:
+    assert classify_suite(openssl) is classify_suite(rfc)
