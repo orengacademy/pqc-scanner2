@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- `code.crypto_primitives` no longer flags algorithm names that appear only in comments or prose strings. It
+  matched raw text, so `// MD5 is banned` or `"never use md5 here"` fired on every language it scans (30 of 30
+  such corpus cases). Matches now go through the comment/string lexer: comments never count, and a string counts
+  only when it is a bare identifier (`"MD5"`, `"AES/GCM/NoPadding"`), so `getInstance("MD5")` is still found.
+  The lexer gains C/C++, Python and Ruby; Swift uses the Java rules and TypeScript the JavaScript rules.
 - Rust raw strings are matched by their own hash count again. After one unterminated `r##"`, the stripper stopped
   recognising raw strings, so a later `r"\"` was read as an ordinary string and the real call after it was blanked
   (an evasion). Unterminated Java text blocks and Kotlin raw strings no longer let later openers rescan the rest of

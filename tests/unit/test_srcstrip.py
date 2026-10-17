@@ -248,3 +248,21 @@ def test_rust_well_formed_raw_after_unterminated_hashed_raw_is_blanked():
     src = 'let a = r##"never closed\nlet b = r#"md5 inside"#; let c = md5::compute(x);\n'
     out = strip_noncode(src, "rust")
     assert out.count("md5") == 1 and "md5::compute(x)" in out
+
+
+def test_python_ruby_c_forms():
+    py = 'x = 1  # md5\ny = """a\nmd5""" + \'md5\'\nz = hashlib.md5(b"x")\n'
+    out = strip_noncode(py, "python")
+    assert out.count("md5") == 1 and "hashlib.md5(" in out
+    assert strip_noncode('s = """a""""\nmd5()\n', "python").endswith("md5()\n")  # closes on the first """
+    rb = "# Digest::MD5\nd = Digest::MD5.hexdigest('md5')\n"
+    assert strip_noncode(rb, "ruby").count("MD5") == 1
+    c = "/* MD5 */ MD5(d); // md5\nchar q = '\"'; const char *n = \"md5\";\n"
+    assert strip_noncode(c, "c").count("MD5") == 1
+
+
+def test_python_triple_quote_floods_are_linear():
+    mib = 1 << 20
+    assert _strip_seconds('"""' + '\\"""' * (mib // 4), "python") < 1.0
+    assert _strip_seconds("'''" + "\\'''" * (mib // 4), "python") < 1.0
+    assert _strip_seconds('x = "' + '\\"' * (mib // 2), "python") < 1.0

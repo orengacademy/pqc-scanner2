@@ -15,12 +15,21 @@ Design constraints:
 
 Findings de-dup on ``(file, algorithm)`` so a file that mentions the same
 primitive many times yields a single finding.
+
+Comments and strings: the corpus matches the algorithm *token* itself, which in
+real use often is a string argument (``getInstance("MD5")``,
+``createHash('md5')``). So, using ``core.srcstrip`` spans, a match counts when it
+sits in code, never when it sits in a comment, and inside a string literal only
+when that literal is a bare identifier (``"MD5"``, ``"AES/GCM/NoPadding"``,
+``"secp256r1"``) — not prose such as ``"never use md5 here"``.
 """
 from __future__ import annotations
 
+import bisect
 import re
 from pathlib import Path
 
+from pqcscan.core.srcstrip import is_comment_span, spans_for_scan
 from pqcscan.core.types import Classification, Finding, ProbeFamily
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._code_walker import walk_source
@@ -32,6 +41,15 @@ _SUFFIXES: tuple[str, ...] = (
     ".py", ".js", ".ts", ".go", ".rs", ".java",
     ".rb", ".php", ".c", ".cpp", ".cs", ".kt", ".swift",
 )
+
+# srcstrip lexer per suffix (Swift's """ blocks follow the Java text-block rule).
+_LANG_FOR_SUFFIX: dict[str, str] = {
+    ".py": "python", ".js": "javascript", ".ts": "javascript", ".go": "go", ".rs": "rust",
+    ".java": "java", ".rb": "ruby", ".php": "php", ".c": "c", ".cpp": "c", ".cs": "csharp",
+    ".kt": "kotlin", ".swift": "java",
+}
+# A string literal whose body is only these characters names an algorithm.
+_TOKEN_STRING_RE = re.compile(r"[\w./:+-]+")
 
 _T = Classification.TINGGI
 _ST = Classification.SANGAT_TINGGI
@@ -124,11 +142,26 @@ class CodeCryptoPrimitives(Probe):
             self._scan(text, path, emit)
 
     def _scan(self, text: str, path: Path, emit: Emitter) -> None:
+        lang = _LANG_FOR_SUFFIX.get(path.suffix.lower(), "")
+        spans = spans_for_scan(text, lang, probe_id=self.id, path=path, emit=emit)
+        starts = [a for a, _ in spans]
+
+        def counts(pos: int) -> bool:
+            i = bisect.bisect_right(starts, pos) - 1
+            if i < 0 or pos >= spans[i][1]:
+                return True                                   # code
+            a, b = spans[i]
+            if is_comment_span(text, a, lang):
+                return False
+            return _TOKEN_STRING_RE.fullmatch(text[a:b].strip("\"'`@#")) is not None
+
         lines = text.splitlines()
         seen: set[str] = set()  # de-dup (file, algorithm) — file is fixed here
         for pattern, algorithm, classification in PRIMITIVE_PATTERNS:
-            m = pattern.search(text)
-            if m is None or algorithm in seen:
+            if algorithm in seen:
+                continue
+            m = next((m for m in pattern.finditer(text) if counts(m.start())), None)
+            if m is None:
                 continue
             seen.add(algorithm)
             line_no = text.count("\n", 0, m.start()) + 1

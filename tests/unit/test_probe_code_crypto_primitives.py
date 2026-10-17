@@ -145,3 +145,35 @@ def test_all_patterns_compiled_once():
         assert hasattr(pattern, "search")
         assert isinstance(algorithm, str) and algorithm
         assert isinstance(classification, Classification)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("name", "body"), [
+    ("a.py", "x = 1  # hashlib.md5() is legacy\n"),
+    ("a.py", 'msg = """\nnever use md5 here\n"""\n'),
+    ("a.rb", "# Digest::MD5 is banned\nnote = 'never use md5 here'\n"),
+    ("a.c", "/* MD5() is banned */\nconst char *n = \"never use md5 here\";\n"),
+    ("a.go", "// md5.New() must never be used here\nvar s = `md5 in raw`\n"),
+    ("a.java", 'String s = """\n    MessageDigest.getInstance("MD5")\n""";\n'),
+    ("a.swift", '// Insecure.MD5 is banned\nlet note = "never use md5 here"\n'),
+])
+async def test_comment_and_prose_string_mentions_do_not_fire(tmp_path: Path, name: str, body: str):
+    assert [f.algorithm for f in await _run(tmp_path, name, body)] == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("name", "body"), [
+    ("A.java", 'MessageDigest md = MessageDigest.getInstance("MD5");\n'),   # bare token string = real use
+    ("app.js", "const h = crypto.createHash('md5');\n"),
+    ("a.py", "import hashlib\nd = hashlib.md5(b'x')\n"),
+    ("a.rb", "d = Digest::MD5.hexdigest(data)\n"),
+    ("a.c", "MD5(d, n, out);\n"),
+])
+async def test_real_use_still_fires(tmp_path: Path, name: str, body: str):
+    assert "MD5" in [f.algorithm for f in await _run(tmp_path, name, body)]
+
+
+@pytest.mark.asyncio
+async def test_first_counting_occurrence_is_reported(tmp_path: Path):
+    found = await _run(tmp_path, "a.py", "# md5 is banned\nimport hashlib\nd = hashlib.md5(b'x')\n")
+    assert _by_alg(found, "MD5").evidence["line"] == 3

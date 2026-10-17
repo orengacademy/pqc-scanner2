@@ -1,7 +1,9 @@
 """Language-aware comment/string blanking for regex-based source probes.
 
 The non-Python source-code probes (``code.ts.go`` / ``.java`` (also Kotlin and
-Scala) / ``.javascript`` / ``.php`` / ``.rust`` / ``.csharp``) detect weak crypto with plain regexes over raw source
+Scala) / ``.javascript`` / ``.php`` / ``.rust`` / ``.csharp``), and
+``code.crypto_primitives`` (which adds C/C++, Python, Ruby, Swift and TypeScript
+through :func:`noncode_spans`), detect weak crypto with plain regexes over raw source
 text.  A weak-crypto token that appears inside a ``// comment`` or a
 ``"string literal"`` is a false positive.  This module neutralises those
 regions *before* the detection regexes run, without any native grammar (so the
@@ -118,6 +120,13 @@ _RAW_TRIPLE = r'"""(?:[^"]|"(?!""))*+"*"""'
 # can own), so no later block can close either: the form is dropped.
 _JAVA_TEXT_BLOCK_UNTERM = r'(?P<unterm_tb>"""[ \t\f]*\r?\n[\s\S]*)'
 _RAW_TRIPLE_UNTERM = r'(?P<unterm_rawtriple>"""[\s\S]*)'
+# Python triple-quoted strings: escapes honoured, close on the FIRST unescaped
+# run of three (""""x"""" holds "x, then a stray quote). Same disjoint possessive
+# body; the end-of-input partner is safe to drop for the same reason as above.
+_PY_TRIPLE_DQ = r'"""(?:[^"\\]|\\[\s\S]|"(?!""))*+"""'
+_PY_TRIPLE_SQ = r"'''(?:[^'\\]|\\[\s\S]|'(?!''))*+'''"
+_PY_TRIPLE_DQ_UNTERM = r'(?P<unterm_pydq>"""[\s\S]*)'
+_PY_TRIPLE_SQ_UNTERM = r"(?P<unterm_pysq>'''[\s\S]*)"
 
 # Per-language alternation members.  Order matters only where two forms can
 # start at the same character: triple-quoted / verbatim forms precede _DQ, and
@@ -134,7 +143,14 @@ _LANG_FORMS: dict[str, tuple[str, ...]] = {
     "rust": (_BLOCK, _BLOCK_UNTERM, _LINE_SLASH, _RUST_RAW_OPEN, _DQ, _DQ_UNTERM, _CHAR),
     "csharp": (_BLOCK, _BLOCK_UNTERM, _LINE_SLASH, _CSHARP_VERBATIM, _CSHARP_VERBATIM_UNTERM, _DQ, _DQ_UNTERM,
                _CHAR),
+    # Used by code.crypto_primitives for the suffixes the code.ts.* probes skip.
+    "c": (_BLOCK, _BLOCK_UNTERM, _LINE_SLASH, _DQ, _DQ_UNTERM, _CHAR),  # also C++
+    "python": (_PY_TRIPLE_DQ, _PY_TRIPLE_DQ_UNTERM, _PY_TRIPLE_SQ, _PY_TRIPLE_SQ_UNTERM, _LINE_HASH,
+               _DQ, _DQ_UNTERM, _SQ_STR, _SQ_UNTERM),
+    "ruby": (_LINE_HASH, _DQ, _DQ_UNTERM, _SQ_STR, _SQ_UNTERM),
 }
+# Languages whose line comments start with "#" (a "#" span is a comment there).
+_HASH_COMMENT_LANGS = frozenset({"php", "python", "ruby"})
 
 
 # Larger inputs are not stripped (returned unchanged, fail-open toward false
@@ -154,6 +170,8 @@ _EOF_UNTERM: dict[str, tuple[str, str]] = {
     "unterm_verbatim": (_CSHARP_VERBATIM, _CSHARP_VERBATIM_UNTERM),
     "unterm_tb": (_JAVA_TEXT_BLOCK, _JAVA_TEXT_BLOCK_UNTERM),
     "unterm_rawtriple": (_RAW_TRIPLE, _RAW_TRIPLE_UNTERM),
+    "unterm_pydq": (_PY_TRIPLE_DQ, _PY_TRIPLE_DQ_UNTERM),
+    "unterm_pysq": (_PY_TRIPLE_SQ, _PY_TRIPLE_SQ_UNTERM),
 }
 
 
@@ -235,19 +253,50 @@ def strip_noncode(source: str, lang: str) -> str:
         return source
 
 
+def noncode_spans(source: str, lang: str) -> list[tuple[int, int]]:
+    """Sorted, non-overlapping (start, end) of every comment and string literal.
+
+    Empty (everything is code) for unknown languages, oversize input or any
+    internal failure — the same fail-open rule as ``strip_noncode``."""
+    if lang not in _LANG_FORMS or len(source) > MAX_STRIP_CHARS:
+        return []
+    try:
+        return list(_blank_spans(source, lang))
+    except Exception:
+        return []
+
+
+def is_comment_span(source: str, start: int, lang: str) -> bool:
+    """True when the non-code span starting at ``start`` is a comment, not a string."""
+    return source.startswith(("//", "/*"), start) or (lang in _HASH_COMMENT_LANGS and source.startswith("#", start))
+
+
+def _oversize_note(probe_id: str, path: Path, source: str) -> Finding:
+    return Finding(
+        probe_id=probe_id,
+        algorithm="N/A",
+        classification=Classification.INFO,
+        severity=Severity.INFO,
+        title=f"{path.name}: over {MAX_STRIP_CHARS // (1024 * 1024)} MiB, scanned without comment/string stripping",
+        evidence={"path": str(path), "chars": len(source)},
+    )
+
+
 def strip_for_scan(source: str, lang: str, *, probe_id: str, path: Path, emit: Callable[[Finding], None]) -> str:
     """``strip_noncode`` for a probe: also emits an INFO note when ``source`` is
     too large to strip, so the unstripped (noisier) scan is visible."""
     if len(source) > MAX_STRIP_CHARS:
-        emit(Finding(
-            probe_id=probe_id,
-            algorithm="N/A",
-            classification=Classification.INFO,
-            severity=Severity.INFO,
-            title=f"{path.name}: over {MAX_STRIP_CHARS // (1024 * 1024)} MiB, scanned without comment/string stripping",
-            evidence={"path": str(path), "chars": len(source)},
-        ))
+        emit(_oversize_note(probe_id, path, source))
     return strip_noncode(source, lang)
+
+
+def spans_for_scan(
+    source: str, lang: str, *, probe_id: str, path: Path, emit: Callable[[Finding], None],
+) -> list[tuple[int, int]]:
+    """``noncode_spans`` for a probe, with the same oversize INFO note."""
+    if len(source) > MAX_STRIP_CHARS:
+        emit(_oversize_note(probe_id, path, source))
+    return noncode_spans(source, lang)
 
 
 def code_finditer(
