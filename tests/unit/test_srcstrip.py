@@ -1,4 +1,6 @@
 """Unit tests for pqcscan.core.srcstrip.strip_noncode."""
+import functools
+
 from pqcscan.core.srcstrip import strip_noncode
 
 
@@ -141,8 +143,6 @@ def test_kotlin_raw_string_has_no_escapes():
 
 
 def test_text_block_quote_flood_strips_in_linear_time():
-    import time
-
     # 1 MiB Java file: an opener, 500 kB of quotes, then code-ish padding; plus an
     # unterminated block of 2-quote runs (the backtracking-prone shape).
     flood = '"""\n' + '"' * 500_000
@@ -150,10 +150,7 @@ def test_text_block_quote_flood_strips_in_linear_time():
     unterminated = '"""\n' + 'a""' * 300_000
     for lang in ("java", "kotlin"):
         for src in (flood, unterminated):
-            t0 = time.perf_counter()
-            out = strip_noncode(src, lang)
-            assert time.perf_counter() - t0 < 1.0
-            assert len(out) == len(src)
+            _assert_linear(src, lang)
 
 
 def test_plain_text_block_close_still_matches():
@@ -176,13 +173,32 @@ def test_oversize_input_is_not_stripped_and_noted():
     assert len(notes) == 1
 
 
-def _strip_seconds(src: str, lang: str) -> float:
+# A quadratic strip is slower than this by orders of magnitude at these sizes (17 s at 64 KiB for the escaped
+# triple-quote shape), while load and coverage tracing slow the crafted and the benign input alike.
+_LINEAR_FACTOR = 10
+
+
+def _best_seconds(src: str, lang: str, runs: int = 2) -> float:
     import time
 
-    t0 = time.perf_counter()
-    out = strip_noncode(src, lang)
-    assert len(out) == len(src)
-    return time.perf_counter() - t0
+    best = float("inf")
+    for _ in range(runs):
+        t0 = time.perf_counter()
+        out = strip_noncode(src, lang)
+        assert len(out) == len(src)
+        best = min(best, time.perf_counter() - t0)
+    return best
+
+
+@functools.cache
+def _benign_seconds(lang: str, size: int) -> float:
+    return _best_seconds('x = "' + "x" * (size - 7) + '"\n', lang)
+
+
+def _assert_linear(src: str, lang: str) -> None:
+    """The crafted `src` must cost at most a bounded multiple of one closed string literal of the same size."""
+    t_crafted, t_benign = _best_seconds(src, lang), _benign_seconds(lang, len(src))
+    assert t_crafted < _LINEAR_FACTOR * t_benign + 0.05, (lang, t_crafted, t_benign)
 
 
 def test_unterminated_quote_on_a_long_line_is_linear():
@@ -190,16 +206,16 @@ def test_unterminated_quote_on_a_long_line_is_linear():
     # scan used to retry at every quote (quadratic: ~10 s at 40 k characters).
     mib = 1 << 20
     for lang in ("go", "java", "kotlin", "rust", "csharp", "javascript", "php"):
-        assert _strip_seconds('x = "' + '\\"' * (mib // 2), lang) < 1.0, lang
+        _assert_linear('x = "' + '\\"' * (mib // 2), lang)
     for lang in ("javascript", "php"):
-        assert _strip_seconds("x = '" + "\\'" * (mib // 2), lang) < 1.0, lang
+        _assert_linear("x = '" + "\\'" * (mib // 2), lang)
 
 
 def test_unterminated_block_raw_and_verbatim_floods_are_linear():
     kib = 1 << 10
-    assert _strip_seconds("/* x " * (256 * kib // 5), "go") < 1.0
-    assert _strip_seconds('r#"' * (256 * kib // 3), "rust") < 1.0
-    assert _strip_seconds('@"' + 'x""' * (256 * kib // 3), "csharp") < 1.0
+    _assert_linear("/* x " * (256 * kib // 5), "go")
+    _assert_linear('r#"' * (256 * kib // 3), "rust")
+    _assert_linear('@"' + 'x""' * (256 * kib // 3), "csharp")
 
 
 def test_unterminated_quote_is_left_as_code_to_end_of_line_only():
@@ -235,13 +251,13 @@ def test_rust_raw_closer_needs_its_own_hash_count():
 
 def test_text_block_and_raw_string_floods_are_linear():
     mib = 1 << 20
-    assert _strip_seconds('"""\n' * (mib // 4), "java") < 1.0
-    assert _strip_seconds('"""\n' * (mib // 4), "kotlin") < 1.0
+    _assert_linear('"""\n' * (mib // 4), "java")
+    _assert_linear('"""\n' * (mib // 4), "kotlin")
     # openers inside a failed body (the """ of each escaped \""") used to rescan
     # to the end of input: 17 s at 64 KiB
-    assert _strip_seconds('"""\n' + '\\"""\n' * (256 * 1024 // 5), "java") < 1.0
+    _assert_linear('"""\n' + '\\"""\n' * (256 * 1024 // 5), "java")
     # descending hash counts, each unterminated
-    assert _strip_seconds("".join("r" + "#" * h + '"' for h in range(1400, 0, -1)), "rust") < 1.0
+    _assert_linear("".join("r" + "#" * h + '"' for h in range(1400, 0, -1)), "rust")
 
 
 def test_rust_well_formed_raw_after_unterminated_hashed_raw_is_blanked():
@@ -265,6 +281,6 @@ def test_no_lexer_for_c_ruby_swift():
 
 def test_python_triple_quote_floods_are_linear():
     mib = 1 << 20
-    assert _strip_seconds('"""' + '\\"""' * (mib // 4), "python") < 1.0
-    assert _strip_seconds("'''" + "\\'''" * (mib // 4), "python") < 1.0
-    assert _strip_seconds('x = "' + '\\"' * (mib // 2), "python") < 1.0
+    _assert_linear('"""' + '\\"""' * (mib // 4), "python")
+    _assert_linear("'''" + "\\'''" * (mib // 4), "python")
+    _assert_linear('x = "' + '\\"' * (mib // 2), "python")
