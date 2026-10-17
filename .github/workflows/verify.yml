@@ -57,8 +57,8 @@ jobs:
       - name: Pester 5
         shell: powershell
         run: |
-          Install-Module Pester -MinimumVersion 5.5.0 -Force -SkipPublisherCheck -Scope CurrentUser
-          Import-Module Pester -MinimumVersion 5.5.0
+          Install-Module Pester -RequiredVersion 5.7.1 -Force -SkipPublisherCheck -Scope CurrentUser
+          Import-Module Pester -RequiredVersion 5.7.1
           $c = New-PesterConfiguration
           $c.Run.Path = "packaging/fleet/windows-task.Tests.ps1"
           $c.Run.Exit = $true

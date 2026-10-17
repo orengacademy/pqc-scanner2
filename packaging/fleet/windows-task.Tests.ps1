@@ -200,6 +200,7 @@ Describe "windows-task.ps1 refuses a pre-planted junction" {
     It "refuses a junction at %ProgramData%\pqcscan that points at an existing folder, and writes nothing through it" {
         New-Item -ItemType Junction -Path $Data -Target $Target | Out-Null
         $r = Invoke-Installer
+        Write-Host "installer said: $($r.Output.Trim())"
         $r.ExitCode | Should -Not -Be 0
         $r.Output | Should -Match "already exists|reparse point"
         @(Get-ChildItem -LiteralPath $Target -Force).Count | Should -Be 0
@@ -215,6 +216,7 @@ Describe "windows-task.ps1 refuses a pre-planted junction" {
         Remove-Item -LiteralPath $dangling -Force                  # the junction now dangles
         try {
             $r = Invoke-Installer
+            Write-Host "installer said: $($r.Output.Trim())"
             $r.ExitCode | Should -Not -Be 0
             $r.Output | Should -Match "already exists|reparse point"
             Test-Path -LiteralPath (Join-Path $Data "agent.env") | Should -BeFalse
@@ -229,6 +231,7 @@ Describe "windows-task.ps1 refuses a pre-planted junction" {
     It "refuses a junction at %ProgramFiles%\pqcscan" {
         New-Item -ItemType Junction -Path $Bin -Target $Target | Out-Null
         $r = Invoke-Installer
+        Write-Host "installer said: $($r.Output.Trim())"
         $r.ExitCode | Should -Not -Be 0
         $r.Output | Should -Match "already exists|reparse point"
         @(Get-ChildItem -LiteralPath $Target -Force).Count | Should -Be 0
