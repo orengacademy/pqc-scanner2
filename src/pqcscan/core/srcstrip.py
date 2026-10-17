@@ -47,8 +47,11 @@ Known best-effort limitations (documented, acceptable for a regex MVP):
 from __future__ import annotations
 
 import re
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from functools import cache
+from pathlib import Path
+
+from pqcscan.core.types import Classification, Finding, Severity
 
 # --- Lexical building blocks -------------------------------------------------
 # Double-quoted string with backslash escapes, confined to a single line so an
@@ -79,10 +82,14 @@ _CSHARP_VERBATIM = r'@"(?:""|[^"])*"'
 # - Java 15+ text block: the opening """ must be followed by a line terminator;
 #   backslash escapes (incl. \""") never close; it closes on the final run of
 #   quotes, so a body ending in " is still inside.
-_JAVA_TEXT_BLOCK = r'"""[ \t\f]*\r?\n(?:\\[\s\S]|[^\\])*?"*"""'
-# - Kotlin / Scala raw string: no escapes; closes on a """ that is not followed
-#   by another quote ("""x"""" holds x").
-_RAW_TRIPLE = r'"""[\s\S]*?"""(?!")'
+# - Kotlin / Scala raw string: no escapes; also closes on the final quote run
+#   ("""x"""" holds x").
+# The body alternatives are disjoint (a quote is body only when it does not
+# start a """ run) and possessive (*+), so matching is linear: no input can
+# make the engine backtrack through the body. The closer is "*""" — the run of
+# quotes the body refused, however long.
+_JAVA_TEXT_BLOCK = r'"""[ \t\f]*\r?\n(?:[^"\\]|\\[\s\S]|"(?!""))*+"*"""'
+_RAW_TRIPLE = r'"""(?:[^"]|"(?!""))*+"*"""'
 
 # Per-language alternation members.  Order is immaterial for correctness (the
 # left-to-right scan disambiguates by start position; block vs line comments
@@ -96,6 +103,11 @@ _LANG_FORMS: dict[str, tuple[str, ...]] = {
     "rust": (_BLOCK, _LINE_SLASH, _RUST_RAW, _DQ, _CHAR),
     "csharp": (_BLOCK, _LINE_SLASH, _CSHARP_VERBATIM, _DQ, _CHAR),
 }
+
+
+# Larger inputs are not stripped (returned unchanged, fail-open toward false
+# positives, never toward missed calls): bounds the work per file.
+MAX_STRIP_CHARS = 2 * 1024 * 1024
 
 
 @cache
@@ -121,7 +133,7 @@ def strip_noncode(source: str, lang: str) -> str:
     """
     try:
         pattern = _pattern_for(lang)
-        if pattern is None:
+        if pattern is None or len(source) > MAX_STRIP_CHARS:
             return source
         chars = list(source)
         for match in pattern.finditer(source):
@@ -132,6 +144,21 @@ def strip_noncode(source: str, lang: str) -> str:
     except Exception:
         # Fail-open: never let stripping drop a real detection.
         return source
+
+
+def strip_for_scan(source: str, lang: str, *, probe_id: str, path: Path, emit: Callable[[Finding], None]) -> str:
+    """``strip_noncode`` for a probe: also emits an INFO note when ``source`` is
+    too large to strip, so the unstripped (noisier) scan is visible."""
+    if len(source) > MAX_STRIP_CHARS:
+        emit(Finding(
+            probe_id=probe_id,
+            algorithm="N/A",
+            classification=Classification.INFO,
+            severity=Severity.INFO,
+            title=f"{path.name}: over {MAX_STRIP_CHARS // (1024 * 1024)} MiB, scanned without comment/string stripping",
+            evidence={"path": str(path), "chars": len(source)},
+        ))
+    return strip_noncode(source, lang)
 
 
 def code_finditer(

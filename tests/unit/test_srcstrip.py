@@ -138,3 +138,39 @@ def test_kotlin_raw_string_has_no_escapes():
     src = 'val a = """C:\\path\\"""\nMessageDigest.getInstance("MD5")\n'
     out = strip_noncode(src, "kotlin")
     assert "MessageDigest" in out
+
+
+def test_text_block_quote_flood_strips_in_linear_time():
+    import time
+
+    # 1 MiB Java file: an opener, 500 kB of quotes, then code-ish padding; plus an
+    # unterminated block of 2-quote runs (the backtracking-prone shape).
+    flood = '"""\n' + '"' * 500_000
+    flood += "x" * ((1 << 20) - len(flood))
+    unterminated = '"""\n' + 'a""' * 300_000
+    for lang in ("java", "kotlin"):
+        for src in (flood, unterminated):
+            t0 = time.perf_counter()
+            out = strip_noncode(src, lang)
+            assert time.perf_counter() - t0 < 1.0
+            assert len(out) == len(src)
+
+
+def test_plain_text_block_close_still_matches():
+    for lang, src in (("java", 'a = """\n  md5 \n""";\nb();\n'), ("kotlin", 'a = """md5"""\nb()\n')):
+        out = strip_noncode(src, lang)
+        assert "md5" not in out and "b()" in out
+
+
+def test_oversize_input_is_not_stripped_and_noted():
+    from pathlib import Path
+
+    from pqcscan.core.srcstrip import MAX_STRIP_CHARS, strip_for_scan
+
+    src = "// md5\n" + "x" * MAX_STRIP_CHARS
+    notes: list = []
+    out = strip_for_scan(src, "java", probe_id="code.ts.java", path=Path("big.java"), emit=notes.append)
+    assert out == src
+    assert len(notes) == 1 and notes[0].evidence["chars"] == len(src)
+    assert strip_for_scan("// md5\n", "java", probe_id="p", path=Path("s.java"), emit=notes.append) == " " * 6 + "\n"
+    assert len(notes) == 1

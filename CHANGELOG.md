@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- The source stripper matches text blocks and raw strings in linear time (disjoint, possessive body), and skips
+  stripping for inputs over 2 MiB. Such a file is still scanned, unstripped, with an INFO note saying so.
 - OpenSSL-spelled suite names now get the same grade as their RFC spelling. The new OpenSSL branch above rated
   anonymous (`ADH-`/`AECDH-`), export, DES/3DES and CBC-with-SHA-1 suites (`AES128-SHA`, `ECDHE-RSA-AES128-SHA`)
   as `tinggi` or `info`; they are `sangat-tinggi`, as `TLS_..._CBC_SHA` already was. PSK, SRP and GOST suites follow
