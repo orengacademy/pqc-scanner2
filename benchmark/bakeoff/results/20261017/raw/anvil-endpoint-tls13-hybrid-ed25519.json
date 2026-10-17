@@ -1,0 +1,32 @@
+{
+ "end_time": "2026-10-17T13:25:54.541468589Z",
+ "results": [
+  {
+   "Tls": {
+    "addr": "127.0.0.1:42853",
+    "error": null,
+    "hybrid_algos": [
+     "X25519MLKEM768"
+    ],
+    "nonpqc_algos": [
+     "FFDHE2048",
+     "FFDHE3072",
+     "SECP384R1",
+     "SECP256R1",
+     "X25519",
+     "X448",
+     "SECP521R1"
+    ],
+    "pqc_algos": [],
+    "pqc_supported": true,
+    "targetspec": {
+     "host": "127.0.0.1",
+     "port": 42853
+    }
+   }
+  }
+ ],
+ "scan_type": "Tls",
+ "start_time": "2026-10-17T13:25:54.382877048Z",
+ "version": "0.8.0"
+}

@@ -1,0 +1,6 @@
+# Sidecar for tools that cannot take a custom port (QuantaSeek dials <target>:443 whatever the target says).
+# It listens on 127.0.0.1:443 inside a private network namespace and relays to a unix socket that the
+# host bridges to one loopback TLS endpoint. Not a scanner; built from the distro socat package.
+FROM alpine:3
+RUN apk add --no-cache socat
+ENTRYPOINT ["socat"]

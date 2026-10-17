@@ -1,0 +1,248 @@
+{
+ "adaptive_fingerprinting": false,
+ "analysis": {
+  "cipher_suite": "Unknown(0xc02f)",
+  "classical_fallback_available": true,
+  "hybrid_detected": false,
+  "key_exchange": "",
+  "pqc_detected": false,
+  "pqc_extensions": [],
+  "pqc_key_exchange": [],
+  "pqc_public_key_algorithms": [],
+  "pqc_signature_algorithm": null,
+  "pqc_signature_algorithms": [],
+  "pqc_signature_status": "Not applicable (TLS 1.2)",
+  "pqc_signature_used": false,
+  "security_features": [
+   "TLS 1.2"
+  ],
+  "security_level": "Classical",
+  "server_endpoint_fingerprint": null,
+  "signature_negotiation_status": "NotApplicable",
+  "tls_version": "TLS 1.2"
+ },
+ "certificate": {
+  "algorithm_consistency": true,
+  "certificate_length_estimate": 718,
+  "issuer": "endpoint-tls12-ecdhe.test",
+  "key_size": 2096,
+  "public_key_algorithm": "RSA",
+  "san": null,
+  "signature_algorithm": "RSA-SHA256",
+  "signature_algorithm_oid": "1.2.840.113549.1.1.11",
+  "subject": "endpoint-tls12-ecdhe.test",
+  "valid_from": "Mon, 01 Jan 2024 00:00:00 +0000",
+  "valid_to": "Wed, 08 Dec 2123 00:00:00 +0000"
+ },
+ "certificate_visible": true,
+ "cipher_suite": "Unknown(0xc02f)",
+ "client_profile_used": "Fallback",
+ "connection_type": "tls",
+ "experimental_quic_only_domain": false,
+ "extension_map": {
+  "alpn_protocols": [],
+  "early_data": false,
+  "key_share": false,
+  "ocsp_stapling": false,
+  "pre_shared_key": false,
+  "psk_key_exchange_modes": false,
+  "session_ticket": false,
+  "signature_algorithms": true,
+  "supported_versions": false
+ },
+ "fallback": {
+  "attempted_profiles": [],
+  "attempts_count": 0,
+  "enabled": true,
+  "fallback_penalty_ms": null,
+  "tls12_fallback": {
+   "attempted_for_certificate": false,
+   "enabled": true,
+   "used": true
+  },
+  "used": false
+ },
+ "handshake_complete": true,
+ "handshake_duration_ms": 64,
+ "is_experimental_server": false,
+ "key_exchange": [],
+ "performance_analysis": {
+  "handshake_timing": {
+   "benchmark": {
+    "acceptable": "400-800ms",
+    "excellent": "< 200ms",
+    "good": "200-400ms",
+    "slow": "800-1500ms",
+    "very_slow": "> 1500ms"
+   },
+   "category": "excellent",
+   "duration_ms": 64,
+   "percentile": 95,
+   "slow_endpoint_alert": false,
+   "slow_endpoint_threshold_ms": 2000
+  },
+  "optimization_opportunities": [
+   "Session tickets not enabled - consider enabling for performance"
+  ],
+  "overhead_analysis": {
+   "baseline_ms": 150,
+   "certificate_overhead_ms": 40,
+   "network_overhead_ms": 0,
+   "overhead_share_percent": 62.5,
+   "overhead_vs_baseline_percent": -57.333333333333336,
+   "pqc_overhead_ms": 0
+  }
+ },
+ "pqc_detected": false,
+ "pqc_extensions": {
+  "kem": false,
+  "kem_group": false
+ },
+ "protocol_support": {
+  "detection_method": "standard_tls",
+  "http3": "unknown",
+  "quic": "unknown",
+  "tls": true
+ },
+ "raw_server_hello": [
+  2,
+  0,
+  0,
+  61,
+  3,
+  3,
+  22,
+  233,
+  255,
+  57,
+  228,
+  115,
+  4,
+  222,
+  2,
+  176,
+  136,
+  49,
+  141,
+  20,
+  182,
+  205,
+  127,
+  22,
+  49,
+  245,
+  91,
+  201,
+  208,
+  202,
+  4,
+  112,
+  164,
+  82,
+  112,
+  228,
+  154,
+  236,
+  0,
+  192,
+  47,
+  0,
+  0,
+  21,
+  255,
+  1,
+  0,
+  1,
+  0,
+  0,
+  11,
+  0,
+  4,
+  3,
+  0,
+  1,
+  2,
+  0,
+  35,
+  0,
+  0,
+  0,
+  23,
+  0,
+  0
+ ],
+ "security_score": {
+  "certificate": 75,
+  "details": {
+   "certificate_key_strength": 50,
+   "certificate_validation": 100,
+   "cipher_suite": 60,
+   "hybrid_security": 0,
+   "key_exchange": 0,
+   "pqc_algorithm": 0,
+   "pqc_implementation": 0,
+   "tls_version": 70
+  },
+  "formula": {
+   "certificate_method": "Certificate = (Validation(100) + KeyStrength(50)) / 2 = (100 + 50) / 2 = 75",
+   "classical_weights": "TLS: 50%, Certificate: 50%",
+   "overall_method": "Overall = 0.50\u00d7TLS(171) + 0.50\u00d7Certificate(75) = 0.50\u00d7171 + 0.50\u00d775 = 123",
+   "pqc_method": "PQC = (Algorithm(0) + Implementation(0) + Hybrid(0)) / 3 = (0 + 0 + 0) / 3 = 0",
+   "pqc_weights": "TLS: 30%, Certificate: 25%, PQC: 45%",
+   "tls_method": "TLS = Version(70)\u00d70.57 + Cipher(60)\u00d70.43 = 70\u00d70.57 + 60\u00d70.43 = 171 (KeyExchange: not analyzed)"
+  },
+  "overall": 123,
+  "pqc": 0,
+  "pqc_strength": {
+   "algorithms": [],
+   "nist_level": "None",
+   "overall_level": "No PQC configured",
+   "security_bits": 0
+  },
+  "tls": 171,
+  "weights": {
+   "certificate_component": {
+    "key_strength_percentage": 50,
+    "validation_percentage": 50
+   },
+   "overall_classical": {
+    "certificate_percentage": 50,
+    "pqc_percentage": 0,
+    "tls_percentage": 50
+   },
+   "overall_pqc": {
+    "certificate_percentage": 50,
+    "pqc_percentage": 0,
+    "tls_percentage": 50
+   },
+   "pqc_component": {
+    "algorithm_percentage": 33,
+    "hybrid_percentage": 34,
+    "implementation_percentage": 33
+   },
+   "tls_component": {
+    "cipher_percentage": 30,
+    "key_exchange_percentage": 30,
+    "version_percentage": 40
+   }
+  }
+ },
+ "security_warnings": [
+  {
+   "category": "Certificate Security",
+   "level": "warning",
+   "message": "Certificate component score is low: 75",
+   "recommendation": "Use strong, valid certificates with modern algorithms."
+  }
+ ],
+ "server_fingerprint": null,
+ "target": "127.0.0.1",
+ "tls_features": {
+  "alpn": [],
+  "early_data_status": "not_offered",
+  "ocsp_stapling": false,
+  "session_ticket": false
+ },
+ "tls_version": "1.2",
+ "total_scan_duration_ms": 107
+}

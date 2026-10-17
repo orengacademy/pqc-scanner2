@@ -1,0 +1,12 @@
+# anvilsecure/pqcscan (Rust; TLS + SSH, advertised-only). Pinned commit, built from source.
+FROM rust:1-slim AS build
+ARG COMMIT=fc74c8201e661de2f78e5cd98d14686164bab30f
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates build-essential pkg-config \
+    && apt-get clean
+RUN git clone https://github.com/anvilsecure/pqcscan /src && git -C /src checkout "$COMMIT"
+WORKDIR /src/pqcscan
+RUN cargo build --release --locked
+
+FROM debian:stable-slim
+COPY --from=build /src/target/release/pqcscan /usr/local/bin/anvil-pqcscan
+ENTRYPOINT ["anvil-pqcscan"]

@@ -1,0 +1,5241 @@
+{
+ "box": "Linux 7.0.0-38-generic, DO-Premium-Intel x8, docker 29.9.0",
+ "command": "PYTHONPATH=src .venv/bin/python benchmark/bakeoff/run_bakeoff.py --date 20261017",
+ "commit": "9e8ab72f798f3c1546e3c819df0089dc1338fc5c",
+ "date": "20261017",
+ "meta": {
+  "cli_crosscheck": {
+   "cert": {
+    "cli_keys": 16,
+    "cli_only": [],
+    "identical": true,
+    "inproc_keys": 16,
+    "inproc_only": []
+   },
+   "code": {
+    "cli_keys": 89,
+    "cli_only": [],
+    "identical": true,
+    "inproc_keys": 89,
+    "inproc_only": []
+   },
+   "tls": {
+    "cli_keys": 4,
+    "cli_only": [],
+    "identical": true,
+    "inproc_keys": 4,
+    "inproc_only": []
+   }
+  },
+  "errors": [],
+  "ports_skipped": [],
+  "versions": {
+   "anvil": "0.8.0",
+   "cryptoscan": "v1.4.1-0.20261016212122-22aad8a9a204",
+   "pqcscan": "0.10.2",
+   "quantaseek": "0.1.0",
+   "quantaseek-noverify": "0.1.0"
+  }
+ },
+ "negative_fixture_hits": {
+  "anvil": {
+   "findings": 0,
+   "fixtures": 0,
+   "of": 19
+  },
+  "cryptoscan": {
+   "findings": 13,
+   "fixtures": 12,
+   "of": 19
+  },
+  "pqcscan": {
+   "findings": 20,
+   "fixtures": 19,
+   "of": 19
+  },
+  "pqcscan code.ts.* only": {
+   "findings": 0,
+   "fixtures": 0,
+   "of": 19
+  },
+  "quantaseek": {
+   "findings": 0,
+   "fixtures": 0,
+   "of": 19
+  },
+  "quantaseek-noverify": {
+   "findings": 0,
+   "fixtures": 0,
+   "of": 19
+  }
+ },
+ "rows": {
+  "anvil": [
+   {
+    "algorithm": "X25519",
+    "detail": "anvil nonpqc_algos: key-exchange group accepted",
+    "pq_safe": false,
+    "source_tool": "anvil",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-x25519"
+   },
+   {
+    "algorithm": "X25519MLKEM768",
+    "detail": "anvil hybrid_algos: key-exchange group accepted",
+    "pq_safe": true,
+    "source_tool": "anvil",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-ed25519"
+   },
+   {
+    "algorithm": "FFDHE2048",
+    "detail": "anvil nonpqc_algos: key-exchange group accepted",
+    "pq_safe": false,
+    "source_tool": "anvil",
+    "strength_bits": 2048,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-ed25519"
+   },
+   {
+    "algorithm": "FFDHE3072",
+    "detail": "anvil nonpqc_algos: key-exchange group accepted",
+    "pq_safe": false,
+    "source_tool": "anvil",
+    "strength_bits": 3072,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-ed25519"
+   },
+   {
+    "algorithm": "SECP384R1",
+    "detail": "anvil nonpqc_algos: key-exchange group accepted",
+    "pq_safe": false,
+    "source_tool": "anvil",
+    "strength_bits": 384,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-ed25519"
+   },
+   {
+    "algorithm": "SECP256R1",
+    "detail": "anvil nonpqc_algos: key-exchange group accepted",
+    "pq_safe": false,
+    "source_tool": "anvil",
+    "strength_bits": 256,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-ed25519"
+   },
+   {
+    "algorithm": "X25519",
+    "detail": "anvil nonpqc_algos: key-exchange group accepted",
+    "pq_safe": false,
+    "source_tool": "anvil",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-ed25519"
+   },
+   {
+    "algorithm": "X448",
+    "detail": "anvil nonpqc_algos: key-exchange group accepted",
+    "pq_safe": false,
+    "source_tool": "anvil",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-ed25519"
+   },
+   {
+    "algorithm": "SECP521R1",
+    "detail": "anvil nonpqc_algos: key-exchange group accepted",
+    "pq_safe": false,
+    "source_tool": "anvil",
+    "strength_bits": 521,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-ed25519"
+   }
+  ],
+  "cryptoscan": [
+   {
+    "algorithm": "ECC",
+    "detail": "ECC-001-2-28: Elliptic Curve Cryptography (line 2, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "cert",
+    "target": "cert-ecdsa-p384-der/server.der"
+   },
+   {
+    "algorithm": "Ed25519",
+    "detail": "ECC-001-4-61: Elliptic Curve Cryptography (line 4, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "cert",
+    "target": "p12-ed25519-nopass/keystore.p12"
+   },
+   {
+    "algorithm": "X.509 Certificate",
+    "detail": "CERT-001-1-0: X.509 Certificate (line 1, UNKNOWN)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "cert",
+    "target": "cert-ecdsa-p256-pem/server.crt"
+   },
+   {
+    "algorithm": "X.509 Certificate",
+    "detail": "CERT-001-1-0: X.509 Certificate (line 1, UNKNOWN)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "cert",
+    "target": "cert-ed25519-pem/server.crt"
+   },
+   {
+    "algorithm": "X.509 Certificate",
+    "detail": "CERT-001-1-0: X.509 Certificate (line 1, UNKNOWN)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "cert",
+    "target": "cert-mldsa65/server.pem"
+   },
+   {
+    "algorithm": "X.509 Certificate",
+    "detail": "CERT-001-1-0: X.509 Certificate (line 1, UNKNOWN)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "cert",
+    "target": "cert-rsa1024/server.pem"
+   },
+   {
+    "algorithm": "X.509 Certificate",
+    "detail": "CERT-001-1-0: X.509 Certificate (line 1, UNKNOWN)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "cert",
+    "target": "cert-rsa2048-pem/server.crt"
+   },
+   {
+    "algorithm": "X.509 Certificate",
+    "detail": "CERT-001-1-0: X.509 Certificate (line 1, UNKNOWN)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "cert",
+    "target": "cert-rsa3072-pem/server.crt"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-4-9: MD5 Hash Function (line 4, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "go-string-md5/main.go"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-1-4: MD5 Hash Function (line 1, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "rust-md5-real/lib.rs"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-96-8: MD5 Hash Function (line 96, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-137-9: MD5 Hash Function (line 137, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "DES",
+    "detail": "DES-001-151-15: DES Algorithm (line 151, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "RSA",
+    "detail": "RSA-1024-34-21: RSA-1024 Key Size (line 34, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-83-17: MD5 Hash Function (line 83, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-84-11: MD5 Hash Function (line 84, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-4-39: MD5 Hash Function (line 4, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "cs-md5-real/Hash.cs"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-2-36: MD5 Hash Function (line 2, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "cs-string-md5/Hash.cs"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-2-34: MD5 Hash Function (line 2, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "cs-verbatim-md5/Hash.cs"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-6-6: MD5 Hash Function (line 6, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "go-md5-real/main.go"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-5-4: MD5 Hash Function (line 5, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "java-md5-real/A.java"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-3-27: MD5 Hash Function (line 3, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "java-string-md5/D.java"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-3-29: MD5 Hash Function (line 3, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "js-md5-real/app.js"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-1-33: MD5 Hash Function (line 1, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "js-string-md5/app.js"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-4-4: MD5 Hash Function (line 4, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "kt-md5-real/Hash.kt"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-2-4: MD5 Hash Function (line 2, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "kt-raw-string-md5/Hash.kt"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-1-22: MD5 Hash Function (line 1, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "kt-string-md5/Hash.kt"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-2-8: MD5 Hash Function (line 2, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "php-md5-real/index.php"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-2-9: MD5 Hash Function (line 2, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "php-string-md5/index.php"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-1-9: MD5 Hash Function (line 1, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "py-comment-md5/src.py"
+   },
+   {
+    "algorithm": "DES",
+    "detail": "DES-001-3-9: DES Algorithm (line 3, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "py-des-real/src.py"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-3-9: MD5 Hash Function (line 3, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "py-md5-real/src.py"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-1-13: MD5 Hash Function (line 1, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "py-string-md5/src.py"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-4-13: MD5 Hash Function (line 4, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "rust-md5-real/lib.rs"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-2-11: MD5 Hash Function (line 2, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "rust-raw-string-md5/lib.rs"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-2-18: MD5 Hash Function (line 2, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "rust-string-md5/lib.rs"
+   },
+   {
+    "algorithm": "RSA",
+    "detail": "RSA-001-42-24: RSA Algorithm (line 42, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "RSA",
+    "detail": "RSA-001-52-28: RSA Algorithm (line 52, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "ECC",
+    "detail": "ECC-001-59-26: Elliptic Curve Cryptography (line 59, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "Ed25519",
+    "detail": "ECC-001-65-27: Elliptic Curve Cryptography (line 65, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "Ed25519",
+    "detail": "ECC-001-70-32: Elliptic Curve Cryptography (line 70, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "Ed25519",
+    "detail": "ECC-001-75-29: Elliptic Curve Cryptography (line 75, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "Ed25519",
+    "detail": "ECC-001-231-24: Elliptic Curve Cryptography (line 231, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "ECC",
+    "detail": "ECC-001-233-24: Elliptic Curve Cryptography (line 233, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "RSA",
+    "detail": "RSA-001-12-54: RSA Algorithm (line 12, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "RSA",
+    "detail": "RSA-001-1-54: RSA Algorithm (line 1, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "py-rsa2048/src.py"
+   },
+   {
+    "algorithm": "RSA",
+    "detail": "RSA-001-1-4: RSA Algorithm (line 1, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "rust-rsa-real/lib.rs"
+   },
+   {
+    "algorithm": "RSA",
+    "detail": "RSA-001-28-64: RSA Algorithm (line 28, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "RSA",
+    "detail": "RSA-001-37-64: RSA Algorithm (line 37, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "ECC",
+    "detail": "ECC-001-48-50: Elliptic Curve Cryptography (line 48, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "SHA-1",
+    "detail": "SHA1-001-104-8: SHA-1 Hash Function (line 104, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "RSA",
+    "detail": "RSA-001-162-72: RSA Algorithm (line 162, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "RSA",
+    "detail": "RSA-001-44-20: RSA Algorithm (line 44, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "RSA",
+    "detail": "RSA-001-54-8: RSA Algorithm (line 54, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "ECC",
+    "detail": "ECC-001-60-8: Elliptic Curve Cryptography (line 60, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "Ed25519",
+    "detail": "ECC-001-66-8: Elliptic Curve Cryptography (line 66, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "Ed25519",
+    "detail": "ECC-001-71-8: Elliptic Curve Cryptography (line 71, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "Ed25519",
+    "detail": "ECC-001-76-8: Elliptic Curve Cryptography (line 76, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "SHA-1",
+    "detail": "SHA1-001-144-9: SHA-1 Hash Function (line 144, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "3DES",
+    "detail": "3DES-001-162-15: Triple DES Algorithm (line 162, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "RSA",
+    "detail": "RSA-001-24-16: RSA Algorithm (line 24, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "RSA",
+    "detail": "RSA-001-25-18: RSA Algorithm (line 25, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "RSA",
+    "detail": "RSA-001-34-21: RSA Algorithm (line 34, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "RSA",
+    "detail": "RSA-001-35-11: RSA Algorithm (line 35, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "ECC",
+    "detail": "ECC-001-43-16: Elliptic Curve Cryptography (line 43, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "ECC",
+    "detail": "ECC-001-44-38: Elliptic Curve Cryptography (line 44, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "Ed25519",
+    "detail": "ECC-001-48-16: Elliptic Curve Cryptography (line 48, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "Ed25519",
+    "detail": "ECC-001-49-11: Elliptic Curve Cryptography (line 49, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "Ed25519",
+    "detail": "ECC-001-53-17: Elliptic Curve Cryptography (line 53, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "SHA-1",
+    "detail": "SHA1-001-88-17: SHA-1 Hash Function (line 88, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "SHA-1",
+    "detail": "SHA1-001-89-11: SHA-1 Hash Function (line 89, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "3DES",
+    "detail": "3DES-001-95-31: Triple DES Algorithm (line 95, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "Ed25519",
+    "detail": "ECC-001-127-22: Elliptic Curve Cryptography (line 127, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "ECC",
+    "detail": "ECC-001-129-24: Elliptic Curve Cryptography (line 129, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "RSA",
+    "detail": "RSA-001-136-62: RSA Algorithm (line 136, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "ECC",
+    "detail": "ECC-001-13-41: Elliptic Curve Cryptography (line 13, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "ECC",
+    "detail": "ECC-001-104-8: Elliptic Curve Cryptography (line 104, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "RSA",
+    "detail": "RSA-001-4-4: RSA Algorithm (line 4, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "cs-rsa-real/Keys.cs"
+   },
+   {
+    "algorithm": "RSA",
+    "detail": "RSA-001-2-51: RSA Algorithm (line 2, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "cs-verbatim-md5/Hash.cs"
+   },
+   {
+    "algorithm": "RSA",
+    "detail": "RSA-001-4-42: RSA Algorithm (line 4, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "kt-rsa-real/Keys.kt"
+   },
+   {
+    "algorithm": "ECC",
+    "detail": "ECC-001-3-33: Elliptic Curve Cryptography (line 3, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "py-ec-real/src.py"
+   },
+   {
+    "algorithm": "RSA",
+    "detail": "RSA-001-3-6: RSA Algorithm (line 3, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "py-rsa2048/src.py"
+   },
+   {
+    "algorithm": "SHA-1",
+    "detail": "SHA1-001-3-10: SHA-1 Hash Function (line 3, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "py-sha1-alias/src.py"
+   },
+   {
+    "algorithm": "DES",
+    "detail": "DES-001-121-44: DES Algorithm (line 121, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-21-9: MD5 Hash Function (line 21, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "MD5-001-3-15: MD5 Hash Function (line 3, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "go-md5-real/main.go"
+   },
+   {
+    "algorithm": "ECC",
+    "detail": "ECC-001-18-9: Elliptic Curve Cryptography (line 18, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "Ed25519",
+    "detail": "ECC-001-19-9: Elliptic Curve Cryptography (line 19, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "RSA",
+    "detail": "RSA-001-23-9: RSA Algorithm (line 23, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "SHA-1",
+    "detail": "SHA1-001-24-9: SHA-1 Hash Function (line 24, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "ECC",
+    "detail": "ECC-001-106-23: Elliptic Curve Cryptography (line 106, VULNERABLE)",
+    "pq_safe": false,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "AES",
+    "detail": "AES-001-232-24: AES Algorithm (line 232, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "HKDF",
+    "detail": "KDF-HKDF-001-56-40: HKDF (line 56, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "SHA2-001-1-19: SHA-2 Hash Function (line 1, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "rust-clean-sha256/lib.rs"
+   },
+   {
+    "algorithm": "AES",
+    "detail": "AES-001-70-72: AES Algorithm (line 70, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "AES",
+    "detail": "AES-001-83-56: AES Algorithm (line 83, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "SHA2-001-133-8: SHA-2 Hash Function (line 133, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "SHA-512",
+    "detail": "SHA2-001-141-8: SHA-2 Hash Function (line 141, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": 512,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "AES",
+    "detail": "AES-001-87-15: AES Algorithm (line 87, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "AES",
+    "detail": "AES-001-107-15: AES Algorithm (line 107, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "ChaCha20-Poly1305",
+    "detail": "SYM-CHACHA-001-117-14: ChaCha20-Poly1305 (line 117, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "SHA2-001-176-9: SHA-2 Hash Function (line 176, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "SHA-512",
+    "detail": "SHA2-001-182-9: SHA-2 Hash Function (line 182, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": 512,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "bcrypt",
+    "detail": "KDF-BCRYPT-001-188-14: bcrypt (line 188, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "AES",
+    "detail": "AES-001-62-20: AES Algorithm (line 62, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "AES",
+    "detail": "AES-001-64-31: AES Algorithm (line 64, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "AES",
+    "detail": "AES-001-71-20: AES Algorithm (line 71, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "AES",
+    "detail": "AES-001-73-31: AES Algorithm (line 73, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "SHA2-001-105-17: SHA-2 Hash Function (line 105, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "SHA2-001-106-11: SHA-2 Hash Function (line 106, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "SHA-512",
+    "detail": "SHA2-001-110-17: SHA-2 Hash Function (line 110, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": 512,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "SHA-512",
+    "detail": "SHA2-001-111-11: SHA-2 Hash Function (line 111, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": 512,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "ChaCha20-Poly1305",
+    "detail": "SYM-CHACHA-001-36-42: ChaCha20-Poly1305 (line 36, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "Poly1305",
+    "detail": "MAC-POLY1305-001-36-51: Poly1305 (line 36, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "AES",
+    "detail": "AES-001-59-42: AES Algorithm (line 59, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "SHA2-001-95-44: SHA-2 Hash Function (line 95, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "SHA2-001-30-17: SHA-2 Hash Function (line 30, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "crypto-samples/macs_and_kdfs.go"
+   },
+   {
+    "algorithm": "SHA-512",
+    "detail": "SHA2-001-40-17: SHA-2 Hash Function (line 40, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": 512,
+    "surface": "code",
+    "target": "crypto-samples/macs_and_kdfs.go"
+   },
+   {
+    "algorithm": "HKDF",
+    "detail": "KDF-HKDF-001-82-15: HKDF (line 82, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/macs_and_kdfs.go"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "SHA2-001-82-24: SHA-2 Hash Function (line 82, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "crypto-samples/macs_and_kdfs.go"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "SHA2-001-94-51: SHA-2 Hash Function (line 94, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "crypto-samples/macs_and_kdfs.go"
+   },
+   {
+    "algorithm": "Argon2",
+    "detail": "KDF-ARGON2-001-103-8: Argon2 (line 103, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/macs_and_kdfs.go"
+   },
+   {
+    "algorithm": "bcrypt",
+    "detail": "KDF-BCRYPT-001-111-8: bcrypt (line 111, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/macs_and_kdfs.go"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "SHA2-001-4-39: SHA-2 Hash Function (line 4, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "cs-clean-sha256/Hash.cs"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "SHA2-001-6-6: SHA-2 Hash Function (line 6, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "go-clean-sha256/main.go"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "SHA2-001-3-29: SHA-2 Hash Function (line 3, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "js-clean-sha256/app.js"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "SHA2-001-4-4: SHA-2 Hash Function (line 4, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "kt-clean-sha256/Hash.kt"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "SHA2-001-3-9: SHA-2 Hash Function (line 3, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "py-clean-sha256/src.py"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "SHA2-001-4-13: SHA-2 Hash Function (line 4, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "rust-clean-sha256/lib.rs"
+   },
+   {
+    "algorithm": "Post-Quantum Crypto Library",
+    "detail": "PQC-LIB-001-5-21: Post-Quantum Crypto Library (line 5, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "Post-Quantum Crypto Library",
+    "detail": "PQC-LIB-001-7-5: Post-Quantum Crypto Library (line 7, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "ML-KEM",
+    "detail": "PQC-MLKEM-001-45-11: ML-KEM Key Encapsulation (line 45, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "AES",
+    "detail": "AES-001-71-44: AES Algorithm (line 71, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "AES",
+    "detail": "AES-001-15-9: AES Algorithm (line 15, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "SHA2-001-25-9: SHA-2 Hash Function (line 25, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "SHA-512",
+    "detail": "SHA2-001-26-9: SHA-2 Hash Function (line 26, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": 512,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "bcrypt",
+    "detail": "KDF-BCRYPT-001-31-22: bcrypt (line 31, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "ChaCha20-Poly1305",
+    "detail": "SYM-CHACHA-001-32-22: ChaCha20-Poly1305 (line 32, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "SHA2-001-11-9: SHA-2 Hash Function (line 11, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "crypto-samples/macs_and_kdfs.go"
+   },
+   {
+    "algorithm": "SHA-512",
+    "detail": "SHA2-001-12-9: SHA-2 Hash Function (line 12, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": 512,
+    "surface": "code",
+    "target": "crypto-samples/macs_and_kdfs.go"
+   },
+   {
+    "algorithm": "Argon2",
+    "detail": "KDF-ARGON2-001-14-22: Argon2 (line 14, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/macs_and_kdfs.go"
+   },
+   {
+    "algorithm": "bcrypt",
+    "detail": "KDF-BCRYPT-001-15-22: bcrypt (line 15, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/macs_and_kdfs.go"
+   },
+   {
+    "algorithm": "HKDF",
+    "detail": "KDF-HKDF-001-16-22: HKDF (line 16, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/macs_and_kdfs.go"
+   },
+   {
+    "algorithm": "PBKDF2",
+    "detail": "KDF-PBKDF2-001-17-22: PBKDF2 (line 17, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/macs_and_kdfs.go"
+   },
+   {
+    "algorithm": "PBKDF2",
+    "detail": "KDF-PBKDF2-001-94-8: PBKDF2 (line 94, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/macs_and_kdfs.go"
+   },
+   {
+    "algorithm": "HKDF",
+    "detail": "KDF-HKDF-001-55-25: HKDF (line 55, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "SHA2-001-3-15: SHA-2 Hash Function (line 3, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "go-clean-sha256/main.go"
+   },
+   {
+    "algorithm": "Hybrid-KEM",
+    "detail": "HYBRID-001-11-15: Hybrid Key Exchange (line 11, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "ML-KEM",
+    "detail": "PQC-MLKEM-001-17-10: ML-KEM Key Encapsulation (line 17, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "Post-Quantum Crypto Library",
+    "detail": "PQC-LIB-001-17-22: Post-Quantum Crypto Library (line 17, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "ML-KEM",
+    "detail": "PQC-MLKEM-001-18-25: ML-KEM Key Encapsulation (line 18, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "Post-Quantum Crypto Library",
+    "detail": "PQC-LIB-001-99-19: Post-Quantum Crypto Library (line 99, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "ML-DSA",
+    "detail": "PQC-MLDSA-001-99-19: ML-DSA Digital Signature (line 99, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "ML-DSA",
+    "detail": "PQC-MLDSA-001-105-8: ML-DSA Digital Signature (line 105, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "Hybrid-KEM",
+    "detail": "HYBRID-001-111-4: Hybrid Key Exchange (line 111, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "KMAC",
+    "detail": "MAC-KMAC-001-66-1: KMAC (line 66, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/macs_and_kdfs.go"
+   },
+   {
+    "algorithm": "KMAC",
+    "detail": "MAC-KMAC-001-67-1: KMAC (line 67, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/macs_and_kdfs.go"
+   },
+   {
+    "algorithm": "KMAC",
+    "detail": "MAC-KMAC-001-68-1: KMAC (line 68, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/macs_and_kdfs.go"
+   },
+   {
+    "algorithm": "Post-Quantum Crypto Library",
+    "detail": "PQC-LIB-001-10-6: Post-Quantum Crypto Library (line 10, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "ML-KEM",
+    "detail": "PQC-MLKEM-001-10-6: ML-KEM Key Encapsulation (line 10, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "Post-Quantum Crypto Library",
+    "detail": "PQC-LIB-001-15-12: Post-Quantum Crypto Library (line 15, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "ML-KEM",
+    "detail": "PQC-MLKEM-001-15-34: ML-KEM Key Encapsulation (line 15, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "Post-Quantum Crypto Library",
+    "detail": "PQC-LIB-001-22-6: Post-Quantum Crypto Library (line 22, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "ML-DSA",
+    "detail": "PQC-MLDSA-001-22-6: ML-DSA Digital Signature (line 22, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "Post-Quantum Crypto Library",
+    "detail": "PQC-LIB-001-28-16: Post-Quantum Crypto Library (line 28, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "ML-DSA",
+    "detail": "PQC-MLDSA-001-28-31: ML-DSA Digital Signature (line 28, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "Post-Quantum Crypto Library",
+    "detail": "PQC-LIB-001-35-10: Post-Quantum Crypto Library (line 35, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "SLH-DSA",
+    "detail": "PQC-SLHDSA-001-35-10: SLH-DSA Hash-Based Signature (line 35, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "Post-Quantum Crypto Library",
+    "detail": "PQC-LIB-001-38-14: Post-Quantum Crypto Library (line 38, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "SLH-DSA",
+    "detail": "PQC-SLHDSA-001-38-14: SLH-DSA Hash-Based Signature (line 38, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "ML-KEM",
+    "detail": "PQC-MLKEM-001-53-30: ML-KEM Key Encapsulation (line 53, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "Post-Quantum Crypto Library",
+    "detail": "PQC-LIB-001-63-11: Post-Quantum Crypto Library (line 63, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "XMSS",
+    "detail": "PQC-XMSS-001-63-26: XMSS Stateful Signature (line 63, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "LMS",
+    "detail": "PQC-LMS-001-66-0: LMS/HSS Stateful Signature (line 66, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "LMS",
+    "detail": "PQC-LMS-001-67-16: LMS/HSS Stateful Signature (line 67, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "TLS",
+    "detail": "TLS-002-80-17: TLS Configuration (line 80, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "TLS",
+    "detail": "TLS-002-81-17: TLS Configuration (line 81, PARTIAL)",
+    "pq_safe": null,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "ML-KEM",
+    "detail": "PQC-MLKEM-001-41-27: ML-KEM Key Encapsulation (line 41, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "Composite-Signature",
+    "detail": "HYBRID-SIG-001-106-15: Composite Digital Signature (line 106, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "ML-DSA",
+    "detail": "PQC-MLDSA-001-106-15: ML-DSA Digital Signature (line 106, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "ML-KEM",
+    "detail": "PQC-MLKEM-001-5-2: ML-KEM Key Encapsulation (line 5, SAFE)",
+    "pq_safe": true,
+    "source_tool": "cryptoscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   }
+  ],
+  "pqcscan": [
+   {
+    "algorithm": "TLS 1.0",
+    "detail": "net.tls.versions: 127.0.0.1:33935 accepts TLS 1.0 (broken/deprecated TLS version)",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls10-only"
+   },
+   {
+    "algorithm": "RSA-2048",
+    "detail": "net.tls.cert_chain: 127.0.0.1:33935 served-chain leaf cert: RSA-2048 signed with SHA256",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 2048,
+    "surface": "tls",
+    "target": "endpoint-tls10-only"
+   },
+   {
+    "algorithm": "ECDHE-RSA-AES256-SHA",
+    "detail": "net.tls.https: TLSv1.0 negotiated cipher ECDHE-RSA-AES256-SHA",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "tls",
+    "target": "endpoint-tls10-only"
+   },
+   {
+    "algorithm": "RSA-2048",
+    "detail": "net.tls.https: server cert uses RSA-2048",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 2048,
+    "surface": "tls",
+    "target": "endpoint-tls10-only"
+   },
+   {
+    "algorithm": "RSA-2048",
+    "detail": "net.tls.cert_chain: 127.0.0.1:34249 served-chain leaf cert: RSA-2048 signed with SHA256",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 2048,
+    "surface": "tls",
+    "target": "endpoint-rsa-kex-only"
+   },
+   {
+    "algorithm": "AES256-GCM-SHA384",
+    "detail": "net.tls.https: TLSv1.2 negotiated cipher AES256-GCM-SHA384",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "tls",
+    "target": "endpoint-rsa-kex-only"
+   },
+   {
+    "algorithm": "RSA-2048",
+    "detail": "net.tls.https: server cert uses RSA-2048",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 2048,
+    "surface": "tls",
+    "target": "endpoint-rsa-kex-only"
+   },
+   {
+    "algorithm": "NULL-SHA256",
+    "detail": "net.tls.https: TLSv1.2 negotiated cipher NULL-SHA256",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-null-cipher"
+   },
+   {
+    "algorithm": "RSA-2048",
+    "detail": "net.tls.https: server cert uses RSA-2048",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 2048,
+    "surface": "tls",
+    "target": "endpoint-null-cipher"
+   },
+   {
+    "algorithm": "RSA-2048",
+    "detail": "net.tls.cert_chain: 127.0.0.1:41885 served-chain leaf cert: RSA-2048 signed with SHA256",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 2048,
+    "surface": "tls",
+    "target": "endpoint-tls12-ecdhe"
+   },
+   {
+    "algorithm": "ECDHE-RSA-AES128-GCM-SHA256",
+    "detail": "net.tls.https: TLSv1.2 negotiated cipher ECDHE-RSA-AES128-GCM-SHA256",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 128,
+    "surface": "tls",
+    "target": "endpoint-tls12-ecdhe"
+   },
+   {
+    "algorithm": "RSA-2048",
+    "detail": "net.tls.https: server cert uses RSA-2048",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 2048,
+    "surface": "tls",
+    "target": "endpoint-tls12-ecdhe"
+   },
+   {
+    "algorithm": "RSA-2048",
+    "detail": "net.tls.cert_chain: 127.0.0.1:33529 served-chain leaf cert: RSA-2048 signed with SHA256",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 2048,
+    "surface": "tls",
+    "target": "endpoint-mtls-tls12"
+   },
+   {
+    "algorithm": "TLS 1.3",
+    "detail": "net.tls.versions: 127.0.0.1:45809 supports TLS 1.3 (PQC-capable transport available)",
+    "pq_safe": null,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-x25519"
+   },
+   {
+    "algorithm": "x25519",
+    "detail": "net.tls.kex_groups: 127.0.0.1:45809 selects classical key exchange (x25519) \u2014 harvest-now-decrypt-later exposed",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-x25519"
+   },
+   {
+    "algorithm": "ECDSA-SECP256R1",
+    "detail": "net.tls.cert_chain_tls13: 127.0.0.1:45809 TLS 1.3 served-chain leaf cert: ECDSA-secp256r1 signed with SHA256",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "tls",
+    "target": "endpoint-tls13-x25519"
+   },
+   {
+    "algorithm": "ECDSA-SHA256",
+    "detail": "net.tls.cert_chain_tls13: 127.0.0.1:45809 TLS 1.3 CertificateVerify signed with ecdsa_secp256r1_sha256",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-x25519"
+   },
+   {
+    "algorithm": "X25519",
+    "detail": "net.tls.pqc_handshake: server fell back to classical group X25519 at 127.0.0.1:45809",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-x25519"
+   },
+   {
+    "algorithm": "TLS_AES_256_GCM_SHA384",
+    "detail": "net.tls.https: TLSv1.3 negotiated cipher TLS_AES_256_GCM_SHA384",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "tls",
+    "target": "endpoint-tls13-x25519"
+   },
+   {
+    "algorithm": "ECDSA-secp256r1",
+    "detail": "net.tls.https: server cert uses ECDSA-secp256r1",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "tls",
+    "target": "endpoint-tls13-x25519"
+   },
+   {
+    "algorithm": "TLS 1.3",
+    "detail": "net.tls.versions: 127.0.0.1:42853 supports TLS 1.3 (PQC-capable transport available)",
+    "pq_safe": null,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-ed25519"
+   },
+   {
+    "algorithm": "X25519MLKEM768",
+    "detail": "net.tls.kex_groups: 127.0.0.1:42853 negotiates post-quantum hybrid key exchange (X25519MLKEM768)",
+    "pq_safe": true,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-ed25519"
+   },
+   {
+    "algorithm": "Ed25519",
+    "detail": "net.tls.cert_chain_tls13: 127.0.0.1:42853 TLS 1.3 served-chain leaf cert: Ed25519 signed with unknown",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-ed25519"
+   },
+   {
+    "algorithm": "Ed25519",
+    "detail": "net.tls.cert_chain_tls13: 127.0.0.1:42853 TLS 1.3 CertificateVerify signed with ed25519",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-ed25519"
+   },
+   {
+    "algorithm": "X25519MLKEM768",
+    "detail": "net.tls.pqc_handshake: PQC hybrid handshake succeeded at 127.0.0.1:42853 \u2014 X25519MLKEM768",
+    "pq_safe": true,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-ed25519"
+   },
+   {
+    "algorithm": "TLS_AES_256_GCM_SHA384",
+    "detail": "net.tls.https: TLSv1.3 negotiated cipher TLS_AES_256_GCM_SHA384",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-ed25519"
+   },
+   {
+    "algorithm": "Ed25519",
+    "detail": "net.tls.https: server cert uses Ed25519",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-ed25519"
+   },
+   {
+    "algorithm": "TLS 1.3",
+    "detail": "net.tls.versions: 127.0.0.1:45937 supports TLS 1.3 (PQC-capable transport available)",
+    "pq_safe": null,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-mldsa65"
+   },
+   {
+    "algorithm": "X25519MLKEM768",
+    "detail": "net.tls.kex_groups: 127.0.0.1:45937 negotiates post-quantum hybrid key exchange (X25519MLKEM768)",
+    "pq_safe": true,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-mldsa65"
+   },
+   {
+    "algorithm": "MLDSA65PUBLICKEY",
+    "detail": "net.tls.cert_chain_tls13: 127.0.0.1:45937 TLS 1.3 served-chain leaf cert: MLDSA65PublicKey signed with unknown",
+    "pq_safe": null,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-mldsa65"
+   },
+   {
+    "algorithm": "ML-DSA-65",
+    "detail": "net.tls.cert_chain_tls13: 127.0.0.1:45937 TLS 1.3 CertificateVerify signed with mldsa65",
+    "pq_safe": true,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-mldsa65"
+   },
+   {
+    "algorithm": "X25519MLKEM768",
+    "detail": "net.tls.pqc_handshake: PQC hybrid handshake succeeded at 127.0.0.1:45937 \u2014 X25519MLKEM768",
+    "pq_safe": true,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-mldsa65"
+   },
+   {
+    "algorithm": "TLS_AES_256_GCM_SHA384",
+    "detail": "net.tls.https: TLSv1.3 negotiated cipher TLS_AES_256_GCM_SHA384",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-mldsa65"
+   },
+   {
+    "algorithm": "MLDSA65PublicKey",
+    "detail": "net.tls.https: server cert uses MLDSA65PublicKey",
+    "pq_safe": true,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-mldsa65"
+   },
+   {
+    "algorithm": "RSA-4096",
+    "detail": "fs.cert.x509: server.der: RSA-4096",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 4096,
+    "surface": "cert",
+    "target": "cert-rsa4096-der/server.der"
+   },
+   {
+    "algorithm": "RSA-3072",
+    "detail": "fs.cert.x509: server.crt: RSA-3072",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 3072,
+    "surface": "cert",
+    "target": "cert-rsa3072-pem/server.crt"
+   },
+   {
+    "algorithm": "RSA-2048",
+    "detail": "fs.cert.x509: server.crt: RSA-2048",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 2048,
+    "surface": "cert",
+    "target": "cert-rsa2048-pem/server.crt"
+   },
+   {
+    "algorithm": "RSA-2048",
+    "detail": "fs.cert.x509: server.der: RSA-2048",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 2048,
+    "surface": "cert",
+    "target": "cert-rsa2048-der/server.der"
+   },
+   {
+    "algorithm": "RSA-1024",
+    "detail": "fs.cert.x509: server.pem: RSA-1024",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 1024,
+    "surface": "cert",
+    "target": "cert-rsa1024/server.pem"
+   },
+   {
+    "algorithm": "MLDSA65PublicKey",
+    "detail": "fs.cert.x509: server.der: MLDSA65PublicKey",
+    "pq_safe": true,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "cert",
+    "target": "cert-mldsa65-der/server.der"
+   },
+   {
+    "algorithm": "MLDSA65PublicKey",
+    "detail": "fs.cert.x509: server.pem: MLDSA65PublicKey",
+    "pq_safe": true,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "cert",
+    "target": "cert-mldsa65/server.pem"
+   },
+   {
+    "algorithm": "Ed25519",
+    "detail": "fs.cert.x509: server.crt: Ed25519",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "cert",
+    "target": "cert-ed25519-pem/server.crt"
+   },
+   {
+    "algorithm": "Ed25519",
+    "detail": "fs.cert.x509: server.der: Ed25519",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "cert",
+    "target": "cert-ed25519-der/server.der"
+   },
+   {
+    "algorithm": "ECDSA-secp384r1",
+    "detail": "fs.cert.x509: server.der: ECDSA-secp384r1",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 384,
+    "surface": "cert",
+    "target": "cert-ecdsa-p384-der/server.der"
+   },
+   {
+    "algorithm": "ECDSA-secp256r1",
+    "detail": "fs.cert.x509: server.crt: ECDSA-secp256r1",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "cert",
+    "target": "cert-ecdsa-p256-pem/server.crt"
+   },
+   {
+    "algorithm": "ML-DSA-65",
+    "detail": "fs.cert.pqc_x509: PQC cert at <root>/cert-mldsa65/server.pem \u2014 ML-DSA-65",
+    "pq_safe": true,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "cert",
+    "target": "cert-mldsa65/server.pem"
+   },
+   {
+    "algorithm": "ML-DSA-65",
+    "detail": "fs.cert.pqc_x509: PQC cert at <root>/cert-mldsa65-der/server.der \u2014 ML-DSA-65",
+    "pq_safe": true,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "cert",
+    "target": "cert-mldsa65-der/server.der"
+   },
+   {
+    "algorithm": "RSA-2048",
+    "detail": "fs.keystore.pkcs12: truststore.p12: certificate RSA-2048 (CN=truststore-rsa-ca.example)",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 2048,
+    "surface": "cert",
+    "target": "p12-truststore-rsa2048/truststore.p12"
+   },
+   {
+    "algorithm": "MLDSA65PublicKey",
+    "detail": "fs.keystore.pkcs12: truststore.p12: certificate MLDSA65PublicKey (CN=truststore-mldsa.example)",
+    "pq_safe": true,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "cert",
+    "target": "p12-truststore-mldsa65/truststore.p12"
+   },
+   {
+    "algorithm": "RSA-2048",
+    "detail": "fs.keystore.pkcs12: keystore.p12: private key RSA-2048",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 2048,
+    "surface": "cert",
+    "target": "p12-rsa2048-changeit/keystore.p12"
+   },
+   {
+    "algorithm": "SHA256",
+    "detail": "fs.keystore.pkcs12: keystore.p12: leaf certificate signature SHA256",
+    "pq_safe": null,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "cert",
+    "target": "p12-rsa2048-changeit/keystore.p12"
+   },
+   {
+    "algorithm": "Ed25519",
+    "detail": "fs.keystore.pkcs12: keystore.p12: private key Ed25519",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "cert",
+    "target": "p12-ed25519-nopass/keystore.p12"
+   },
+   {
+    "algorithm": "RSA",
+    "detail": "code.ts.python: RSA key generation (non-literal key_size) in <root>/crypto-samples/crypto_samples.py:25",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "RSA-1024",
+    "detail": "code.ts.python: RSA key generation, key_size=1024 in <root>/crypto-samples/crypto_samples.py:35",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 1024,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "EC-SECP256R1",
+    "detail": "code.ts.python: classical EC key generation (EC-SECP256R1) \u2014 quantum-vulnerable in <root>/crypto-samples/crypto_samples.py:44",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "AES-CBC",
+    "detail": "code.ts.python: AES-CBC mode via modes.CBC() (prefer AES-GCM) in <root>/crypto-samples/crypto_samples.py:73",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "3DES",
+    "detail": "code.ts.python: 3DES cipher via algorithms.TripleDES() in <root>/crypto-samples/crypto_samples.py:95",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "AES-CBC",
+    "detail": "code.ts.python: AES-CBC mode via modes.CBC() (prefer AES-GCM) in <root>/crypto-samples/crypto_samples.py:95",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.ts.python: MD5 weak hash via hashlib.md5() in <root>/crypto-samples/crypto_samples.py:84",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "SHA1",
+    "detail": "code.ts.python: SHA1 weak hash via hashlib.sha1() in <root>/crypto-samples/crypto_samples.py:89",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "SHA1",
+    "detail": "code.ts.python: SHA1 weak hash via hashlib.sha1() in <root>/py-sha1-alias/src.py:3",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "py-sha1-alias/src.py"
+   },
+   {
+    "algorithm": "RSA-2048",
+    "detail": "code.ts.python: RSA key generation, key_size=2048 in <root>/py-rsa2048/src.py:3",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 2048,
+    "surface": "code",
+    "target": "py-rsa2048/src.py"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.ts.python: MD5 weak hash via hashlib.md5() in <root>/py-md5-real/src.py:3",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "py-md5-real/src.py"
+   },
+   {
+    "algorithm": "EC-SECP256R1",
+    "detail": "code.ts.python: classical EC key generation (EC-SECP256R1) \u2014 quantum-vulnerable in <root>/py-ec-real/src.py:3",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "py-ec-real/src.py"
+   },
+   {
+    "algorithm": "DES",
+    "detail": "code.ts.python: DES cipher via DES.new() in <root>/py-des-real/src.py:3",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "py-des-real/src.py"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.ts.javascript: MD5 via crypto.createHash in <root>/js-md5-real/app.js:3",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "js-md5-real/app.js"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.ts.go: MD5 via md5.New/Sum in <root>/crypto-samples/crypto_samples.go:137",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "SHA1",
+    "detail": "code.ts.go: SHA1 via sha1.New/Sum in <root>/crypto-samples/crypto_samples.go:144",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "DES",
+    "detail": "code.ts.go: DES cipher in <root>/crypto-samples/crypto_samples.go:151",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "RSA-2048",
+    "detail": "code.ts.go: rsa.GenerateKey(2048) in <root>/crypto-samples/crypto_samples.go:44",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 2048,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "RSA-1024",
+    "detail": "code.ts.go: rsa.GenerateKey(1024) in <root>/crypto-samples/crypto_samples.go:54",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 1024,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.ts.go: MD5 via md5.New/Sum in <root>/go-md5-real/main.go:6",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "go-md5-real/main.go"
+   },
+   {
+    "algorithm": "X25519",
+    "detail": "code.crypto_primitives: X25519 primitive in <root>/crypto-samples/pqc_algorithms.py:44",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "ML-KEM",
+    "detail": "code.crypto_primitives: ML-KEM primitive in <root>/crypto-samples/pqc_algorithms.py:5",
+    "pq_safe": true,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "ML-DSA",
+    "detail": "code.crypto_primitives: ML-DSA primitive in <root>/crypto-samples/pqc_algorithms.py:18",
+    "pq_safe": true,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "SLH-DSA",
+    "detail": "code.crypto_primitives: SLH-DSA primitive in <root>/crypto-samples/pqc_algorithms.py:31",
+    "pq_safe": true,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "liboqs/pqcrypto",
+    "detail": "code.crypto_primitives: liboqs/pqcrypto primitive in <root>/crypto-samples/pqc_algorithms.py:7",
+    "pq_safe": true,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/pqc_algorithms.py"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "code.crypto_primitives: SHA-256 primitive in <root>/crypto-samples/macs_and_kdfs.go:11",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "crypto-samples/macs_and_kdfs.go"
+   },
+   {
+    "algorithm": "P-256 (secp256r1)",
+    "detail": "code.crypto_primitives: P-256 (secp256r1) primitive in <root>/crypto-samples/hybrid_crypto.js:13",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "X25519",
+    "detail": "code.crypto_primitives: X25519 primitive in <root>/crypto-samples/hybrid_crypto.js:83",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "AES-256-GCM",
+    "detail": "code.crypto_primitives: AES-256-GCM primitive in <root>/crypto-samples/hybrid_crypto.js:53",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "AES-GCM",
+    "detail": "code.crypto_primitives: AES-GCM primitive in <root>/crypto-samples/hybrid_crypto.js:53",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "ChaCha20",
+    "detail": "code.crypto_primitives: ChaCha20 primitive in <root>/crypto-samples/hybrid_crypto.js:30",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "code.crypto_primitives: SHA-256 primitive in <root>/crypto-samples/hybrid_crypto.js:95",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "ML-KEM",
+    "detail": "code.crypto_primitives: ML-KEM primitive in <root>/crypto-samples/hybrid_crypto.js:16",
+    "pq_safe": true,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "ML-DSA",
+    "detail": "code.crypto_primitives: ML-DSA primitive in <root>/crypto-samples/hybrid_crypto.js:92",
+    "pq_safe": true,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "liboqs/pqcrypto",
+    "detail": "code.crypto_primitives: liboqs/pqcrypto primitive in <root>/crypto-samples/hybrid_crypto.js:5",
+    "pq_safe": true,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/hybrid_crypto.js"
+   },
+   {
+    "algorithm": "P-256 (secp256r1)",
+    "detail": "code.crypto_primitives: P-256 (secp256r1) primitive in <root>/crypto-samples/crypto_samples.py:44",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "Ed25519",
+    "detail": "code.crypto_primitives: Ed25519 primitive in <root>/crypto-samples/crypto_samples.py:12",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "AES-256-GCM",
+    "detail": "code.crypto_primitives: AES-256-GCM primitive in <root>/crypto-samples/crypto_samples.py:61",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "AES-GCM",
+    "detail": "code.crypto_primitives: AES-GCM primitive in <root>/crypto-samples/crypto_samples.py:61",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "3DES",
+    "detail": "code.crypto_primitives: 3DES primitive in <root>/crypto-samples/crypto_samples.py:95",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/crypto-samples/crypto_samples.py:83",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "SHA-1",
+    "detail": "code.crypto_primitives: SHA-1 primitive in <root>/crypto-samples/crypto_samples.py:88",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "code.crypto_primitives: SHA-256 primitive in <root>/crypto-samples/crypto_samples.py:105",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "RSA-2048",
+    "detail": "code.crypto_primitives: RSA-2048 primitive in <root>/crypto-samples/crypto_samples.py:34",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 2048,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.py"
+   },
+   {
+    "algorithm": "Ed25519",
+    "detail": "code.crypto_primitives: Ed25519 primitive in <root>/crypto-samples/crypto_samples.go:19",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "AES-256-GCM",
+    "detail": "code.crypto_primitives: AES-256-GCM primitive in <root>/crypto-samples/crypto_samples.go:84",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "AES-GCM",
+    "detail": "code.crypto_primitives: AES-GCM primitive in <root>/crypto-samples/crypto_samples.go:84",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "AES-CBC",
+    "detail": "code.crypto_primitives: AES-CBC primitive in <root>/crypto-samples/crypto_samples.go:212",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "ChaCha20",
+    "detail": "code.crypto_primitives: ChaCha20 primitive in <root>/crypto-samples/crypto_samples.go:115",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "3DES",
+    "detail": "code.crypto_primitives: 3DES primitive in <root>/crypto-samples/crypto_samples.go:148",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/crypto-samples/crypto_samples.go:21",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "SHA-1",
+    "detail": "code.crypto_primitives: SHA-1 primitive in <root>/crypto-samples/crypto_samples.go:24",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "code.crypto_primitives: SHA-256 primitive in <root>/crypto-samples/crypto_samples.go:25",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "ML-KEM",
+    "detail": "code.crypto_primitives: ML-KEM primitive in <root>/crypto-samples/crypto_samples.go:41",
+    "pq_safe": true,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "ML-DSA",
+    "detail": "code.crypto_primitives: ML-DSA primitive in <root>/crypto-samples/crypto_samples.go:58",
+    "pq_safe": true,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "RSA-2048",
+    "detail": "code.crypto_primitives: RSA-2048 primitive in <root>/crypto-samples/crypto_samples.go:43",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 2048,
+    "surface": "code",
+    "target": "crypto-samples/crypto_samples.go"
+   },
+   {
+    "algorithm": "P-256 (secp256r1)",
+    "detail": "code.crypto_primitives: P-256 (secp256r1) primitive in <root>/crypto-samples/CryptoSamples.java:48",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "AES-256-GCM",
+    "detail": "code.crypto_primitives: AES-256-GCM primitive in <root>/crypto-samples/CryptoSamples.java:67",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "AES-GCM",
+    "detail": "code.crypto_primitives: AES-GCM primitive in <root>/crypto-samples/CryptoSamples.java:9",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "3DES",
+    "detail": "code.crypto_primitives: 3DES primitive in <root>/crypto-samples/CryptoSamples.java:111",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/crypto-samples/CryptoSamples.java:93",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "SHA-1",
+    "detail": "code.crypto_primitives: SHA-1 primitive in <root>/crypto-samples/CryptoSamples.java:101",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "code.crypto_primitives: SHA-256 primitive in <root>/crypto-samples/CryptoSamples.java:130",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "ML-KEM",
+    "detail": "code.crypto_primitives: ML-KEM primitive in <root>/crypto-samples/CryptoSamples.java:25",
+    "pq_safe": true,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "ML-DSA",
+    "detail": "code.crypto_primitives: ML-DSA primitive in <root>/crypto-samples/CryptoSamples.java:44",
+    "pq_safe": true,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "RSA-2048",
+    "detail": "code.crypto_primitives: RSA-2048 primitive in <root>/crypto-samples/CryptoSamples.java:34",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 2048,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/rust-string-md5/lib.rs:2",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "rust-string-md5/lib.rs"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/rust-raw-string-md5/lib.rs:2",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "rust-raw-string-md5/lib.rs"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/rust-md5-real/lib.rs:1",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "rust-md5-real/lib.rs"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/rust-comment-md5/lib.rs:2",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "rust-comment-md5/lib.rs"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "code.crypto_primitives: SHA-256 primitive in <root>/rust-clean-sha256/lib.rs:1",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "rust-clean-sha256/lib.rs"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/py-string-md5/src.py:1",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "py-string-md5/src.py"
+   },
+   {
+    "algorithm": "SHA-1",
+    "detail": "code.crypto_primitives: SHA-1 primitive in <root>/py-sha1-alias/src.py:3",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "py-sha1-alias/src.py"
+   },
+   {
+    "algorithm": "RSA-2048",
+    "detail": "code.crypto_primitives: RSA-2048 primitive in <root>/py-rsa2048/src.py:3",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 2048,
+    "surface": "code",
+    "target": "py-rsa2048/src.py"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/py-md5-real/src.py:3",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "py-md5-real/src.py"
+   },
+   {
+    "algorithm": "P-256 (secp256r1)",
+    "detail": "code.crypto_primitives: P-256 (secp256r1) primitive in <root>/py-ec-real/src.py:3",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "py-ec-real/src.py"
+   },
+   {
+    "algorithm": "AES-ECB",
+    "detail": "code.crypto_primitives: AES-ECB primitive in <root>/py-des-real/src.py:3",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "py-des-real/src.py"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/py-comment-md5/src.py:1",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "py-comment-md5/src.py"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "code.crypto_primitives: SHA-256 primitive in <root>/py-clean-sha256/src.py:3",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "py-clean-sha256/src.py"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/php-string-md5/index.php:2",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "php-string-md5/index.php"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/php-md5-real/index.php:2",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "php-md5-real/index.php"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/php-comment-md5/index.php:2",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "php-comment-md5/index.php"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/kt-string-md5/Hash.kt:1",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "kt-string-md5/Hash.kt"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/kt-raw-string-md5/Hash.kt:2",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "kt-raw-string-md5/Hash.kt"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/kt-md5-real/Hash.kt:4",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "kt-md5-real/Hash.kt"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/kt-comment-md5/Hash.kt:2",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "kt-comment-md5/Hash.kt"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "code.crypto_primitives: SHA-256 primitive in <root>/kt-clean-sha256/Hash.kt:4",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "kt-clean-sha256/Hash.kt"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/js-string-md5/app.js:1",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "js-string-md5/app.js"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/js-md5-real/app.js:3",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "js-md5-real/app.js"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/js-comment-md5/app.js:2",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "js-comment-md5/app.js"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "code.crypto_primitives: SHA-256 primitive in <root>/js-clean-sha256/app.js:3",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "js-clean-sha256/app.js"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/java-string-md5/D.java:3",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "java-string-md5/D.java"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/java-md5-real/A.java:5",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "java-md5-real/A.java"
+   },
+   {
+    "algorithm": "AES-ECB",
+    "detail": "code.crypto_primitives: AES-ECB primitive in <root>/java-des-real/B.java:5",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "java-des-real/B.java"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/java-comment-md5/C.java:3",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "java-comment-md5/C.java"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/go-string-md5/main.go:4",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "go-string-md5/main.go"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/go-md5-real/main.go:3",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "go-md5-real/main.go"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/go-comment-md5/main.go:4",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "go-comment-md5/main.go"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "code.crypto_primitives: SHA-256 primitive in <root>/go-clean-sha256/main.go:3",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "go-clean-sha256/main.go"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/cs-verbatim-md5/Hash.cs:2",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "cs-verbatim-md5/Hash.cs"
+   },
+   {
+    "algorithm": "RSA-2048",
+    "detail": "code.crypto_primitives: RSA-2048 primitive in <root>/cs-verbatim-md5/Hash.cs:2",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 2048,
+    "surface": "code",
+    "target": "cs-verbatim-md5/Hash.cs"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/cs-string-md5/Hash.cs:2",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "cs-string-md5/Hash.cs"
+   },
+   {
+    "algorithm": "RSA-2048",
+    "detail": "code.crypto_primitives: RSA-2048 primitive in <root>/cs-rsa-real/Keys.cs:4",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 2048,
+    "surface": "code",
+    "target": "cs-rsa-real/Keys.cs"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/cs-md5-real/Hash.cs:4",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "cs-md5-real/Hash.cs"
+   },
+   {
+    "algorithm": "3DES",
+    "detail": "code.crypto_primitives: 3DES primitive in <root>/cs-des-real/Legacy.cs:4",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "cs-des-real/Legacy.cs"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.crypto_primitives: MD5 primitive in <root>/cs-comment-md5/Hash.cs:2",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "cs-comment-md5/Hash.cs"
+   },
+   {
+    "algorithm": "SHA-256",
+    "detail": "code.crypto_primitives: SHA-256 primitive in <root>/cs-clean-sha256/Hash.cs:4",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 256,
+    "surface": "code",
+    "target": "cs-clean-sha256/Hash.cs"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.ts.java: MessageDigest MD5 in <root>/crypto-samples/CryptoSamples.java:96",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "SHA-1",
+    "detail": "code.ts.java: MessageDigest SHA-1 in <root>/crypto-samples/CryptoSamples.java:104",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "DES/CBC/PKCS5Padding",
+    "detail": "code.ts.java: Cipher.getInstance('DES/CBC/PKCS5Padding') in <root>/crypto-samples/CryptoSamples.java:112",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "DESede/CBC/PKCS5Padding",
+    "detail": "code.ts.java: Cipher.getInstance('DESede/CBC/PKCS5Padding') in <root>/crypto-samples/CryptoSamples.java:121",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "RSA-2048",
+    "detail": "code.ts.java: KeyPairGenerator RSA initialize(2048) in <root>/crypto-samples/CryptoSamples.java:28",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 2048,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "RSA-1024",
+    "detail": "code.ts.java: KeyPairGenerator RSA initialize(1024) in <root>/crypto-samples/CryptoSamples.java:37",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 1024,
+    "surface": "code",
+    "target": "crypto-samples/CryptoSamples.java"
+   },
+   {
+    "algorithm": "RSA-2048",
+    "detail": "code.ts.java: KeyPairGenerator RSA initialize(2048) in <root>/kt-rsa-real/Keys.kt:4",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 2048,
+    "surface": "code",
+    "target": "kt-rsa-real/Keys.kt"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.ts.java: MessageDigest MD5 in <root>/kt-md5-real/Hash.kt:4",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "kt-md5-real/Hash.kt"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.ts.java: MessageDigest MD5 in <root>/java-md5-real/A.java:5",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "java-md5-real/A.java"
+   },
+   {
+    "algorithm": "DES/ECB/PKCS5Padding",
+    "detail": "code.ts.java: Cipher.getInstance('DES/ECB/PKCS5Padding') in <root>/java-des-real/B.java:5",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "java-des-real/B.java"
+   },
+   {
+    "algorithm": "RSA-2048",
+    "detail": "code.ts.csharp: RSA-2048 key generation in <root>/cs-rsa-real/Keys.cs:4",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 2048,
+    "surface": "code",
+    "target": "cs-rsa-real/Keys.cs"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.ts.csharp: weak hash MD5 in <root>/cs-md5-real/Hash.cs:4",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "cs-md5-real/Hash.cs"
+   },
+   {
+    "algorithm": "TRIPLEDES",
+    "detail": "code.ts.csharp: weak cipher TRIPLEDES in <root>/cs-des-real/Legacy.cs:4",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "cs-des-real/Legacy.cs"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.ts.php: MD5() built-in in <root>/php-md5-real/index.php:2",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "php-md5-real/index.php"
+   },
+   {
+    "algorithm": "RSA-2048",
+    "detail": "code.ts.rust: RsaPrivateKey::new(.., 2048) in <root>/rust-rsa-real/lib.rs:4",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": 2048,
+    "surface": "code",
+    "target": "rust-rsa-real/lib.rs"
+   },
+   {
+    "algorithm": "MD5",
+    "detail": "code.ts.rust: use md5 (weak hash crate) in <root>/rust-md5-real/lib.rs:1",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "rust-md5-real/lib.rs"
+   },
+   {
+    "algorithm": "DES",
+    "detail": "code.ts.rust: Des::new in <root>/rust-des-real/lib.rs:5",
+    "pq_safe": false,
+    "source_tool": "pqcscan",
+    "strength_bits": null,
+    "surface": "code",
+    "target": "rust-des-real/lib.rs"
+   }
+  ],
+  "quantaseek": [],
+  "quantaseek-noverify": [
+   {
+    "algorithm": "TLS 1.2",
+    "detail": "quantaseek tls_version",
+    "pq_safe": null,
+    "source_tool": "quantaseek-noverify",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls12-ecdhe"
+   },
+   {
+    "algorithm": "RSA",
+    "detail": "quantaseek certificate.public_key_algorithm",
+    "pq_safe": false,
+    "source_tool": "quantaseek-noverify",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls12-ecdhe"
+   },
+   {
+    "algorithm": "RSA-SHA256",
+    "detail": "quantaseek certificate.signature_algorithm",
+    "pq_safe": false,
+    "source_tool": "quantaseek-noverify",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls12-ecdhe"
+   },
+   {
+    "algorithm": "TLS 1.3",
+    "detail": "quantaseek tls_version",
+    "pq_safe": null,
+    "source_tool": "quantaseek-noverify",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-x25519"
+   },
+   {
+    "algorithm": "TLS13_AES_256_GCM_SHA384",
+    "detail": "quantaseek cipher_suite",
+    "pq_safe": null,
+    "source_tool": "quantaseek-noverify",
+    "strength_bits": 256,
+    "surface": "tls",
+    "target": "endpoint-tls13-x25519"
+   },
+   {
+    "algorithm": "X25519",
+    "detail": "quantaseek key_exchange",
+    "pq_safe": false,
+    "source_tool": "quantaseek-noverify",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-x25519"
+   },
+   {
+    "algorithm": "ECDSA",
+    "detail": "quantaseek certificate.public_key_algorithm",
+    "pq_safe": false,
+    "source_tool": "quantaseek-noverify",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-x25519"
+   },
+   {
+    "algorithm": "ECDSA-SHA256",
+    "detail": "quantaseek certificate.signature_algorithm",
+    "pq_safe": false,
+    "source_tool": "quantaseek-noverify",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-x25519"
+   },
+   {
+    "algorithm": "TLS 1.3",
+    "detail": "quantaseek tls_version",
+    "pq_safe": null,
+    "source_tool": "quantaseek-noverify",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-ed25519"
+   },
+   {
+    "algorithm": "TLS13_AES_256_GCM_SHA384",
+    "detail": "quantaseek cipher_suite",
+    "pq_safe": null,
+    "source_tool": "quantaseek-noverify",
+    "strength_bits": 256,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-ed25519"
+   },
+   {
+    "algorithm": "X25519ML-KEM-768",
+    "detail": "quantaseek key_exchange",
+    "pq_safe": true,
+    "source_tool": "quantaseek-noverify",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-ed25519"
+   },
+   {
+    "algorithm": "Ed25519",
+    "detail": "quantaseek certificate.public_key_algorithm",
+    "pq_safe": false,
+    "source_tool": "quantaseek-noverify",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-ed25519"
+   },
+   {
+    "algorithm": "Ed25519",
+    "detail": "quantaseek certificate.signature_algorithm",
+    "pq_safe": false,
+    "source_tool": "quantaseek-noverify",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-ed25519"
+   },
+   {
+    "algorithm": "TLS 1.3",
+    "detail": "quantaseek tls_version",
+    "pq_safe": null,
+    "source_tool": "quantaseek-noverify",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-mldsa65"
+   },
+   {
+    "algorithm": "TLS13_AES_256_GCM_SHA384",
+    "detail": "quantaseek cipher_suite",
+    "pq_safe": null,
+    "source_tool": "quantaseek-noverify",
+    "strength_bits": 256,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-mldsa65"
+   },
+   {
+    "algorithm": "X25519ML-KEM-768",
+    "detail": "quantaseek key_exchange",
+    "pq_safe": true,
+    "source_tool": "quantaseek-noverify",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-mldsa65"
+   },
+   {
+    "algorithm": "ML-DSA-65",
+    "detail": "quantaseek certificate.public_key_algorithm",
+    "pq_safe": true,
+    "source_tool": "quantaseek-noverify",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-mldsa65"
+   },
+   {
+    "algorithm": "ML-DSA-65",
+    "detail": "quantaseek certificate.signature_algorithm",
+    "pq_safe": true,
+    "source_tool": "quantaseek-noverify",
+    "strength_bits": null,
+    "surface": "tls",
+    "target": "endpoint-tls13-hybrid-mldsa65"
+   }
+  ]
+ },
+ "summary": {
+  "anvil": {
+   "by_target": {
+    "endpoint-mtls-tls12": {
+     "both": 0,
+     "pqcscan_only": 1,
+     "tool_only": 0
+    },
+    "endpoint-null-cipher": {
+     "both": 0,
+     "pqcscan_only": 2,
+     "tool_only": 0
+    },
+    "endpoint-rsa-kex-only": {
+     "both": 0,
+     "pqcscan_only": 2,
+     "tool_only": 0
+    },
+    "endpoint-tls10-only": {
+     "both": 0,
+     "pqcscan_only": 3,
+     "tool_only": 0
+    },
+    "endpoint-tls12-ecdhe": {
+     "both": 0,
+     "pqcscan_only": 2,
+     "tool_only": 0
+    },
+    "endpoint-tls13-hybrid-ed25519": {
+     "both": 1,
+     "pqcscan_only": 3,
+     "tool_only": 7
+    },
+    "endpoint-tls13-hybrid-mldsa65": {
+     "both": 0,
+     "pqcscan_only": 4,
+     "tool_only": 0
+    },
+    "endpoint-tls13-x25519": {
+     "both": 1,
+     "pqcscan_only": 4,
+     "tool_only": 0
+    }
+   },
+   "diff": {
+    "both": [
+     [
+      "endpoint-tls13-hybrid-ed25519",
+      "tls",
+      "x25519mlkem768"
+     ],
+     [
+      "endpoint-tls13-x25519",
+      "tls",
+      "x25519"
+     ]
+    ],
+    "pqcscan_only": [
+     [
+      "endpoint-mtls-tls12",
+      "tls",
+      "rsa"
+     ],
+     [
+      "endpoint-null-cipher",
+      "tls",
+      "null-sha256"
+     ],
+     [
+      "endpoint-null-cipher",
+      "tls",
+      "rsa"
+     ],
+     [
+      "endpoint-rsa-kex-only",
+      "tls",
+      "aes256-gcm-sha384"
+     ],
+     [
+      "endpoint-rsa-kex-only",
+      "tls",
+      "rsa"
+     ],
+     [
+      "endpoint-tls10-only",
+      "tls",
+      "ecdhe-rsa-aes256-sha"
+     ],
+     [
+      "endpoint-tls10-only",
+      "tls",
+      "rsa"
+     ],
+     [
+      "endpoint-tls10-only",
+      "tls",
+      "tls1.0"
+     ],
+     [
+      "endpoint-tls12-ecdhe",
+      "tls",
+      "ecdhe-rsa-aes128-gcm-sha256"
+     ],
+     [
+      "endpoint-tls12-ecdhe",
+      "tls",
+      "rsa"
+     ],
+     [
+      "endpoint-tls13-hybrid-ed25519",
+      "tls",
+      "ed25519"
+     ],
+     [
+      "endpoint-tls13-hybrid-ed25519",
+      "tls",
+      "tls1.3"
+     ],
+     [
+      "endpoint-tls13-hybrid-ed25519",
+      "tls",
+      "tls13-aes256-gcm-sha384"
+     ],
+     [
+      "endpoint-tls13-hybrid-mldsa65",
+      "tls",
+      "ml-dsa-65"
+     ],
+     [
+      "endpoint-tls13-hybrid-mldsa65",
+      "tls",
+      "tls1.3"
+     ],
+     [
+      "endpoint-tls13-hybrid-mldsa65",
+      "tls",
+      "tls13-aes256-gcm-sha384"
+     ],
+     [
+      "endpoint-tls13-hybrid-mldsa65",
+      "tls",
+      "x25519mlkem768"
+     ],
+     [
+      "endpoint-tls13-x25519",
+      "tls",
+      "ec"
+     ],
+     [
+      "endpoint-tls13-x25519",
+      "tls",
+      "ecdsasha256"
+     ],
+     [
+      "endpoint-tls13-x25519",
+      "tls",
+      "tls1.3"
+     ],
+     [
+      "endpoint-tls13-x25519",
+      "tls",
+      "tls13-aes256-gcm-sha384"
+     ]
+    ],
+    "tool_only": [
+     [
+      "endpoint-tls13-hybrid-ed25519",
+      "tls",
+      "ffdhe2048"
+     ],
+     [
+      "endpoint-tls13-hybrid-ed25519",
+      "tls",
+      "ffdhe3072"
+     ],
+     [
+      "endpoint-tls13-hybrid-ed25519",
+      "tls",
+      "secp256r1"
+     ],
+     [
+      "endpoint-tls13-hybrid-ed25519",
+      "tls",
+      "secp384r1"
+     ],
+     [
+      "endpoint-tls13-hybrid-ed25519",
+      "tls",
+      "secp521r1"
+     ],
+     [
+      "endpoint-tls13-hybrid-ed25519",
+      "tls",
+      "x25519"
+     ],
+     [
+      "endpoint-tls13-hybrid-ed25519",
+      "tls",
+      "x448"
+     ]
+    ]
+   },
+   "surfaces": [
+    "tls"
+   ],
+   "totals": {
+    "both": 2,
+    "pqcscan_only": 21,
+    "tool_only": 7
+   }
+  },
+  "cryptoscan": {
+   "by_target": {
+    "cert-ecdsa-p256-pem/server.crt": {
+     "both": 0,
+     "pqcscan_only": 1,
+     "tool_only": 1
+    },
+    "cert-ecdsa-p384-der/server.der": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "cert-ed25519-der/server.der": {
+     "both": 0,
+     "pqcscan_only": 1,
+     "tool_only": 0
+    },
+    "cert-ed25519-pem/server.crt": {
+     "both": 0,
+     "pqcscan_only": 1,
+     "tool_only": 1
+    },
+    "cert-mldsa65-der/server.der": {
+     "both": 0,
+     "pqcscan_only": 1,
+     "tool_only": 0
+    },
+    "cert-mldsa65/server.pem": {
+     "both": 0,
+     "pqcscan_only": 1,
+     "tool_only": 1
+    },
+    "cert-rsa1024/server.pem": {
+     "both": 0,
+     "pqcscan_only": 1,
+     "tool_only": 1
+    },
+    "cert-rsa2048-der/server.der": {
+     "both": 0,
+     "pqcscan_only": 1,
+     "tool_only": 0
+    },
+    "cert-rsa2048-pem/server.crt": {
+     "both": 0,
+     "pqcscan_only": 1,
+     "tool_only": 1
+    },
+    "cert-rsa3072-pem/server.crt": {
+     "both": 0,
+     "pqcscan_only": 1,
+     "tool_only": 1
+    },
+    "cert-rsa4096-der/server.der": {
+     "both": 0,
+     "pqcscan_only": 1,
+     "tool_only": 0
+    },
+    "crypto-samples/CryptoSamples.java": {
+     "both": 7,
+     "pqcscan_only": 3,
+     "tool_only": 1
+    },
+    "crypto-samples/crypto_samples.go": {
+     "both": 9,
+     "pqcscan_only": 2,
+     "tool_only": 4
+    },
+    "crypto-samples/crypto_samples.py": {
+     "both": 8,
+     "pqcscan_only": 0,
+     "tool_only": 1
+    },
+    "crypto-samples/hybrid_crypto.js": {
+     "both": 6,
+     "pqcscan_only": 2,
+     "tool_only": 5
+    },
+    "crypto-samples/macs_and_kdfs.go": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 6
+    },
+    "crypto-samples/pqc_algorithms.py": {
+     "both": 4,
+     "pqcscan_only": 1,
+     "tool_only": 3
+    },
+    "cs-clean-sha256/Hash.cs": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "cs-comment-md5/Hash.cs": {
+     "both": 0,
+     "pqcscan_only": 1,
+     "tool_only": 0
+    },
+    "cs-des-real/Legacy.cs": {
+     "both": 0,
+     "pqcscan_only": 1,
+     "tool_only": 0
+    },
+    "cs-md5-real/Hash.cs": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "cs-rsa-real/Keys.cs": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "cs-string-md5/Hash.cs": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "cs-verbatim-md5/Hash.cs": {
+     "both": 2,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "go-clean-sha256/main.go": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "go-comment-md5/main.go": {
+     "both": 0,
+     "pqcscan_only": 1,
+     "tool_only": 0
+    },
+    "go-md5-real/main.go": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "go-string-md5/main.go": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "java-comment-md5/C.java": {
+     "both": 0,
+     "pqcscan_only": 1,
+     "tool_only": 0
+    },
+    "java-des-real/B.java": {
+     "both": 0,
+     "pqcscan_only": 2,
+     "tool_only": 0
+    },
+    "java-md5-real/A.java": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "java-string-md5/D.java": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "js-clean-sha256/app.js": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "js-comment-md5/app.js": {
+     "both": 0,
+     "pqcscan_only": 1,
+     "tool_only": 0
+    },
+    "js-md5-real/app.js": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "js-string-md5/app.js": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "kt-clean-sha256/Hash.kt": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "kt-comment-md5/Hash.kt": {
+     "both": 0,
+     "pqcscan_only": 1,
+     "tool_only": 0
+    },
+    "kt-md5-real/Hash.kt": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "kt-raw-string-md5/Hash.kt": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "kt-rsa-real/Keys.kt": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "kt-string-md5/Hash.kt": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "p12-ed25519-nopass/keystore.p12": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "p12-rsa2048-changeit/keystore.p12": {
+     "both": 0,
+     "pqcscan_only": 2,
+     "tool_only": 0
+    },
+    "p12-truststore-mldsa65/truststore.p12": {
+     "both": 0,
+     "pqcscan_only": 1,
+     "tool_only": 0
+    },
+    "p12-truststore-rsa2048/truststore.p12": {
+     "both": 0,
+     "pqcscan_only": 1,
+     "tool_only": 0
+    },
+    "php-comment-md5/index.php": {
+     "both": 0,
+     "pqcscan_only": 1,
+     "tool_only": 0
+    },
+    "php-md5-real/index.php": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "php-string-md5/index.php": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "py-clean-sha256/src.py": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "py-comment-md5/src.py": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "py-des-real/src.py": {
+     "both": 1,
+     "pqcscan_only": 1,
+     "tool_only": 0
+    },
+    "py-ec-real/src.py": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "py-md5-real/src.py": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "py-rsa2048/src.py": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "py-sha1-alias/src.py": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "py-string-md5/src.py": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "rust-clean-sha256/lib.rs": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "rust-comment-md5/lib.rs": {
+     "both": 0,
+     "pqcscan_only": 1,
+     "tool_only": 0
+    },
+    "rust-des-real/lib.rs": {
+     "both": 0,
+     "pqcscan_only": 1,
+     "tool_only": 0
+    },
+    "rust-md5-real/lib.rs": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "rust-raw-string-md5/lib.rs": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "rust-rsa-real/lib.rs": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "rust-string-md5/lib.rs": {
+     "both": 1,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    }
+   },
+   "diff": {
+    "both": [
+     [
+      "cert-ecdsa-p384-der/server.der",
+      "cert",
+      "ec"
+     ],
+     [
+      "crypto-samples/CryptoSamples.java",
+      "code",
+      "aes"
+     ],
+     [
+      "crypto-samples/CryptoSamples.java",
+      "code",
+      "des"
+     ],
+     [
+      "crypto-samples/CryptoSamples.java",
+      "code",
+      "ec"
+     ],
+     [
+      "crypto-samples/CryptoSamples.java",
+      "code",
+      "md5"
+     ],
+     [
+      "crypto-samples/CryptoSamples.java",
+      "code",
+      "rsa"
+     ],
+     [
+      "crypto-samples/CryptoSamples.java",
+      "code",
+      "sha1"
+     ],
+     [
+      "crypto-samples/CryptoSamples.java",
+      "code",
+      "sha256"
+     ],
+     [
+      "crypto-samples/crypto_samples.go",
+      "code",
+      "3des"
+     ],
+     [
+      "crypto-samples/crypto_samples.go",
+      "code",
+      "aes"
+     ],
+     [
+      "crypto-samples/crypto_samples.go",
+      "code",
+      "des"
+     ],
+     [
+      "crypto-samples/crypto_samples.go",
+      "code",
+      "ed25519"
+     ],
+     [
+      "crypto-samples/crypto_samples.go",
+      "code",
+      "md5"
+     ],
+     [
+      "crypto-samples/crypto_samples.go",
+      "code",
+      "mlkem"
+     ],
+     [
+      "crypto-samples/crypto_samples.go",
+      "code",
+      "rsa"
+     ],
+     [
+      "crypto-samples/crypto_samples.go",
+      "code",
+      "sha1"
+     ],
+     [
+      "crypto-samples/crypto_samples.go",
+      "code",
+      "sha256"
+     ],
+     [
+      "crypto-samples/crypto_samples.py",
+      "code",
+      "3des"
+     ],
+     [
+      "crypto-samples/crypto_samples.py",
+      "code",
+      "aes"
+     ],
+     [
+      "crypto-samples/crypto_samples.py",
+      "code",
+      "ec"
+     ],
+     [
+      "crypto-samples/crypto_samples.py",
+      "code",
+      "ed25519"
+     ],
+     [
+      "crypto-samples/crypto_samples.py",
+      "code",
+      "md5"
+     ],
+     [
+      "crypto-samples/crypto_samples.py",
+      "code",
+      "rsa"
+     ],
+     [
+      "crypto-samples/crypto_samples.py",
+      "code",
+      "sha1"
+     ],
+     [
+      "crypto-samples/crypto_samples.py",
+      "code",
+      "sha256"
+     ],
+     [
+      "crypto-samples/hybrid_crypto.js",
+      "code",
+      "aes"
+     ],
+     [
+      "crypto-samples/hybrid_crypto.js",
+      "code",
+      "ec"
+     ],
+     [
+      "crypto-samples/hybrid_crypto.js",
+      "code",
+      "mldsa"
+     ],
+     [
+      "crypto-samples/hybrid_crypto.js",
+      "code",
+      "mlkem"
+     ],
+     [
+      "crypto-samples/hybrid_crypto.js",
+      "code",
+      "pqc-library"
+     ],
+     [
+      "crypto-samples/hybrid_crypto.js",
+      "code",
+      "sha256"
+     ],
+     [
+      "crypto-samples/macs_and_kdfs.go",
+      "code",
+      "sha256"
+     ],
+     [
+      "crypto-samples/pqc_algorithms.py",
+      "code",
+      "mldsa"
+     ],
+     [
+      "crypto-samples/pqc_algorithms.py",
+      "code",
+      "mlkem"
+     ],
+     [
+      "crypto-samples/pqc_algorithms.py",
+      "code",
+      "pqc-library"
+     ],
+     [
+      "crypto-samples/pqc_algorithms.py",
+      "code",
+      "slhdsa"
+     ],
+     [
+      "cs-clean-sha256/Hash.cs",
+      "code",
+      "sha256"
+     ],
+     [
+      "cs-md5-real/Hash.cs",
+      "code",
+      "md5"
+     ],
+     [
+      "cs-rsa-real/Keys.cs",
+      "code",
+      "rsa"
+     ],
+     [
+      "cs-string-md5/Hash.cs",
+      "code",
+      "md5"
+     ],
+     [
+      "cs-verbatim-md5/Hash.cs",
+      "code",
+      "md5"
+     ],
+     [
+      "cs-verbatim-md5/Hash.cs",
+      "code",
+      "rsa"
+     ],
+     [
+      "go-clean-sha256/main.go",
+      "code",
+      "sha256"
+     ],
+     [
+      "go-md5-real/main.go",
+      "code",
+      "md5"
+     ],
+     [
+      "go-string-md5/main.go",
+      "code",
+      "md5"
+     ],
+     [
+      "java-md5-real/A.java",
+      "code",
+      "md5"
+     ],
+     [
+      "java-string-md5/D.java",
+      "code",
+      "md5"
+     ],
+     [
+      "js-clean-sha256/app.js",
+      "code",
+      "sha256"
+     ],
+     [
+      "js-md5-real/app.js",
+      "code",
+      "md5"
+     ],
+     [
+      "js-string-md5/app.js",
+      "code",
+      "md5"
+     ],
+     [
+      "kt-clean-sha256/Hash.kt",
+      "code",
+      "sha256"
+     ],
+     [
+      "kt-md5-real/Hash.kt",
+      "code",
+      "md5"
+     ],
+     [
+      "kt-raw-string-md5/Hash.kt",
+      "code",
+      "md5"
+     ],
+     [
+      "kt-rsa-real/Keys.kt",
+      "code",
+      "rsa"
+     ],
+     [
+      "kt-string-md5/Hash.kt",
+      "code",
+      "md5"
+     ],
+     [
+      "p12-ed25519-nopass/keystore.p12",
+      "cert",
+      "ed25519"
+     ],
+     [
+      "php-md5-real/index.php",
+      "code",
+      "md5"
+     ],
+     [
+      "php-string-md5/index.php",
+      "code",
+      "md5"
+     ],
+     [
+      "py-clean-sha256/src.py",
+      "code",
+      "sha256"
+     ],
+     [
+      "py-comment-md5/src.py",
+      "code",
+      "md5"
+     ],
+     [
+      "py-des-real/src.py",
+      "code",
+      "des"
+     ],
+     [
+      "py-ec-real/src.py",
+      "code",
+      "ec"
+     ],
+     [
+      "py-md5-real/src.py",
+      "code",
+      "md5"
+     ],
+     [
+      "py-rsa2048/src.py",
+      "code",
+      "rsa"
+     ],
+     [
+      "py-sha1-alias/src.py",
+      "code",
+      "sha1"
+     ],
+     [
+      "py-string-md5/src.py",
+      "code",
+      "md5"
+     ],
+     [
+      "rust-clean-sha256/lib.rs",
+      "code",
+      "sha256"
+     ],
+     [
+      "rust-md5-real/lib.rs",
+      "code",
+      "md5"
+     ],
+     [
+      "rust-raw-string-md5/lib.rs",
+      "code",
+      "md5"
+     ],
+     [
+      "rust-rsa-real/lib.rs",
+      "code",
+      "rsa"
+     ],
+     [
+      "rust-string-md5/lib.rs",
+      "code",
+      "md5"
+     ]
+    ],
+    "pqcscan_only": [
+     [
+      "cert-ecdsa-p256-pem/server.crt",
+      "cert",
+      "ec"
+     ],
+     [
+      "cert-ed25519-der/server.der",
+      "cert",
+      "ed25519"
+     ],
+     [
+      "cert-ed25519-pem/server.crt",
+      "cert",
+      "ed25519"
+     ],
+     [
+      "cert-mldsa65-der/server.der",
+      "cert",
+      "ml-dsa-65"
+     ],
+     [
+      "cert-mldsa65/server.pem",
+      "cert",
+      "ml-dsa-65"
+     ],
+     [
+      "cert-rsa1024/server.pem",
+      "cert",
+      "rsa"
+     ],
+     [
+      "cert-rsa2048-der/server.der",
+      "cert",
+      "rsa"
+     ],
+     [
+      "cert-rsa2048-pem/server.crt",
+      "cert",
+      "rsa"
+     ],
+     [
+      "cert-rsa3072-pem/server.crt",
+      "cert",
+      "rsa"
+     ],
+     [
+      "cert-rsa4096-der/server.der",
+      "cert",
+      "rsa"
+     ],
+     [
+      "crypto-samples/CryptoSamples.java",
+      "code",
+      "3des"
+     ],
+     [
+      "crypto-samples/CryptoSamples.java",
+      "code",
+      "mldsa"
+     ],
+     [
+      "crypto-samples/CryptoSamples.java",
+      "code",
+      "mlkem"
+     ],
+     [
+      "crypto-samples/crypto_samples.go",
+      "code",
+      "chacha20"
+     ],
+     [
+      "crypto-samples/crypto_samples.go",
+      "code",
+      "mldsa"
+     ],
+     [
+      "crypto-samples/hybrid_crypto.js",
+      "code",
+      "chacha20"
+     ],
+     [
+      "crypto-samples/hybrid_crypto.js",
+      "code",
+      "x25519"
+     ],
+     [
+      "crypto-samples/pqc_algorithms.py",
+      "code",
+      "x25519"
+     ],
+     [
+      "cs-comment-md5/Hash.cs",
+      "code",
+      "md5"
+     ],
+     [
+      "cs-des-real/Legacy.cs",
+      "code",
+      "3des"
+     ],
+     [
+      "go-comment-md5/main.go",
+      "code",
+      "md5"
+     ],
+     [
+      "java-comment-md5/C.java",
+      "code",
+      "md5"
+     ],
+     [
+      "java-des-real/B.java",
+      "code",
+      "aes-ecb"
+     ],
+     [
+      "java-des-real/B.java",
+      "code",
+      "des"
+     ],
+     [
+      "js-comment-md5/app.js",
+      "code",
+      "md5"
+     ],
+     [
+      "kt-comment-md5/Hash.kt",
+      "code",
+      "md5"
+     ],
+     [
+      "p12-rsa2048-changeit/keystore.p12",
+      "cert",
+      "rsa"
+     ],
+     [
+      "p12-rsa2048-changeit/keystore.p12",
+      "cert",
+      "sha256"
+     ],
+     [
+      "p12-truststore-mldsa65/truststore.p12",
+      "cert",
+      "ml-dsa-65"
+     ],
+     [
+      "p12-truststore-rsa2048/truststore.p12",
+      "cert",
+      "rsa"
+     ],
+     [
+      "php-comment-md5/index.php",
+      "code",
+      "md5"
+     ],
+     [
+      "py-des-real/src.py",
+      "code",
+      "aes-ecb"
+     ],
+     [
+      "rust-comment-md5/lib.rs",
+      "code",
+      "md5"
+     ],
+     [
+      "rust-des-real/lib.rs",
+      "code",
+      "des"
+     ]
+    ],
+    "tool_only": [
+     [
+      "cert-ecdsa-p256-pem/server.crt",
+      "cert",
+      "x509certificate"
+     ],
+     [
+      "cert-ed25519-pem/server.crt",
+      "cert",
+      "x509certificate"
+     ],
+     [
+      "cert-mldsa65/server.pem",
+      "cert",
+      "x509certificate"
+     ],
+     [
+      "cert-rsa1024/server.pem",
+      "cert",
+      "x509certificate"
+     ],
+     [
+      "cert-rsa2048-pem/server.crt",
+      "cert",
+      "x509certificate"
+     ],
+     [
+      "cert-rsa3072-pem/server.crt",
+      "cert",
+      "x509certificate"
+     ],
+     [
+      "crypto-samples/CryptoSamples.java",
+      "code",
+      "sha512"
+     ],
+     [
+      "crypto-samples/crypto_samples.go",
+      "code",
+      "bcrypt"
+     ],
+     [
+      "crypto-samples/crypto_samples.go",
+      "code",
+      "chacha20-poly1305"
+     ],
+     [
+      "crypto-samples/crypto_samples.go",
+      "code",
+      "ec"
+     ],
+     [
+      "crypto-samples/crypto_samples.go",
+      "code",
+      "sha512"
+     ],
+     [
+      "crypto-samples/crypto_samples.py",
+      "code",
+      "sha512"
+     ],
+     [
+      "crypto-samples/hybrid_crypto.js",
+      "code",
+      "chacha20-poly1305"
+     ],
+     [
+      "crypto-samples/hybrid_crypto.js",
+      "code",
+      "compositesignature"
+     ],
+     [
+      "crypto-samples/hybrid_crypto.js",
+      "code",
+      "hybridkem"
+     ],
+     [
+      "crypto-samples/hybrid_crypto.js",
+      "code",
+      "poly1305"
+     ],
+     [
+      "crypto-samples/hybrid_crypto.js",
+      "code",
+      "tls"
+     ],
+     [
+      "crypto-samples/macs_and_kdfs.go",
+      "code",
+      "argon2"
+     ],
+     [
+      "crypto-samples/macs_and_kdfs.go",
+      "code",
+      "bcrypt"
+     ],
+     [
+      "crypto-samples/macs_and_kdfs.go",
+      "code",
+      "hkdf"
+     ],
+     [
+      "crypto-samples/macs_and_kdfs.go",
+      "code",
+      "kmac"
+     ],
+     [
+      "crypto-samples/macs_and_kdfs.go",
+      "code",
+      "pbkdf2"
+     ],
+     [
+      "crypto-samples/macs_and_kdfs.go",
+      "code",
+      "sha512"
+     ],
+     [
+      "crypto-samples/pqc_algorithms.py",
+      "code",
+      "hkdf"
+     ],
+     [
+      "crypto-samples/pqc_algorithms.py",
+      "code",
+      "lms"
+     ],
+     [
+      "crypto-samples/pqc_algorithms.py",
+      "code",
+      "xmss"
+     ]
+    ]
+   },
+   "surfaces": [
+    "cert",
+    "code"
+   ],
+   "totals": {
+    "both": 71,
+    "pqcscan_only": 34,
+    "tool_only": 26
+   }
+  },
+  "quantaseek": {
+   "by_target": {
+    "endpoint-mtls-tls12": {
+     "both": 0,
+     "pqcscan_only": 1,
+     "tool_only": 0
+    },
+    "endpoint-null-cipher": {
+     "both": 0,
+     "pqcscan_only": 2,
+     "tool_only": 0
+    },
+    "endpoint-rsa-kex-only": {
+     "both": 0,
+     "pqcscan_only": 2,
+     "tool_only": 0
+    },
+    "endpoint-tls10-only": {
+     "both": 0,
+     "pqcscan_only": 3,
+     "tool_only": 0
+    },
+    "endpoint-tls12-ecdhe": {
+     "both": 0,
+     "pqcscan_only": 2,
+     "tool_only": 0
+    },
+    "endpoint-tls13-hybrid-ed25519": {
+     "both": 0,
+     "pqcscan_only": 4,
+     "tool_only": 0
+    },
+    "endpoint-tls13-hybrid-mldsa65": {
+     "both": 0,
+     "pqcscan_only": 4,
+     "tool_only": 0
+    },
+    "endpoint-tls13-x25519": {
+     "both": 0,
+     "pqcscan_only": 5,
+     "tool_only": 0
+    }
+   },
+   "diff": {
+    "both": [],
+    "pqcscan_only": [
+     [
+      "endpoint-mtls-tls12",
+      "tls",
+      "rsa"
+     ],
+     [
+      "endpoint-null-cipher",
+      "tls",
+      "null-sha256"
+     ],
+     [
+      "endpoint-null-cipher",
+      "tls",
+      "rsa"
+     ],
+     [
+      "endpoint-rsa-kex-only",
+      "tls",
+      "aes256-gcm-sha384"
+     ],
+     [
+      "endpoint-rsa-kex-only",
+      "tls",
+      "rsa"
+     ],
+     [
+      "endpoint-tls10-only",
+      "tls",
+      "ecdhe-rsa-aes256-sha"
+     ],
+     [
+      "endpoint-tls10-only",
+      "tls",
+      "rsa"
+     ],
+     [
+      "endpoint-tls10-only",
+      "tls",
+      "tls1.0"
+     ],
+     [
+      "endpoint-tls12-ecdhe",
+      "tls",
+      "ecdhe-rsa-aes128-gcm-sha256"
+     ],
+     [
+      "endpoint-tls12-ecdhe",
+      "tls",
+      "rsa"
+     ],
+     [
+      "endpoint-tls13-hybrid-ed25519",
+      "tls",
+      "ed25519"
+     ],
+     [
+      "endpoint-tls13-hybrid-ed25519",
+      "tls",
+      "tls1.3"
+     ],
+     [
+      "endpoint-tls13-hybrid-ed25519",
+      "tls",
+      "tls13-aes256-gcm-sha384"
+     ],
+     [
+      "endpoint-tls13-hybrid-ed25519",
+      "tls",
+      "x25519mlkem768"
+     ],
+     [
+      "endpoint-tls13-hybrid-mldsa65",
+      "tls",
+      "ml-dsa-65"
+     ],
+     [
+      "endpoint-tls13-hybrid-mldsa65",
+      "tls",
+      "tls1.3"
+     ],
+     [
+      "endpoint-tls13-hybrid-mldsa65",
+      "tls",
+      "tls13-aes256-gcm-sha384"
+     ],
+     [
+      "endpoint-tls13-hybrid-mldsa65",
+      "tls",
+      "x25519mlkem768"
+     ],
+     [
+      "endpoint-tls13-x25519",
+      "tls",
+      "ec"
+     ],
+     [
+      "endpoint-tls13-x25519",
+      "tls",
+      "ecdsasha256"
+     ],
+     [
+      "endpoint-tls13-x25519",
+      "tls",
+      "tls1.3"
+     ],
+     [
+      "endpoint-tls13-x25519",
+      "tls",
+      "tls13-aes256-gcm-sha384"
+     ],
+     [
+      "endpoint-tls13-x25519",
+      "tls",
+      "x25519"
+     ]
+    ],
+    "tool_only": []
+   },
+   "surfaces": [
+    "tls"
+   ],
+   "totals": {
+    "both": 0,
+    "pqcscan_only": 23,
+    "tool_only": 0
+   }
+  },
+  "quantaseek-noverify": {
+   "by_target": {
+    "endpoint-mtls-tls12": {
+     "both": 0,
+     "pqcscan_only": 1,
+     "tool_only": 0
+    },
+    "endpoint-null-cipher": {
+     "both": 0,
+     "pqcscan_only": 2,
+     "tool_only": 0
+    },
+    "endpoint-rsa-kex-only": {
+     "both": 0,
+     "pqcscan_only": 2,
+     "tool_only": 0
+    },
+    "endpoint-tls10-only": {
+     "both": 0,
+     "pqcscan_only": 3,
+     "tool_only": 0
+    },
+    "endpoint-tls12-ecdhe": {
+     "both": 1,
+     "pqcscan_only": 1,
+     "tool_only": 2
+    },
+    "endpoint-tls13-hybrid-ed25519": {
+     "both": 4,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "endpoint-tls13-hybrid-mldsa65": {
+     "both": 4,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    },
+    "endpoint-tls13-x25519": {
+     "both": 5,
+     "pqcscan_only": 0,
+     "tool_only": 0
+    }
+   },
+   "diff": {
+    "both": [
+     [
+      "endpoint-tls12-ecdhe",
+      "tls",
+      "rsa"
+     ],
+     [
+      "endpoint-tls13-hybrid-ed25519",
+      "tls",
+      "ed25519"
+     ],
+     [
+      "endpoint-tls13-hybrid-ed25519",
+      "tls",
+      "tls1.3"
+     ],
+     [
+      "endpoint-tls13-hybrid-ed25519",
+      "tls",
+      "tls13-aes256-gcm-sha384"
+     ],
+     [
+      "endpoint-tls13-hybrid-ed25519",
+      "tls",
+      "x25519mlkem768"
+     ],
+     [
+      "endpoint-tls13-hybrid-mldsa65",
+      "tls",
+      "ml-dsa-65"
+     ],
+     [
+      "endpoint-tls13-hybrid-mldsa65",
+      "tls",
+      "tls1.3"
+     ],
+     [
+      "endpoint-tls13-hybrid-mldsa65",
+      "tls",
+      "tls13-aes256-gcm-sha384"
+     ],
+     [
+      "endpoint-tls13-hybrid-mldsa65",
+      "tls",
+      "x25519mlkem768"
+     ],
+     [
+      "endpoint-tls13-x25519",
+      "tls",
+      "ec"
+     ],
+     [
+      "endpoint-tls13-x25519",
+      "tls",
+      "ecdsasha256"
+     ],
+     [
+      "endpoint-tls13-x25519",
+      "tls",
+      "tls1.3"
+     ],
+     [
+      "endpoint-tls13-x25519",
+      "tls",
+      "tls13-aes256-gcm-sha384"
+     ],
+     [
+      "endpoint-tls13-x25519",
+      "tls",
+      "x25519"
+     ]
+    ],
+    "pqcscan_only": [
+     [
+      "endpoint-mtls-tls12",
+      "tls",
+      "rsa"
+     ],
+     [
+      "endpoint-null-cipher",
+      "tls",
+      "null-sha256"
+     ],
+     [
+      "endpoint-null-cipher",
+      "tls",
+      "rsa"
+     ],
+     [
+      "endpoint-rsa-kex-only",
+      "tls",
+      "aes256-gcm-sha384"
+     ],
+     [
+      "endpoint-rsa-kex-only",
+      "tls",
+      "rsa"
+     ],
+     [
+      "endpoint-tls10-only",
+      "tls",
+      "ecdhe-rsa-aes256-sha"
+     ],
+     [
+      "endpoint-tls10-only",
+      "tls",
+      "rsa"
+     ],
+     [
+      "endpoint-tls10-only",
+      "tls",
+      "tls1.0"
+     ],
+     [
+      "endpoint-tls12-ecdhe",
+      "tls",
+      "ecdhe-rsa-aes128-gcm-sha256"
+     ]
+    ],
+    "tool_only": [
+     [
+      "endpoint-tls12-ecdhe",
+      "tls",
+      "rsasha256"
+     ],
+     [
+      "endpoint-tls12-ecdhe",
+      "tls",
+      "tls1.2"
+     ]
+    ]
+   },
+   "surfaces": [
+    "tls"
+   ],
+   "totals": {
+    "both": 14,
+    "pqcscan_only": 9,
+    "tool_only": 2
+   }
+  }
+ },
+ "targets": {
+  "cert": [
+   "cert-ecdsa-p256-pem",
+   "cert-ecdsa-p384-der",
+   "cert-ed25519-der",
+   "cert-ed25519-pem",
+   "cert-mldsa65",
+   "cert-mldsa65-der",
+   "cert-rsa1024",
+   "cert-rsa2048-der",
+   "cert-rsa2048-pem",
+   "cert-rsa3072-pem",
+   "cert-rsa4096-der",
+   "p12-ecdsa-p256-test",
+   "p12-ed25519-nopass",
+   "p12-rsa2048-changeit",
+   "p12-truststore-mldsa65",
+   "p12-truststore-rsa2048"
+  ],
+  "code": [
+   "cs-clean-sha256",
+   "cs-comment-md5",
+   "cs-des-real",
+   "cs-md5-real",
+   "cs-rsa-real",
+   "cs-string-md5",
+   "cs-verbatim-md5",
+   "go-clean-sha256",
+   "go-comment-md5",
+   "go-md5-real",
+   "go-string-md5",
+   "java-comment-md5",
+   "java-des-real",
+   "java-md5-real",
+   "java-string-md5",
+   "js-clean-sha256",
+   "js-comment-md5",
+   "js-md5-real",
+   "js-string-md5",
+   "kt-clean-sha256",
+   "kt-comment-md5",
+   "kt-md5-real",
+   "kt-raw-string-md5",
+   "kt-rsa-real",
+   "kt-string-md5",
+   "php-comment-md5",
+   "php-md5-real",
+   "php-string-md5",
+   "py-clean-sha256",
+   "py-comment-md5",
+   "py-des-real",
+   "py-ec-real",
+   "py-md5-real",
+   "py-rsa2048",
+   "py-sha1-alias",
+   "py-string-md5",
+   "rust-clean-sha256",
+   "rust-comment-md5",
+   "rust-des-real",
+   "rust-md5-real",
+   "rust-raw-string-md5",
+   "rust-rsa-real",
+   "rust-string-md5"
+  ],
+  "code_extra": [
+   "crypto-samples"
+  ],
+  "tls": [
+   "endpoint-tls10-only",
+   "endpoint-rsa-kex-only",
+   "endpoint-null-cipher",
+   "endpoint-tls12-ecdhe",
+   "endpoint-mtls-tls12",
+   "endpoint-tls13-x25519",
+   "endpoint-tls13-hybrid-ed25519",
+   "endpoint-tls13-hybrid-mldsa65"
+  ]
+ },
+ "tools": {
+  "anvil": {
+   "commit": "fc74c8201e661de2f78e5cd98d14686164bab30f",
+   "lang": "Rust",
+   "repo": "https://github.com/anvilsecure/pqcscan",
+   "surfaces": [
+    "tls"
+   ],
+   "title": "anvilsecure/pqcscan",
+   "version": "0.8.0"
+  },
+  "cryptoscan": {
+   "commit": "22aad8a9a2046f5bbfdd3c89ea6327888f51bee0",
+   "lang": "Go",
+   "repo": "https://github.com/csnp/cryptoscan",
+   "surfaces": [
+    "cert",
+    "code"
+   ],
+   "title": "csnp/cryptoscan",
+   "version": "v1.4.1-0.20261016212122-22aad8a9a204"
+  },
+  "pqcscan": {
+   "commit": null,
+   "repo": null,
+   "surfaces": [
+    "tls",
+    "cert",
+    "code"
+   ],
+   "title": "pqcscan (this repo)",
+   "version": "0.10.2"
+  },
+  "quantaseek": {
+   "commit": "bb4a06a28c515dee86602dbd6002ca99e0b3312e",
+   "dockerfile": "quantaseek",
+   "lang": "Rust",
+   "repo": "https://github.com/Mehrn0ush/QuantaSeek",
+   "surfaces": [
+    "tls"
+   ],
+   "target": "stock",
+   "title": "Mehrn0ush/QuantaSeek",
+   "version": "0.1.0"
+  },
+  "quantaseek-noverify": {
+   "commit": "bb4a06a28c515dee86602dbd6002ca99e0b3312e",
+   "dockerfile": "quantaseek",
+   "lang": "Rust",
+   "repo": "https://github.com/Mehrn0ush/QuantaSeek",
+   "surfaces": [
+    "tls"
+   ],
+   "target": "noverify",
+   "title": "QuantaSeek, cert checks off",
+   "version": "0.1.0"
+  }
+ }
+}

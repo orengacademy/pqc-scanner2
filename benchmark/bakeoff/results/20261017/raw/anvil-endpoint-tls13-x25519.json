@@ -1,0 +1,24 @@
+{
+ "end_time": "2026-10-17T13:25:51.497456428Z",
+ "results": [
+  {
+   "Tls": {
+    "addr": "127.0.0.1:45809",
+    "error": null,
+    "hybrid_algos": [],
+    "nonpqc_algos": [
+     "X25519"
+    ],
+    "pqc_algos": [],
+    "pqc_supported": false,
+    "targetspec": {
+     "host": "127.0.0.1",
+     "port": 45809
+    }
+   }
+  }
+ ],
+ "scan_type": "Tls",
+ "start_time": "2026-10-17T13:25:51.466046425Z",
+ "version": "0.8.0"
+}

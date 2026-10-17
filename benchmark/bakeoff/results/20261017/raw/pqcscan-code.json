@@ -1,0 +1,1579 @@
+[
+ {
+  "algorithm": "RSA",
+  "classification": "tinggi",
+  "evidence": {
+   "confidence": "high",
+   "file": "crypto-samples/crypto_samples.py",
+   "kind": "rsa_keygen",
+   "line": 25,
+   "snippet": "    private_key = rsa.generate_private_key("
+  },
+  "probe_id": "code.ts.python",
+  "severity": "HIGH",
+  "title": "RSA key generation (non-literal key_size) in <root>/crypto-samples/crypto_samples.py:25"
+ },
+ {
+  "algorithm": "RSA-1024",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "confidence": "high",
+   "file": "crypto-samples/crypto_samples.py",
+   "kind": "rsa_keygen",
+   "line": 35,
+   "snippet": "    return rsa.generate_private_key("
+  },
+  "probe_id": "code.ts.python",
+  "severity": "CRIT",
+  "title": "RSA key generation, key_size=1024 in <root>/crypto-samples/crypto_samples.py:35"
+ },
+ {
+  "algorithm": "EC-SECP256R1",
+  "classification": "tinggi",
+  "evidence": {
+   "confidence": "high",
+   "file": "crypto-samples/crypto_samples.py",
+   "kind": "ecdsa_keygen",
+   "line": 44,
+   "snippet": "    return ec.generate_private_key(ec.SECP256R1(), default_backend())"
+  },
+  "probe_id": "code.ts.python",
+  "severity": "HIGH",
+  "title": "classical EC key generation (EC-SECP256R1) \u2014 quantum-vulnerable in <root>/crypto-samples/crypto_samples.py:44"
+ },
+ {
+  "algorithm": "AES-CBC",
+  "classification": "tinggi",
+  "evidence": {
+   "confidence": "high",
+   "file": "crypto-samples/crypto_samples.py",
+   "kind": "aes_cbc",
+   "line": 73,
+   "snippet": "    cipher = Cipher(algorithms.AES(key[:16]), modes.CBC(iv), backend=default_backend())"
+  },
+  "probe_id": "code.ts.python",
+  "severity": "HIGH",
+  "title": "AES-CBC mode via modes.CBC() (prefer AES-GCM) in <root>/crypto-samples/crypto_samples.py:73"
+ },
+ {
+  "algorithm": "3DES",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "confidence": "high",
+   "file": "crypto-samples/crypto_samples.py",
+   "kind": "des_cipher",
+   "line": 95,
+   "snippet": "    cipher = Cipher(algorithms.TripleDES(key), modes.CBC(iv), backend=default_backend())"
+  },
+  "probe_id": "code.ts.python",
+  "severity": "CRIT",
+  "title": "3DES cipher via algorithms.TripleDES() in <root>/crypto-samples/crypto_samples.py:95"
+ },
+ {
+  "algorithm": "AES-CBC",
+  "classification": "tinggi",
+  "evidence": {
+   "confidence": "high",
+   "file": "crypto-samples/crypto_samples.py",
+   "kind": "aes_cbc",
+   "line": 95,
+   "snippet": "    cipher = Cipher(algorithms.TripleDES(key), modes.CBC(iv), backend=default_backend())"
+  },
+  "probe_id": "code.ts.python",
+  "severity": "HIGH",
+  "title": "AES-CBC mode via modes.CBC() (prefer AES-GCM) in <root>/crypto-samples/crypto_samples.py:95"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "confidence": "high",
+   "file": "crypto-samples/crypto_samples.py",
+   "kind": "weak_hash",
+   "line": 84,
+   "snippet": "    return hashlib.md5(data).digest()"
+  },
+  "probe_id": "code.ts.python",
+  "severity": "CRIT",
+  "title": "MD5 weak hash via hashlib.md5() in <root>/crypto-samples/crypto_samples.py:84"
+ },
+ {
+  "algorithm": "SHA1",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "confidence": "high",
+   "file": "crypto-samples/crypto_samples.py",
+   "kind": "weak_hash",
+   "line": 89,
+   "snippet": "    return hashlib.sha1(data).digest()"
+  },
+  "probe_id": "code.ts.python",
+  "severity": "CRIT",
+  "title": "SHA1 weak hash via hashlib.sha1() in <root>/crypto-samples/crypto_samples.py:89"
+ },
+ {
+  "algorithm": "SHA1",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "confidence": "high",
+   "file": "py-sha1-alias/src.py",
+   "kind": "weak_hash",
+   "line": 3,
+   "snippet": "digest = h.sha1(b\"x\").hexdigest()"
+  },
+  "probe_id": "code.ts.python",
+  "severity": "CRIT",
+  "title": "SHA1 weak hash via hashlib.sha1() in <root>/py-sha1-alias/src.py:3"
+ },
+ {
+  "algorithm": "RSA-2048",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "confidence": "high",
+   "file": "py-rsa2048/src.py",
+   "kind": "rsa_keygen",
+   "line": 3,
+   "snippet": "key = rsa.generate_private_key(public_exponent=65537, key_size=2048)"
+  },
+  "probe_id": "code.ts.python",
+  "severity": "CRIT",
+  "title": "RSA key generation, key_size=2048 in <root>/py-rsa2048/src.py:3"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "confidence": "high",
+   "file": "py-md5-real/src.py",
+   "kind": "weak_hash",
+   "line": 3,
+   "snippet": "digest = hashlib.md5(b\"x\").hexdigest()"
+  },
+  "probe_id": "code.ts.python",
+  "severity": "CRIT",
+  "title": "MD5 weak hash via hashlib.md5() in <root>/py-md5-real/src.py:3"
+ },
+ {
+  "algorithm": "EC-SECP256R1",
+  "classification": "tinggi",
+  "evidence": {
+   "confidence": "high",
+   "file": "py-ec-real/src.py",
+   "kind": "ecdsa_keygen",
+   "line": 3,
+   "snippet": "key = ec.generate_private_key(ec.SECP256R1())"
+  },
+  "probe_id": "code.ts.python",
+  "severity": "HIGH",
+  "title": "classical EC key generation (EC-SECP256R1) \u2014 quantum-vulnerable in <root>/py-ec-real/src.py:3"
+ },
+ {
+  "algorithm": "DES",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "confidence": "high",
+   "file": "py-des-real/src.py",
+   "kind": "des_cipher",
+   "line": 3,
+   "snippet": "cipher = DES.new(b\"8bytekey\", DES.MODE_ECB)"
+  },
+  "probe_id": "code.ts.python",
+  "severity": "CRIT",
+  "title": "DES cipher via DES.new() in <root>/py-des-real/src.py:3"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "line": 3,
+   "path": "js-md5-real/app.js"
+  },
+  "probe_id": "code.ts.javascript",
+  "severity": "CRIT",
+  "title": "MD5 via crypto.createHash in <root>/js-md5-real/app.js:3"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "line": 137,
+   "path": "crypto-samples/crypto_samples.go"
+  },
+  "probe_id": "code.ts.go",
+  "severity": "CRIT",
+  "title": "MD5 via md5.New/Sum in <root>/crypto-samples/crypto_samples.go:137"
+ },
+ {
+  "algorithm": "SHA1",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "line": 144,
+   "path": "crypto-samples/crypto_samples.go"
+  },
+  "probe_id": "code.ts.go",
+  "severity": "CRIT",
+  "title": "SHA1 via sha1.New/Sum in <root>/crypto-samples/crypto_samples.go:144"
+ },
+ {
+  "algorithm": "DES",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "line": 151,
+   "path": "crypto-samples/crypto_samples.go"
+  },
+  "probe_id": "code.ts.go",
+  "severity": "CRIT",
+  "title": "DES cipher in <root>/crypto-samples/crypto_samples.go:151"
+ },
+ {
+  "algorithm": "RSA-2048",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "line": 44,
+   "path": "crypto-samples/crypto_samples.go"
+  },
+  "probe_id": "code.ts.go",
+  "severity": "CRIT",
+  "title": "rsa.GenerateKey(2048) in <root>/crypto-samples/crypto_samples.go:44"
+ },
+ {
+  "algorithm": "RSA-1024",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "line": 54,
+   "path": "crypto-samples/crypto_samples.go"
+  },
+  "probe_id": "code.ts.go",
+  "severity": "CRIT",
+  "title": "rsa.GenerateKey(1024) in <root>/crypto-samples/crypto_samples.go:54"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "line": 6,
+   "path": "go-md5-real/main.go"
+  },
+  "probe_id": "code.ts.go",
+  "severity": "CRIT",
+  "title": "MD5 via md5.New/Sum in <root>/go-md5-real/main.go:6"
+ },
+ {
+  "algorithm": "X25519",
+  "classification": "tinggi",
+  "evidence": {
+   "file": "crypto-samples/pqc_algorithms.py",
+   "line": 44,
+   "primitive": "X25519",
+   "snippet": "# X25519 + ML-KEM-768 hybrid key exchange"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "HIGH",
+  "title": "X25519 primitive in <root>/crypto-samples/pqc_algorithms.py:44"
+ },
+ {
+  "algorithm": "ML-KEM",
+  "classification": "pqc-ready",
+  "evidence": {
+   "file": "crypto-samples/pqc_algorithms.py",
+   "line": 5,
+   "primitive": "ML-KEM",
+   "snippet": "# ML-KEM (FIPS 203) - Key Encapsulation"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "INFO",
+  "title": "ML-KEM primitive in <root>/crypto-samples/pqc_algorithms.py:5"
+ },
+ {
+  "algorithm": "ML-DSA",
+  "classification": "pqc-ready",
+  "evidence": {
+   "file": "crypto-samples/pqc_algorithms.py",
+   "line": 18,
+   "primitive": "ML-DSA",
+   "snippet": "# ML-DSA (FIPS 204) - Digital Signatures"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "INFO",
+  "title": "ML-DSA primitive in <root>/crypto-samples/pqc_algorithms.py:18"
+ },
+ {
+  "algorithm": "SLH-DSA",
+  "classification": "pqc-ready",
+  "evidence": {
+   "file": "crypto-samples/pqc_algorithms.py",
+   "line": 31,
+   "primitive": "SLH-DSA",
+   "snippet": "# SLH-DSA (FIPS 205) - Hash-based Signatures"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "INFO",
+  "title": "SLH-DSA primitive in <root>/crypto-samples/pqc_algorithms.py:31"
+ },
+ {
+  "algorithm": "liboqs/pqcrypto",
+  "classification": "pqc-ready",
+  "evidence": {
+   "file": "crypto-samples/pqc_algorithms.py",
+   "line": 7,
+   "primitive": "liboqs/pqcrypto",
+   "snippet": "from liboqs import oqs"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "INFO",
+  "title": "liboqs/pqcrypto primitive in <root>/crypto-samples/pqc_algorithms.py:7"
+ },
+ {
+  "algorithm": "SHA-256",
+  "classification": "sederhana",
+  "evidence": {
+   "file": "crypto-samples/macs_and_kdfs.go",
+   "line": 11,
+   "primitive": "SHA-256",
+   "snippet": "\"crypto/sha256\""
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "MED",
+  "title": "SHA-256 primitive in <root>/crypto-samples/macs_and_kdfs.go:11"
+ },
+ {
+  "algorithm": "P-256 (secp256r1)",
+  "classification": "tinggi",
+  "evidence": {
+   "file": "crypto-samples/hybrid_crypto.js",
+   "line": 13,
+   "primitive": "P-256 (secp256r1)",
+   "snippet": "const ecdhAlice = crypto.createECDH('prime256v1');"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "HIGH",
+  "title": "P-256 (secp256r1) primitive in <root>/crypto-samples/hybrid_crypto.js:13"
+ },
+ {
+  "algorithm": "X25519",
+  "classification": "tinggi",
+  "evidence": {
+   "file": "crypto-samples/hybrid_crypto.js",
+   "line": 83,
+   "primitive": "X25519",
+   "snippet": "// X25519MLKEM768 combines X25519 + ML-KEM-768"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "HIGH",
+  "title": "X25519 primitive in <root>/crypto-samples/hybrid_crypto.js:83"
+ },
+ {
+  "algorithm": "AES-256-GCM",
+  "classification": "rendah",
+  "evidence": {
+   "file": "crypto-samples/hybrid_crypto.js",
+   "line": 53,
+   "primitive": "AES-256-GCM",
+   "snippet": "// AES-256-GCM (NIST SP 800-38D)"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "LOW",
+  "title": "AES-256-GCM primitive in <root>/crypto-samples/hybrid_crypto.js:53"
+ },
+ {
+  "algorithm": "AES-GCM",
+  "classification": "sederhana",
+  "evidence": {
+   "file": "crypto-samples/hybrid_crypto.js",
+   "line": 53,
+   "primitive": "AES-GCM",
+   "snippet": "// AES-256-GCM (NIST SP 800-38D)"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "MED",
+  "title": "AES-GCM primitive in <root>/crypto-samples/hybrid_crypto.js:53"
+ },
+ {
+  "algorithm": "ChaCha20",
+  "classification": "rendah",
+  "evidence": {
+   "file": "crypto-samples/hybrid_crypto.js",
+   "line": 30,
+   "primitive": "ChaCha20",
+   "snippet": "// ChaCha20-Poly1305 (RFC 8439)"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "LOW",
+  "title": "ChaCha20 primitive in <root>/crypto-samples/hybrid_crypto.js:30"
+ },
+ {
+  "algorithm": "SHA-256",
+  "classification": "sederhana",
+  "evidence": {
+   "file": "crypto-samples/hybrid_crypto.js",
+   "line": 95,
+   "primitive": "SHA-256",
+   "snippet": "const classicalSig = crypto.createSign('SHA256')"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "MED",
+  "title": "SHA-256 primitive in <root>/crypto-samples/hybrid_crypto.js:95"
+ },
+ {
+  "algorithm": "ML-KEM",
+  "classification": "pqc-ready",
+  "evidence": {
+   "file": "crypto-samples/hybrid_crypto.js",
+   "line": 16,
+   "primitive": "ML-KEM",
+   "snippet": "// Post-Quantum ML-KEM-768"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "INFO",
+  "title": "ML-KEM primitive in <root>/crypto-samples/hybrid_crypto.js:16"
+ },
+ {
+  "algorithm": "ML-DSA",
+  "classification": "pqc-ready",
+  "evidence": {
+   "file": "crypto-samples/hybrid_crypto.js",
+   "line": 92,
+   "primitive": "ML-DSA",
+   "snippet": "// MLDSA65-ECDSA-P256 composite signature"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "INFO",
+  "title": "ML-DSA primitive in <root>/crypto-samples/hybrid_crypto.js:92"
+ },
+ {
+  "algorithm": "liboqs/pqcrypto",
+  "classification": "pqc-ready",
+  "evidence": {
+   "file": "crypto-samples/hybrid_crypto.js",
+   "line": 5,
+   "primitive": "liboqs/pqcrypto",
+   "snippet": "const oqs = require('liboqs-node');"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "INFO",
+  "title": "liboqs/pqcrypto primitive in <root>/crypto-samples/hybrid_crypto.js:5"
+ },
+ {
+  "algorithm": "P-256 (secp256r1)",
+  "classification": "tinggi",
+  "evidence": {
+   "file": "crypto-samples/crypto_samples.py",
+   "line": 44,
+   "primitive": "P-256 (secp256r1)",
+   "snippet": "return ec.generate_private_key(ec.SECP256R1(), default_backend())"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "HIGH",
+  "title": "P-256 (secp256r1) primitive in <root>/crypto-samples/crypto_samples.py:44"
+ },
+ {
+  "algorithm": "Ed25519",
+  "classification": "tinggi",
+  "evidence": {
+   "file": "crypto-samples/crypto_samples.py",
+   "line": 12,
+   "primitive": "Ed25519",
+   "snippet": "from cryptography.hazmat.primitives.asymmetric import rsa, ec, ed25519, padding"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "HIGH",
+  "title": "Ed25519 primitive in <root>/crypto-samples/crypto_samples.py:12"
+ },
+ {
+  "algorithm": "AES-256-GCM",
+  "classification": "rendah",
+  "evidence": {
+   "file": "crypto-samples/crypto_samples.py",
+   "line": 61,
+   "primitive": "AES-256-GCM",
+   "snippet": "def encrypt_aes_256_gcm(key: bytes, plaintext: bytes) -> bytes:"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "LOW",
+  "title": "AES-256-GCM primitive in <root>/crypto-samples/crypto_samples.py:61"
+ },
+ {
+  "algorithm": "AES-GCM",
+  "classification": "sederhana",
+  "evidence": {
+   "file": "crypto-samples/crypto_samples.py",
+   "line": 61,
+   "primitive": "AES-GCM",
+   "snippet": "def encrypt_aes_256_gcm(key: bytes, plaintext: bytes) -> bytes:"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "MED",
+  "title": "AES-GCM primitive in <root>/crypto-samples/crypto_samples.py:61"
+ },
+ {
+  "algorithm": "3DES",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "crypto-samples/crypto_samples.py",
+   "line": 95,
+   "primitive": "3DES",
+   "snippet": "cipher = Cipher(algorithms.TripleDES(key), modes.CBC(iv), backend=default_backend())"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "3DES primitive in <root>/crypto-samples/crypto_samples.py:95"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "crypto-samples/crypto_samples.py",
+   "line": 83,
+   "primitive": "MD5",
+   "snippet": "\"\"\"Hash with MD5 - BROKEN (collision attacks exist)\"\"\""
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/crypto-samples/crypto_samples.py:83"
+ },
+ {
+  "algorithm": "SHA-1",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "crypto-samples/crypto_samples.py",
+   "line": 88,
+   "primitive": "SHA-1",
+   "snippet": "\"\"\"Hash with SHA-1 - WEAK (collision attacks demonstrated)\"\"\""
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "SHA-1 primitive in <root>/crypto-samples/crypto_samples.py:88"
+ },
+ {
+  "algorithm": "SHA-256",
+  "classification": "sederhana",
+  "evidence": {
+   "file": "crypto-samples/crypto_samples.py",
+   "line": 105,
+   "primitive": "SHA-256",
+   "snippet": "\"\"\"Hash with SHA-256 - QUANTUM SAFE\"\"\""
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "MED",
+  "title": "SHA-256 primitive in <root>/crypto-samples/crypto_samples.py:105"
+ },
+ {
+  "algorithm": "RSA-2048",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "crypto-samples/crypto_samples.py",
+   "line": 34,
+   "primitive": "RSA-2048",
+   "snippet": "\"\"\"Generate weak RSA-1024 key - CRITICAL (classically weak)\"\"\""
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "RSA-2048 primitive in <root>/crypto-samples/crypto_samples.py:34"
+ },
+ {
+  "algorithm": "Ed25519",
+  "classification": "tinggi",
+  "evidence": {
+   "file": "crypto-samples/crypto_samples.go",
+   "line": 19,
+   "primitive": "Ed25519",
+   "snippet": "\"crypto/ed25519\""
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "HIGH",
+  "title": "Ed25519 primitive in <root>/crypto-samples/crypto_samples.go:19"
+ },
+ {
+  "algorithm": "AES-256-GCM",
+  "classification": "rendah",
+  "evidence": {
+   "file": "crypto-samples/crypto_samples.go",
+   "line": 84,
+   "primitive": "AES-256-GCM",
+   "snippet": "// EncryptAES256 encrypts using AES-256-GCM - QUANTUM PARTIAL (acceptable)"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "LOW",
+  "title": "AES-256-GCM primitive in <root>/crypto-samples/crypto_samples.go:84"
+ },
+ {
+  "algorithm": "AES-GCM",
+  "classification": "sederhana",
+  "evidence": {
+   "file": "crypto-samples/crypto_samples.go",
+   "line": 84,
+   "primitive": "AES-GCM",
+   "snippet": "// EncryptAES256 encrypts using AES-256-GCM - QUANTUM PARTIAL (acceptable)"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "MED",
+  "title": "AES-GCM primitive in <root>/crypto-samples/crypto_samples.go:84"
+ },
+ {
+  "algorithm": "AES-CBC",
+  "classification": "tinggi",
+  "evidence": {
+   "file": "crypto-samples/crypto_samples.go",
+   "line": 212,
+   "primitive": "AES-CBC",
+   "snippet": "tls.TLS_RSA_WITH_AES_128_CBC_SHA, // No forward secrecy"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "HIGH",
+  "title": "AES-CBC primitive in <root>/crypto-samples/crypto_samples.go:212"
+ },
+ {
+  "algorithm": "ChaCha20",
+  "classification": "rendah",
+  "evidence": {
+   "file": "crypto-samples/crypto_samples.go",
+   "line": 115,
+   "primitive": "ChaCha20",
+   "snippet": "// EncryptChaCha20 uses ChaCha20-Poly1305 - QUANTUM PARTIAL (acceptable)"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "LOW",
+  "title": "ChaCha20 primitive in <root>/crypto-samples/crypto_samples.go:115"
+ },
+ {
+  "algorithm": "3DES",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "crypto-samples/crypto_samples.go",
+   "line": 148,
+   "primitive": "3DES",
+   "snippet": "// EncryptDES uses DES - BROKEN (56-bit key is trivially brute-forced)"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "3DES primitive in <root>/crypto-samples/crypto_samples.go:148"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "crypto-samples/crypto_samples.go",
+   "line": 21,
+   "primitive": "MD5",
+   "snippet": "\"crypto/md5\""
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/crypto-samples/crypto_samples.go:21"
+ },
+ {
+  "algorithm": "SHA-1",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "crypto-samples/crypto_samples.go",
+   "line": 24,
+   "primitive": "SHA-1",
+   "snippet": "\"crypto/sha1\""
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "SHA-1 primitive in <root>/crypto-samples/crypto_samples.go:24"
+ },
+ {
+  "algorithm": "SHA-256",
+  "classification": "sederhana",
+  "evidence": {
+   "file": "crypto-samples/crypto_samples.go",
+   "line": 25,
+   "primitive": "SHA-256",
+   "snippet": "\"crypto/sha256\""
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "MED",
+  "title": "SHA-256 primitive in <root>/crypto-samples/crypto_samples.go:25"
+ },
+ {
+  "algorithm": "ML-KEM",
+  "classification": "pqc-ready",
+  "evidence": {
+   "file": "crypto-samples/crypto_samples.go",
+   "line": 41,
+   "primitive": "ML-KEM",
+   "snippet": "// Remediation: Migrate to ML-KEM (FIPS 203) for key encapsulation"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "INFO",
+  "title": "ML-KEM primitive in <root>/crypto-samples/crypto_samples.go:41"
+ },
+ {
+  "algorithm": "ML-DSA",
+  "classification": "pqc-ready",
+  "evidence": {
+   "file": "crypto-samples/crypto_samples.go",
+   "line": 58,
+   "primitive": "ML-DSA",
+   "snippet": "// Remediation: Migrate to ML-DSA (FIPS 204) for signatures"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "INFO",
+  "title": "ML-DSA primitive in <root>/crypto-samples/crypto_samples.go:58"
+ },
+ {
+  "algorithm": "RSA-2048",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "crypto-samples/crypto_samples.go",
+   "line": 43,
+   "primitive": "RSA-2048",
+   "snippet": "// RSA-2048 is quantum vulnerable"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "RSA-2048 primitive in <root>/crypto-samples/crypto_samples.go:43"
+ },
+ {
+  "algorithm": "P-256 (secp256r1)",
+  "classification": "tinggi",
+  "evidence": {
+   "file": "crypto-samples/CryptoSamples.java",
+   "line": 48,
+   "primitive": "P-256 (secp256r1)",
+   "snippet": "keyGen.initialize(new ECGenParameterSpec(\"secp256r1\"));"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "HIGH",
+  "title": "P-256 (secp256r1) primitive in <root>/crypto-samples/CryptoSamples.java:48"
+ },
+ {
+  "algorithm": "AES-256-GCM",
+  "classification": "rendah",
+  "evidence": {
+   "file": "crypto-samples/CryptoSamples.java",
+   "line": 67,
+   "primitive": "AES-256-GCM",
+   "snippet": "* Encrypt with AES-256-GCM - QUANTUM PARTIAL (acceptable)"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "LOW",
+  "title": "AES-256-GCM primitive in <root>/crypto-samples/CryptoSamples.java:67"
+ },
+ {
+  "algorithm": "AES-GCM",
+  "classification": "sederhana",
+  "evidence": {
+   "file": "crypto-samples/CryptoSamples.java",
+   "line": 9,
+   "primitive": "AES-GCM",
+   "snippet": "import javax.crypto.spec.GCMParameterSpec;"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "MED",
+  "title": "AES-GCM primitive in <root>/crypto-samples/CryptoSamples.java:9"
+ },
+ {
+  "algorithm": "3DES",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "crypto-samples/CryptoSamples.java",
+   "line": 111,
+   "primitive": "3DES",
+   "snippet": "public static byte[] encryptDES(byte[] key, byte[] plaintext) throws Exception {"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "3DES primitive in <root>/crypto-samples/CryptoSamples.java:111"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "crypto-samples/CryptoSamples.java",
+   "line": 93,
+   "primitive": "MD5",
+   "snippet": "* Hash with MD5 - BROKEN (collision attacks exist)"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/crypto-samples/CryptoSamples.java:93"
+ },
+ {
+  "algorithm": "SHA-1",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "crypto-samples/CryptoSamples.java",
+   "line": 101,
+   "primitive": "SHA-1",
+   "snippet": "* Hash with SHA-1 - WEAK (collision attacks demonstrated)"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "SHA-1 primitive in <root>/crypto-samples/CryptoSamples.java:101"
+ },
+ {
+  "algorithm": "SHA-256",
+  "classification": "sederhana",
+  "evidence": {
+   "file": "crypto-samples/CryptoSamples.java",
+   "line": 130,
+   "primitive": "SHA-256",
+   "snippet": "* Hash with SHA-256 - QUANTUM SAFE"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "MED",
+  "title": "SHA-256 primitive in <root>/crypto-samples/CryptoSamples.java:130"
+ },
+ {
+  "algorithm": "ML-KEM",
+  "classification": "pqc-ready",
+  "evidence": {
+   "file": "crypto-samples/CryptoSamples.java",
+   "line": 25,
+   "primitive": "ML-KEM",
+   "snippet": "* Remediation: Migrate to ML-KEM (FIPS 203)"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "INFO",
+  "title": "ML-KEM primitive in <root>/crypto-samples/CryptoSamples.java:25"
+ },
+ {
+  "algorithm": "ML-DSA",
+  "classification": "pqc-ready",
+  "evidence": {
+   "file": "crypto-samples/CryptoSamples.java",
+   "line": 44,
+   "primitive": "ML-DSA",
+   "snippet": "* Remediation: Migrate to ML-DSA (FIPS 204)"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "INFO",
+  "title": "ML-DSA primitive in <root>/crypto-samples/CryptoSamples.java:44"
+ },
+ {
+  "algorithm": "RSA-2048",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "crypto-samples/CryptoSamples.java",
+   "line": 34,
+   "primitive": "RSA-2048",
+   "snippet": "* Generate weak RSA-1024 key - CRITICAL (classically weak)"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "RSA-2048 primitive in <root>/crypto-samples/CryptoSamples.java:34"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "rust-string-md5/lib.rs",
+   "line": 2,
+   "primitive": "MD5",
+   "snippet": "let _s = \"use md5; is forbidden\";"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/rust-string-md5/lib.rs:2"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "rust-raw-string-md5/lib.rs",
+   "line": 2,
+   "primitive": "MD5",
+   "snippet": "r#\"use md5; let _ = md5::compute(b\"x\");\"#"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/rust-raw-string-md5/lib.rs:2"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "rust-md5-real/lib.rs",
+   "line": 1,
+   "primitive": "MD5",
+   "snippet": "use md5;"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/rust-md5-real/lib.rs:1"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "rust-comment-md5/lib.rs",
+   "line": 2,
+   "primitive": "MD5",
+   "snippet": "// use md5; is forbidden"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/rust-comment-md5/lib.rs:2"
+ },
+ {
+  "algorithm": "SHA-256",
+  "classification": "sederhana",
+  "evidence": {
+   "file": "rust-clean-sha256/lib.rs",
+   "line": 1,
+   "primitive": "SHA-256",
+   "snippet": "use sha2::{Digest, Sha256};"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "MED",
+  "title": "SHA-256 primitive in <root>/rust-clean-sha256/lib.rs:1"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "py-string-md5/src.py",
+   "line": 1,
+   "primitive": "MD5",
+   "snippet": "label = \"use hashlib.md5 for the checksum\""
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/py-string-md5/src.py:1"
+ },
+ {
+  "algorithm": "SHA-1",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "py-sha1-alias/src.py",
+   "line": 3,
+   "primitive": "SHA-1",
+   "snippet": "digest = h.sha1(b\"x\").hexdigest()"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "SHA-1 primitive in <root>/py-sha1-alias/src.py:3"
+ },
+ {
+  "algorithm": "RSA-2048",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "py-rsa2048/src.py",
+   "line": 3,
+   "primitive": "RSA-2048",
+   "snippet": "key = rsa.generate_private_key(public_exponent=65537, key_size=2048)"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "RSA-2048 primitive in <root>/py-rsa2048/src.py:3"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "py-md5-real/src.py",
+   "line": 3,
+   "primitive": "MD5",
+   "snippet": "digest = hashlib.md5(b\"x\").hexdigest()"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/py-md5-real/src.py:3"
+ },
+ {
+  "algorithm": "P-256 (secp256r1)",
+  "classification": "tinggi",
+  "evidence": {
+   "file": "py-ec-real/src.py",
+   "line": 3,
+   "primitive": "P-256 (secp256r1)",
+   "snippet": "key = ec.generate_private_key(ec.SECP256R1())"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "HIGH",
+  "title": "P-256 (secp256r1) primitive in <root>/py-ec-real/src.py:3"
+ },
+ {
+  "algorithm": "AES-ECB",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "py-des-real/src.py",
+   "line": 3,
+   "primitive": "AES-ECB",
+   "snippet": "cipher = DES.new(b\"8bytekey\", DES.MODE_ECB)"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "AES-ECB primitive in <root>/py-des-real/src.py:3"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "py-comment-md5/src.py",
+   "line": 1,
+   "primitive": "MD5",
+   "snippet": "x = 1  # hashlib.md5() is legacy, do not use"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/py-comment-md5/src.py:1"
+ },
+ {
+  "algorithm": "SHA-256",
+  "classification": "sederhana",
+  "evidence": {
+   "file": "py-clean-sha256/src.py",
+   "line": 3,
+   "primitive": "SHA-256",
+   "snippet": "digest = hashlib.sha256(b\"x\").hexdigest()"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "MED",
+  "title": "SHA-256 primitive in <root>/py-clean-sha256/src.py:3"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "php-string-md5/index.php",
+   "line": 2,
+   "primitive": "MD5",
+   "snippet": "$note = \"md5($password) is forbidden\";"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/php-string-md5/index.php:2"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "php-md5-real/index.php",
+   "line": 2,
+   "primitive": "MD5",
+   "snippet": "$hash = md5($password);"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/php-md5-real/index.php:2"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "php-comment-md5/index.php",
+   "line": 2,
+   "primitive": "MD5",
+   "snippet": "// md5($password) is forbidden"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/php-comment-md5/index.php:2"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "kt-string-md5/Hash.kt",
+   "line": 1,
+   "primitive": "MD5",
+   "snippet": "fun f() = \"never call MessageDigest.getInstance('MD5')\""
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/kt-string-md5/Hash.kt:1"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "kt-raw-string-md5/Hash.kt",
+   "line": 2,
+   "primitive": "MD5",
+   "snippet": "MessageDigest.getInstance(\"MD5\")"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/kt-raw-string-md5/Hash.kt:2"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "kt-md5-real/Hash.kt",
+   "line": 4,
+   "primitive": "MD5",
+   "snippet": "MessageDigest.getInstance(\"MD5\").digest(\"x\".toByteArray())"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/kt-md5-real/Hash.kt:4"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "kt-comment-md5/Hash.kt",
+   "line": 2,
+   "primitive": "MD5",
+   "snippet": "// MessageDigest.getInstance(\"MD5\") is banned"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/kt-comment-md5/Hash.kt:2"
+ },
+ {
+  "algorithm": "SHA-256",
+  "classification": "sederhana",
+  "evidence": {
+   "file": "kt-clean-sha256/Hash.kt",
+   "line": 4,
+   "primitive": "SHA-256",
+   "snippet": "MessageDigest.getInstance(\"SHA-256\").digest(\"x\".toByteArray())"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "MED",
+  "title": "SHA-256 primitive in <root>/kt-clean-sha256/Hash.kt:4"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "js-string-md5/app.js",
+   "line": 1,
+   "primitive": "MD5",
+   "snippet": "const note = \"crypto.createHash('md5') is forbidden\";"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/js-string-md5/app.js:1"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "js-md5-real/app.js",
+   "line": 3,
+   "primitive": "MD5",
+   "snippet": "const h = crypto.createHash('md5');"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/js-md5-real/app.js:3"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "js-comment-md5/app.js",
+   "line": 2,
+   "primitive": "MD5",
+   "snippet": "// crypto.createHash('md5') is forbidden"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/js-comment-md5/app.js:2"
+ },
+ {
+  "algorithm": "SHA-256",
+  "classification": "sederhana",
+  "evidence": {
+   "file": "js-clean-sha256/app.js",
+   "line": 3,
+   "primitive": "SHA-256",
+   "snippet": "const h = crypto.createHash('sha256');"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "MED",
+  "title": "SHA-256 primitive in <root>/js-clean-sha256/app.js:3"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "java-string-md5/D.java",
+   "line": 3,
+   "primitive": "MD5",
+   "snippet": "String m = \"never call MessageDigest.getInstance('MD5')\";"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/java-string-md5/D.java:3"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "java-md5-real/A.java",
+   "line": 5,
+   "primitive": "MD5",
+   "snippet": "MessageDigest md = MessageDigest.getInstance(\"MD5\");"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/java-md5-real/A.java:5"
+ },
+ {
+  "algorithm": "AES-ECB",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "java-des-real/B.java",
+   "line": 5,
+   "primitive": "AES-ECB",
+   "snippet": "Cipher c = Cipher.getInstance(\"DES/ECB/PKCS5Padding\");"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "AES-ECB primitive in <root>/java-des-real/B.java:5"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "java-comment-md5/C.java",
+   "line": 3,
+   "primitive": "MD5",
+   "snippet": "// MessageDigest.getInstance(\"MD5\") is banned"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/java-comment-md5/C.java:3"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "go-string-md5/main.go",
+   "line": 4,
+   "primitive": "MD5",
+   "snippet": "return \"md5.New() disabled\""
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/go-string-md5/main.go:4"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "go-md5-real/main.go",
+   "line": 3,
+   "primitive": "MD5",
+   "snippet": "import \"crypto/md5\""
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/go-md5-real/main.go:3"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "go-comment-md5/main.go",
+   "line": 4,
+   "primitive": "MD5",
+   "snippet": "// md5.New() must never be used here"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/go-comment-md5/main.go:4"
+ },
+ {
+  "algorithm": "SHA-256",
+  "classification": "sederhana",
+  "evidence": {
+   "file": "go-clean-sha256/main.go",
+   "line": 3,
+   "primitive": "SHA-256",
+   "snippet": "import \"crypto/sha256\""
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "MED",
+  "title": "SHA-256 primitive in <root>/go-clean-sha256/main.go:3"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "cs-verbatim-md5/Hash.cs",
+   "line": 2,
+   "primitive": "MD5",
+   "snippet": "string F() { return @\"legacy: MD5.Create() and RSA.Create(1024)\"; }"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/cs-verbatim-md5/Hash.cs:2"
+ },
+ {
+  "algorithm": "RSA-2048",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "cs-verbatim-md5/Hash.cs",
+   "line": 2,
+   "primitive": "RSA-2048",
+   "snippet": "string F() { return @\"legacy: MD5.Create() and RSA.Create(1024)\"; }"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "RSA-2048 primitive in <root>/cs-verbatim-md5/Hash.cs:2"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "cs-string-md5/Hash.cs",
+   "line": 2,
+   "primitive": "MD5",
+   "snippet": "string F() { return \"never call MD5.Create() here\"; }"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/cs-string-md5/Hash.cs:2"
+ },
+ {
+  "algorithm": "RSA-2048",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "cs-rsa-real/Keys.cs",
+   "line": 4,
+   "primitive": "RSA-2048",
+   "snippet": "RSA F() { return RSA.Create(2048); }"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "RSA-2048 primitive in <root>/cs-rsa-real/Keys.cs:4"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "cs-md5-real/Hash.cs",
+   "line": 4,
+   "primitive": "MD5",
+   "snippet": "byte[] F(byte[] d) { using var h = MD5.Create(); return h.ComputeHash(d); }"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/cs-md5-real/Hash.cs:4"
+ },
+ {
+  "algorithm": "3DES",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "cs-des-real/Legacy.cs",
+   "line": 4,
+   "primitive": "3DES",
+   "snippet": "SymmetricAlgorithm F() { return new TripleDESCryptoServiceProvider(); }"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "3DES primitive in <root>/cs-des-real/Legacy.cs:4"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "file": "cs-comment-md5/Hash.cs",
+   "line": 2,
+   "primitive": "MD5",
+   "snippet": "// MD5.Create() is banned by policy"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "CRIT",
+  "title": "MD5 primitive in <root>/cs-comment-md5/Hash.cs:2"
+ },
+ {
+  "algorithm": "SHA-256",
+  "classification": "sederhana",
+  "evidence": {
+   "file": "cs-clean-sha256/Hash.cs",
+   "line": 4,
+   "primitive": "SHA-256",
+   "snippet": "byte[] F(byte[] d) { using var h = SHA256.Create(); return h.ComputeHash(d); }"
+  },
+  "probe_id": "code.crypto_primitives",
+  "severity": "MED",
+  "title": "SHA-256 primitive in <root>/cs-clean-sha256/Hash.cs:4"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "line": 96,
+   "path": "crypto-samples/CryptoSamples.java"
+  },
+  "probe_id": "code.ts.java",
+  "severity": "CRIT",
+  "title": "MessageDigest MD5 in <root>/crypto-samples/CryptoSamples.java:96"
+ },
+ {
+  "algorithm": "SHA-1",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "line": 104,
+   "path": "crypto-samples/CryptoSamples.java"
+  },
+  "probe_id": "code.ts.java",
+  "severity": "CRIT",
+  "title": "MessageDigest SHA-1 in <root>/crypto-samples/CryptoSamples.java:104"
+ },
+ {
+  "algorithm": "DES/CBC/PKCS5Padding",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "line": 112,
+   "path": "crypto-samples/CryptoSamples.java"
+  },
+  "probe_id": "code.ts.java",
+  "severity": "CRIT",
+  "title": "Cipher.getInstance('DES/CBC/PKCS5Padding') in <root>/crypto-samples/CryptoSamples.java:112"
+ },
+ {
+  "algorithm": "DESede/CBC/PKCS5Padding",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "line": 121,
+   "path": "crypto-samples/CryptoSamples.java"
+  },
+  "probe_id": "code.ts.java",
+  "severity": "CRIT",
+  "title": "Cipher.getInstance('DESede/CBC/PKCS5Padding') in <root>/crypto-samples/CryptoSamples.java:121"
+ },
+ {
+  "algorithm": "RSA-2048",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "line": 28,
+   "path": "crypto-samples/CryptoSamples.java"
+  },
+  "probe_id": "code.ts.java",
+  "severity": "CRIT",
+  "title": "KeyPairGenerator RSA initialize(2048) in <root>/crypto-samples/CryptoSamples.java:28"
+ },
+ {
+  "algorithm": "RSA-1024",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "line": 37,
+   "path": "crypto-samples/CryptoSamples.java"
+  },
+  "probe_id": "code.ts.java",
+  "severity": "CRIT",
+  "title": "KeyPairGenerator RSA initialize(1024) in <root>/crypto-samples/CryptoSamples.java:37"
+ },
+ {
+  "algorithm": "RSA-2048",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "line": 4,
+   "path": "kt-rsa-real/Keys.kt"
+  },
+  "probe_id": "code.ts.java",
+  "severity": "CRIT",
+  "title": "KeyPairGenerator RSA initialize(2048) in <root>/kt-rsa-real/Keys.kt:4"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "line": 4,
+   "path": "kt-md5-real/Hash.kt"
+  },
+  "probe_id": "code.ts.java",
+  "severity": "CRIT",
+  "title": "MessageDigest MD5 in <root>/kt-md5-real/Hash.kt:4"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "line": 5,
+   "path": "java-md5-real/A.java"
+  },
+  "probe_id": "code.ts.java",
+  "severity": "CRIT",
+  "title": "MessageDigest MD5 in <root>/java-md5-real/A.java:5"
+ },
+ {
+  "algorithm": "DES/ECB/PKCS5Padding",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "line": 5,
+   "path": "java-des-real/B.java"
+  },
+  "probe_id": "code.ts.java",
+  "severity": "CRIT",
+  "title": "Cipher.getInstance('DES/ECB/PKCS5Padding') in <root>/java-des-real/B.java:5"
+ },
+ {
+  "algorithm": "RSA-2048",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "line": 4,
+   "path": "cs-rsa-real/Keys.cs"
+  },
+  "probe_id": "code.ts.csharp",
+  "severity": "CRIT",
+  "title": "RSA-2048 key generation in <root>/cs-rsa-real/Keys.cs:4"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "line": 4,
+   "path": "cs-md5-real/Hash.cs"
+  },
+  "probe_id": "code.ts.csharp",
+  "severity": "CRIT",
+  "title": "weak hash MD5 in <root>/cs-md5-real/Hash.cs:4"
+ },
+ {
+  "algorithm": "TRIPLEDES",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "line": 4,
+   "path": "cs-des-real/Legacy.cs"
+  },
+  "probe_id": "code.ts.csharp",
+  "severity": "CRIT",
+  "title": "weak cipher TRIPLEDES in <root>/cs-des-real/Legacy.cs:4"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "line": 2,
+   "path": "php-md5-real/index.php"
+  },
+  "probe_id": "code.ts.php",
+  "severity": "CRIT",
+  "title": "MD5() built-in in <root>/php-md5-real/index.php:2"
+ },
+ {
+  "algorithm": "RSA-2048",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "line": 4,
+   "path": "rust-rsa-real/lib.rs"
+  },
+  "probe_id": "code.ts.rust",
+  "severity": "CRIT",
+  "title": "RsaPrivateKey::new(.., 2048) in <root>/rust-rsa-real/lib.rs:4"
+ },
+ {
+  "algorithm": "MD5",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "line": 1,
+   "path": "rust-md5-real/lib.rs"
+  },
+  "probe_id": "code.ts.rust",
+  "severity": "CRIT",
+  "title": "use md5 (weak hash crate) in <root>/rust-md5-real/lib.rs:1"
+ },
+ {
+  "algorithm": "DES",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "line": 5,
+   "path": "rust-des-real/lib.rs"
+  },
+  "probe_id": "code.ts.rust",
+  "severity": "CRIT",
+  "title": "Des::new in <root>/rust-des-real/lib.rs:5"
+ }
+]
