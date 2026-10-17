@@ -1,4 +1,5 @@
 import configparser
+import re
 from pathlib import Path
 
 import yaml
@@ -52,3 +53,11 @@ def test_windows_task_takes_over_folders_and_installs_code_under_program_files()
     ps = (ROOT / "windows-task.ps1").read_text()
     for needle in ("/setowner", "/reset", "Get-Acl", "ProgramFiles"):
         assert needle in ps, needle
+
+
+def test_windows_task_fails_closed_and_checks_icacls():
+    ps = (ROOT / "windows-task.ps1").read_text()
+    assert "ReparsePoint" in ps and "LASTEXITCODE" in ps
+    for line in ps.splitlines():
+        if "icacls" in line:
+            assert not re.search(r"\s/C\b", line), line

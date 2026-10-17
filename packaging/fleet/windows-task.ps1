@@ -52,18 +52,32 @@ $system = Get-AccountName "NT AUTHORITY\SYSTEM"
 $admins = Get-AccountName "BUILTIN\Administrators"
 $runAsName = Get-AccountName $RunAs
 
-# Take a folder over before anything is written: SYSTEM owns it, no inherited or stale entries survive.
-function Protect-Folder([string]$Path, [string[]]$Grants) {
-    New-Item -ItemType Directory -Force -Path $Path | Out-Null
-    icacls $Path /setowner $system /T /C | Out-Null
-    icacls $Path /reset /T | Out-Null
-    icacls $Path /inheritance:r /grant:r @Grants | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "icacls failed on $Path" }
-    # Verify: nobody but the expected principals may appear on the folder or anything under it.
-    $allowed = @($system, $admins, $runAsName)
-    foreach ($item in @(Get-Item $Path) + @(Get-ChildItem $Path -Recurse -Force -ErrorAction SilentlyContinue)) {
-        $acl = Get-Acl $item.FullName
-        if ($item.FullName -eq $Path -and $acl.Owner -ne $system) { throw "$Path is owned by $($acl.Owner), not $system" }
+# Fail closed: never repair a folder somebody else may have prepared. A pre-existing folder is only reused
+# if SYSTEM or Administrators own it and neither it nor anything under it is a reparse point (junction or symlink).
+$trusted = @($system, $admins)
+$allowed = @($system, $admins, $runAsName)
+
+function Get-Tree([string]$Path) {
+    # Walks without descending into reparse points; throws on the first one it meets.
+    $stack = New-Object System.Collections.Generic.Stack[object]
+    $stack.Push((Get-Item -LiteralPath $Path -Force -ErrorAction Stop))
+    while ($stack.Count -gt 0) {
+        $item = $stack.Pop()
+        if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+            throw "refusing to use ${Path}: pre-existing folder not owned by SYSTEM/Administrators or contains a reparse point ($($item.FullName)) - remove it and re-run"
+        }
+        $item
+        if ($item.PSIsContainer) {
+            foreach ($child in @(Get-ChildItem -LiteralPath $item.FullName -Force -ErrorAction Stop)) { $stack.Push($child) }
+        }
+    }
+}
+
+function Assert-Folder([string]$Path) {
+    # Every item: owned by SYSTEM or Administrators, and only the expected principals on its ACL.
+    foreach ($item in @(Get-Tree $Path)) {
+        $acl = Get-Acl -LiteralPath $item.FullName -ErrorAction Stop
+        if ($trusted -notcontains $acl.Owner) { throw "$($item.FullName) is owned by $($acl.Owner), not SYSTEM/Administrators" }
         foreach ($rule in $acl.Access) {
             if ($allowed -notcontains $rule.IdentityReference.Value) {
                 throw "Unexpected principal $($rule.IdentityReference.Value) on $($item.FullName)"
@@ -72,11 +86,33 @@ function Protect-Folder([string]$Path, [string[]]$Grants) {
     }
 }
 
+function Invoke-Icacls {
+    & icacls @args | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "icacls $($args -join ' ') failed with exit code $LASTEXITCODE" }
+}
+
+function Protect-Folder([string]$Path, [string[]]$Grants) {
+    if (Test-Path -LiteralPath $Path) {
+        $owner = (Get-Acl -LiteralPath $Path -ErrorAction Stop).Owner
+        if ($trusted -notcontains $owner) {
+            throw "refusing to use ${Path}: pre-existing folder not owned by SYSTEM/Administrators or contains a reparse point - remove it and re-run"
+        }
+        Get-Tree $Path | Out-Null
+    } else {
+        New-Item -ItemType Directory -Path $Path | Out-Null
+    }
+    Invoke-Icacls $Path /setowner $system /T
+    Invoke-Icacls $Path /reset /T
+    Invoke-Icacls $Path /inheritance:r /grant:r @Grants
+    Assert-Folder $Path
+}
+
 # State: SYSTEM + Administrators full, the task account modify only.
 $stateGrants = @("${system}:(OI)(CI)F", "${admins}:(OI)(CI)F")
 if ($runAsName -ne $system -and $runAsName -ne $admins) { $stateGrants += "${runAsName}:(OI)(CI)M" }
 Protect-Folder $Data $stateGrants
-New-Item -ItemType Directory -Force -Path $state | Out-Null
+if (-not (Test-Path -LiteralPath $state)) { New-Item -ItemType Directory -Path $state | Out-Null }
+Assert-Folder $state
 
 # Code: SYSTEM + Administrators full, the task account read and execute.
 $codeGrants = @("${system}:(OI)(CI)F", "${admins}:(OI)(CI)F")
