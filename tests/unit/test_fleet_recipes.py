@@ -46,3 +46,9 @@ def test_ansible_playbook_is_yaml_with_vaulted_token_hidden():
     env_task = next(t for t in tasks if "agent.env" in t["name"])
     assert env_task["no_log"] is True
     assert env_task["ansible.builtin.copy"]["mode"] == "0640"
+
+
+def test_windows_task_takes_over_folders_and_installs_code_under_program_files():
+    ps = (ROOT / "windows-task.ps1").read_text()
+    for needle in ("/setowner", "/reset", "Get-Acl", "ProgramFiles"):
+        assert needle in ps, needle

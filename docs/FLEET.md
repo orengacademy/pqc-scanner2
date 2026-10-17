@@ -68,7 +68,7 @@ rotate it on the collector after rollout.
 | File | What it does |
 |---|---|
 | `pqcscan-agent.service` + `pqcscan-agent.timer` | systemd one-shot `scan --report-to`, daily with up to 2 h random delay. Runs as a dedicated `pqcscan` user with `ProtectSystem=strict`, write access to `/var/lib/pqcscan` only, read-only root access through `CAP_DAC_READ_SEARCH`. Settings come from `/etc/pqcscan/agent.env`. |
-| `windows-task.ps1` | Downloads the pinned `.exe`, verifies it against `SHA256SUMS.txt`, locks `%ProgramData%\pqcscan` to SYSTEM, Administrators and the task account, and registers a daily Scheduled Task (02:00 plus up to 2 h random delay). |
+| `windows-task.ps1` | Downloads the pinned `.exe` into `%ProgramFiles%\pqcscan` (admin-write only), verifies it against `SHA256SUMS.txt`, re-owns and re-ACLs the state folder `%ProgramData%\pqcscan` (SYSTEM and Administrators full, task account modify, verified with `Get-Acl`), and registers a daily Scheduled Task (02:00 plus up to 2 h random delay). |
 | `ansible-playbook.yml` | Installs the verified binary, the `pqcscan` user, `agent.env` (0640, enroll token from a vaulted variable, `no_log`) and the timer. Rotate the token after rollout. |
 | `bigfix-fixlet.md` | Relevance clause and action script for BigFix. |
 | `osquery-wazuh.md` | Wazuh `command` wodle for the daily scan, plus an osquery query that spots a stuck spool. osquery only watches; the CM agent runs the binary. |
