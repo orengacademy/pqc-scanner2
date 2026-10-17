@@ -46,10 +46,10 @@ never as a TP.
 
 ## Current measured numbers
 
-Corpus: **124 cases — 74 positive / 50 negative**, across 27 probes in 9 families.
+Corpus: **167 cases — 87 positive / 80 negative**, across 28 probes in 10 families.
 
 ```
-OVERALL   TP=73  FP=0  FN=1  TN=50   precision=1.000   recall=0.986
+OVERALL   TP=86  FP=0  FN=1  TN=80   precision=1.000   recall=0.989
 ```
 
 The per-family table, the probes that were fixed, and the corpus limits are in

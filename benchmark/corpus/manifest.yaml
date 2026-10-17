@@ -719,3 +719,192 @@
   fixture: endpoint
   input: cases/endpoint-cbc-sha1/endpoint.yaml
   expect: {algorithm_contains: "-SHA", min_severity: crit}
+
+# ---- code.crypto_primitives (cross-language vocabulary scanner; bake-off finding) ----
+# Same fixtures as code.ts.*: real MD5 use per scanned suffix is positive; the token only
+# in a comment or a prose string is negative.
+- id: cp-py-md5-real
+  probe: code.crypto_primitives
+  kind: positive
+  input: cases/py-md5-real
+  expect: {algorithm_contains: MD5}
+- id: cp-go-md5-real
+  probe: code.crypto_primitives
+  kind: positive
+  input: cases/go-md5-real
+  expect: {algorithm_contains: MD5}
+- id: cp-java-md5-real
+  probe: code.crypto_primitives
+  kind: positive
+  input: cases/java-md5-real
+  expect: {algorithm_contains: MD5}
+- id: cp-js-md5-real
+  probe: code.crypto_primitives
+  kind: positive
+  input: cases/js-md5-real
+  expect: {algorithm_contains: MD5}
+- id: cp-php-md5-real
+  probe: code.crypto_primitives
+  kind: positive
+  input: cases/php-md5-real
+  expect: {algorithm_contains: MD5}
+- id: cp-rust-md5-real
+  probe: code.crypto_primitives
+  kind: positive
+  input: cases/rust-md5-real
+  expect: {algorithm_contains: MD5}
+- id: cp-cs-md5-real
+  probe: code.crypto_primitives
+  kind: positive
+  input: cases/cs-md5-real
+  expect: {algorithm_contains: MD5}
+- id: cp-kt-md5-real
+  probe: code.crypto_primitives
+  kind: positive
+  input: cases/kt-md5-real
+  expect: {algorithm_contains: MD5}
+- id: cp-ts-md5-real
+  probe: code.crypto_primitives
+  kind: positive
+  input: cases/ts-md5-real
+  expect: {algorithm_contains: MD5}
+- id: cp-rb-md5-real
+  probe: code.crypto_primitives
+  kind: positive
+  input: cases/rb-md5-real
+  expect: {algorithm_contains: MD5}
+- id: cp-c-md5-real
+  probe: code.crypto_primitives
+  kind: positive
+  input: cases/c-md5-real
+  expect: {algorithm_contains: MD5}
+- id: cp-cpp-md5-real
+  probe: code.crypto_primitives
+  kind: positive
+  input: cases/cpp-md5-real
+  expect: {algorithm_contains: MD5}
+- id: cp-swift-md5-real
+  probe: code.crypto_primitives
+  kind: positive
+  input: cases/swift-md5-real
+  expect: {algorithm_contains: MD5}
+- id: cp-py-comment-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/py-comment-md5
+- id: cp-py-string-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/py-string-md5
+- id: cp-go-comment-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/go-comment-md5
+- id: cp-go-string-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/go-string-md5
+- id: cp-java-comment-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/java-comment-md5
+- id: cp-java-string-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/java-string-md5
+- id: cp-js-comment-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/js-comment-md5
+- id: cp-js-string-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/js-string-md5
+- id: cp-php-comment-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/php-comment-md5
+- id: cp-php-string-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/php-string-md5
+- id: cp-rust-comment-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/rust-comment-md5
+- id: cp-rust-string-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/rust-string-md5
+- id: cp-cs-comment-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/cs-comment-md5
+- id: cp-cs-string-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/cs-string-md5
+- id: cp-cs-verbatim-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/cs-verbatim-md5
+- id: cp-kt-comment-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/kt-comment-md5
+- id: cp-kt-string-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/kt-string-md5
+- id: cp-kt-raw-string-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/kt-raw-string-md5
+- id: cp-java-textblock-md5-string
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/java-textblock-md5-string
+- id: cp-kt-rawstring-trailing-quote-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/kt-rawstring-trailing-quote-md5
+- id: cp-ts-comment-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/ts-comment-md5
+- id: cp-ts-string-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/ts-string-md5
+- id: cp-rb-comment-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/rb-comment-md5
+- id: cp-rb-string-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/rb-string-md5
+- id: cp-c-comment-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/c-comment-md5
+- id: cp-c-string-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/c-string-md5
+- id: cp-cpp-comment-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/cpp-comment-md5
+- id: cp-cpp-string-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/cpp-string-md5
+- id: cp-swift-comment-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/swift-comment-md5
+- id: cp-swift-string-md5
+  probe: code.crypto_primitives
+  kind: negative
+  input: cases/swift-string-md5

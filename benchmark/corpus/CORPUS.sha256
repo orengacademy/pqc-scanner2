@@ -1,3 +1,6 @@
+c60aede0bfece8d86c147d46c61f735daf2dc8808dc38ab65810f6ddedb1c3d5  cases/c-comment-md5/hash.c
+a5de9527371c186d7c40becb738a525c509fa7c34b88aa71041e15c01624058a  cases/c-md5-real/hash.c
+135a6f367ce15215c04f6868728b89d2fa1aed11b9dae0f8625b66b3e9be1984  cases/c-string-md5/hash.c
 50edebf7ae15f24f85a0642d3d6907c643429a0be524f84dfe95829bfcfcfef1  cases/cert-ecdsa-p256-pem/server.crt
 ff068cfbbbe8b9100af890a00c7f9f5de7220eb813559513d0f61f50da0278a9  cases/cert-ecdsa-p384-der/server.der
 3271ad3d79df7d6c287bf1a45038e4cbd6793cec5a3ecba064072370b87261c3  cases/cert-ed25519-der/server.der
@@ -9,6 +12,9 @@ e0a361fdcfdb59ae0c8dbec9e410d40356475af2f8ffe2ac696377dd3169ad95  cases/cert-rsa
 600138e60813730782a37e8ef9cd7277512699a894dc1cf55e7abc4cad175f76  cases/cert-rsa2048-pem/server.crt
 7f04dc609576759389f8f8c879409308613c975408b1f3c7b4fd0b06045d6baf  cases/cert-rsa3072-pem/server.crt
 70eeb9ad2b5ecfb9a7a867b39a2c9c97f9c7352a9c424bb6bf2073995d8289a6  cases/cert-rsa4096-der/server.der
+f167e2ef28a2ea0c66056ecfd8d6d7bb152d5a0a9e9ab8030b01713902ab63f4  cases/cpp-comment-md5/hash.cpp
+2f527daa2b93fb634338298b940f4159987e99b4b852fb288d34dc1a8730fba3  cases/cpp-md5-real/hash.cpp
+1667bd492aea02d51cb0e95b52c1242b00b4eb20ec0c18f7594bd37ebf268049  cases/cpp-string-md5/hash.cpp
 a4347ecc25eca99cbed6baecc59137ad2da11398bc83ebae9d6bcc9ec92b2e04  cases/cs-clean-sha256/Hash.cs
 9c940f39d8b5a3e757f2a759e63df401e752650fef1efeb44b52821224099116  cases/cs-comment-md5/Hash.cs
 b79bc1327d75e2080fd13ebbfd196c212bfcd9ed1926543ebc7573815c78bb35  cases/cs-des-real/Legacy.cs
@@ -111,6 +117,9 @@ b938cd00fe2cef1efb483f9d34b458aa289d660f5740336037d0a57c328b338e  cases/py-md5-r
 f51aa95ed630af2f04253a2e2b5d00513d51218ad2de43beef81944ab1ad0410  cases/py-rsa2048/src.py
 bc189ac1f51af31f91f13e3fdc5b66926531fb9d66cd4034fdb28983504f11b6  cases/py-sha1-alias/src.py
 9b7e812ff319038da5f96a4989feabad26bbe10ddf6f5fecb666a7eef6134014  cases/py-string-md5/src.py
+9a30a706188c0545ccef2b17f963dee997a54140c7c89669112c17e333f7934c  cases/rb-comment-md5/hash.rb
+090de9eb17324b994c3cf9f97d697119660b7a0ac4a3250cba7a3dc1afb974c7  cases/rb-md5-real/hash.rb
+d276f78a3eedcaf09784bc253825894f813d789458f5dac827276bcae0820123  cases/rb-string-md5/hash.rb
 0333bf40d6159d2d993321d68d513fc532b1a039918c1c04bf5a1f060e6e3d54  cases/rust-clean-sha256/lib.rs
 ef2909c5d38ec7311ef0b1ef3ec9d561ebc9ead03ca9b5ba796583383924d76e  cases/rust-comment-md5/lib.rs
 ee9fe61ebe0c53681f079be6fc71109341423c76dfa3793b69ec26eba3332890  cases/rust-des-real/lib.rs
@@ -128,4 +137,10 @@ ebae4cf65a11db7fb9c30f572cfc826ee97bccbf1ecb4add4ba2c3edf4106c4c  cases/ssh-host
 80cb7e86851f893778c59be4152de4e461d69ac3f22724fcbe3683cd5137d686  cases/ssh-hostkey-rsa1024/ssh_host_rsa_key.pub
 3ffd38c9f3f30e8f71aaf64881e147c3896f9ed975894147e79bc75587d45d5a  cases/sshd-hardened.conf
 75e48b5d8f93bd9ed265e66cc7c9406a548c834a35820433146eed78fb7cbe28  cases/sshd-weak.conf
-8eb98d00c0a85f0cc1dafe5012f3163386a330a0fe95cc9348ad49ea0d6860aa  manifest.yaml
+b64af5516720a9b7dfafd72b17ced5c8ce5158fe7bfe9ab0db7da566225289b9  cases/swift-comment-md5/Hash.swift
+84352b66d76b862bd3bccbc5171b324962e8f7b4f1cd255544e83b733ee00158  cases/swift-md5-real/Hash.swift
+71f9e1d740520636e4aedddaaca3a1ebd3e29f968c884dce1ee2af84cc385c7b  cases/swift-string-md5/Hash.swift
+9b3adf8278bff3c787bd63850d399c1a8712aab4a372745fc3de4d9181cc1079  cases/ts-comment-md5/app.ts
+d4519d942acf88ed5656101a3116e701ac929d438b41bc09bb17b7e806342f7a  cases/ts-md5-real/app.ts
+b8ce97b9d74cb5b6fc4b9905fc04d6fc9ae548083e3b5f674077962dc607452c  cases/ts-string-md5/app.ts
+5355b76a0fb64da11771cb9c65c2327f4fbf9aa50c2d20d2cdfbdbe353302135  manifest.yaml

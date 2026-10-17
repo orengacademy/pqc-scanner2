@@ -408,6 +408,25 @@ def more_source_fixtures() -> None:
       'fun f(b: ByteArray): String = """prefix"""" + MessageDigest.getInstance("MD5").digest(b).size\n')
     w("kt-rawstring-trailing-quote-md5/S.kt",
       'val s = """MessageDigest.getInstance("MD5")""""\n')
+    # code.crypto_primitives also scans .ts/.rb/.c/.cpp/.swift: real use vs the
+    # token only in a comment or in a prose string.
+    for lang, fname, real, comment, string in (
+        ("ts", "app.ts", 'import { createHash } from "crypto";\nconst h = createHash("md5");\n',
+         '// createHash("md5") is banned\nexport const x = 1;\n', 'export const note = "never use md5 here";\n'),
+        ("rb", "hash.rb", 'require "digest"\nd = Digest::MD5.hexdigest(data)\n',
+         "# Digest::MD5 is banned\nx = 1\n", 'note = "never use md5 here"\n'),
+        ("c", "hash.c", "#include <openssl/md5.h>\n"
+         "void f(const unsigned char *d, size_t n, unsigned char *o) { MD5(d, n, o); }\n",
+         "/* MD5() is banned */\nint x;\n", 'const char *note = "never use md5 here";\n'),
+        ("cpp", "hash.cpp", "#include <openssl/md5.h>\n"
+         "void f(const unsigned char* d, size_t n, unsigned char* o) { MD5(d, n, o); }\n",
+         "// MD5() is banned\nint x = 1;\n", 'const char* note = "never use md5 here";\n'),
+        ("swift", "Hash.swift", "import CryptoKit\nlet d = Insecure.MD5.hash(data: data)\n",
+         "// Insecure.MD5 is banned\nlet x = 1\n", 'let note = "never use md5 here"\n'),
+    ):
+        w(f"{lang}-md5-real/{fname}", real)
+        w(f"{lang}-comment-md5/{fname}", comment)
+        w(f"{lang}-string-md5/{fname}", string)
     w("kt-clean-sha256/Hash.kt",
       "import java.security.MessageDigest\n\nfun f(): ByteArray =\n"
       '    MessageDigest.getInstance("SHA-256").digest("x".toByteArray())\n')

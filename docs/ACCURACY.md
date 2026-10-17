@@ -1,10 +1,10 @@
-Measured on commit `45c03cc` (probe code; `src/` is unchanged in the commit that updates this page) with `PYTHONPATH=src python benchmark/run_benchmark.py --by-family`; corpus sha256 `f37b8344c0428c80c2eabeb62cc2d9417460392869275272621b0e9769a94c3c` (sha256 of `benchmark/corpus/CORPUS.sha256`).
+Measured on commit `d9e3b84` (probe code; `src/` is unchanged in the commit that updates this page) with `PYTHONPATH=src python benchmark/run_benchmark.py --by-family`; corpus sha256 `bc637f9355dea9c9621c1d67ca9776b0029db75591ab20b7e51c23f0f1d4eddc` (sha256 of `benchmark/corpus/CORPUS.sha256`).
 
 # Detection accuracy
 
-pqcscan's probes are scored against a labelled corpus of 124 cases: 74 positives, where the probe should fire, and 50 negatives, where it should stay silent. The cases cover certificates, keys, keystores, local TLS endpoints, source snippets, config files, SQLite files and two OCI container images. A probe "fires" when it emits a finding in a weak or quantum-vulnerable tier (`sangat-tinggi`, `tinggi`, `sederhana`, `rendah`). INFO, ERROR and `pqc-ready` findings never count. A positive with an `expect` block counts only when the matching finding fires. See `benchmark/README.md` for the scoring rule.
+pqcscan's probes are scored against a labelled corpus of 167 cases: 87 positives, where the probe should fire, and 80 negatives, where it should stay silent. The cases cover certificates, keys, keystores, local TLS endpoints, source snippets, config files, SQLite files and two OCI container images. A probe "fires" when it emits a finding in a weak or quantum-vulnerable tier (`sangat-tinggi`, `tinggi`, `sederhana`, `rendah`). INFO, ERROR and `pqc-ready` findings never count. A positive with an `expect` block counts only when the matching finding fires. See `benchmark/README.md` for the scoring rule.
 
-Overall: **precision 1.000, recall 0.986** (TP 73, FP 0, FN 1, TN 50; no cases skipped or errored on this host). A case whose probe or fixture raises is recorded as ERROR, kept out of the counts and fails the run, so a crash can never pass as a plain FN.
+Overall: **precision 1.000, recall 0.989** (TP 86, FP 0, FN 1, TN 80; no cases skipped or errored on this host). A case whose probe or fixture raises is recorded as ERROR, kept out of the counts and fails the run, so a crash can never pass as a plain FN.
 
 ## Per family
 
@@ -12,6 +12,7 @@ A family is the probe id up to the second dot.
 
 | family | probes | TP | FP | FN | TN | precision | recall |
 |---|---|---:|---:|---:|---:|---:|---:|
+| code.crypto_primitives | crypto_primitives (13 suffixes) | 13 | 0 | 0 | 30 | 1.000 | 1.000 |
 | code.ts | csharp, go, java (incl. Kotlin), javascript, php, python, rust | 20 | 0 | 0 | 27 | 1.000 | 1.000 |
 | fs.binary | crypto | 1 | 0 | 0 | 1 | 1.000 | 1.000 |
 | fs.cert | x509, privkey, privkey_encrypted | 15 | 0 | 0 | 4 | 1.000 | 1.000 |
@@ -21,7 +22,7 @@ A family is the probe id up to the second dot.
 | fs.ssh | host_keys | 4 | 0 | 0 | 1 | 1.000 | 1.000 |
 | net.tls | versions, kex_groups, https, cert_chain, cert_chain_tls13, pqc_handshake | 18 | 0 | 1 | 8 | 1.000 | 0.947 |
 | sbom.crypto_map | crypto_map | 1 | 0 | 0 | 1 | 1.000 | 1.000 |
-| **overall** | 27 probes | **73** | **0** | **1** | **50** | **1.000** | **0.986** |
+| **overall** | 28 probes | **86** | **0** | **1** | **80** | **1.000** | **0.989** |
 
 ## Probes below 1.0
 
@@ -47,6 +48,15 @@ The same `b31dc24` fix also applies to `net.tls.kex_groups` and `net.tls.cert_ch
 
 **Residual `net.tls.https` miss, not fixed.** The mTLS endpoint requires a client certificate. Python's `ssl` client cannot finish that handshake, so it never exposes the server certificate. Recovering it would mean parsing the handshake by hand, which `net.tls.cert_chain` already does, and that probe detects the endpoint's RSA-2048 certificate (`ep-mtls-cert-chain` is a TP). For mTLS endpoints, rely on `net.tls.cert_chain`.
 
+## Bake-off fixes
+
+The scanner bake-off (`docs/BAKEOFF.md`) found two gaps. `code.crypto_primitives` was not in the corpus at all, so the precision of 1.0 above did not cover it.
+
+| commit | problem | corpus cases | before | now |
+|---|---|---|---|---|
+| `4df285e` | `code.crypto_primitives` matched raw text, so an algorithm name in a comment or a prose string fired on every language it scans. Matches now go through the comment/string lexer: comments never count, and a string counts only when it is a bare identifier such as `"MD5"` or `"AES/GCM/NoPadding"`. The probe anchors on the algorithm token itself, so masking strings outright would lose `getInstance("MD5")`. The lexer gains C/C++, Python and Ruby; Swift uses the Java rules and TypeScript the JavaScript rules. | 13 positives (real MD5 use, one per scanned suffix) and 30 negatives (comment-only and prose-string-only, every suffix, including the text-block and raw-string cases) | P 0.302 (30 FP) | P 1.000, R 1.000 |
+| `d9e3b84` | XMSS, XMSS^MT, LMS and HSS/LMS (SP 800-208) were not recognised by their X.509 OIDs or as `HSS/LMS` names, and `code.crypto_primitives` did not see them in source. | none: `pqc-ready` never counts as a fire, so unit tests cover it | — | — |
+
 ## Security-review fixes
 
 A security review of the fixes above found three more problems. Each was fixed in its own commit with unit tests and a CHANGELOG entry. Each also got corpus cases, and every new positive scores FN on the pre-review code (`10f789c`) and TP now.
@@ -64,7 +74,7 @@ A security review of the fixes above found three more problems. Each was fixed i
 
 ## Limits
 
-- **Hybrid-KEM negatives need OpenSSL 3.5 or newer.** Python's `ssl` cannot pick groups: `set_ecdh_curve` takes one classical group. OpenSSL 3.5 offers `X25519MLKEM768` first by default, and the Python here links OpenSSL 3.5.7, so the hybrid endpoints are real. They carry `requires_openssl: [3, 5]` and are recorded as SKIP on older builds, such as a system Python on Ubuntu 24.04 with OpenSSL 3.0. The CI accuracy job on `ubuntu-latest` uses the real OpenSSL 3.0.13 ([run 39036012109](https://github.com/orengacademy/pqc-scanner2/actions/runs/39036012109)). It measured precision 1.000 and **recall 0.973**: 71 of 73 scored positives, with those 8 cases skipped. That run missed `ep-tls13-x25519-pqc-handshake` as well as `ep-mtls-https`. `net.tls.pqc_handshake` could only report that the local openssl does not support hybrid groups, because OpenSSL 3.0's `s_client` rejects the `X25519MLKEM768` name. `2fc607a` fixes that: the probe now asks the server through the raw ClientHello of `net.tls.kex_groups`, which offers the hybrid groups without local support. Loopback unit tests stub `s_client` to fail as it does on 3.0, and the X25519-only server is flagged. The expected CI recall after the fix is 72/73 = 0.986, which is not yet measured. An earlier simulated OpenSSL 3.0 run that forced only the version check gave 0.985; it did not exercise the 3.0 `s_client`, which is why it missed this.
+- **Hybrid-KEM negatives need OpenSSL 3.5 or newer.** Python's `ssl` cannot pick groups: `set_ecdh_curve` takes one classical group. OpenSSL 3.5 offers `X25519MLKEM768` first by default, and the Python here links OpenSSL 3.5.7, so the hybrid endpoints are real. They carry `requires_openssl: [3, 5]` and are recorded as SKIP on older builds, such as a system Python on Ubuntu 24.04 with OpenSSL 3.0. The CI accuracy job on `ubuntu-latest` uses the real OpenSSL 3.0.13 ([run 39036012109](https://github.com/orengacademy/pqc-scanner2/actions/runs/39036012109)). It measured precision 1.000 and **recall 0.973**: 71 of 73 scored positives, with those 8 cases skipped. That run missed `ep-tls13-x25519-pqc-handshake` as well as `ep-mtls-https`. `net.tls.pqc_handshake` could only report that the local openssl does not support hybrid groups, because OpenSSL 3.0's `s_client` rejects the `X25519MLKEM768` name. `2fc607a` fixes that: the probe now asks the server through the raw ClientHello of `net.tls.kex_groups`, which offers the hybrid groups without local support. Loopback unit tests stub `s_client` to fail as it does on 3.0, and the X25519-only server is flagged. The expected CI recall after the fix is 72/73 = 0.986 on that 124-case corpus, and 85/86 = 0.988 on the current 167-case corpus. Neither is measured yet. An earlier simulated OpenSSL 3.0 run that forced only the version check gave 0.985; it did not exercise the 3.0 `s_client`, which is why it missed this.
 - **No RC4 or 3DES servers.** OpenSSL 3.x builds do not ship those TLS suites, so `NULL-SHA256` stands in as the weak-cipher endpoint.
 - **No live daemon probes.** `container.image.sbom`, `container.runtime.detect` and `sbom.syft` need docker, podman or syft and emit only INFO findings, so they are not scored. pqcscan has no native OCI image reader.
 - **Image fixtures are a flattened rootfs.** The harness applies the layers of a single-layer OCI layout and points the file probes at the result, which emulates `docker export` followed by `pqcscan scan --path`. Whiteouts are not handled. The bundled `libssl` is ELF magic plus an OpenSSL version banner, so the `DT_NEEDED` linkage path of `fs.binary.crypto` is not exercised.

@@ -1,17 +1,25 @@
 {
   "overall": {
-    "tp": 73,
+    "tp": 86,
     "fp": 0,
     "fn": 1,
-    "tn": 50,
+    "tn": 80,
     "precision": 1.0,
-    "recall": 0.9864864864864865,
-    "positives": 74,
-    "negatives": 50,
-    "cases": 124
+    "recall": 0.9885057471264368,
+    "positives": 87,
+    "negatives": 80,
+    "cases": 167
   },
-  "corpus_sha256": "f37b8344c0428c80c2eabeb62cc2d9417460392869275272621b0e9769a94c3c",
+  "corpus_sha256": "bc637f9355dea9c9621c1d67ca9776b0029db75591ab20b7e51c23f0f1d4eddc",
   "per_probe": {
+    "code.crypto_primitives": {
+      "tp": 13,
+      "fp": 0,
+      "fn": 0,
+      "tn": 30,
+      "precision": 1.0,
+      "recall": 1.0
+    },
     "code.ts.csharp": {
       "tp": 3,
       "fp": 0,
@@ -230,6 +238,14 @@
     }
   },
   "per_family": {
+    "code.crypto_primitives": {
+      "tp": 13,
+      "fp": 0,
+      "fn": 0,
+      "tn": 30,
+      "precision": 1.0,
+      "recall": 1.0
+    },
     "code.ts": {
       "tp": 20,
       "fp": 0,
@@ -1585,6 +1601,419 @@
         "AES128-SHA",
         "RSA-2048"
       ],
+      "note": ""
+    },
+    {
+      "id": "cp-py-md5-real",
+      "probe": "code.crypto_primitives",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cp-go-md5-real",
+      "probe": "code.crypto_primitives",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cp-java-md5-real",
+      "probe": "code.crypto_primitives",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cp-js-md5-real",
+      "probe": "code.crypto_primitives",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cp-php-md5-real",
+      "probe": "code.crypto_primitives",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cp-rust-md5-real",
+      "probe": "code.crypto_primitives",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cp-cs-md5-real",
+      "probe": "code.crypto_primitives",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cp-kt-md5-real",
+      "probe": "code.crypto_primitives",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cp-ts-md5-real",
+      "probe": "code.crypto_primitives",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cp-rb-md5-real",
+      "probe": "code.crypto_primitives",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cp-c-md5-real",
+      "probe": "code.crypto_primitives",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cp-cpp-md5-real",
+      "probe": "code.crypto_primitives",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cp-swift-md5-real",
+      "probe": "code.crypto_primitives",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cp-py-comment-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-py-string-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-go-comment-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-go-string-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-java-comment-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-java-string-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-js-comment-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-js-string-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-php-comment-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-php-string-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-rust-comment-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-rust-string-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-cs-comment-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-cs-string-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-cs-verbatim-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-kt-comment-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-kt-string-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-kt-raw-string-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-java-textblock-md5-string",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-kt-rawstring-trailing-quote-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-ts-comment-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-ts-string-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-rb-comment-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-rb-string-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-c-comment-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-c-string-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-cpp-comment-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-cpp-string-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-swift-comment-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cp-swift-string-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
       "note": ""
     }
   ]
