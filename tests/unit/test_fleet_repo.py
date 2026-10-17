@@ -187,6 +187,17 @@ def test_prune_host_keeps_newest_n_and_leaves_other_hosts_and_rollups(tmp_db_pat
         fleet.prune_host(h1.id, 0)
 
 
+def test_prune_host_never_deletes_baselined_scans(tmp_db_path, tmp_path):
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    h = fleet.upsert_host(WEB01)
+    ids = [fleet.ingest_bundle(_bundle(src, WEB01, ["RSA-2048"]), h.id).scan_id for _ in range(5)]
+    fleet.create_baseline(scan_id=ids[0], label="golden")
+    assert fleet.prune_host(h.id, 2) == 2                   # baseline kept, and it does not use up a keep slot
+    assert sorted(s.id for s in fleet.host_history(h.id)) == [ids[0], ids[3], ids[4]]
+    assert [b.scan_id for b in fleet.list_baselines()] == [ids[0]]
+
+
 def test_ingest_unknown_host_and_foreign_scan_uuid(tmp_db_path, tmp_path):
     src = Repo(tmp_path / "src.db"); src.init_schema()
     fleet = Repo(tmp_db_path); fleet.init_schema()

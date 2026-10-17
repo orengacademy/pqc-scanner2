@@ -55,6 +55,7 @@ database stops growing without a cron job. Change the number with `pqcscan daemo
 (or `PQCSCAN_KEEP_SCANS_PER_HOST`); the minimum is 1, there is no off switch. The scan just ingested is never
 removed, other hosts are untouched, and a duplicate bundle prunes nothing. If the trim itself fails the ingest
 still succeeds and a warning is logged. The agent's own `--keep-local` is a separate, client-side setting.
+Scans saved as a baseline are never pruned and do not count toward N, so a host keeps N other scans plus its baselines.
 
 ## Agent loop (fallback)
 
