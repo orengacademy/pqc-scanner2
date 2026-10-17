@@ -6,6 +6,7 @@
   Register a daily pqcscan scheduled task that scans this host and reports to the fleet daemon.
 
 .DESCRIPTION
+  Requires Windows PowerShell 5.1 (Desktop edition); not PowerShell 7.
   This installer refuses to run over an existing install; to upgrade, stop the task, move
   %ProgramFiles%\pqcscan and %ProgramData%\pqcscan aside, re-run.
   Layout:

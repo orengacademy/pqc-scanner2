@@ -10,8 +10,8 @@ can read; for a fuller inventory use the systemd unit instead, which grants `CAP
 
 ```sh
 #!/bin/sh
-set -a; . /etc/pqcscan/agent.env; set +a   # PQCSCAN_SERVER, PQCSCAN_LABELS, PQCSCAN_ENROLL_TOKEN (first run)
-exec runuser -u pqcscan -- /usr/local/bin/pqcscan scan --fail-on none --report-to "$PQCSCAN_SERVER" --labels="$PQCSCAN_LABELS" \
+set -a; [ -r /etc/pqcscan/agent.env ] && . /etc/pqcscan/agent.env; set +a   # PQCSCAN_SERVER, PQCSCAN_LABELS, PQCSCAN_ENROLL_TOKEN (first run only)
+exec runuser -u pqcscan -- /usr/local/bin/pqcscan scan --fail-on none --report-to "$PQCSCAN_SERVER" ${PQCSCAN_LABELS:+"--labels=$PQCSCAN_LABELS"} \
   --db /var/lib/pqcscan/pqcscan.db --state-dir /var/lib/pqcscan/agent
 ```
 

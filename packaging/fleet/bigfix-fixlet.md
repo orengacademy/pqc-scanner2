@@ -1,8 +1,8 @@
 # BigFix fixlet: pqcscan fleet agent
 
 Two parts: an install-only Fixlet that puts the pinned binary on the host, and a scan Task that runs one
-scan and reports to the fleet daemon. Set the scan Task to Reapply daily (Take Action > Schedule > Reapply,
-interval 1 day, "whenever it becomes relevant again"); the install Fixlet is not repeated. Keep the enroll token in
+scan and reports to the fleet daemon. Set the scan Task to Reapply daily (Take Action > Execution > "Reapply an unlimited number of times, wait 1 day between
+reapplications"); the install Fixlet is not repeated. Keep the enroll token in
 a separate Task that writes `/etc/pqcscan/agent.env`, never in the action text.
 
 ## 1. Install Fixlet (binary missing or not the pinned version)
@@ -36,11 +36,11 @@ name of operating system = "Linux" AND exists file "/usr/local/bin/pqcscan"
 Action script:
 
 ```
-wait /bin/sh -c "set -a; . /etc/pqcscan/agent.env; set +a; exec /usr/local/bin/pqcscan scan --fail-on none --report-to https://pqc.internal:8765 --labels env=prod,group=web --db /var/lib/pqcscan/pqcscan.db --state-dir /var/lib/pqcscan/agent"
+wait /bin/sh -c "set -a; [ -r /etc/pqcscan/agent.env ] && . /etc/pqcscan/agent.env; set +a; exec /usr/local/bin/pqcscan scan --fail-on none --report-to https://pqc.internal:8765 --labels env=prod,group=web --db /var/lib/pqcscan/pqcscan.db --state-dir /var/lib/pqcscan/agent"
 ```
 
 `/etc/pqcscan/agent.env` (root, mode 0600) holds `PQCSCAN_ENROLL_TOKEN=<token>`. The first run enrolls and stores
-`/var/lib/pqcscan/agent/agent.token` (mode 0600); after that the file can be removed. Rotate the enroll token on the
+`/var/lib/pqcscan/agent/agent.token` (mode 0600); after that the file can be removed; the scan line skips it when it is missing. Rotate the enroll token on the
 collector after rollout. For a private CA add `--ca-cert /etc/pqcscan/ca.pem`.
 
 Exit codes: 0 reported or spooled for retry, 2 scan failed.

@@ -74,3 +74,11 @@ def test_bigfix_has_install_fixlet_and_reapplied_scan_task():
     assert 'not (exists file "/usr/local/bin/pqcscan"' in md
     assert 'AND exists file "/usr/local/bin/pqcscan"' in md
     assert "x64 of operating system" in md and "/usr/bin/install" in md
+
+
+def test_wrappers_tolerate_a_removed_env_file_and_empty_labels():
+    big = (ROOT / "bigfix-fixlet.md").read_text()
+    wazuh = (ROOT / "osquery-wazuh.md").read_text()
+    assert "[ -r /etc/pqcscan/agent.env ] && ." in big and "[ -r /etc/pqcscan/agent.env ] && ." in wazuh
+    assert "${PQCSCAN_LABELS:+" in wazuh
+    assert "wait 1 day between" in big
