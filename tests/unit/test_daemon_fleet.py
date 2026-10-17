@@ -372,3 +372,41 @@ def test_ingest_and_reenroll_reject_labels_past_the_per_host_cap(tmp_db_path, fa
     r = c.post("/api/ingest", content=blob, headers=_hdr(tok))
     assert r.status_code == 400 and "labels" in r.json()["detail"]
     assert len(Repo(tmp_db_path).get_host(1).labels) == 64 and not Repo(tmp_db_path).host_history(1)
+
+
+def test_enroll_and_agent_lookup_run_off_the_event_loop(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    """A blocking DB call on the loop thread stalls every request while SQLite's write lock is held."""
+    import asyncio
+    on_loop: list[str] = []
+
+    def note(name, orig):
+        def wrapper(self, *a, **kw):
+            try:
+                asyncio.get_running_loop()
+                on_loop.append(name)
+            except RuntimeError:
+                pass
+            return orig(self, *a, **kw)
+        return wrapper
+
+    for name in ("get_host_by_machine_id", "upsert_host", "get_host_by_token_hash"):
+        monkeypatch.setattr(Repo, name, note(name, getattr(Repo, name)))
+    c = _client(tmp_db_path, fast_registry)
+    tok = _enroll(c)["agent_token"]
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(tok)).status_code == 200
+    assert on_loop == []
+
+
+@pytest.mark.parametrize("method", ["get_host_by_machine_id", "upsert_host", "get_host_by_token_hash"])
+def test_store_busy_on_enroll_or_auth_is_503_not_500(tmp_db_path, fast_registry, tmp_path, monkeypatch, method):
+    c = _client(tmp_db_path, fast_registry)
+    tok = _enroll(c)["agent_token"] if method == "get_host_by_token_hash" else None
+
+    def busy(self, *a, **kw):
+        raise OperationalError("SELECT", {}, Exception("database is locked"))
+    monkeypatch.setattr(Repo, method, busy)
+    if tok:
+        r = c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(tok))
+    else:
+        r = c.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": {**HOST, "machine_id": "m-2"}})
+    assert r.status_code == 503 and r.headers["retry-after"] == "5"

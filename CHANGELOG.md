@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Fleet `enroll` and the agent-token lookup no longer block the daemon's event loop. Both ran SQLite calls on the
+  loop thread, so one enrolment waiting on the write lock stalled every other request (500 hosts enrolling during
+  ingest: enroll p95 22 s), and a lock timeout surfaced as an uncaught 500. They now run in the threadpool and
+  answer 503 with `Retry-After` when the store is busy, as ingest already did. Found by the 500-host load test.
 - The OS-ssl TLS probes (`net.tls.https`/`imaps`/`ldaps`/`smtps`/`pop3s`/`mqtts`, the STARTTLS probes,
   `net.db.postgres_tls`, `net.starttls.ldap`) now connect to legacy servers when verification is off. The stock client
   context refused TLS 1.0, static-RSA key transport and NULL suites, so the weakest servers yielded only "connection

@@ -95,11 +95,14 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_h
     # Per router (one per app): an asyncio.Semaphore binds to the loop it first blocks on.
     parse_slots = asyncio.Semaphore(INGEST_PARALLELISM)
 
-    def _agent_host(request: Request):
+    async def _agent_host(request: Request):
         auth = request.headers.get("authorization", "")
         if not auth.lower().startswith("bearer "):
             raise HTTPException(401, "agent token required")
-        host = repo.get_host_by_token_hash(hash_token(auth[7:].strip()))
+        try:
+            host = await run_in_threadpool(repo.get_host_by_token_hash, hash_token(auth[7:].strip()))
+        except OperationalError as e:
+            raise HTTPException(503, "store busy, retry later", headers={"Retry-After": "5"}) from e
         if host is None or host.revoked:
             raise HTTPException(401, "unknown or revoked agent token")
         return host
@@ -130,22 +133,28 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_h
             raise HTTPException(400, str(e)) from e
         ident = HostIdentity(machine_id=str(h["machine_id"]), hostname=str(h.get("hostname", "")),
                              os=str(h.get("os", "")), labels=labels, agent_version=str(h.get("agent_version", "")))
-        prior = repo.get_host_by_machine_id(ident.machine_id)
+        busy = HTTPException(503, "store busy, retry later", headers={"Retry-After": "5"})
+        try:        # off the event loop: a write waiting on SQLite's lock must not stall every other request
+            prior = await run_in_threadpool(repo.get_host_by_machine_id, ident.machine_id)
+        except OperationalError as e:
+            raise busy from e
         if prior is not None and prior.revoked:
             raise HTTPException(403, f"host is revoked; an operator must run `pqcscan agents unrevoke {prior.id}`")
         if prior is not None and prior.token_hash:
             logger.warning("fleet: re-enrollment rotated the token for host {} ({})", ident.hostname, ident.machine_id)
         token = secrets.token_urlsafe(32)
         try:
-            host = repo.upsert_host(ident, token_hash=hash_token(token))
+            host = await run_in_threadpool(repo.upsert_host, ident, token_hash=hash_token(token))
         except ValueError as e:           # merged labels would pass the per-host cap
             raise HTTPException(400, str(e)) from e
+        except OperationalError as e:
+            raise busy from e
         logger.info("fleet: enrolled host {} ({})", host.hostname, host.machine_id)
         return {"host_id": host.id, "agent_token": token}
 
     @router.post("/api/ingest")
     async def ingest(request: Request) -> dict:
-        host = _agent_host(request)
+        host = await _agent_host(request)
         if not limiter.take(host.id):     # before reading or parsing anything
             raise HTTPException(429, f"ingest rate limit: {INGEST_BURST} bundles, then one per "
                                      f"{INGEST_MIN_INTERVAL_S:g} s per host")
