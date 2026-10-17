@@ -1,5 +1,7 @@
 from types import SimpleNamespace
 
+import pytest
+
 from pqcscan.core.agility import finding_agility, score_findings
 
 
@@ -84,3 +86,44 @@ def test_pdf_html_shows_agility_line(tmp_db_path):
                                (build_html_executive, "ms", "Ketangkasan kripto: 80/100 (tinggi)"),
                                (build_html_technical, "en", "Crypto-agility: 80/100 (high)")):
         assert label in build(repo, sid, lang)
+
+
+_PROBE = {10: "hw.x", 20: "storage.x", 30: "code.x", 50: "sbom.x", 70: "fs.cert.x", 80: "net.x", 90: "fs.conf.x"}
+
+
+def _mix(*points):
+    return [SimpleNamespace(probe_id=_PROBE[p], evidence={}, classification="tinggi") for p in points]
+
+
+def test_band_edges():
+    cases = [
+        ((10, 10, 10, 10, 50, 90, 90), 39, "low"),      # mean 38.57
+        ((10, 70), 40, "medium"),
+        ((10, 20, 90, 90, 90, 90, 90), 69, "medium"),   # mean 68.57
+        ((50, 90), 70, "high"),
+    ]
+    for points, score, band in cases:
+        r = score_findings(_mix(*points))
+        assert (r.score, r.band) == (score, band), points
+
+
+@pytest.mark.parametrize("probe,evidence,points", [
+    ("fs.conf.ibmi_sysval", {}, 10),   # must beat the fs.conf. prefix
+    ("hw.tpm_algorithms", {}, 10), ("host.tpm.pcr", {}, 10), ("ot.modbus.tcp", {}, 10),
+    ("storage.disk", {}, 20), ("vpn.ipsec", {}, 20),
+    ("fs.binary.crypto", {"detection": "constant-signature"}, 20),
+    ("fs.binary.crypto", {"linked": "embedded"}, 20),
+    ("fs.binary.crypto", {"linked": "linked"}, 50),
+    ("fs.binary.crypto", {}, 50),
+    ("code.py.rsa", {}, 30),
+    ("sbom.lang.pip", {}, 50), ("container.image", {}, 50),
+    ("fs.cert.x509", {}, 70), ("fs.keystore.jks", {}, 70), ("email.smime", {}, 70), ("dns.dnssec", {}, 70),
+    ("sign.codesign", {}, 70), ("trust.store", {}, 70), ("host.cloud_kms", {}, 70), ("fs.keyref.cloud", {}, 70),
+    ("net.tls.https", {}, 80),
+    ("host.crypto_policies", {}, 90), ("host.java.security", {}, 90), ("host.openssl.cnf", {}, 90),
+    ("fs.conf.nginx", {}, 90), ("app.django", {}, 90), ("host.ssh.sshd", {}, 90), ("host.gnutls", {}, 90),
+    ("host.nss", {}, 90), ("host.windows.schannel", {}, 90), ("k8s.ingress", {}, 90), ("fs.iac.terraform", {}, 90),
+    ("unknown.thing", {}, 50),
+])
+def test_every_rule_row(probe, evidence, points):
+    assert finding_agility(probe, evidence) == points
