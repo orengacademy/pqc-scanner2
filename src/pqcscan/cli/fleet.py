@@ -58,7 +58,10 @@ def merge_cmd(sources: tuple[Path, ...], out: Path, no_rollup: bool, as_json: bo
               help="Compare host-agnostically: ignore host names, addresses and fleet.drift rows.")
 def diff_cmd(scan_id: int, baseline_id: int, db: str | None, as_json: bool,
              fail_on_drift: bool, parity: bool) -> None:
-    """Diff two scans by (probe, algorithm, title): added / removed / common.
+    """Diff two scans: added / removed / common.
+
+    The plain diff keys on (probe, algorithm, title); `--parity` keys on a host-agnostic form of the
+    title (host names, addresses and `at <host>` phrases removed). `fleet.drift` rows are ignored.
 
     HA/DR parity: scan the primary and each peer (same DB, or merge them),
     then `pqcscan diff --scan <peer> --baseline-scan <primary> --fail-on-drift`.

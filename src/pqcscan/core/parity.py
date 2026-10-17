@@ -54,7 +54,7 @@ def parity_key(probe_id: str, algorithm: str, title: str, evidence: dict[str, An
     """
     ev = evidence or {}
     if ev.get("path"):
-        return probe_id, algorithm, f"path={ev['path']}"
+        return probe_id, algorithm, f"path={str(ev['path'])[:MAX_TITLE_NORMALISE]}"
     norm = _norm_title(title, str(ev.get("host") or ""))
     port = str(ev.get("endpoint") or "")[:MAX_TITLE_NORMALISE].rpartition(":")[2]
     if port.isascii() and port.isdigit() and len(port) <= 5 and f":{port}" not in norm:
@@ -78,4 +78,5 @@ def drift_rows(previous: list, current: list) -> list[Finding]:
 def _drift(change: str, r: Any) -> Finding:
     return Finding(probe_id=DRIFT_PROBE, algorithm=r.algorithm, classification=Classification.INFO,
                    severity=Severity.INFO, title=f"drift: {change} {r.probe_id} {r.algorithm}",
-                   evidence={"change": change, "probe_id": r.probe_id, "algorithm": r.algorithm, "title": r.title})
+                   evidence={"change": change, "probe_id": r.probe_id, "algorithm": r.algorithm,
+                             "title": r.title[:MAX_TITLE_NORMALISE]})

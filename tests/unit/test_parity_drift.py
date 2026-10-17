@@ -125,3 +125,41 @@ def test_ingest_never_stores_agent_sent_drift(tmp_db_path, tmp_path):
         res = fleet.ingest_bundle(load_bundle(dump_bundle(src, sid, ident)), h.id)
     assert res.drift == 0 and res.stored_findings == 1
     assert [r.probe_id for r in fleet.list_findings(res.scan_id)] == ["fs.cert.x509"]
+
+
+def test_parity_diff_cli_fails_on_real_difference(tmp_db_path):
+    from click.testing import CliRunner
+
+    from pqcscan.cli.fleet import diff_cmd
+    repo = Repo(tmp_db_path); repo.init_schema()
+    a = repo.create_scan(mode="user", probe_versions={}, tool_versions={})
+    b = repo.create_scan(mode="user", probe_versions={}, tool_versions={})
+    repo.record_finding(a, _f("RSA-2048", "x")); repo.record_finding(b, _f("RSA-1024", "x"))
+    args = ["--db", str(tmp_db_path), "--scan", str(b), "--baseline-scan", str(a), "--parity", "--fail-on-drift"]
+    assert CliRunner().invoke(diff_cmd, args).exit_code == 1
+
+
+def test_empty_scan_after_findings_reports_every_removal(tmp_db_path):
+    repo = Repo(tmp_db_path); repo.init_schema()
+    a = repo.create_scan(mode="user", probe_versions={}, tool_versions={})
+    b = repo.create_scan(mode="user", probe_versions={}, tool_versions={})
+    for i in range(4):
+        repo.record_finding(a, _f("RSA-2048", f"cert {i}"))
+    rows = drift_rows(repo.list_findings(a), repo.list_findings(b))
+    assert [r.evidence["change"] for r in rows] == ["removed"] * 4
+
+
+def test_parity_key_caps_title_and_path_at_512():
+    head = "x" * 512
+    assert parity_key("p", "A", head + "tail-one", {}) == parity_key("p", "A", head + "tail-two", {})
+    assert parity_key("p", "A", "t", {"path": "/" + "d" * 600 + "1"}) == \
+        parity_key("p", "A", "t", {"path": "/" + "d" * 600 + "2"})
+    long_title = "y" * 600
+    d = drift_rows([], [type("R", (), {"probe_id": "p", "algorithm": "A", "title": long_title, "evidence": {}})()])
+    assert len(d[0].evidence["title"]) == 512
+
+
+def test_parity_key_normalises_at_host_and_bare_ipv6():
+    assert parity_key("p", "A", "listener at web01.example.org", {}) == parity_key("p", "A", "listener at dr-02", {})
+    assert parity_key("p", "A", "peer 2001:db8::1 uses RSA", {}) == parity_key("p", "A", "peer fe80::2 uses RSA", {})
+    assert parity_key("p", "A", "peer (10.0.0.9), ok", {}) == parity_key("p", "A", "peer (10.0.0.8), ok", {})
