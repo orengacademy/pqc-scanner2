@@ -204,3 +204,33 @@ async def test_run_modern_server_only_info(monkeypatch):
     await probe.run(_ctx(), emit=lambda f: found.append(f))
     assert len(found) == 1
     assert found[0].classification is Classification.INFO
+
+
+def _server_hello_tls13() -> bytes:
+    """ServerHello/HRR shape: legacy_version 0x0303 + supported_versions=0x0304."""
+    exts = _u16(0x002B) + _u16(2) + _u16(0x0304)
+    body = _u16(0x0303) + bytes(32) + b"\x00" + _u16(0x1301) + b"\x00" + _u16(len(exts)) + exts
+    hs = b"\x02" + struct.pack(">I", len(body))[1:] + body
+    return b"\x16\x03\x03" + _u16(len(hs)) + hs
+
+
+def test_detect_accept_requires_the_offered_version():
+    # A TLS-1.0-only server answers a TLS 1.1 hello with a TLS 1.0 ServerHello:
+    # that is a downgrade, not acceptance of TLS 1.1.
+    assert detect_accept(_server_hello(0x0301), 0x0301) is True
+    assert detect_accept(_server_hello(0x0301), 0x0302) is False
+    assert detect_accept(_server_hello_tls13(), 0x0304) is True
+    assert detect_accept(_server_hello_tls13(), 0x0303) is False
+
+
+def test_detect_accept_tolerates_truncated_server_hello():
+    hs = b"\x02" + struct.pack(">I", 1)[1:] + b"\x03" + bytes(5)   # body cut inside legacy_version
+    assert detect_accept(b"\x16\x03\x03" + _u16(len(hs)) + hs, 0x0303) is False
+
+
+def test_client_hello_offers_eddsa_and_mldsa_signatures():
+    # A server whose only cert is Ed25519 or ML-DSA aborts without these.
+    for v in (0x0303, 0x0304):
+        ch = build_client_hello(v)
+        for scheme in (0x0807, 0x0905):
+            assert _u16(scheme) in ch

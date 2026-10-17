@@ -39,6 +39,16 @@ _SWEEP_ORDER = [0x0300, 0x0301, 0x0302, 0x0303, 0x0304]
 
 _FIXED_RANDOM = bytes(range(32))  # deterministic; randomness is not security-relevant here
 
+# signature_algorithms: without ed25519/ed448 and ML-DSA a server whose only
+# certificate is EdDSA or ML-DSA aborts the handshake, which read as "TLS 1.3
+# not supported" on exactly the most modern servers.
+_SIG_ALGS = (
+    0x0403, 0x0804, 0x0401, 0x0805, 0x0806,   # ecdsa_secp256r1, rsa_pss_rsae_*, rsa_pkcs1_sha256
+    0x0503, 0x0603, 0x0501, 0x0601,           # ecdsa_secp384r1/521r1, rsa_pkcs1_sha384/512
+    0x0807, 0x0808,                           # ed25519, ed448
+    0x0904, 0x0905, 0x0906,                   # mldsa44, mldsa65, mldsa87
+)
+
 
 def _u16(n: int) -> bytes:
     return struct.pack(">H", n)
@@ -68,9 +78,7 @@ def build_client_hello(version: int, server_name: str | None = None,
     exts += _extension(0x000A, _vec16(                           # supported_groups
         _u16(0x001D) + _u16(0x0017) + _u16(0x0018) + _u16(0x11EC)
     ))
-    exts += _extension(0x000D, _vec16(                          # signature_algorithms
-        _u16(0x0403) + _u16(0x0804) + _u16(0x0401) + _u16(0x0805) + _u16(0x0806)
-    ))
+    exts += _extension(0x000D, _vec16(b"".join(_u16(s) for s in _SIG_ALGS)))  # signature_algorithms
     if is_tls13:
         exts += _extension(0x0033, _vec16(b""))                 # key_share: empty
     if server_name:
@@ -91,17 +99,48 @@ def build_client_hello(version: int, server_name: str | None = None,
     return b"\x16\x03\x01" + _vec16(handshake)                  # record: handshake, TLS 1.0
 
 
-def detect_accept(data: bytes) -> bool:
-    """True if `data` is a TLS handshake record (0x16) carrying a ServerHello
-    (handshake type 0x02) — i.e. the server ACCEPTED the offered version.
+def negotiated_version(data: bytes) -> int | None:
+    """Protocol version selected by a ServerHello / HelloRetryRequest record.
 
-    An alert record (0x15), empty bytes, or any non-ServerHello reply is treated
-    as a REJECT."""
+    supported_versions (TLS 1.3) wins over legacy_version. None when `data` is
+    not a ServerHello (alert, empty, truncated, other handshake type)."""
     if len(data) < 6 or data[0] != 0x16:
-        return False
+        return None
     rec_len = struct.unpack(">H", data[3:5])[0]
     hs = data[5:5 + rec_len]
-    return len(hs) >= 1 and hs[0] == 0x02
+    if len(hs) < 6 or hs[0] != 0x02:
+        return None
+    body = hs[4:4 + int.from_bytes(hs[1:4], "big")]
+    try:
+        version: int = struct.unpack(">H", body[:2])[0]
+        off = 2 + 32
+        if off >= len(body):
+            return version
+        off += 1 + body[off] + 2 + 1                     # session_id, cipher_suite, compression
+        if off + 2 > len(body):                          # TLS <= 1.2 may omit extensions
+            return version
+        end = off + 2 + struct.unpack(">H", body[off:off + 2])[0]
+        i = off + 2
+        while i + 4 <= min(end, len(body)):
+            et, el = struct.unpack(">HH", body[i:i + 4])
+            if et == 0x002B and el >= 2:
+                return int(struct.unpack(">H", body[i + 4:i + 6])[0])
+            i += 4 + el
+        return version
+    except struct.error:                                 # truncated ServerHello
+        return None
+
+
+def detect_accept(data: bytes, version: int | None = None) -> bool:
+    """True if `data` is a ServerHello — i.e. the server ACCEPTED — and, when
+    `version` is given, the server selected exactly that version.
+
+    A server whose maximum is below the offered version answers with a
+    ServerHello for its own (lower) version; counting that as acceptance made a
+    TLS-1.0-only server "accept" TLS 1.1. An alert record (0x15), empty bytes,
+    or any non-ServerHello reply is a REJECT."""
+    selected = negotiated_version(data)
+    return selected is not None and (version is None or selected == version)
 
 
 class NetTlsVersions(Probe):
@@ -213,4 +252,4 @@ class NetTlsVersions(Probe):
             writer.close()
             with contextlib.suppress(OSError, TimeoutError):
                 await writer.wait_closed()
-        return detect_accept(data)
+        return detect_accept(data, version)

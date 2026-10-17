@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- `net.tls.versions`, `net.tls.kex_groups` and `net.tls.cert_chain_tls13` now offer the Ed25519, Ed448 and ML-DSA
+  signature schemes. A server whose only certificate was EdDSA or ML-DSA aborted their handshakes, so
+  `net.tls.versions` reported "does not support TLS 1.3" on fully post-quantum servers and the other two saw nothing.
+- `net.tls.versions` counts a version as accepted only when the ServerHello selects that version. A TLS-1.0-only
+  server answers a TLS 1.1 hello with a TLS 1.0 ServerHello, which used to be reported as "accepts TLS 1.1".
 - `fs.keystore.pkcs12` now reports the certificates in a cert-only PKCS#12 truststore. It read only the private key
   and leaf, so a truststore of RSA CAs produced no finding at all. Found by the extended accuracy corpus.
 - `code.ts.java` no longer flags crypto calls quoted inside a Java text block or a Kotlin raw string (`"""..."""`).

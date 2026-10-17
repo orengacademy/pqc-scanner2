@@ -20,6 +20,7 @@ import struct
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes.net_tls_versions import _SIG_ALGS
 
 # group code -> (name, is_pqc_hybrid)
 _GROUPS: dict[int, tuple[str, bool]] = {
@@ -62,9 +63,7 @@ def build_client_hello(server_name: str | None = None, *, random: bytes = _FIXED
         _extension(0x002B, b"\x02" + b"\x03\x04"),          # supported_versions: TLS 1.3
         _extension(0x000A, _vec16(groups)),                  # supported_groups
         _extension(0x0033, _vec16(b"")),                     # key_share: empty -> forces HRR
-        _extension(0x000D, _vec16(                           # signature_algorithms
-            _u16(0x0403) + _u16(0x0804) + _u16(0x0401) + _u16(0x0805) + _u16(0x0806)
-        )),
+        _extension(0x000D, _vec16(b"".join(_u16(s) for s in _SIG_ALGS))),  # signature_algorithms
     ])
     if server_name:
         host = server_name.encode("idna") if server_name.isascii() else server_name.encode()

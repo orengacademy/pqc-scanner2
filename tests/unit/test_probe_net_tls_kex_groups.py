@@ -126,3 +126,10 @@ async def test_applies_requires_target():
     assert await NetTlsKexGroups(target="x:443").applies(_ctx()) is True
     assert await NetTlsKexGroups().applies(_ctx()) is False
     assert await NetTlsKexGroups().applies(_ctx("x:443")) is True
+
+
+def test_client_hello_offers_eddsa_and_mldsa_signatures():
+    # Without these an Ed25519- or ML-DSA-only server aborts and no group is seen.
+    ch = build_client_hello("example.test")
+    for scheme in (0x0807, 0x0905):
+        assert struct.pack(">H", scheme) in ch

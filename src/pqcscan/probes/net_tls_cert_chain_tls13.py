@@ -48,6 +48,7 @@ _SIG_ALGS = [
     0x0809, 0x080A, 0x080B,          # rsa_pss_pss_sha{256,384,512}
     0x0401, 0x0501, 0x0601,          # rsa_pkcs1_sha{256,384,512}
     0x0807, 0x0808,                  # ed25519, ed448
+    0x0904, 0x0905, 0x0906,          # mldsa44, mldsa65, mldsa87
 ]
 
 # CertificateVerify SignatureScheme -> (pretty name, classify-able alg name)
@@ -66,6 +67,9 @@ _SCHEMES: dict[int, tuple[str, str]] = {
     0x080B: ("rsa_pss_pss_sha512", "RSA-PSS"),
     0x0807: ("ed25519", "Ed25519"),
     0x0808: ("ed448", "Ed448"),
+    0x0904: ("mldsa44", "ML-DSA-44"),
+    0x0905: ("mldsa65", "ML-DSA-65"),
+    0x0906: ("mldsa87", "ML-DSA-87"),
     0x0201: ("rsa_pkcs1_sha1", "RSA-SHA1"),
     0x0203: ("ecdsa_sha1", "ECDSA-SHA1"),
 }
