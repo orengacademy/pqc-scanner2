@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from cryptography import x509
 from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, rsa
 from cryptography.hazmat.primitives.serialization import pkcs12
 
@@ -40,7 +41,8 @@ class FsKeystorePkcs12(Probe):
             data = path.read_bytes()
         except OSError:
             return
-        key, cert, cas = None, None, []
+        key, cert = None, None
+        cas: list[x509.Certificate] = []
         loaded = False
         for pw in _PASSWORDS:
             try:
