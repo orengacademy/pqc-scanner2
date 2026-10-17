@@ -18,15 +18,15 @@
 BeforeDiscovery {
     $dir = Join-Path $env:ProgramFiles "pqcscan"
     $dat = Join-Path $env:ProgramData "pqcscan"
-    # Everything the installer writes, for the per-path ACL checks.
-    $script:AclPaths = @(
-        @{ Path = $dir }
-        @{ Path = $dat }
-        @{ Path = (Join-Path $dat "agent") }
-        @{ Path = (Join-Path $dir "pqcscan.exe") }
-        @{ Path = (Join-Path $dir "run-agent.ps1") }
-        @{ Path = (Join-Path $dat "agent.env") }
-    )
+    $full = [int][Security.AccessControl.FileSystemRights]::FullControl
+    # Everything the installer writes, for the per-path ACL checks. With the default task account (SYSTEM) the
+    # only principals are SYSTEM and Administrators, each with FullControl, on folders and files alike.
+    $script:SystemOnly = @{ "NT AUTHORITY\SYSTEM" = $full; "BUILTIN\Administrators" = $full }
+    $script:AclPaths = foreach ($path in @(
+        $dir, $dat, (Join-Path $dat "agent"), (Join-Path $dir "pqcscan.exe"),
+        (Join-Path $dir "run-agent.ps1"), (Join-Path $dat "agent.env"))) {
+        @{ Path = $path; Expected = $script:SystemOnly }
+    }
 }
 
 BeforeAll {
@@ -37,13 +37,40 @@ BeforeAll {
     $script:Server    = "https://127.0.0.1:9"
     $script:Token     = "pester-enroll-token-not-a-secret"
     $script:Allowed   = @("NT AUTHORITY\SYSTEM", "BUILTIN\Administrators")
+    $script:Owns      = $false                                 # true only once this run may delete what it finds
+
+    function Get-AclProblems {
+        # Exact ACL check: every principal present with exactly the wanted rights, no one else, no deny rules,
+        # and an owner of SYSTEM or Administrators. Returns the list of problems (empty when the ACL is right).
+        param([string]$Path, [hashtable]$Expected)
+        $acl = Get-Acl -LiteralPath $Path
+        $problems = @()
+        if ($script:Allowed -notcontains $acl.Owner) { $problems += "owner is $($acl.Owner)" }
+        $got = @{}
+        foreach ($r in $acl.Access) {
+            $id = $r.IdentityReference.Value
+            if ($r.AccessControlType -ne "Allow") { $problems += "$id has a $($r.AccessControlType) rule" }
+            if ($got.ContainsKey($id)) { $problems += "$id is listed more than once" }
+            $got[$id] = [int]$r.FileSystemRights
+        }
+        foreach ($id in $got.Keys) {
+            if (-not $Expected.ContainsKey($id)) { $problems += "unexpected principal $id with $($got[$id])" }
+        }
+        foreach ($id in $Expected.Keys) {
+            if (-not $got.ContainsKey($id)) { $problems += "$id is missing" }
+            elseif ($got[$id] -ne [int]$Expected[$id]) {
+                $problems += "$id has $([Security.AccessControl.FileSystemRights]$got[$id]), wanted $([Security.AccessControl.FileSystemRights][int]$Expected[$id])"
+            }
+        }
+        $problems
+    }
 
     function Invoke-Installer {
         # A child powershell.exe, like an operator or Ansible would run it. Exit code and all output come back.
-        param([string]$ServerUrl = $script:Server)
+        param([string]$ServerUrl = $script:Server, [string[]]$Extra = @())
         $ErrorActionPreference = "Continue"
         $out = & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $script:Installer `
-            -Server $ServerUrl -EnrollToken $script:Token -Version v0.10.2 2>&1 | Out-String
+            -Server $ServerUrl -EnrollToken $script:Token -Version v0.10.2 @Extra 2>&1 | Out-String
         [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = $out }
     }
 
@@ -69,10 +96,12 @@ BeforeAll {
         $env:GITHUB_ACTIONS -ne "true") {
         throw "a pqcscan install already exists on this machine; move it aside before running these tests"
     }
+    $script:Owns = $true                                       # from here on the leftovers are ours to remove
     Remove-Install                                             # a clean runner has nothing; make sure
 }
 
 AfterAll {
+    if (-not $script:Owns) { return }                          # the guard refused: never delete a real install
     Remove-Install
 }
 
@@ -135,14 +164,8 @@ Describe "windows-task.ps1 on a clean host" {
     }
 
     Context "ACLs" {
-        It "<Path> is owned by SYSTEM or Administrators and lists nobody else" -ForEach $AclPaths {
-            $acl = Get-Acl -LiteralPath $Path
-            $Allowed | Should -Contain $acl.Owner
-            $acl.Access.Count | Should -BeGreaterThan 0
-            foreach ($rule in $acl.Access) {
-                $Allowed | Should -Contain $rule.IdentityReference.Value -Because "$Path grants $($rule.FileSystemRights) to $($rule.IdentityReference.Value)"
-                $rule.AccessControlType | Should -Be "Allow"
-            }
+        It "<Path> grants SYSTEM and Administrators FullControl, and nobody else anything" -ForEach $AclPaths {
+            Get-AclProblems -Path $Path -Expected $Expected | Should -BeNullOrEmpty
         }
 
         It "<Path> blocks inheritance from its parent" -ForEach @(
@@ -199,14 +222,17 @@ Describe "windows-task.ps1 refuses a pre-planted junction" {
 
     It "refuses a junction at %ProgramData%\pqcscan that points at an existing folder, and writes nothing through it" {
         New-Item -ItemType Junction -Path $Data -Target $Target | Out-Null
-        $r = Invoke-Installer
-        Write-Host "installer said: $($r.Output.Trim())"
-        $r.ExitCode | Should -Not -Be 0
-        $r.Output | Should -Match "already exists|reparse point"
-        @(Get-ChildItem -LiteralPath $Target -Force).Count | Should -Be 0
-        Test-Path -LiteralPath $Bin | Should -BeFalse
-        Get-ScheduledTask -TaskName "pqcscan-agent" -ErrorAction SilentlyContinue | Should -BeNullOrEmpty
-        Remove-Install
+        try {
+            $r = Invoke-Installer
+            Write-Host "installer said: $($r.Output.Trim())"
+            $r.ExitCode | Should -Not -Be 0
+            $r.Output | Should -Match "already exists|reparse point"
+            @(Get-ChildItem -LiteralPath $Target -Force).Count | Should -Be 0
+            Test-Path -LiteralPath $Bin | Should -BeFalse
+            Get-ScheduledTask -TaskName "pqcscan-agent" -ErrorAction SilentlyContinue | Should -BeNullOrEmpty
+        } finally {
+            Remove-Install
+        }
     }
 
     It "refuses a junction whose target does not exist yet, and writes nothing through it" {
@@ -230,12 +256,54 @@ Describe "windows-task.ps1 refuses a pre-planted junction" {
 
     It "refuses a junction at %ProgramFiles%\pqcscan" {
         New-Item -ItemType Junction -Path $Bin -Target $Target | Out-Null
-        $r = Invoke-Installer
-        Write-Host "installer said: $($r.Output.Trim())"
-        $r.ExitCode | Should -Not -Be 0
-        $r.Output | Should -Match "already exists|reparse point"
-        @(Get-ChildItem -LiteralPath $Target -Force).Count | Should -Be 0
-        Test-Path -LiteralPath $Data | Should -BeFalse
+        try {
+            $r = Invoke-Installer
+            Write-Host "installer said: $($r.Output.Trim())"
+            $r.ExitCode | Should -Not -Be 0
+            $r.Output | Should -Match "already exists|reparse point"
+            @(Get-ChildItem -LiteralPath $Target -Force).Count | Should -Be 0
+            Test-Path -LiteralPath $Data | Should -BeFalse
+        } finally {
+            Remove-Install
+        }
+    }
+}
+
+Describe "windows-task.ps1 with a dedicated task account" {
+    # The installer gives a non-SYSTEM -RunAs account Modify on state and ReadAndExecute on code. Registering a
+    # password-logon task needs a password the installer does not take, so the run may fail at that last step;
+    # the folders and files are already on disk by then, which is what these tests inspect.
+    BeforeAll {
+        Remove-Install
+        $script:SvcName = "pqcsvc" + (Get-Random -Maximum 99999)
+        $pw = ConvertTo-SecureString ("Pq1!" + [guid]::NewGuid().ToString("N")) -AsPlainText -Force
+        New-LocalUser -Name $SvcName -Password $pw -PasswordNeverExpires | Out-Null
+        $script:Svc = "$env:COMPUTERNAME\$SvcName"
+        $script:Run = Invoke-Installer -Extra @("-RunAs", $Svc)
+        Write-Host "installer (-RunAs $Svc) exit $($Run.ExitCode): $($Run.Output.Trim())"
+        $f = [int][Security.AccessControl.FileSystemRights]::FullControl
+        $m = [int][Security.AccessControl.FileSystemRights]::Modify
+        $x = [int][Security.AccessControl.FileSystemRights]::ReadAndExecute
+        $script:State = @{ "NT AUTHORITY\SYSTEM" = $f; "BUILTIN\Administrators" = $f; $Svc = $m }
+        $script:Code  = @{ "NT AUTHORITY\SYSTEM" = $f; "BUILTIN\Administrators" = $f; $Svc = $x }
+    }
+    AfterAll {
+        Remove-Install
+        Remove-LocalUser -Name $SvcName -ErrorAction SilentlyContinue
+    }
+
+    It "gives the task account Modify on the state folders and agent.env" {
+        foreach ($p in @($Data, (Join-Path $Data "agent"), (Join-Path $Data "agent.env"))) {
+            Test-Path -LiteralPath $p | Should -BeTrue -Because $Run.Output
+            Get-AclProblems -Path $p -Expected $State | Should -BeNullOrEmpty -Because $p
+        }
+    }
+
+    It "gives the task account ReadAndExecute, not write, on the code folder and its files" {
+        foreach ($p in @($Bin, (Join-Path $Bin "pqcscan.exe"), (Join-Path $Bin "run-agent.ps1"))) {
+            Test-Path -LiteralPath $p | Should -BeTrue -Because $Run.Output
+            Get-AclProblems -Path $p -Expected $Code | Should -BeNullOrEmpty -Because $p
+        }
     }
 }
 
