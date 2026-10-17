@@ -86,7 +86,7 @@ Hosts that already enrolled keep working, because they use their own agent token
 
 **`machine_id` mismatch (403).** The ingest endpoint refuses a bundle whose machine id does not match the agent token, for example
 after a cloned VM image. Delete `<state-dir>/agent.token` on that host and run it again with `--enroll-token`.
-Bundles that already got the 403 are in `<state-dir>/spool/rejected/`.
+Bundles already in the spool that get the 403 move to `<state-dir>/spool/rejected/`. A bundle the host has just scanned and sent is not kept, so the next scan after re-enrolling reports instead.
 
 ## Security
 
@@ -117,5 +117,6 @@ Bundles that already got the 403 are in `<state-dir>/spool/rejected/`.
   413 is never spooled; a 400 or 403 at enroll time still spools it. A spooled file that gets one of these moves to `<state dir>/spool/rejected/`
   and flushing continues. Nothing prunes that directory, so clear it by hand. A revoked host's
   ingest gets 401 and its re-enroll gets 403, so its bundles spool and replay after `agents unrevoke`.
+  Replaying needs the enrollment token on the host again (`--enroll-token` / `PQCSCAN_ENROLL_TOKEN`) if it was removed after the first run.
 - **Postgres is wired but untested.** The URL is accepted and `fleet-pg` installs
   the driver, but the fleet test suite runs on SQLite only.

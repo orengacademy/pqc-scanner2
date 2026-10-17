@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Deployment recipes** in `packaging/fleet/`: a hardened systemd service and timer (dedicated user, `ProtectSystem=strict`),
   a Windows Scheduled Task script (checksum-verified binary, ACL-restricted token file), an Ansible playbook
   (vaulted enroll token), a BigFix fixlet and a Wazuh/osquery note. None of them disables TLS verification.
+  Every recipe runs `pqcscan agent --once --state-dir …` (no `--db`), so the host's local database is
+  pruned to `--keep-local`; `scan --report-to` stays for ad-hoc and CI runs.
 
 ### Fixed
 - Permanent ingest rejections (400/403/413) are terminal: not spooled, and spooled files that get one move to `spool/rejected/`.

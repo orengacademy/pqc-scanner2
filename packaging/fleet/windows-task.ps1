@@ -119,11 +119,11 @@ foreach ($path in @($Data, $Bin)) {
 }
 
 # State: SYSTEM + Administrators full, the task account modify only.
-Protect-Folder $Data $fsr::Modify
-Protect-Folder $state $fsr::Modify
+Protect-Folder $Data ($fsr::Modify)
+Protect-Folder $state ($fsr::Modify)
 
 # Code: SYSTEM + Administrators full, the task account read and execute.
-Protect-Folder $Bin $fsr::ReadAndExecute
+Protect-Folder $Bin ($fsr::ReadAndExecute)
 
 # Download the pinned binary and verify it.
 $tmp = Join-Path $Bin "download"
