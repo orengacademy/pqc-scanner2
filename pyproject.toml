@@ -39,6 +39,8 @@ dev = [
   "ruff>=0.4",
   "mypy>=1.10",
 ]
+# Evidence campaign (docs/superpowers/specs/2026-10-17-fleet-evidence-spec.md): fuzzing, load tests, Postgres runs.
+verify = ["hypothesis>=6.100", "locust>=2.29", "psycopg[binary]>=3.1"]
 # Fleet collector on PostgreSQL (--db postgresql://…); SQLite is the default.
 fleet-pg = ["psycopg[binary]>=3.1"]
 # Plan I.7.a — OQS active validation extras. Default install stays passive.
@@ -80,6 +82,7 @@ packages = ["src/pqcscan"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "-ra --strict-markers"
+markers = ["fuzz: hypothesis fuzz targets for fleet ingest (needs the `verify` extra; PQCSCAN_FUZZ_EXAMPLES raises the count)"]
 
 [tool.ruff]
 line-length = 120
