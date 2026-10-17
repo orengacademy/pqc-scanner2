@@ -83,3 +83,12 @@ def test_diff_cli_parity_ignores_host_names(tmp_db_path):
     args = ["--db", str(tmp_db_path), "--scan", str(ids[1]), "--baseline-scan", str(ids[0]), "--fail-on-drift"]
     assert CliRunner().invoke(diff_cmd, args).exit_code == 1
     assert CliRunner().invoke(diff_cmd, [*args, "--parity"]).exit_code == 0
+
+
+def test_parity_key_is_linear_on_hostile_titles():
+    import time
+    for title in ("a:1" * 17_000, "a" * 50_000 + ":", "1.1.1.1" * 7_000, "[" + "f:" * 25_000):
+        t0 = time.perf_counter()
+        key = parity_key("net.tls.https", "RSA-2048", title, {"host": "a" * 300, "endpoint": title})
+        assert time.perf_counter() - t0 < 0.5
+        assert len(key[2]) < 700
