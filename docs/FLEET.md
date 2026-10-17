@@ -47,12 +47,13 @@ Use the loop only where nothing can schedule a job:
 
 `pqcscan agent --server https://pqc.internal:8765 --enroll-token <enroll> --labels env=prod --interval 24h --jitter 2h`
 
-Each cycle flushes the spool, scans, posts, and spools on failure, with the same token
-and re-enroll rules as `scan --report-to`. After a failed cycle the next try comes after
-an exponential backoff from 1 minute, capped at 1 hour. A 429 from the collector counts
-as a failure: the bundle is spooled and sent on a later cycle. Each retry runs a fresh scan.
-The agent keeps its own DB at `<state-dir>/agent.db` and trims it to `--keep-local` scans (default 3).
-Other flags: `--once` (one cycle, exit 0 if reported, 1 if spooled), `--path` (repeatable),
+Each cycle scans, flushes the spool, posts, and spools on failure, with the same token
+and re-enroll rules as `scan --report-to`. A spooled report (collector down, 429, 5xx) is not
+a failure: the loop retries only the flush, on a backoff from 1 minute capped at 1 hour, and
+the next scheduled scan flushes it too. If the scan itself crashes, the agent backs off the same
+way and then scans again. The agent keeps its own DB at `<state-dir>/agent.db` and trims it to
+`--keep-local` scans (default 3); with a shared `--db` it never prunes.
+Other flags: `--once` (one cycle; exit 1 only if the scan crashed, a spooled report exits 0), `--path` (repeatable),
 `--db`, `--state-dir`, `--ca-cert`, `--insecure`, `--allow-http`.
 
 ## Security

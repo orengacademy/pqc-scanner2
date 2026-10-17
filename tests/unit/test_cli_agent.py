@@ -130,4 +130,43 @@ def test_cmd_once_exits_one_when_spooled(tmp_path, monkeypatch):
     monkeypatch.setattr(agent_mod, "make_client", lambda **_: _client(srv))
     res = CliRunner().invoke(agent_cmd, ["--server", "http://127.0.0.1:8765", "--enroll-token", "E", "--once",
                                          "--state-dir", str(tmp_path / "s"), "--path", str(tmp_path)])
-    assert res.exit_code == 1 and "spooled" in res.output
+    assert res.exit_code == 0 and "report spooled; will retry next cycle" in res.output
+
+
+def test_cmd_once_exits_one_when_scan_raises(tmp_path, monkeypatch):
+    def boom(**_):
+        raise RuntimeError("scan crashed")
+    monkeypatch.setattr(scan_mod, "run_local_scan", boom)
+    res = CliRunner().invoke(agent_cmd, ["--server", "http://127.0.0.1:8765", "--once",
+                                         "--state-dir", str(tmp_path / "s")])
+    assert res.exit_code == 1
+
+
+def test_backoff_tick_flushes_spool_without_rescanning(tmp_path, monkeypatch):
+    srv = _Srv()
+    srv.ingest = [503, 200]
+    monkeypatch.setattr(agent_mod, "make_client", lambda **_: _client(srv))
+    scans = []
+    real = scan_mod.run_local_scan
+    monkeypatch.setattr(scan_mod, "run_local_scan", lambda **kw: scans.append(1) or real(**kw))
+    sleeps = []
+
+    def fake_sleep(s):
+        sleeps.append(s)
+        if len(sleeps) == 2:
+            raise KeyboardInterrupt
+    monkeypatch.setattr(agent_mod.time, "sleep", fake_sleep)
+    state = tmp_path / "s"
+    CliRunner().invoke(agent_cmd, ["--server", "http://127.0.0.1:8765", "--enroll-token", "E",
+                                   "--state-dir", str(state), "--path", str(tmp_path)])
+    assert len(scans) == 1 and srv.posts == 2            # one scan; the second POST is the spool flush
+    assert sleeps[0] == 60 and not list((state / "spool").glob("*.bundle.gz"))
+
+
+def test_keep_local_skipped_for_shared_db(tmp_path, capsys):
+    srv = _Srv()
+    cfg = _cfg(tmp_path, db=tmp_path / "shared.db")      # outside state_dir
+    for _ in range(3):
+        agent_cycle(cfg, _client(srv))
+    assert len(Repo(tmp_path / "shared.db").list_scans()) == 3
+    assert "--keep-local ignored: shared database" in capsys.readouterr().err
