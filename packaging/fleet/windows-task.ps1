@@ -32,7 +32,7 @@ param(
     [Parameter(Mandatory)][string]$Server,
     [Parameter(Mandatory)][string]$EnrollToken,
     [string]$Labels = "",
-    [string]$Version = "v0.10.1",
+    [string]$Version = "v0.10.2",
     # A dedicated service account (for example a gMSA such as 'CORP\svc-pqcscan$') is preferred over SYSTEM.
     # SYSTEM is the default because a full host inventory needs to read protected paths.
     [string]$RunAs = "NT AUTHORITY\SYSTEM",

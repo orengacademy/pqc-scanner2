@@ -13,7 +13,7 @@
   hosts: all
   become: true
   vars:
-    pqcscan_version: v0.10.1
+    pqcscan_version: v0.10.2
     pqcscan_labels: ""
     pqcscan_enroll_token: ""
     pqcscan_release_base: "https://github.com/orengacademy/pqc-scanner2/releases/download/{{ pqcscan_version }}"

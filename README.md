@@ -7,10 +7,10 @@ Post-Quantum Cryptography (PQC) readiness scanner. Single Python process. Bundle
 
 ---
 
-## Latest release — v0.10.1
+## Latest release — v0.10.2
 
 Grab a **self-contained binary** — no Python, no `pip`, nothing else required on
-the host — from the [**v0.10.1 release**](https://github.com/orengacademy/pqc-scanner2/releases/tag/v0.10.1):
+the host — from the [**v0.10.2 release**](https://github.com/orengacademy/pqc-scanner2/releases/tag/v0.10.2):
 
 | Platform | Asset | Floor |
 |---|---|---|
@@ -20,20 +20,22 @@ the host — from the [**v0.10.1 release**](https://github.com/orengacademy/pqc-
 
 ```bash
 curl -fsSLo pqcscan \
-  https://github.com/orengacademy/pqc-scanner2/releases/download/v0.10.1/pqcscan-linux-x86_64
+  https://github.com/orengacademy/pqc-scanner2/releases/download/v0.10.2/pqcscan-linux-x86_64
 chmod +x pqcscan
-./pqcscan version          # -> pqcscan 0.10.1
+./pqcscan version          # -> pqcscan 0.10.2
 ./pqcscan scan --json      # scan the local host, print a JSON summary
 ```
 
-**What v0.10.1 brings** (the full 0.9.x–0.10.x arc is in [`CHANGELOG.md`](CHANGELOG.md)
+**What v0.10.2 brings** (the full 0.9.x–0.10.x arc is in [`CHANGELOG.md`](CHANGELOG.md)
 and [`docs/STATUS.md` §10](docs/STATUS.md)):
 
 - **Fleet mode** — hosts run `pqcscan agent --once --server https://collector:8765` (or `scan --report-to`);
   one daemon enrolls them, keeps the latest scan per host and serves fleet-wide
-  JSON, CBOM, SARIF and XLSX exports. 0.10.1 adds `pqcscan agent` (a scan-and-report loop
+  JSON, CBOM, SARIF and XLSX exports. 0.10.1 added `pqcscan agent` (a scan-and-report loop
   for hosts with no scheduler), the `/fleet` and `/fleet/{host}` web pages, and deployment
-  recipes (systemd timer, Windows task, Ansible, BigFix, Wazuh/osquery). See [`docs/FLEET.md`](docs/FLEET.md).
+  recipes (systemd timer, Windows task, Ansible, BigFix, Wazuh/osquery). 0.10.2 adds drift findings between a
+  host's scans, per-host risk inputs from labels (Mosca), a crypto-agility score, and retention
+  (the collector keeps 12 scans per host). See [`docs/FLEET.md`](docs/FLEET.md).
 - **`--path` / `--target` reach every probe** (from 0.9.13) — `--path` scopes all ~90
   file-walking probes and `--target` drives every network probe
   (`runner.bind_context`); before, most probes silently walked their host

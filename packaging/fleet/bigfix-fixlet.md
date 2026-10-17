@@ -21,7 +21,7 @@ BigFix `prefetch` needs the size and SHA-1 of the release asset: compute them on
 Action script:
 
 ```
-prefetch pqcscan-linux-x86_64 sha1:<sha1> size:<bytes> https://github.com/orengacademy/pqc-scanner2/releases/download/v0.10.1/pqcscan-linux-x86_64
+prefetch pqcscan-linux-x86_64 sha1:<sha1> size:<bytes> https://github.com/orengacademy/pqc-scanner2/releases/download/v0.10.2/pqcscan-linux-x86_64
 wait /usr/bin/install -m 0755 "{pathname of file "pqcscan-linux-x86_64" of folder "__Download"}" /usr/local/bin/pqcscan
 ```
 

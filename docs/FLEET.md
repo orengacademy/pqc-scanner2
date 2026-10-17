@@ -1,6 +1,6 @@
 # Fleet mode — thousands of hosts, one daemon
 
-Fleet mode (phase 1 in v0.10.0, phase 2 in v0.10.1) lets many hosts report their scan results to one
+Fleet mode (phase 1 in v0.10.0, phase 2 in v0.10.1, phase 3 in v0.10.2) lets many hosts report their scan results to one
 `pqcscan daemon`. Each host runs a normal one-shot scan and posts the result.
 The collector keeps the latest scan per host and builds fleet-wide views and
 exports from them.
@@ -41,12 +41,20 @@ exports from them.
      its stored token stays invalid, so the agent's next `scan --report-to … --enroll-token …` gets a 401,
      discards `<state dir>/agent.token`, re-enrolls and sends (spooled bundles included). Without
      `--enroll-token` it spools the bundle and tells you to re-run with it or delete the token file.
-   - `pqcscan fleet prune --keep 12` keeps the newest 12 scans per host.
+   - `pqcscan fleet prune --keep 12` keeps the newest 12 scans per host. It is for one-off trims: the daemon already does this after every ingest (see Retention).
 7. **Scale.** SQLite handles roughly 2,000 hosts daily. Past roughly 10k per day,
    run the daemon with `--db postgresql+psycopg://user:pw@host/db` (every CLI command
    takes the same `--db` URL; `fleet-pg` installs psycopg 3, so the URL needs
    the `+psycopg` driver suffix) after
    `pip install 'pqcscan[fleet-pg]'`. See Known limits.
+
+## Retention
+
+After each stored bundle the daemon deletes that host's scans beyond the newest 12 (by server scan id), so the
+database stops growing without a cron job. Change the number with `pqcscan daemon --keep-scans-per-host N`
+(or `PQCSCAN_KEEP_SCANS_PER_HOST`); the minimum is 1, there is no off switch. The scan just ingested is never
+removed, other hosts are untouched, and a duplicate bundle prunes nothing. If the trim itself fails the ingest
+still succeeds and a warning is logged. The agent's own `--keep-local` is a separate, client-side setting.
 
 ## Agent loop (fallback)
 
@@ -69,7 +77,7 @@ Other flags: `--once` (one cycle; exit 1 if the scan crashed or the collector pe
 
 ## Deployment recipes
 
-Ready-to-adapt files live in [`packaging/fleet/`](../packaging/fleet/). Each one pins `v0.10.1`, uses https only,
+Ready-to-adapt files live in [`packaging/fleet/`](../packaging/fleet/). Each one pins `v0.10.2`, uses https only,
 and keeps TLS verification on (use `--ca-cert` for a private CA). The enroll token is needed on the first run only:
 rotate it on the collector after rollout.
 
