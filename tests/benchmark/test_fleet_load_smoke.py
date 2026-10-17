@@ -1,4 +1,5 @@
 """The fleet load harness end to end at toy size: 5 hosts, 10 s, SQLite. Proves the wiring, not the capacity."""
+import importlib.util
 import sys
 from pathlib import Path
 
@@ -6,6 +7,11 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from benchmark.fleet import run_load
+
+# find_spec, not importorskip: importing locust here would gevent-monkey-patch the pytest process and hang the
+# collector thread. The harness runs locust in a subprocess.
+if importlib.util.find_spec("locust") is None:
+    pytest.skip("needs the `verify` extra (locust); ci.yml does not install it, verify.yml does", allow_module_level=True)
 
 pytestmark = pytest.mark.benchmark
 

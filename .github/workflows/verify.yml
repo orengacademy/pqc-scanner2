@@ -1,6 +1,6 @@
 name: verify
 # Evidence jobs for the fleet claims: the fleet tests on PostgreSQL, the Windows installer on real runners,
-# the ingest fuzzers, and the probe accuracy gate. Not a release gate; ci.yml remains the merge gate.
+# the ingest fuzzers, the load and soak smoke tests, and the probe accuracy gate. Not a release gate; ci.yml remains the merge gate.
 on:
   push:
     branches: ["verify/**"]
@@ -86,6 +86,19 @@ jobs:
           python-version: "3.12"
       - run: pip install -e ".[dev,verify]"
       - run: pytest tests/fuzz -m fuzz -q -ra
+
+  bench-smoke:
+    # The load and soak harnesses end to end at toy size. The load test needs locust (the verify extra), so it
+    # skips in ci.yml, which installs only dev and render; here it runs.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev,verify]"
+      - run: pytest -q -ra tests/benchmark/test_fleet_load_smoke.py tests/benchmark/test_fleet_soak_smoke.py
 
   accuracy:
     # The runner's Python links OpenSSL 3.0, so the hybrid-KEM endpoint cases record SKIP, as docs/ACCURACY.md
