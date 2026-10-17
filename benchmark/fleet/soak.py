@@ -932,6 +932,18 @@ def _redact(text: str) -> str:
     return _URL.sub(one, text)
 
 
+def _argv_command() -> str:
+    """The recorded command line. Each argument is redacted before quoting: shlex.join would otherwise quote a
+    password holding a space or a single quote, and the URL pattern would no longer match it."""
+    return "python -m benchmark.fleet.soak " + shlex.join(_redact_arg(a) for a in sys.argv[1:])
+
+
+def _redact_arg(arg: str) -> str:
+    """One argv item. The URL pattern stops at whitespace, so a password holding a space or a quote survives
+    `_redact`; here the argument is known to be one value, so cut from the user's ':' to the last '@'."""
+    return re.sub(r"(://[^:/@]*):.*@", r"\1:***@", _redact(arg), flags=re.S)
+
+
 def observe(*, target: str, access_log: Path | None, cycles: int, interval: float, command: str = "") -> dict[str, Any]:
     """REAL soak, collector side: every `interval` seconds snapshot a running collector's DB and access log.
 
@@ -1052,7 +1064,7 @@ def main() -> int:
             access_log=args.access_log,
             cycles=args.cycles,
             interval=args.interval,
-            command="python -m benchmark.fleet.soak " + shlex.join(sys.argv[1:]),
+            command=_argv_command(),
         )
         print("result:", r["result_file"])
         return 0
@@ -1064,7 +1076,7 @@ def main() -> int:
         faults=args.fault_plan == "default",
         workers=args.workers,
         keep=args.keep_scans_per_host,
-        command="python -m benchmark.fleet.soak " + shlex.join(sys.argv[1:]),
+        command=_argv_command(),
     )
     print(render(r))
     print(f"\nanomalies: {len(r['anomalies'])}  result: {r.get('result_file')}")

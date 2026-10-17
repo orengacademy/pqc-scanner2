@@ -108,3 +108,11 @@ def test_redact_handles_equals_form_odd_passwords_and_passwordless_urls():
     assert soak._redact("soak --observe postgresql://u:pw@h:5432/d") == "soak --observe postgresql://u:***@h:5432/d"
     assert soak._redact("soak --observe postgresql://h/d --cycles 7") == "soak --observe postgresql://h/d --cycles 7"
     assert soak._redact("soak --observe /var/lib/pqcscan/fleet.db") == "soak --observe /var/lib/pqcscan/fleet.db"
+
+
+def test_argv_command_redacts_before_quoting(monkeypatch):
+    # shlex.join quotes a password with a space or a quote; redaction must run per argument, before quoting.
+    monkeypatch.setattr(soak.sys, "argv", ["soak", "--observe", "postgresql://u:pa ss'w@h/d", "--cycles", "7"])
+    cmd = soak._argv_command()
+    assert "pa ss" not in cmd and "ss'w" not in cmd
+    assert "postgresql://u:***@h/d" in cmd
