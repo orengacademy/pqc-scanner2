@@ -112,10 +112,11 @@ Set-Content -Path $envFile -Value $EnrollToken -NoNewline -Encoding ascii
 Assert-Acl $envFile
 
 # Wrapper: read the token, then `scan --report-to`. The task action itself carries no secret.
+$lab = if ($Labels) { " --labels `"$Labels`"" } else { "" }
 $ca = if ($CaCert) { " --ca-cert `"$CaCert`"" } else { "" }
 $body = @"
 `$env:PQCSCAN_ENROLL_TOKEN = (Get-Content -Raw -ErrorAction SilentlyContinue "$envFile")
-& "$exe" scan --fail-on none --report-to "$Server" --labels "$Labels" --db "$Data\pqcscan.db" --state-dir "$state"$ca
+& "$exe" scan --fail-on none --report-to "$Server"$lab --db "$Data\pqcscan.db" --state-dir "$state"$ca
 exit `$LASTEXITCODE
 "@
 Set-Content -Path $wrapper -Value $body -Encoding utf8

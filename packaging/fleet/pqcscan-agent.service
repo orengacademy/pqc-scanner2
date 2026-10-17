@@ -10,7 +10,7 @@ Type=oneshot
 #   useradd --system --home-dir /var/lib/pqcscan --shell /usr/sbin/nologin pqcscan
 User=pqcscan
 Group=pqcscan
-# /etc/pqcscan/agent.env (root:pqcscan, mode 0640) holds, one per line:
+# /etc/pqcscan/agent.env (root:root, mode 0600; systemd reads it as root) holds, one per line:
 #   PQCSCAN_SERVER=https://pqc.internal:8765
 #   PQCSCAN_LABELS=env=prod,group=web
 #   PQCSCAN_ENROLL_TOKEN=<enroll token, first run only; remove or rotate after rollout>

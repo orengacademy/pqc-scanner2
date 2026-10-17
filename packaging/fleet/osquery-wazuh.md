@@ -3,14 +3,15 @@
 ## Wazuh: command wodle
 
 Wazuh's `command` wodle runs the scan once a day from the Wazuh agent. The wodle runs commands without a
-shell, so wrap the call in a small script that loads `/etc/pqcscan/agent.env` and drops privileges.
+shell, so wrap the call in a small script that loads `/etc/pqcscan/agent.env` (as root) and then runs the scan as the unprivileged `pqcscan` user.
 
-`/usr/local/sbin/pqcscan-report` (root:root, 0750):
+`/usr/local/sbin/pqcscan-report` (root:root, 0750; `/var/lib/pqcscan` owned by `pqcscan`). The `pqcscan` user sees only what it
+can read; for a fuller inventory use the systemd unit instead, which grants `CAP_DAC_READ_SEARCH`:
 
 ```sh
 #!/bin/sh
 set -a; . /etc/pqcscan/agent.env; set +a   # PQCSCAN_SERVER, PQCSCAN_LABELS, PQCSCAN_ENROLL_TOKEN (first run)
-exec /usr/local/bin/pqcscan scan --fail-on none --report-to "$PQCSCAN_SERVER" --labels="$PQCSCAN_LABELS" \
+exec runuser -u pqcscan -- /usr/local/bin/pqcscan scan --fail-on none --report-to "$PQCSCAN_SERVER" --labels="$PQCSCAN_LABELS" \
   --db /var/lib/pqcscan/pqcscan.db --state-dir /var/lib/pqcscan/agent
 ```
 
