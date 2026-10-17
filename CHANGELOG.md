@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.1] — 2026-10-17
+
+### Added — fleet mode, phase 2 (see `docs/FLEET.md`)
+- **Fleet pages** — `/fleet` lists every host (latest scan, readiness band, crit/high/total, stale after 48 h) with a
+  `?label=k=v` filter; `/fleet/{host_id}` shows one host's scan history. English and Malay.
+- **`pqcscan agent`** — scheduled scan-and-report loop for hosts with no cron or config-management agent
+  (spool, backoff with jitter, re-enroll on 401; `--once` for cron). See `docs/FLEET.md`.
+- **Deployment recipes** in `packaging/fleet/`: a hardened systemd service and timer (dedicated user, `ProtectSystem=strict`),
+  a Windows Scheduled Task script (checksum-verified binary, ACL-restricted token file), an Ansible playbook
+  (vaulted enroll token), a BigFix fixlet and a Wazuh/osquery note. None of them disables TLS verification.
+  Every recipe runs `pqcscan agent --once --state-dir …` (no `--db`), so the host's local database is
+  pruned to `--keep-local`; `scan --report-to` stays for ad-hoc and CI runs.
+
+### Fixed
+- Permanent ingest rejections (400/403/413) are terminal: not spooled, and spooled files that get one move to `spool/rejected/`.
+- Enroll-time 400/403 spool the bundle; only ingest 400/403/413 are permanent.
+- Agent: a spooled report is not a failure, backoff counts from cycle end, SIGTERM stops the loop cleanly,
+  the state dir is created mode 0700, and `--keep-local` only prunes the agent's own database.
+
 ## [0.10.0] — 2026-10-16
 
 ### Added — fleet mode, phase 1 (see `docs/FLEET.md`)
@@ -952,7 +971,8 @@ frameworks, 9 web UI pages, cross-OS binary build) is fully met.
   implicit-string-concat (which Python 3.11 breaks at `b"\x00" * N`
   expressions) to explicit `+` concatenation. (Commit `ce8f584`.)
 
-[Unreleased]: https://github.com/orengacademy/pqc-scanner2/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/orengacademy/pqc-scanner2/compare/v0.10.1...HEAD
+[0.10.1]: https://github.com/orengacademy/pqc-scanner2/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/orengacademy/pqc-scanner2/compare/v0.9.13...v0.10.0
 [0.9.13]: https://github.com/orengacademy/pqc-scanner2/compare/v0.9.12...v0.9.13
 [0.1.0]: https://github.com/orengacademy/pqc-scanner2/releases/tag/v0.1.0

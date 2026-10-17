@@ -1,0 +1,88 @@
+---
+# Roll the pqcscan fleet agent out to Linux hosts: pinned binary (checksum verified), dedicated user,
+# systemd service + timer. Run from this directory so the unit files sit next to the playbook:
+#   ansible-playbook -i inventory ansible-playbook.yml --ask-vault-pass -e @fleet-vars.yml
+# fleet-vars.yml (encrypt with ansible-vault):
+#   pqcscan_server: https://pqc.internal:8765
+#   pqcscan_enroll_token: "<enroll token>"      # vaulted
+#   pqcscan_labels: env=prod,group=web
+#
+# After the rollout finishes, ROTATE the enroll token on the collector and re-run with the new one
+# (or set pqcscan_enroll_token: "" to drop it from the hosts): every host already holds its own agent token.
+- name: Deploy the pqcscan fleet agent
+  hosts: all
+  become: true
+  vars:
+    pqcscan_version: v0.10.1
+    pqcscan_labels: ""
+    pqcscan_enroll_token: ""
+    pqcscan_release_base: "https://github.com/orengacademy/pqc-scanner2/releases/download/{{ pqcscan_version }}"
+  tasks:
+    - name: Require an https collector URL
+      ansible.builtin.assert:
+        that: pqcscan_server is defined and pqcscan_server is match('^https://')
+        fail_msg: "pqcscan_server must be set to an https:// URL"
+
+    - name: Create the pqcscan user
+      ansible.builtin.user:
+        name: pqcscan
+        system: true
+        home: /var/lib/pqcscan
+        create_home: false
+        shell: /usr/sbin/nologin
+
+    - name: Download the pinned pqcscan binary (SHA-256 verified against the release SHA256SUMS.txt)
+      ansible.builtin.get_url:
+        url: "{{ pqcscan_release_base }}/pqcscan-linux-x86_64"
+        dest: /usr/local/bin/pqcscan
+        checksum: "sha256:{{ pqcscan_release_base }}/SHA256SUMS.txt"
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Create /etc/pqcscan
+      ansible.builtin.file:
+        path: /etc/pqcscan
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Write /etc/pqcscan/agent.env (server, labels, enroll token)
+      ansible.builtin.copy:
+        dest: /etc/pqcscan/agent.env
+        owner: root
+        group: root
+        mode: "0600"
+        content: |
+          PQCSCAN_SERVER={{ pqcscan_server }}
+          PQCSCAN_LABELS={{ pqcscan_labels }}
+          PQCSCAN_ENROLL_TOKEN={{ pqcscan_enroll_token }}
+      no_log: true
+
+    - name: Install the service and timer
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "/etc/systemd/system/{{ item }}"
+        owner: root
+        group: root
+        mode: "0644"
+      loop:
+        - pqcscan-agent.service
+        - pqcscan-agent.timer
+
+    - name: Enable the daily timer
+      ansible.builtin.systemd:
+        name: pqcscan-agent.timer
+        enabled: true
+        state: started
+        daemon_reload: true
+
+    # `pqcscan agent --once` runs from the timer; start the first report now instead of waiting up to a day.
+    - name: First report now (optional; skipped with -e pqcscan_first_run=false)
+      ansible.builtin.systemd:
+        name: pqcscan-agent.service
+        state: started
+      when: pqcscan_first_run | default(true) | bool
+      async: 7200
+      poll: 0

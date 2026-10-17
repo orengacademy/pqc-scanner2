@@ -35,7 +35,7 @@ off by default on loopback; the default `127.0.0.1` bind is the boundary.
 ## 1. Install the binary
 
 ```bash
-VERSION=v0.10.0
+VERSION=v0.10.1
 BASE="https://github.com/orengacademy/pqc-scanner2/releases/download/${VERSION}"
 
 curl -fsSL -o pqcscan-linux-x86_64 "${BASE}/pqcscan-linux-x86_64"

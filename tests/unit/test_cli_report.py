@@ -83,7 +83,7 @@ def test_report_scan_spools_on_server_error_and_flush_resends(tmp_path):
     spooled = list((state / "spool").glob("*.bundle.gz"))
     assert len(spooled) == 1 and oct((state / "spool").stat().st_mode & 0o777) == "0o700"
     srv.ingest_status = 200
-    assert _report.flush_spool("http://c", "AGENT", state, _client(srv)) == (1, 0)
+    assert _report.flush_spool("http://c", "AGENT", state, _client(srv)) == (1, 0, 0)
     assert not list((state / "spool").glob("*.bundle.gz"))
 
 
@@ -167,7 +167,7 @@ def test_agent_token_bypasses_enroll(tmp_path):
     assert [c[0] for c in srv.calls] == ["/api/ingest"] and srv.calls[0][2]["authorization"] == "Bearer T"
 
 
-def test_flush_spool_keeps_rejected_and_breaks_on_5xx(tmp_path):
+def test_flush_spool_quarantines_rejected_and_breaks_on_5xx(tmp_path):
     state = tmp_path / "s"
     for n in "1234":
         _report.spool_bundle(state, n.encode())
@@ -182,15 +182,16 @@ def test_flush_spool_keeps_rejected_and_breaks_on_5xx(tmp_path):
         seen.append(st)
         return httpx.Response(st, json={"detail": "x", "scan_id": 1})
     c = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://c")
-    assert _report.flush_spool("http://c", "T", state, c) == (1, 2)
+    assert _report.flush_spool("http://c", "T", state, c) == (1, 1, 1)
     assert seen == [400, 200, 503]                  # 4th never attempted
-    assert sorted(f.name for f in _spool_files(state)) == ["0.bundle.gz", "2.bundle.gz", "3.bundle.gz"]
+    assert sorted(f.name for f in _spool_files(state)) == ["2.bundle.gz", "3.bundle.gz"]
+    assert (state / "spool" / "rejected" / "0.bundle.gz").exists()
 
 
 def test_flush_spool_keeps_unreadable_file(tmp_path):
     state = tmp_path / "s"
     (state / "spool" / "bad.bundle.gz").mkdir(parents=True)     # read_bytes() raises IsADirectoryError
-    assert _report.flush_spool("http://c", "T", state, _client(_Server())) == (0, 1)
+    assert _report.flush_spool("http://c", "T", state, _client(_Server())) == (0, 1, 0)
     assert (state / "spool" / "bad.bundle.gz").exists()
 
 
@@ -375,3 +376,58 @@ def test_401_without_enroll_token_spools_and_says_what_to_do(tmp_path):
     assert len(_spool_files(state)) == 2 and (state / "agent.token").read_text() == "OLD"
     assert any(f"agent token rejected; re-run with --enroll-token or delete {state / 'agent.token'}" in m
                for m in seen)
+
+
+@pytest.mark.parametrize("status", [400, 403, 413])
+def test_report_scan_permanent_rejection_is_not_spooled(tmp_path, status):
+    repo, sid = _seed(tmp_path)
+    state = tmp_path / "s"
+    with pytest.raises(_report.ReportError) as ei:
+        _report.report_scan(repo, sid, server="http://127.0.0.1", enroll_token="E", agent_token=None, labels={},
+                            state_dir=state, client=_client(_Server(ingest_status=status)))
+    assert ei.value.status == status and "(permanent rejection)" in str(ei.value) and "not spooled" not in str(ei.value)
+    assert _spool_files(state) == []
+
+
+def test_flush_spool_moves_413_file_and_sends_the_rest(tmp_path):
+    state = tmp_path / "s"
+    for n in (b"big", b"good"):
+        _report.spool_bundle(state, n)
+    bodies: list[bytes] = []
+
+    def handler(req):
+        bodies.append(req.content)
+        if req.content == b"big":
+            return httpx.Response(413, json={"detail": "too big"})
+        return httpx.Response(200, json={"scan_id": 1})
+    c = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://c")
+    assert _report.flush_spool("http://c", "T", state, c) == (1, 0, 1)
+    assert bodies == [b"big", b"good"] and _spool_files(state) == []
+    moved = list((state / "spool" / "rejected").glob("*.bundle.gz"))
+    assert len(moved) == 1 and moved[0].read_bytes() == b"big"
+    assert oct((state / "spool" / "rejected").stat().st_mode & 0o777) == "0o700"
+
+
+def test_scan_cli_reports_permanent_rejection_and_exits_zero(tmp_path, monkeypatch):
+    from click.testing import CliRunner
+
+    import pqcscan.cli.scan as scan_mod
+    from pqcscan.cli.scan import scan_cmd
+    repo, sid = _seed(tmp_path)
+    monkeypatch.setattr(scan_mod, "run_local_scan", lambda **_: (repo, sid))
+    monkeypatch.setattr(_report, "make_client", lambda **_: _client(_Server(ingest_status=403)))
+    res = CliRunner().invoke(scan_cmd, ["--db", str(tmp_path / "x.db"), "--report-to", "http://127.0.0.1:1",
+                                        "--enroll-token", "E", "--state-dir", str(tmp_path / "s"),
+                                        "--fail-on", "none"])
+    assert res.exit_code == 0 and "report failed (not spooled)" in res.output
+
+
+@pytest.mark.parametrize("status", [400, 403])
+def test_enroll_time_rejection_spools_the_bundle(tmp_path, status):
+    repo, sid = _seed(tmp_path)
+    c = httpx.Client(transport=httpx.MockTransport(
+        lambda r: httpx.Response(status, json={"detail": "bad enroll"})), base_url="http://c")
+    state = tmp_path / "s"
+    assert _report.report_scan(repo, sid, server="http://127.0.0.1", enroll_token="E", agent_token=None,
+                               labels={}, state_dir=state, client=c) is None
+    assert len(_spool_files(state)) == 1

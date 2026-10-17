@@ -1,0 +1,89 @@
+import configparser
+from pathlib import Path
+
+import yaml
+
+ROOT = Path(__file__).resolve().parents[2] / "packaging" / "fleet"
+FILES = ("pqcscan-agent.service", "pqcscan-agent.timer", "windows-task.ps1",
+         "ansible-playbook.yml", "bigfix-fixlet.md", "osquery-wazuh.md")
+
+
+def test_recipes_exist_and_run_agent_once_without_db():
+    for name in FILES:
+        assert (ROOT / name).is_file(), name
+    for name in ("pqcscan-agent.service", "windows-task.ps1", "ansible-playbook.yml", "bigfix-fixlet.md",
+                 "osquery-wazuh.md"):
+        text = (ROOT / name).read_text()
+        assert "agent --once" in text, name
+        assert "--db" not in text, name
+        assert "--report-to" not in text, name
+
+
+def test_systemd_units_parse():
+    for name in ("pqcscan-agent.service", "pqcscan-agent.timer"):
+        cp = configparser.ConfigParser(strict=False, interpolation=None)
+        cp.read_string((ROOT / name).read_text())
+        assert "Unit" in cp.sections()
+    svc = configparser.ConfigParser(strict=False, interpolation=None)
+    svc.read_string((ROOT / "pqcscan-agent.service").read_text())
+    assert svc["Service"]["Type"] == "oneshot"
+
+
+def test_service_is_sandboxed_and_not_root():
+    svc = configparser.ConfigParser(strict=False, interpolation=None)
+    svc.read_string((ROOT / "pqcscan-agent.service").read_text())
+    s = svc["Service"]
+    assert s["User"] != "root"
+    assert s["ProtectSystem"] == "strict"
+    assert s["ReadWritePaths"] == "/var/lib/pqcscan/agent"
+    assert s["StateDirectory"] == "pqcscan/agent"
+    assert s["KillSignal"] == "SIGTERM"
+
+
+def test_no_recipe_skips_tls_verification():
+    for name in FILES:
+        assert "--insecure" not in (ROOT / name).read_text(), name
+
+
+def test_ansible_playbook_is_yaml_with_vaulted_token_hidden():
+    play = yaml.safe_load((ROOT / "ansible-playbook.yml").read_text())
+    tasks = play[0]["tasks"]
+    env_task = next(t for t in tasks if "agent.env" in t["name"])
+    assert env_task["no_log"] is True
+    assert env_task["ansible.builtin.copy"]["mode"] == "0600"
+
+
+def test_windows_task_installs_code_under_program_files():
+    ps = (ROOT / "windows-task.ps1").read_text()
+    for needle in ("Get-Acl", "ProgramFiles"):
+        assert needle in ps, needle
+
+
+def test_windows_task_creates_folders_atomically_and_verifies_before_writing_secret():
+    ps = (ROOT / "windows-task.ps1").read_text()
+    for needle in ("CreateDirectory(", "DirectorySecurity", "CreateNew", "Get-Acl", "already exists", "ReparsePoint"):
+        assert needle in ps, needle
+    assert "icacls" not in ps and "Set-Content" not in ps
+    assert ps.index("foreach ($path in @($Data, $Bin))") < ps.index("Protect-Folder $Data")
+    fn = ps[ps.index("function Write-ProtectedFile"):]
+    assert fn.index("CreateNew") < fn.index("Assert-Acl") < fn.index("WriteAllText")
+
+
+def test_windows_task_labels_are_conditional():
+    assert "if ($Labels)" in (ROOT / "windows-task.ps1").read_text()
+
+
+def test_bigfix_has_install_fixlet_and_reapplied_scan_task():
+    md = (ROOT / "bigfix-fixlet.md").read_text()
+    assert "Reapply" in md
+    assert 'not (exists file "/usr/local/bin/pqcscan"' in md
+    assert 'AND exists file "/usr/local/bin/pqcscan"' in md
+    assert "x64 of operating system" in md and "/usr/bin/install" in md
+
+
+def test_wrappers_tolerate_a_removed_env_file_and_empty_labels():
+    big = (ROOT / "bigfix-fixlet.md").read_text()
+    wazuh = (ROOT / "osquery-wazuh.md").read_text()
+    assert "[ -r /etc/pqcscan/agent.env ] && ." in big and "[ -r /etc/pqcscan/agent.env ] && ." in wazuh
+    assert "${PQCSCAN_LABELS:+" in wazuh
+    assert "wait 1 day between" in big

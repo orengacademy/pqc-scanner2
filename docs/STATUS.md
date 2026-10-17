@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| **Date** | 2026-10-16 |
+| **Date** | 2026-10-17 |
 | **Branch / commit** | `main` |
-| **Version** | `0.10.0` |
+| **Version** | `0.10.1` |
 | **Probes** | 180 registered across 14 families |
 | **Frameworks** | 19 compliance YAMLs |
-| **Tests** | 1442 passed / 5 skipped locally (Python 3.11) |
+| **Tests** | 1495 passed / 5 skipped locally (Python 3.11) |
 | **Status** | Design-doc target shipped, plus four loops (§7 coverage+UX, §8 deferred-items + bilingual + any-OS, §9 the 0.8.x–0.9.4 precision/decision loop, §10 the 0.9.5–0.9.11 coverage-completeness + FOSS-verification loop). See `CHANGELOG.md` for the authoritative per-version record — it is kept current every release; this file is a coarser resume guide. |
 
 ## 1. TL;DR

@@ -1,6 +1,6 @@
 # Fleet mode — thousands of hosts, one daemon
 
-Fleet mode (phase 1, v0.10.0) lets many hosts report their scan results to one
+Fleet mode (phase 1 in v0.10.0, phase 2 in v0.10.1) lets many hosts report their scan results to one
 `pqcscan daemon`. Each host runs a normal one-shot scan and posts the result.
 The collector keeps the latest scan per host and builds fleet-wide views and
 exports from them.
@@ -12,7 +12,7 @@ exports from them.
    `location` block for those two paths does this.
    `--enroll-token` (or `PQCSCAN_ENROLL_TOKEN`) enables `/api/agents/enroll`;
    without it the endpoint is off.
-2. **Host, one-shot (recommended).** From cron / systemd timer / Task Scheduler / BigFix / Ansible:
+2. **Host, one-shot.** For ad-hoc and CI runs. For scheduled jobs use `pqcscan agent --once` (see Deployment recipes), which also prunes its local DB:
    `pqcscan scan --report-to https://pqc.internal:8765 --enroll-token <enroll> --labels env=prod,group=web --fail-on none`
    The first run enrolls and stores a per-agent token in `<db dir>/agent/agent.token`
    (mode 0600). Later runs reuse it, so the enroll token can be dropped from the
@@ -21,7 +21,8 @@ exports from them.
    `--state-dir`, `--ca-cert` (private CA), `--insecure` (lab only, skips TLS
    verification), `--allow-http` (see Security).
 3. **Fleet view.** `GET /api/fleet` (JSON), `pqcscan fleet summary --db …`.
-   The `/fleet` page in the web UI is planned for v0.10.1.
+   In the web UI, `/fleet` lists every host with its latest scan, readiness band and crit/high/total counts.
+   Hosts not seen for 48 hours are flagged stale. Filter with `/fleet?label=env=prod`; `/fleet/<host_id>` shows one host's scan history.
 4. **Exports.** `pqcscan export --scan fleet --format cbom|sarif|xlsx-bukukerja|pdf-tech … -o …`
    builds the export from the latest scan of every host, each finding attributed to its host via `evidence._fleet`.
    The same works from the daemon API: `GET /api/scans/fleet/export/<fmt>`.
@@ -39,6 +40,53 @@ exports from them.
    takes the same `--db` URL; `fleet-pg` installs psycopg 3, so the URL needs
    the `+psycopg` driver suffix) after
    `pip install 'pqcscan[fleet-pg]'`. See Known limits.
+
+## Agent loop (fallback)
+
+Cron or a timer running `pqcscan agent --once` (see Deployment recipes) stays the recommended mode.
+Use the loop only where nothing can schedule a job:
+
+`pqcscan agent --server https://pqc.internal:8765 --enroll-token <enroll> --labels env=prod --interval 24h --jitter 2h`
+
+Each cycle scans, flushes the spool, posts, and spools on failure, with the same token
+and re-enroll rules as `scan --report-to`. A spooled report (collector down, 429, 5xx) is not
+a failure: the loop retries only the flush, on a backoff from 1 minute capped at 1 hour, and
+the next scheduled scan flushes it too. If the scan itself crashes, the agent backs off the same
+way and then scans again. A permanent rejection (400, 403, 413) is logged to stderr and the next
+scan stays on the normal interval: nothing is spooled and a rescan would be rejected too. The agent keeps its own DB at `<state-dir>/agent.db` and trims it to
+`--keep-local` scans (default 3). With any DB other than `<state-dir>/agent.db` it never prunes.
+The state dir is created mode 0700. SIGTERM or Ctrl-C stops the loop cleanly (exit 0, "agent: stopping"),
+after the cycle in progress finishes. `--interval` must be above zero.
+Other flags: `--once` (one cycle; exit 1 if the scan crashed or the collector permanently rejected the report, a spooled report exits 0), `--path` (repeatable),
+`--db`, `--state-dir`, `--ca-cert`, `--insecure`, `--allow-http`.
+
+## Deployment recipes
+
+Ready-to-adapt files live in [`packaging/fleet/`](../packaging/fleet/). Each one pins `v0.10.1`, uses https only,
+and keeps TLS verification on (use `--ca-cert` for a private CA). The enroll token is needed on the first run only:
+rotate it on the collector after rollout.
+
+| File | What it does |
+|---|---|
+| `pqcscan-agent.service` + `pqcscan-agent.timer` | systemd one-shot `agent --once`, daily with up to 2 h random delay. Runs as a dedicated `pqcscan` user with `ProtectSystem=strict`, write access to the state dir `/var/lib/pqcscan/agent` only, read-only root access through `CAP_DAC_READ_SEARCH`. Settings come from `/etc/pqcscan/agent.env`. |
+| `windows-task.ps1` | Windows PowerShell 5.1 (Desktop edition), not PowerShell 7. Downloads the pinned `.exe` into `%ProgramFiles%\pqcscan` (admin-write only), verifies it against `SHA256SUMS.txt`, creates the state folder `%ProgramData%\pqcscan` fresh and locks it down (SYSTEM and Administrators full, task account modify, verified with `Get-Acl`; it refuses to run over an existing install, so to upgrade or rotate the token stop the task and move both folders aside, which drops the spool and `agent.token` and makes the host re-enroll), and registers a daily Scheduled Task (02:00 plus up to 2 h random delay). |
+| `ansible-playbook.yml` | Installs the verified binary, the `pqcscan` user, `agent.env` (root:root 0600, enroll token from a vaulted variable, `no_log`) and the timer. Rotate the token after rollout. |
+| `bigfix-fixlet.md` | Relevance clause and action script for BigFix. |
+| `osquery-wazuh.md` | Wazuh `command` wodle for the daily scan, plus an osquery query that spots a stuck spool. osquery only watches; the CM agent runs the binary. |
+
+The recipes run `pqcscan agent --once`: one scan, report, then a trim of the agent's own local database
+(`<state-dir>/agent.db`, newest `--keep-local` scans, default 3). It exits 0 when the report was sent or spooled for retry
+and 1 when the scan crashed or the collector permanently rejected the report, so the timer or task records the failure.
+`scan --report-to` stays for ad-hoc and CI runs: it never prunes the database it scans into, so a daily cron of it grows
+that database by one scan a day. For a long-running `pqcscan agent` under systemd, use `Type=simple`,
+`Restart=on-failure`, `KillSignal=SIGTERM` and `TimeoutStopSec=` longer than a scan.
+
+**Rotating the enrollment token.** Restart the daemon with a new `--enroll-token` (or `PQCSCAN_ENROLL_TOKEN`).
+Hosts that already enrolled keep working, because they use their own agent token. Only new or re-enrolling hosts need the new value.
+
+**`machine_id` mismatch (403).** The ingest endpoint refuses a bundle whose machine id does not match the agent token, for example
+after a cloned VM image. Delete `<state-dir>/agent.token` on that host and run it again with `--enroll-token`.
+Bundles already in the spool that get the 403 move to `<state-dir>/spool/rejected/`. A bundle the host has just scanned and sent is not kept, so the next scan after re-enrolling reports instead.
 
 ## Security
 
@@ -65,7 +113,10 @@ exports from them.
 
 - **No split-and-resend on 413.** Bundles are capped when they are dumped on the
   host. A scan larger than the raw cap fails to dump and is not reported.
-- **Spool is unbounded for rejected bundles.** A bundle the collector permanently
-  rejects stays in the spool directory until you remove it.
+- **Permanent rejections are not retried.** A bundle the ingest endpoint answers with 400, 403 or
+  413 is never spooled; a 400 or 403 at enroll time still spools it. A spooled file that gets one of these moves to `<state dir>/spool/rejected/`
+  and flushing continues. Nothing prunes that directory, so clear it by hand. A revoked host's
+  ingest gets 401 and its re-enroll gets 403, so its bundles spool and replay after `agents unrevoke`.
+  Replaying needs the enrollment token on the host again (`--enroll-token` / `PQCSCAN_ENROLL_TOKEN`) if it was removed after the first run.
 - **Postgres is wired but untested.** The URL is accepted and `fleet-pg` installs
   the driver, but the fleet test suite runs on SQLite only.

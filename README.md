@@ -7,10 +7,10 @@ Post-Quantum Cryptography (PQC) readiness scanner. Single Python process. Bundle
 
 ---
 
-## Latest release — v0.10.0
+## Latest release — v0.10.1
 
 Grab a **self-contained binary** — no Python, no `pip`, nothing else required on
-the host — from the [**v0.10.0 release**](https://github.com/orengacademy/pqc-scanner2/releases/tag/v0.10.0):
+the host — from the [**v0.10.1 release**](https://github.com/orengacademy/pqc-scanner2/releases/tag/v0.10.1):
 
 | Platform | Asset | Floor |
 |---|---|---|
@@ -20,18 +20,20 @@ the host — from the [**v0.10.0 release**](https://github.com/orengacademy/pqc-
 
 ```bash
 curl -fsSLo pqcscan \
-  https://github.com/orengacademy/pqc-scanner2/releases/download/v0.10.0/pqcscan-linux-x86_64
+  https://github.com/orengacademy/pqc-scanner2/releases/download/v0.10.1/pqcscan-linux-x86_64
 chmod +x pqcscan
-./pqcscan version          # -> pqcscan 0.10.0
+./pqcscan version          # -> pqcscan 0.10.1
 ./pqcscan scan --json      # scan the local host, print a JSON summary
 ```
 
-**What v0.10.0 brings** (the full 0.9.x–0.10.x arc is in [`CHANGELOG.md`](CHANGELOG.md)
+**What v0.10.1 brings** (the full 0.9.x–0.10.x arc is in [`CHANGELOG.md`](CHANGELOG.md)
 and [`docs/STATUS.md` §10](docs/STATUS.md)):
 
-- **Fleet mode (phase 1)** — hosts run `pqcscan scan --report-to https://collector:8765`;
+- **Fleet mode** — hosts run `pqcscan agent --once --server https://collector:8765` (or `scan --report-to`);
   one daemon enrolls them, keeps the latest scan per host and serves fleet-wide
-  JSON, CBOM, SARIF and XLSX exports. See [`docs/FLEET.md`](docs/FLEET.md).
+  JSON, CBOM, SARIF and XLSX exports. 0.10.1 adds `pqcscan agent` (a scan-and-report loop
+  for hosts with no scheduler), the `/fleet` and `/fleet/{host}` web pages, and deployment
+  recipes (systemd timer, Windows task, Ansible, BigFix, Wazuh/osquery). See [`docs/FLEET.md`](docs/FLEET.md).
 - **`--path` / `--target` reach every probe** (from 0.9.13) — `--path` scopes all ~90
   file-walking probes and `--target` drives every network probe
   (`runner.bind_context`); before, most probes silently walked their host
@@ -240,6 +242,7 @@ pqcscan scan --db web01.db                   # one DB per host, then ...
 pqcscan merge -o fleet.db web01.db web02.db  # ... fold them into a fleet DB + rollup scan for fleet-wide exports
 pqcscan diff --scan 4 --baseline-scan 3 --fail-on-drift   # HA/DR parity gate (exit 1 on drift)
 pqcscan scan --report-to https://pqc.internal:8765 --enroll-token T   # fleet: post this scan to the collector
+pqcscan agent --server https://pqc.internal:8765 --enroll-token T   # fleet: scan + report on a schedule (--once for cron)
 pqcscan agents list|revoke|unrevoke          # fleet: manage enrolled hosts
 pqcscan fleet summary | prune --keep 12      # fleet: rollup and retention
 pqcscan export --scan fleet --format cbom -o fleet.json   # fleet-wide export (latest scan per host)
@@ -255,7 +258,7 @@ pqcscan export --scan N --format FMT -o ...  # FMT: cbom | sarif | pdf-tech |
 ```
 
 **Fleet mode.** For many hosts, run `pqcscan daemon --enroll-token …` on one
-collector and `pqcscan scan --report-to …` on each host (cron, systemd timer,
+collector and `pqcscan agent --once …` on each host (cron, systemd timer,
 BigFix, Ansible). Hosts enroll once, spool results if the collector is down, and
 the collector builds fleet-wide views and exports. Setup, security notes and
 known limits are in [`docs/FLEET.md`](docs/FLEET.md).
