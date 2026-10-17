@@ -198,6 +198,28 @@ def test_prune_host_never_deletes_baselined_scans(tmp_db_path, tmp_path):
     assert [b.scan_id for b in fleet.list_baselines()] == [ids[0]]
 
 
+def test_prune_host_keeps_newest_done_scan_behind_failed_ones(tmp_db_path, tmp_path):
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    h = fleet.upsert_host(WEB01)
+    good = fleet.ingest_bundle(_bundle(src, WEB01, ["RSA-2048"]), h.id).scan_id
+    failed = []
+    for _ in range(3):
+        sid = src.create_scan(mode="user", probe_versions={}, tool_versions={})
+        src.finish_scan(sid, status="failed")
+        failed.append(fleet.ingest_bundle(load_bundle(dump_bundle(src, sid, WEB01)), h.id).scan_id)
+    assert fleet.prune_host(h.id, 2) == 1                   # oldest failed scan goes; the only done scan stays
+    assert sorted(s.id for s in fleet.host_history(h.id)) == [good, failed[1], failed[2]]
+
+
+def test_daemon_keep_scans_per_host_minimum_is_two():
+    from click.testing import CliRunner
+
+    from pqcscan.cli.daemon_cmd import daemon_cmd
+    r = CliRunner().invoke(daemon_cmd, ["--keep-scans-per-host", "1"])
+    assert r.exit_code == 2 and "keep-scans-per-host" in r.output
+
+
 def test_ingest_unknown_host_and_foreign_scan_uuid(tmp_db_path, tmp_path):
     src = Repo(tmp_path / "src.db"); src.init_schema()
     fleet = Repo(tmp_db_path); fleet.init_schema()

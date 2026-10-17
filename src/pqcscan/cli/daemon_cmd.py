@@ -33,7 +33,7 @@ from pqcscan.daemon.app import create_app, is_loopback
     help="Shared token agents present once to enroll (fleet mode). Without it, /api/agents/enroll is disabled.",
 )
 @click.option(
-    "--keep-scans-per-host", type=click.IntRange(min=1), default=12, show_default=True,
+    "--keep-scans-per-host", type=click.IntRange(min=2), default=12, show_default=True,
     envvar="PQCSCAN_KEEP_SCANS_PER_HOST",
     help="Fleet retention: after each ingest, delete the host's scans beyond the newest N.",
 )

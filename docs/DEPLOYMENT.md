@@ -238,7 +238,7 @@ sudo setsebool -P httpd_can_network_connect 1
 | DB path        | `--db` / `PQCSCAN_DB_PATH`                | `/var/lib/pqcscan/pqcscan.db` |
 | Auth token     | `--token` / `PQCSCAN_TOKEN`               | none (loopback only)          |
 | Enroll token   | `--enroll-token` / `PQCSCAN_ENROLL_TOKEN` | none (fleet off)              |
-| Scans per host | `--keep-scans-per-host` / `PQCSCAN_KEEP_SCANS_PER_HOST` | `12` (minimum 1) |
+| Scans per host | `--keep-scans-per-host` / `PQCSCAN_KEEP_SCANS_PER_HOST` | `12` (minimum 2) |
 | HTTPS          | `--tls-cert` + `--tls-key`                | off (plain HTTP)              |
 | Host allowlist | `--allow-host` (repeatable)               | loopback, `--bind`, hostname  |
 

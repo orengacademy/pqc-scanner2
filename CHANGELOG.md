@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   previous completed scan, keyed host-agnostically; the ingest JSON gains `drift`. `pqcscan diff --parity` compares
   two scans by the same key.
 - **Retention** — after each stored bundle the daemon keeps the newest 12 scans of that host and deletes the rest
-  (`pqcscan daemon --keep-scans-per-host N`, env `PQCSCAN_KEEP_SCANS_PER_HOST`, minimum 1). `fleet prune --keep`
+  (`pqcscan daemon --keep-scans-per-host N`, env `PQCSCAN_KEEP_SCANS_PER_HOST`, minimum 2). `fleet prune --keep`
   stays for one-off trims. A failed trim is logged and never fails the ingest.
 
 ### Added

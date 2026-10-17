@@ -552,13 +552,17 @@ class Repo:
     def prune_host(self, host_id: int, keep: int) -> int:
         """Delete one host's scans beyond the newest `keep` (by server scan id); returns scans deleted.
 
-        Baselined scans are never deleted and do not count toward `keep`."""
+        Baselined scans are never deleted and do not count toward `keep`. The host's newest done scan is
+        never deleted either, so a run of failed or interrupted bundles cannot evict its only good scan."""
         if keep < 1:
             raise ValueError("keep must be >= 1")
         with Session(self.engine) as s:
+            newest_done = s.execute(select(func.max(Scan.id))
+                                    .where(Scan.host_id == host_id, Scan.status == "done")).scalar()
             old = list(s.execute(select(Scan.id).where(Scan.host_id == host_id,
                                                        Scan.id.not_in(select(Baseline.scan_id)))
                                  .order_by(Scan.id.desc()).offset(keep)).scalars())
+        old = [sid for sid in old if sid != newest_done]
         for sid in old:
             self.delete_scan(sid)
         return len(old)

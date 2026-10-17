@@ -52,10 +52,11 @@ exports from them.
 
 After each stored bundle the daemon deletes that host's scans beyond the newest 12 (by server scan id), so the
 database stops growing without a cron job. Change the number with `pqcscan daemon --keep-scans-per-host N`
-(or `PQCSCAN_KEEP_SCANS_PER_HOST`); the minimum is 1, there is no off switch. The scan just ingested is never
+(or `PQCSCAN_KEEP_SCANS_PER_HOST`); the minimum is 2, there is no off switch. The scan just ingested is never
 removed, other hosts are untouched, and a duplicate bundle prunes nothing. If the trim itself fails the ingest
 still succeeds and a warning is logged. The agent's own `--keep-local` is a separate, client-side setting.
 Scans saved as a baseline are never pruned and do not count toward N, so a host keeps N other scans plus its baselines.
+Failed and interrupted scans count toward N, but the host's newest completed scan is always kept.
 
 ## Agent loop (fallback)
 
