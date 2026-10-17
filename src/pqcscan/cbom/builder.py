@@ -5,6 +5,7 @@ from typing import Any
 from uuid import uuid4
 
 from pqcscan import __version__
+from pqcscan.core.parity import DRIFT_PROBE
 from pqcscan.store.repo import Repo
 
 # CycloneDX 1.7 schema identifier (matches the `$id` of bom-1.7.schema.json).
@@ -67,8 +68,8 @@ def build_cbom(repo: Repo, scan_id: int) -> dict[str, Any]:
 
     components: list[dict[str, Any]] = []
     for f in findings:
-        if f.algorithm == "N/A":
-            continue
+        if f.algorithm == "N/A" or f.probe_id == DRIFT_PROBE:
+            continue                  # drift rows are change markers, not cryptographic assets
         ev = f.evidence or {}
         confidence = ev.get("confidence", "high")
         algo_props: dict[str, Any] = {

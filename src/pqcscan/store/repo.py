@@ -336,8 +336,8 @@ class Repo:
     ) -> dict:
         """Set-diff of findings between two scans by (probe_id, algorithm, title).
 
-        With `parity=True` the key is the host-agnostic `parity_key` and `fleet.drift` rows are
-        skipped, so a primary and its DR peer compare equal despite different names and addresses.
+        `fleet.drift` rows are skipped on both sides. With `parity=True` the key is the host-agnostic
+        `parity_key`, so a primary and its DR peer compare equal despite different names and addresses.
 
         Evidence dicts often carry timestamps and absolute paths that drift
         across scans, so identity uses the stable triple. Returns:
@@ -347,9 +347,9 @@ class Repo:
         """
         current = self.list_findings(current_scan_id)
         baseline = self.list_findings(baseline_scan_id)
-        if parity:
-            current = [f for f in current if f.probe_id != DRIFT_PROBE]
-            baseline = [f for f in baseline if f.probe_id != DRIFT_PROBE]
+        # Drift markers are derived data: never a difference, in either mode.
+        current = [f for f in current if f.probe_id != DRIFT_PROBE]
+        baseline = [f for f in baseline if f.probe_id != DRIFT_PROBE]
 
         def key(f: FindingRow) -> tuple[str, str, str]:
             if parity:
@@ -438,7 +438,7 @@ class Repo:
             prev = list(s.execute(select(FindingRow).where(FindingRow.scan_id == prev_id)).scalars())
         cur = [SimpleNamespace(probe_id=str(f["probe_id"]), algorithm=str(f.get("algorithm", "N/A")),
                                title=str(f.get("title", "")), evidence=dict(f.get("evidence") or {}))
-               for f in bundle.findings]
+               for f in bundle.findings if f.get("probe_id") != DRIFT_PROBE]
         return drift_rows(prev, cur)
 
     def ingest_bundle(self, bundle: ScanBundle, host_id: int) -> IngestResult:

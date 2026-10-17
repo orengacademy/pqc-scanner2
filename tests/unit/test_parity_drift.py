@@ -92,3 +92,36 @@ def test_parity_key_is_linear_on_hostile_titles():
         key = parity_key("net.tls.https", "RSA-2048", title, {"host": "a" * 300, "endpoint": title})
         assert time.perf_counter() - t0 < 0.5
         assert len(key[2]) < 700
+
+
+def test_plain_diff_and_cli_ignore_drift_rows(tmp_db_path):
+    from click.testing import CliRunner
+
+    from pqcscan.cli.fleet import diff_cmd
+    repo = Repo(tmp_db_path); repo.init_schema()
+    s2 = repo.create_scan(mode="user", probe_versions={}, tool_versions={})
+    s3 = repo.create_scan(mode="user", probe_versions={}, tool_versions={})
+    for sid in (s2, s3):
+        repo.record_finding(sid, _f("RSA-2048", "x"))
+    repo.record_finding(s2, _f("RSA-1024", "gone", probe="fleet.drift"))
+    for kw in ({}, {"parity": True}):
+        d = repo.diff_findings(current_scan_id=s3, baseline_scan_id=s2, **kw)
+        assert d["added"] == [] and d["removed"] == [] and d["common"] == 1
+    args = ["--db", str(tmp_db_path), "--scan", str(s3), "--baseline-scan", str(s2), "--fail-on-drift"]
+    assert CliRunner().invoke(diff_cmd, args).exit_code == 0
+
+
+def test_ingest_never_stores_agent_sent_drift(tmp_db_path, tmp_path):
+    src = Repo(tmp_path / "s.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    ident = HostIdentity(machine_id="m", hostname="h", os="linux")
+    h = fleet.upsert_host(ident)
+    for extra in (False, True):
+        sid = src.create_scan(mode="user", probe_versions={}, tool_versions={})
+        src.record_finding(sid, _f("RSA-2048", "cert"))
+        if extra:
+            src.record_finding(sid, _f("RSA-1024", "forged", probe="fleet.drift"))
+        src.finish_scan(sid, status="done")
+        res = fleet.ingest_bundle(load_bundle(dump_bundle(src, sid, ident)), h.id)
+    assert res.drift == 0 and res.stored_findings == 1
+    assert [r.probe_id for r in fleet.list_findings(res.scan_id)] == ["fs.cert.x509"]

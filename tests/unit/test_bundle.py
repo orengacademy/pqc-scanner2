@@ -130,3 +130,10 @@ def test_load_rejects_deeply_nested_json():
 def test_load_accepts_empty_optional_identity_fields():
     b = load_bundle(_doc(host={"machine_id": "m", "hostname": "", "os": "", "agent_version": "", "labels": {}}))
     assert b.host.hostname == "" and b.host.machine_id == "m" and b.scan_uuid == "u"
+
+
+def test_load_drops_agent_sent_fleet_drift_findings():
+    fs = [{"probe_id": "fs.cert.x509", "algorithm": "RSA-2048"},
+          {"probe_id": "fleet.drift", "algorithm": "RSA-1024", "evidence": {"change": "added"}}]
+    b = load_bundle(_doc(findings=fs))
+    assert b.findings == [{"probe_id": "fs.cert.x509", "algorithm": "RSA-2048"}] and b.dropped_drift == 1

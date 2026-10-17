@@ -16,6 +16,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from pqcscan.core.parity import DRIFT_PROBE
 from pqcscan.store.repo import Repo
 from pqcscan.store.schema import FindingRow, FrameworkView
 
@@ -23,6 +24,7 @@ BUNDLE_SCHEMA_VERSION = 1
 MAX_GZIP_BYTES = 8 * 1024 * 1024
 MAX_RAW_BYTES = 50 * 1024 * 1024
 MAX_FINDINGS = 200_000
+# fleet.drift findings are derived by the collector at ingest; load_bundle drops any an agent sends.
 # Fleet attribution (evidence["_fleet"]) is set by the collector, never by the agent.
 # evidence["host"] is the scan target (net probes) and stays.
 _SERVER_EVIDENCE_KEYS = frozenset({"_fleet"})
@@ -52,6 +54,7 @@ class ScanBundle:
     host: HostIdentity
     scan: dict[str, Any]          # started_at, finished_at (ISO or None), mode, status, probe_versions, tool_versions
     findings: list[dict[str, Any]]
+    dropped_drift: int = 0        # agent-sent fleet.drift findings removed on load (drift is server-derived)
 
 
 def _iso(v: datetime | date | None) -> str | None:
@@ -129,6 +132,9 @@ def load_bundle(data: bytes) -> ScanBundle:
         raise BundleTooLarge(f"bundle has {len(findings)} findings; cap {MAX_FINDINGS}")
     if not all(isinstance(f, dict) for f in findings):
         raise BundleInvalid("every finding must be an object")
+    kept = [f for f in findings if f.get("probe_id") != DRIFT_PROBE]
+    dropped_drift = len(findings) - len(kept)
+    findings = kept
     for f in findings:
         ev = f.get("evidence")
         if isinstance(ev, dict):
@@ -140,4 +146,4 @@ def load_bundle(data: bytes) -> ScanBundle:
                         hostname=_req_str(h, "hostname"), os=_req_str(h, "os"),
                         labels=dict(labels), agent_version=_req_str(h, "agent_version"))
     return ScanBundle(schema_version=BUNDLE_SCHEMA_VERSION, scan_uuid=_req_str(doc, "scan_uuid", nonempty=True),
-                      host=host, scan=dict(scan), findings=findings)
+                      host=host, scan=dict(scan), findings=findings, dropped_drift=dropped_drift)
