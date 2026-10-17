@@ -57,9 +57,9 @@ literal reading of "500 hosts posting concurrently". Both are reported.
 
 ## Postgres status
 
-The Postgres path is wired and was run locally, against a `postgres:16-alpine` container on the same box. It is
-untested in CI until the CI job from the evidence plan (Task 7) lands, and `docs/FLEET.md` should keep calling it
-untested until then.
+The Postgres path was run here against a `postgres:16-alpine` container on the same box. The CI job `postgres`
+in `.github/workflows/verify.yml` also runs the fleet tests on it (120 passed), so `docs/FLEET.md` no longer calls it
+untested. It is still unprofiled.
 
 ## Results (2026-10-17)
 

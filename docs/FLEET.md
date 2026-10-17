@@ -48,7 +48,8 @@ exports from them.
      discards `<state dir>/agent.token`, re-enrolls and sends (spooled bundles included). Without
      `--enroll-token` it spools the bundle and tells you to re-run with it or delete the token file.
    - `pqcscan fleet prune --keep 12` keeps the newest 12 scans per host. It is for one-off trims: the daemon already does this after every ingest (see Retention).
-7. **Scale.** SQLite handles roughly 2,000 hosts daily. Past roughly 10k per day,
+7. **Scale.** SQLite handles roughly 2,000 hosts daily (an estimate from the load run, see
+   [FLEET-EVIDENCE.md](FLEET-EVIDENCE.md)). Past roughly 10k per day,
    run the daemon with `--db postgresql+psycopg://user:pw@host/db` (every CLI command
    takes the same `--db` URL; `fleet-pg` installs psycopg 3, so the URL needs
    the `+psycopg` driver suffix) after
@@ -163,7 +164,9 @@ as change. `pqcscan diff --parity` uses the same key to compare a primary with i
   met p95 < 2 s at 120 hosts in both runs on SQLite, but at 90 and 250 hosts in only one of two, so capacity there is
   somewhere between 60 and 250 hosts. On Postgres it passed at 30 hosts and in one of two runs at 60 and 120, so treat
   it as 30 to 60. 500 hosts is not met (SQLite p95 8.6 s, Postgres times out). The runs shared a busy box (load average
-  10 to 31) and the results are not monotone in host count, so these are bands, not thresholds. Hosts that scan daily
-  are far below this. See `benchmark/fleet/LOAD.md`.
-- **Postgres is wired but untested.** The URL is accepted and `fleet-pg` installs
-  the driver, but the fleet test suite runs on SQLite only.
+  10 to 31) and the results are not monotone in host count, so these are bands, not thresholds. Real scans store about 1,670 findings, so real capacity is likely lower than this band; it was not measured.
+  2,000 hosts on a daily timer with a 2 h jitter post about 17 bundles a minute, roughly 95 test-sized posts a minute,
+  which is inside the band, not far below it. See `benchmark/fleet/LOAD.md` and [FLEET-EVIDENCE.md](FLEET-EVIDENCE.md).
+- **Postgres is tested in CI but not profiled.** The URL is accepted, `fleet-pg` installs the driver, and the CI job
+  `postgres` (`.github/workflows/verify.yml`) runs 120 fleet tests against `postgres:16-alpine`. Under the load test
+  it was no faster than SQLite, and nobody has profiled why.

@@ -41,6 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   300-finding bundle took about 1,450 SQL statements; it now takes 10, at about a tenth of the CPU. The minimum
   SQLAlchemy is now 2.0.10. A busy store during the duplicate-scan recovery lookup answers 503, not 500. Found by
   the 500-host load test.
+- The duplicate-`scan_uuid` recovery lookup in fleet ingest runs in the threadpool instead of on the event loop, so a
+  slow store no longer stalls other requests while a retried bundle is checked. Found by the 500-host load test.
 - `code.crypto_primitives` fails open where its lexer could be fooled. C/C++, Ruby and Swift files are scanned
   unstripped again, because raw strings, regex and `%`-literals, `?x` characters and heredocs could make a crafted
   literal blank the real call after it. A string that can interpolate code (`${...}`, `{$...}`, `#{...}`,

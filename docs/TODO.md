@@ -26,10 +26,11 @@ operator guide: `docs/FLEET.md`.
 - [ ] **Plain-HTTP warning on a non-loopback daemon bind** (spec §3.3).
 - [ ] **Render fleet exports from scan-id lists** instead of copying rows into a temporary
       rollup (the copy is batched but still O(hosts × findings) per export).
-- [ ] **Run `packaging/fleet/windows-task.ps1` on a Windows host**: reviewed by reading only;
-      the owner check depends on the default-owner policy for elevated admins.
-- [ ] **Postgres collector**: wired (`pip install 'pqcscan[fleet-pg]'`, `postgresql+psycopg://`)
-      but untested; add a CI job against a service container.
+- [ ] **Run `packaging/fleet/windows-task.ps1` on a real Windows host**: it runs under Pester on GitHub's
+      `windows-2022` and `windows-latest` runners (`.github/workflows/verify.yml`); Server 2019, Windows 11 and
+      a non-SYSTEM `-RunAs` account are not covered, and the owner check depends on the default-owner policy.
+- [ ] **Postgres collector**: wired (`pip install 'pqcscan[fleet-pg]'`, `postgresql+psycopg://`) and
+      tested in CI (`verify.yml`, 120 fleet tests); not profiled, and no faster than SQLite under the load test.
 - [ ] **Parity key refinements**: `word:digits` tokens are normalised lossily, URL and
       IPv6-zone forms are not; values containing `=` cannot be used in the `/fleet` label filter.
 - [ ] **`criticality` host label → exposure weighting** (spec §3.1): only the Mosca labels are wired.

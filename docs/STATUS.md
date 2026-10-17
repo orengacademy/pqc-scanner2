@@ -305,8 +305,8 @@ every claim graded evidenced, simulated, asserted or contradicted, the findings,
 |---|---|
 | 1 Real-fleet soak | Simulated only (30 state dirs on one box). The real run needs hosts: `benchmark/fleet/soak-real.md` |
 | 2 Accuracy | Pass. 176 cases, precision 1.000 excluding 8 accepted false positives (raw 0.922), recall 0.990. `docs/ACCURACY.md` |
-| 3 Load | **Fail.** Ingest p95 at 500 hosts: SQLite 8.6 s, Postgres 61 s. Capacity at p95 < 2 s: SQLite 60 to 250 hosts, Postgres 30 to 60. `benchmark/fleet/LOAD.md` |
-| 4 Threat model and fuzz | Pass. 57 STRIDE rows, 42 fuzz tests. `docs/security/THREAT-MODEL-FLEET.md` |
+| 3 Load | **Fail.** Ingest p95 at 500 hosts: SQLite 8.6 s, Postgres 61 s. Capacity at p95 < 2 s with 300-finding bundles (real scans store about 1,670, so likely less; F19): SQLite 60 to 250 hosts, Postgres 30 to 60. `benchmark/fleet/LOAD.md` |
+| 4 Threat model and fuzz | Pass, with 7 rows that have no test. 57 STRIDE rows, 42 fuzz tests. `docs/security/THREAT-MODEL-FLEET.md` |
 | 5 Bake-off | Delivered. `docs/BAKEOFF.md` |
 | 6 Acceptance | Tooling delivered, run blocked on prospect data. `benchmark/fleet/reconcile.py`, `docs/ACCEPTANCE-TEMPLATE.md` |
 
