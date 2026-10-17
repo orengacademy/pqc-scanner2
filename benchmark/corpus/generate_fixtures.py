@@ -438,6 +438,22 @@ def more_source_fixtures() -> None:
       'q = ?"; d = Digest::MD5.hexdigest(x); r = "done"\n')
     w("swift-rawstring-then-md5/Hash.swift",
       'let s = #"a"b"#; let d = Insecure.MD5.hash(data: x); let e = "done"\n')
+    # Crafted-literal evasions (security review): one construct the lexer misreads
+    # (regex literal, nested f-string quote, C# 11 raw string, nested template)
+    # leaves a stray quote that opens a "string" swallowing the real call.
+    w("js-regex-quote-md5/app.js",
+      "const r = /\"/; const h = crypto.createHash('md5'); const s = \"y\";\n")
+    w("ts-regex-quote-md5/app.ts",
+      "const r = /'/; const h = crypto.createHash(\"md5\"); const s = 'y';\n")
+    w("py312-fstring-quote-md5/src.py",
+      "import hashlib\n\nb = b\"x\"\ns = f\"{'\"'}\"; h = hashlib.md5(b).hexdigest(); t = 'x'  # noqa: E702\n")
+    w("py312-fstring-quote-md5/ruff.toml",
+      "# This fixture uses Python 3.12 f-string syntax (a quote reused inside {...}) on purpose.\n"
+      "extend = \"../../../../pyproject.toml\"\ntarget-version = \"py312\"\ncache-dir = \"../../../../.ruff_cache\"\n")
+    w("cs-rawstring-quote-md5/Hash.cs",
+      "class H {\n    void F() { var a = \"\"\"a\\\"\"\"; var h = MD5.Create(); var s = \"x\"; }\n}\n")
+    w("kt-template-quote-md5/Hash.kt",
+      "val a = \"${\"\\\"\"}\"; val d = MessageDigest.getInstance(md5); val s = \"y\"\n")
     w("kt-clean-sha256/Hash.kt",
       "import java.security.MessageDigest\n\nfun f(): ByteArray =\n"
       '    MessageDigest.getInstance("SHA-256").digest("x".toByteArray())\n')

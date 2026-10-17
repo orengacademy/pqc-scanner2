@@ -1,21 +1,21 @@
 {
   "overall": {
-    "tp": 90,
+    "tp": 95,
     "fp": 0,
     "fn": 1,
     "tn": 72,
     "afp": 8,
     "precision": 1.0,
-    "raw_precision": 0.9183673469387755,
-    "recall": 0.989010989010989,
-    "positives": 91,
+    "raw_precision": 0.9223300970873787,
+    "recall": 0.9895833333333334,
+    "positives": 96,
     "negatives": 80,
-    "cases": 171
+    "cases": 176
   },
-  "corpus_sha256": "e53e6f3fbc21ac02b0d3144d27f3b90a76fff8e68109120aea7a67c91c998c0a",
+  "corpus_sha256": "563e427b9eec600c94b9c234b2c514ceba02bdc26d38707431a5aae02b068e0c",
   "per_probe": {
     "code.crypto_primitives": {
-      "tp": 17,
+      "tp": 22,
       "fp": 0,
       "fn": 0,
       "tn": 22,
@@ -269,7 +269,7 @@
   },
   "per_family": {
     "code.crypto_primitives": {
-      "tp": 17,
+      "tp": 22,
       "fp": 0,
       "fn": 0,
       "tn": 22,
@@ -2150,6 +2150,61 @@
     },
     {
       "id": "cp-swift-rawstring-then-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cp-js-regex-quote-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cp-ts-regex-quote-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cp-py312-fstring-quote-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cp-cs-rawstring-quote-md5",
+      "probe": "code.crypto_primitives",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cp-kt-template-quote-md5",
       "probe": "code.crypto_primitives",
       "kind": "positive",
       "outcome": "TP",

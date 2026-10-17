@@ -931,3 +931,31 @@
   kind: positive
   input: cases/swift-rawstring-then-md5
   expect: {algorithm_contains: MD5}
+
+# code.crypto_primitives crafted-literal evasions: a misread construct leaves a stray quote whose
+# "string" swallows the real call; the call must still be found.
+- id: cp-js-regex-quote-md5
+  probe: code.crypto_primitives
+  kind: positive
+  input: cases/js-regex-quote-md5
+  expect: {algorithm_contains: MD5}
+- id: cp-ts-regex-quote-md5
+  probe: code.crypto_primitives
+  kind: positive
+  input: cases/ts-regex-quote-md5
+  expect: {algorithm_contains: MD5}
+- id: cp-py312-fstring-quote-md5
+  probe: code.crypto_primitives
+  kind: positive
+  input: cases/py312-fstring-quote-md5
+  expect: {algorithm_contains: MD5}
+- id: cp-cs-rawstring-quote-md5
+  probe: code.crypto_primitives
+  kind: positive
+  input: cases/cs-rawstring-quote-md5
+  expect: {algorithm_contains: MD5}
+- id: cp-kt-template-quote-md5
+  probe: code.crypto_primitives
+  kind: positive
+  input: cases/kt-template-quote-md5
+  expect: {algorithm_contains: MD5}

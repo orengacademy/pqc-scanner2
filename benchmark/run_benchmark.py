@@ -97,12 +97,16 @@ ACCEPTED_FP_PATH = CORPUS_DIR / "accepted_fp.txt"
 REPORT_PATH = Path(__file__).resolve().parent / "last_report.json"
 
 
+_CACHE_DIRS = frozenset({".ruff_cache", "__pycache__", ".mypy_cache", ".pytest_cache"})  # tool output, not corpus
+
+
 def corpus_listing(corpus_dir: Path = CORPUS_DIR) -> str:
     """sha256sum-format listing of manifest.yaml, accepted_fp.txt and every file under cases/, sorted by path.
 
     CORPUS.sha256 holds this text; the corpus hash is sha256(listing)."""
     labels = [corpus_dir / name for name in ("manifest.yaml", "accepted_fp.txt") if (corpus_dir / name).exists()]
-    files = [*labels, *(p for p in (corpus_dir / "cases").rglob("*") if p.is_file())]
+    files = [*labels, *(p for p in (corpus_dir / "cases").rglob("*")
+                        if p.is_file() and not _CACHE_DIRS.intersection(p.parts))]
     rows = sorted((p.relative_to(corpus_dir).as_posix(), hashlib.sha256(p.read_bytes()).hexdigest()) for p in files)
     return "".join(f"{digest}  {rel}\n" for rel, digest in rows)
 

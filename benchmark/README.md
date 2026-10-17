@@ -46,10 +46,10 @@ never as a TP.
 
 ## Current measured numbers
 
-Corpus: **171 cases — 91 positive / 80 negative**, across 28 probes in 10 families.
+Corpus: **176 cases — 96 positive / 80 negative**, across 28 probes in 10 families.
 
 ```
-OVERALL   TP=90  FP=8  FN=1  TN=72   precision=0.918   recall=0.989
+OVERALL   TP=95  FP=0  FN=1  TN=72  AFP=8   precision=1.000 (raw 0.922)   recall=0.990
 ```
 
 The 8 false positives are `code.crypto_primitives` failing open on C, C++, Ruby
