@@ -24,6 +24,12 @@ exports from them.
    In the web UI, `/fleet` lists every host with its latest scan, readiness band and crit/high/total counts.
    Hosts not seen for 48 hours are flagged stale. Filter with `/fleet?label=env=prod`; `/fleet/<host_id>` shows one host's scan history.
    Host labels `data_lifetime`, `migration_years` and `threat_years` (all in years) set the Mosca X, Y and Z inputs in that host's reports; an explicit CLI value wins, and invalid labels are ignored.
+
+   **Crypto-agility score.** Reports also carry a 0 to 100 crypto-agility score: how cheaply the quantum-vulnerable
+   findings' cryptography can be changed (edit a config scores 90, rebuild or replace hardware scores 10). It is the
+   mean per-finding score and is shown in the executive and technical PDFs, the JSON report context, and the
+   BUKUKERJA CBOM sheet (per finding). Bands: `high` at 70 or more, `medium` at 40 or more, otherwise `low`.
+   Informational and `fleet.drift` findings are ignored; a scan with nothing vulnerable scores 100.
 4. **Exports.** `pqcscan export --scan fleet --format cbom|sarif|xlsx-bukukerja|pdf-tech … -o …`
    builds the export from the latest scan of every host, each finding attributed to its host via `evidence._fleet`.
    The same works from the daemon API: `GET /api/scans/fleet/export/<fmt>`.

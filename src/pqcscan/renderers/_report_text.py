@@ -42,6 +42,10 @@ _STRINGS: dict[str, dict[str, str]] = {
                            "hybrid/composite 80%, weakened-but-not-quantum-broken "
                            "30%, and classically-broken 0%.",
         "migration.score": "Migration readiness",
+        "report.agility": "Crypto-agility",
+        "agility.band.high": "high",
+        "agility.band.medium": "medium",
+        "agility.band.low": "low",
         "migration.safe": "Quantum-safe",
         "migration.hybrid": "Hybrid",
         "migration.partial": "Partial",
@@ -190,6 +194,10 @@ _STRINGS: dict[str, dict[str, str]] = {
                            "hibrid/komposit 80%, dilemahkan-tetapi-belum-dipecah-"
                            "kuantum 30%, dan dipecah secara klasik 0%.",
         "migration.score": "Kesediaan migrasi",
+        "report.agility": "Ketangkasan kripto",
+        "agility.band.high": "tinggi",
+        "agility.band.medium": "sederhana",
+        "agility.band.low": "rendah",
         "migration.safe": "Selamat-kuantum",
         "migration.hybrid": "Hibrid",
         "migration.partial": "Separa",

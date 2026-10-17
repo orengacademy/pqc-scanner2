@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   two scans by the same key.
 
 ### Added
+- **Crypto-agility score** — `core/agility.py` scores how cheaply each finding's crypto can be changed (0 to 100;
+  bands high >= 70, medium >= 40, low). Shown in the PDF reports, the report context and the BUKUKERJA CBOM column.
 - **Host labels drive Mosca inputs** — `data_lifetime`, `migration_years` and `threat_years` host labels (years) feed the
   Mosca X+Y>Z section of that host's reports. Explicit inputs win; invalid labels fall back to the defaults.
 

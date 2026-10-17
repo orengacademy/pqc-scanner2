@@ -30,6 +30,7 @@ from pathlib import Path
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment
 
+from pqcscan.core.agility import finding_agility
 from pqcscan.renderers._xlsx_safe import force_text
 from pqcscan.store.repo import Repo
 from pqcscan.store.schema import FindingRow
@@ -482,8 +483,7 @@ def render_xlsx_bukukerja(
     ]
     for idx, f in enumerate(cbom_findings, start=1):
         ev = f.evidence or {}
-        crypto_agility = ((("Ya", "Tidak Diketahui"), ("Yes", "Unknown"))[1 if locale == "en" else 0]
-                          [0 if ev.get("crypto_agility") else 1])
+        crypto_agility = str(finding_agility(f.probe_id, ev))
         cbom_ws.append([
             f"CBOM #{idx}",
             str(_asset_name_for(f))[:120],

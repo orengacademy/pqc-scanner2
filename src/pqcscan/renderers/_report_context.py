@@ -14,6 +14,7 @@ from datetime import date
 from typing import Any
 
 from pqcscan import __version__
+from pqcscan.core.agility import score_findings as agility_score
 from pqcscan.core.bands import (
     SURFACE_ORDER,
     classify_band,
@@ -91,7 +92,7 @@ def _label_years(labels: dict[str, str], key: str) -> float | None:
     """Parse one agent-supplied label as years: finite, > 0, <= 200, else None."""
     try:
         v = float(labels[key])
-    except (KeyError, TypeError, ValueError):
+    except (KeyError, TypeError, ValueError, OverflowError):
         return None
     return v if math.isfinite(v) and 0 < v <= 200 else None
 
@@ -170,6 +171,7 @@ def build_report_context(
         fw_summary[v.framework][v.verdict] += 1
 
     migration_readiness = asdict(score_findings(findings))
+    agility = asdict(agility_score(findings))
     register = build_register(findings)
     exposure = {
         "rows": [asdict(r) for r in register[:20]],
@@ -213,6 +215,7 @@ def build_report_context(
         "surface_order": SURFACE_ORDER,
         "readiness": score,
         "migration_readiness": migration_readiness,
+        "agility": agility,
         "exposure": exposure,
         "mosca": _mosca_context(findings, lang, mosca_inputs, source),
         "host_labels": labels,
