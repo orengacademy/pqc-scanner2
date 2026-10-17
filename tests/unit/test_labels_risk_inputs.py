@@ -2,6 +2,8 @@ import pytest
 
 from pqcscan.core.mosca import MoscaInputs
 from pqcscan.renderers._report_context import build_report_context, mosca_from_labels
+from pqcscan.renderers._report_text import report_translator
+from pqcscan.renderers.pdf_executive import build_html_executive
 from pqcscan.store.bundle import HostIdentity, dump_bundle, load_bundle
 from pqcscan.store.repo import Repo
 
@@ -62,3 +64,17 @@ def test_local_scan_unchanged(tmp_db_path):
     repo.finish_scan(sid, status="done")
     ctx = build_report_context(repo, sid)
     assert ctx["mosca"]["source"] == "default" and ctx["host_labels"] == {}
+
+
+def test_huge_int_label_is_ignored():
+    assert mosca_from_labels({"data_lifetime": 10**400}) is None  # float() raises OverflowError
+
+
+def test_executive_html_notes_labels_source(tmp_db_path, tmp_path):
+    note = report_translator("en")("mosca.from_labels")
+    fleet = Repo(tmp_db_path)
+    fleet.init_schema()
+    assert note in build_html_executive(fleet, _ingest(fleet, tmp_path, {"data_lifetime": "25"}), "en")
+    sid = fleet.create_scan(mode="user", probe_versions={}, tool_versions={})
+    fleet.finish_scan(sid, status="done")
+    assert note not in build_html_executive(fleet, sid, "en")
