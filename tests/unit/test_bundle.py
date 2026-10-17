@@ -66,6 +66,15 @@ def test_load_rejects_garbage_and_wrong_version():
         load_bundle(gzip.compress(json.dumps({"schema_version": 99}).encode()))
 
 
+def test_load_rejects_truncated_gzip():
+    blob = gzip.compress(json.dumps({"schema_version": 1, "scan_uuid": "u", "host": {"machine_id": "m"},
+                                     "scan": {}, "findings": []}).encode())
+    assert load_bundle(blob).scan_uuid == "u"
+    for cut in (1, 4, 8, 9):            # inside the CRC/length trailer, and just past the deflate data
+        with pytest.raises(BundleInvalid, match="truncated"):
+            load_bundle(blob[:-cut])
+
+
 def test_load_rejects_oversize():
     with pytest.raises(BundleTooLarge):
         load_bundle(b"\x1f\x8b" + b"\x00" * (MAX_GZIP_BYTES + 1))

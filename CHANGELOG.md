@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Ingest rejects a gzip bundle whose stream is cut off (400). A truncated body used to inflate to complete JSON and be
+  stored without its CRC and length check ever running. Found by the new hypothesis fuzz targets.
+
 ## [0.10.2] — 2026-10-17
 
 ### Added — fleet mode, phase 3
