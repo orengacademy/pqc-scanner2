@@ -21,7 +21,14 @@ real use often is a string argument (``getInstance("MD5")``,
 ``createHash('md5')``). So, using ``core.srcstrip`` spans, a match counts when it
 sits in code, never when it sits in a comment, and inside a string literal only
 when that literal is a bare identifier (``"MD5"``, ``"AES/GCM/NoPadding"``,
-``"secp256r1"``) — not prose such as ``"never use md5 here"``.
+``"secp256r1"``) — not prose such as ``"never use md5 here"`` — or can
+interpolate code (``${...}``, ``#{...}``, Swift ``\\(...)``, a Python f-string or a C#
+``$"..."`` with ``{``), since the "string" then holds real calls.
+
+Fail-open by design: a false positive is cheaper than a hidden MD5. Only the
+languages whose lexer the code.ts.* probes already trust are stripped (Python,
+Java/Kotlin/Scala, JavaScript/TypeScript, Go, PHP, C#, Rust). C/C++, Ruby and
+Swift are scanned unstripped, so a mention in a comment or string there fires.
 """
 from __future__ import annotations
 
@@ -42,12 +49,15 @@ _SUFFIXES: tuple[str, ...] = (
     ".rb", ".php", ".c", ".cpp", ".cs", ".kt", ".swift",
 )
 
-# srcstrip lexer per suffix (Swift's """ blocks follow the Java text-block rule).
+# srcstrip lexer per suffix. .c/.cpp/.rb/.swift are absent on purpose (no lexer
+# trusted for them: raw strings, regex / %-literals, heredocs) -> unstripped.
 _LANG_FOR_SUFFIX: dict[str, str] = {
     ".py": "python", ".js": "javascript", ".ts": "javascript", ".go": "go", ".rs": "rust",
-    ".java": "java", ".rb": "ruby", ".php": "php", ".c": "c", ".cpp": "c", ".cs": "csharp",
-    ".kt": "kotlin", ".swift": "java",
+    ".java": "java", ".php": "php", ".cs": "csharp", ".kt": "kotlin",
 }
+# Literal bodies that can carry code: ${...} (JS/TS, Kotlin, PHP), {$...} (PHP),
+# #{...} (Ruby), \(...) (Swift).
+_INTERPOLATION_MARKERS: tuple[str, ...] = ("${", "{$", "#{", "\\(")
 # A string literal whose body is only these characters names an algorithm.
 _TOKEN_STRING_RE = re.compile(r"[\w./:+-]+")
 
@@ -158,7 +168,13 @@ class CodeCryptoPrimitives(Probe):
             a, b = spans[i]
             if is_comment_span(text, a, lang):
                 return False
-            return _TOKEN_STRING_RE.fullmatch(text[a:b].strip("\"'`@#")) is not None
+            body = text[a:b]
+            if any(m in body for m in _INTERPOLATION_MARKERS):
+                return True                                   # interpolated: holds code
+            prefix = text[max(0, a - 2):a].lower()            # f"..", rf"..", $"..", $@".."
+            if "{" in body and (("f" in prefix and lang == "python") or ("$" in prefix and lang == "csharp")):
+                return True
+            return _TOKEN_STRING_RE.fullmatch(body.strip("\"'`@#")) is not None
 
         lines = text.splitlines()
         seen: set[str] = set()  # de-dup (file, algorithm) — file is fixed here

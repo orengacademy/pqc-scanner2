@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- `code.crypto_primitives` fails open where its lexer could be fooled. C/C++, Ruby and Swift files are scanned
+  unstripped again, because raw strings, regex and `%`-literals, `?x` characters and heredocs could make a crafted
+  literal blank the real call after it. A string that can interpolate code (`${...}`, `{$...}`, `#{...}`,
+  Python f-strings, C# `$"..."`) now counts as code. The cost is that comment and string mentions in those four
+  languages fire again.
 - XMSS, XMSS^MT, LMS and HSS/LMS (NIST SP 800-208 stateful hash-based signatures) are recognised as
   `pqc-ready` everywhere. Certificates signed with them are recognised by their X.509 OIDs, and `HSS/LMS` names
   classify. `code.crypto_primitives` finds them in source (`"XMSS-SHA2_10_256"`, `lms_sign`, `HSS-LMS`). Found by

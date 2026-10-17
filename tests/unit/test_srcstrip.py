@@ -250,15 +250,17 @@ def test_rust_well_formed_raw_after_unterminated_hashed_raw_is_blanked():
     assert out.count("md5") == 1 and "md5::compute(x)" in out
 
 
-def test_python_ruby_c_forms():
+def test_python_forms():
     py = 'x = 1  # md5\ny = """a\nmd5""" + \'md5\'\nz = hashlib.md5(b"x")\n'
     out = strip_noncode(py, "python")
     assert out.count("md5") == 1 and "hashlib.md5(" in out
     assert strip_noncode('s = """a""""\nmd5()\n', "python").endswith("md5()\n")  # closes on the first """
-    rb = "# Digest::MD5\nd = Digest::MD5.hexdigest('md5')\n"
-    assert strip_noncode(rb, "ruby").count("MD5") == 1
-    c = "/* MD5 */ MD5(d); // md5\nchar q = '\"'; const char *n = \"md5\";\n"
-    assert strip_noncode(c, "c").count("MD5") == 1
+
+
+def test_no_lexer_for_c_ruby_swift():
+    # Untrusted on purpose (raw strings, regex/%-literals, heredocs): left unstripped.
+    for lang in ("c", "ruby", "swift"):
+        assert strip_noncode("// md5\n", lang) == "// md5\n"
 
 
 def test_python_triple_quote_floods_are_linear():

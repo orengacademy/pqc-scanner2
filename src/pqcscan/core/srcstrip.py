@@ -2,8 +2,8 @@
 
 The non-Python source-code probes (``code.ts.go`` / ``.java`` (also Kotlin and
 Scala) / ``.javascript`` / ``.php`` / ``.rust`` / ``.csharp``), and
-``code.crypto_primitives`` (which adds C/C++, Python, Ruby, Swift and TypeScript
-through :func:`noncode_spans`), detect weak crypto with plain regexes over raw source
+``code.crypto_primitives`` (which adds Python and TypeScript through
+:func:`noncode_spans`; C/C++, Ruby and Swift are left unstripped), detect weak crypto with plain regexes over raw source
 text.  A weak-crypto token that appears inside a ``// comment`` or a
 ``"string literal"`` is a false positive.  This module neutralises those
 regions *before* the detection regexes run, without any native grammar (so the
@@ -143,14 +143,15 @@ _LANG_FORMS: dict[str, tuple[str, ...]] = {
     "rust": (_BLOCK, _BLOCK_UNTERM, _LINE_SLASH, _RUST_RAW_OPEN, _DQ, _DQ_UNTERM, _CHAR),
     "csharp": (_BLOCK, _BLOCK_UNTERM, _LINE_SLASH, _CSHARP_VERBATIM, _CSHARP_VERBATIM_UNTERM, _DQ, _DQ_UNTERM,
                _CHAR),
-    # Used by code.crypto_primitives for the suffixes the code.ts.* probes skip.
-    "c": (_BLOCK, _BLOCK_UNTERM, _LINE_SLASH, _DQ, _DQ_UNTERM, _CHAR),  # also C++
+    # Used by code.crypto_primitives (code.ts.python parses with ast instead).
+    # No lexer for C/C++, Ruby or Swift on purpose: raw strings (C++ R"x(...)x",
+    # Swift #"..."#), regex / %-literals and heredocs (Ruby) would let a crafted
+    # literal blank real code. Those languages are scanned unstripped (fail-open).
     "python": (_PY_TRIPLE_DQ, _PY_TRIPLE_DQ_UNTERM, _PY_TRIPLE_SQ, _PY_TRIPLE_SQ_UNTERM, _LINE_HASH,
                _DQ, _DQ_UNTERM, _SQ_STR, _SQ_UNTERM),
-    "ruby": (_LINE_HASH, _DQ, _DQ_UNTERM, _SQ_STR, _SQ_UNTERM),
 }
 # Languages whose line comments start with "#" (a "#" span is a comment there).
-_HASH_COMMENT_LANGS = frozenset({"php", "python", "ruby"})
+_HASH_COMMENT_LANGS = frozenset({"php", "python"})
 
 
 # Larger inputs are not stripped (returned unchanged, fail-open toward false

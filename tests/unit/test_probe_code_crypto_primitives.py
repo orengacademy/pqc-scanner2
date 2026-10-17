@@ -151,11 +151,8 @@ def test_all_patterns_compiled_once():
 @pytest.mark.parametrize(("name", "body"), [
     ("a.py", "x = 1  # hashlib.md5() is legacy\n"),
     ("a.py", 'msg = """\nnever use md5 here\n"""\n'),
-    ("a.rb", "# Digest::MD5 is banned\nnote = 'never use md5 here'\n"),
-    ("a.c", "/* MD5() is banned */\nconst char *n = \"never use md5 here\";\n"),
     ("a.go", "// md5.New() must never be used here\nvar s = `md5 in raw`\n"),
     ("a.java", 'String s = """\n    MessageDigest.getInstance("MD5")\n""";\n'),
-    ("a.swift", '// Insecure.MD5 is banned\nlet note = "never use md5 here"\n'),
 ])
 async def test_comment_and_prose_string_mentions_do_not_fire(tmp_path: Path, name: str, body: str):
     assert [f.algorithm for f in await _run(tmp_path, name, body)] == []
@@ -192,3 +189,38 @@ async def test_stateful_hash_signatures_are_pqc_ready(tmp_path: Path):
     other.mkdir()
     found = {f.algorithm for f in await _run(other, "lms.py", "course = lms.Course()  # LMS integration\n")}
     assert "LMS" not in found
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("name", "body"), [
+    ("a.rb", "# Digest::MD5 is banned\n"),
+    ("a.c", "/* MD5() is banned */\n"),
+    ("a.cpp", "// MD5() is banned\n"),
+    ("a.swift", "// Insecure.MD5 is banned\n"),
+])
+async def test_untrusted_lexers_fail_open(tmp_path: Path, name: str, body: str):
+    # No comment/string stripping for C/C++, Ruby or Swift: a mention fires.
+    assert "MD5" in [f.algorithm for f in await _run(tmp_path, name, body)]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("name", "body"), [
+    ("app.js", "const s = `${md5(x)}`;\n"),
+    ("app.ts", "const s = `digest: ${createHash('md5').digest('hex')}`;\n"),
+    ("a.py", 'import hashlib\ns = f"{hashlib.md5(b)}"\n'),
+    ("a.py", 's = rf"{hashlib.md5(b)}"\n'),
+    ("A.kt", 'val s = "${MessageDigest.getInstance(alg).digest()} md5"\n'),
+    ("a.php", '<?php\n$s = "hash: {$md5($x)}";\n'),
+    ("A.cs", 'var s = $"hash {MD5.Create().ComputeHash(d)}";\n'),
+])
+async def test_interpolated_literals_count_as_code(tmp_path: Path, name: str, body: str):
+    assert "MD5" in [f.algorithm for f in await _run(tmp_path, name, body)]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("name", "body"), [
+    ("a.rb", "ok = line =~ /md5/ # legacy check\nd = Digest::MD5.hexdigest(x)\n"),
+    ("a.swift", 'let s = #"md5"#; let d = Insecure.MD5.hash(data: x)\n'),
+])
+async def test_crafted_literals_do_not_hide_real_use(tmp_path: Path, name: str, body: str):
+    assert "MD5" in [f.algorithm for f in await _run(tmp_path, name, body)]
