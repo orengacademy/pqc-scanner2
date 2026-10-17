@@ -20,6 +20,9 @@ from pqcscan.util.paths import default_db_path
 
 TOKEN_FILE = "agent.token"
 SPOOL_DIR = "spool"
+REJECTED_DIR = "rejected"
+# The collector will never accept these bundles: do not spool or retry them.
+PERMANENT_REJECTS = frozenset({400, 403, 413})
 
 
 class ReportError(RuntimeError):
@@ -140,11 +143,20 @@ def spool_bundle(state_dir: Path, data: bytes) -> Path:
     return p
 
 
-def flush_spool(server: str, token: str, state_dir: Path, client: httpx.Client) -> tuple[int, int]:
-    sent = kept = 0
+def _quarantine(p: Path) -> None:
+    dest = p.parent / REJECTED_DIR
+    dest.mkdir(mode=0o700, exist_ok=True)
+    os.replace(p, dest / p.name)
+
+
+def flush_spool(server: str, token: str, state_dir: Path, client: httpx.Client) -> tuple[int, int, int]:
+    """Send spooled bundles oldest-first; returns (sent, kept, rejected).
+
+    Permanently rejected files move to spool/rejected/ and flushing continues."""
+    sent = kept = rejected = 0
     spool = state_dir / SPOOL_DIR
     if not spool.is_dir():
-        return sent, kept
+        return sent, kept, rejected
     for p in sorted(spool.glob("*.bundle.gz")):
         try:
             post_bundle(server, token, p.read_bytes(), client)
@@ -153,8 +165,16 @@ def flush_spool(server: str, token: str, state_dir: Path, client: httpx.Client) 
             kept += 1
             continue
         except ReportError as e:
-            if e.status in (400, 403, 413):      # will never succeed; keep for inspection, don't retry forever
-                logger.warning("fleet: spool {} rejected ({}), left in place", p.name, e.status)
+            if e.status in PERMANENT_REJECTS:
+                try:
+                    _quarantine(p)
+                except OSError as qe:
+                    logger.warning("fleet: spool {} rejected ({}) but cannot move it ({})", p.name, e.status, qe)
+                    kept += 1
+                else:
+                    logger.warning("fleet: spool {} rejected ({}), moved to {}/", p.name, e.status, REJECTED_DIR)
+                    rejected += 1
+                continue
             kept += 1
             if e.status in (0, 401, 429) or e.status >= 500:
                 break                            # server down, throttling or token rejected: stop this pass
@@ -164,13 +184,14 @@ def flush_spool(server: str, token: str, state_dir: Path, client: httpx.Client) 
             p.unlink(missing_ok=True)
         except OSError as e:                     # sent already; the server dedups a later resend
             logger.warning("fleet: sent spool {} but cannot remove it ({})", p.name, e)
-    return sent, kept
+    return sent, kept, rejected
 
 
 def report_scan(repo: Repo, scan_id: int, *, server: str, enroll_token: str | None, agent_token: str | None,
                 labels: dict[str, str], state_dir: Path, client: httpx.Client,
                 allow_http: bool = False, on_reenroll: Callable[[], None] | None = None) -> dict | None:
-    """Dump, enroll if needed, flush the spool, POST. Once the bundle exists, any failure spools it.
+    """Dump, enroll if needed, flush the spool, POST. Once the bundle exists, any failure spools it,
+    except a permanent rejection (400/403/413), which raises ReportError: retrying can never succeed.
 
     on_reenroll is called when a rejected stored token is dropped and a fresh enroll is attempted."""
     from pqcscan.util.hostid import host_identity
@@ -200,6 +221,8 @@ def report_scan(repo: Repo, scan_id: int, *, server: str, enroll_token: str | No
                 on_reenroll()
             return send()                        # once: a second 401 spools like any failure
     except Exception as e:  # a dumped bundle must never be lost
+        if isinstance(e, ReportError) and e.status in PERMANENT_REJECTS:
+            raise ReportError(e.status, f"{e.detail} (not spooled: permanent rejection)") from e
         try:
             p = spool_bundle(state_dir, data)
         except Exception as spool_err:

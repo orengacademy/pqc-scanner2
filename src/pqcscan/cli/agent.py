@@ -14,6 +14,7 @@ from loguru import logger
 
 from pqcscan.cli._db import db_arg, ensure_db_parent
 from pqcscan.cli._report import (
+    PERMANENT_REJECTS,
     ReportError,
     check_server_scheme,
     default_state_dir,
@@ -73,16 +74,25 @@ def agent_cycle(cfg: AgentConfig, client: httpx.Client) -> CycleResult:
         nonlocal re_enrolled
         re_enrolled = True
 
-    report = report_scan(repo, sid, server=cfg.server, enroll_token=cfg.enroll_token, agent_token=None,
-                         labels=cfg.labels, state_dir=cfg.state_dir, client=client,
-                         allow_http=cfg.allow_http, on_reenroll=_mark)
+    report: dict | None = None
+    rejected = False
+    try:
+        report = report_scan(repo, sid, server=cfg.server, enroll_token=cfg.enroll_token, agent_token=None,
+                             labels=cfg.labels, state_dir=cfg.state_dir, client=client,
+                             allow_http=cfg.allow_http, on_reenroll=_mark)
+    except ReportError as e:
+        if e.status not in PERMANENT_REJECTS:
+            raise
+        rejected = True                       # the server will never take this bundle: a failed cycle
+        click.echo(f"agent: report rejected ({e.status}): {e.detail}", err=True)
     # The collector holds history; keep the agent's own local DB bounded.
     if isinstance(db, Path) and db.resolve().is_relative_to(cfg.state_dir.resolve()):
         for old in [s.id for s in repo.list_scans()][cfg.keep_local:]:
             repo.delete_scan(old)
     else:
         click.echo("--keep-local ignored: shared database", err=True)
-    return CycleResult(sid, reported=report is not None, spooled=report is None, re_enrolled=re_enrolled)
+    return CycleResult(sid, reported=report is not None, spooled=report is None and not rejected,
+                       re_enrolled=re_enrolled)
 
 
 def flush_only(cfg: AgentConfig, client: httpx.Client) -> CycleResult:
@@ -91,7 +101,7 @@ def flush_only(cfg: AgentConfig, client: httpx.Client) -> CycleResult:
         check_server_scheme(cfg.server, cfg.allow_http)
         token = ensure_agent_token(cfg.server, enroll_token=cfg.enroll_token, identity=host_identity(cfg.labels),
                                    state_dir=cfg.state_dir, client=client)
-        _, kept = flush_spool(cfg.server, token, cfg.state_dir, client)
+        _, kept, _ = flush_spool(cfg.server, token, cfg.state_dir, client)
     except ReportError as e:
         logger.warning("agent: spool flush failed ({})", e)
         return CycleResult(0, reported=False, spooled=True, re_enrolled=False)
@@ -142,10 +152,13 @@ def agent_cmd(server: str, enroll_token: str | None, labels: tuple[str, ...], in
             if now >= next_scan:
                 try:
                     r = agent_cycle(cfg, client)
-                    failures, retries = 0, 0 if r.reported else 1
+                    if not (r.reported or r.spooled):         # permanently rejected: count as a failure
+                        failures, retries = failures + 1, 0
+                    else:
+                        failures, retries = 0, 0 if r.reported else 1
                     if r.reported:
                         click.echo(f"agent: scan {r.scan_id} reported")
-                    else:
+                    elif r.spooled:
                         click.echo(f"agent: scan {r.scan_id} done; report spooled; will retry next cycle", err=True)
                 except Exception as e:  # a failed scan must not kill the loop
                     failures, retries = failures + 1, 0

@@ -81,7 +81,9 @@ Other flags: `--once` (one cycle; exit 1 only if the scan crashed, a spooled rep
 
 - **No split-and-resend on 413.** Bundles are capped when they are dumped on the
   host. A scan larger than the raw cap fails to dump and is not reported.
-- **Spool is unbounded for rejected bundles.** A bundle the collector permanently
-  rejects stays in the spool directory until you remove it.
+- **Permanent rejections are not retried.** A bundle the collector answers with 400, 403 or
+  413 is never spooled. A spooled file that gets one of these moves to `<state dir>/spool/rejected/`
+  and flushing continues. Nothing prunes that directory, so clear it by hand. A revoked host's
+  reports are dropped this way until you unrevoke it.
 - **Postgres is wired but untested.** The URL is accepted and `fleet-pg` installs
   the driver, but the fleet test suite runs on SQLite only.

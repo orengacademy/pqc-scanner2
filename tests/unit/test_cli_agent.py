@@ -170,3 +170,20 @@ def test_keep_local_skipped_for_shared_db(tmp_path, capsys):
         agent_cycle(cfg, _client(srv))
     assert len(Repo(tmp_path / "shared.db").list_scans()) == 3
     assert "--keep-local ignored: shared database" in capsys.readouterr().err
+
+
+def test_cycle_permanent_rejection_is_neither_reported_nor_spooled(tmp_path):
+    srv = _Srv()
+    srv.ingest = [403]
+    r = agent_cycle(_cfg(tmp_path), _client(srv))
+    assert not r.reported and not r.spooled
+    assert not list((tmp_path / "state" / "spool").glob("*.bundle.gz"))
+
+
+def test_cmd_once_exits_one_on_permanent_rejection(tmp_path, monkeypatch):
+    srv = _Srv()
+    srv.ingest = [403]
+    monkeypatch.setattr(agent_mod, "make_client", lambda **_: _client(srv))
+    res = CliRunner().invoke(agent_cmd, ["--server", "http://127.0.0.1:8765", "--enroll-token", "E", "--once",
+                                         "--state-dir", str(tmp_path / "s"), "--path", str(tmp_path)])
+    assert res.exit_code == 1 and "rejected (403)" in res.output
