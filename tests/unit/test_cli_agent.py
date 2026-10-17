@@ -237,6 +237,36 @@ def test_sigterm_stops_loop_cleanly(tmp_path, monkeypatch):
     assert signal.getsignal(signal.SIGTERM) == before    # handler restored
 
 
+def test_once_leaves_sigterm_handler_alone(tmp_path, monkeypatch):
+    import signal
+    seen = []
+    real = signal.signal
+    monkeypatch.setattr(signal, "signal", lambda *a: seen.append(a) or real(*a))
+    before = signal.getsignal(signal.SIGTERM)
+    res = _loop(tmp_path, monkeypatch, _Srv(), "--once")
+    assert res.exit_code == 0 and not [a for a in seen if a[0] == signal.SIGTERM] and signal.getsignal(signal.SIGTERM) == before
+
+
+def test_loop_tolerates_non_main_thread(tmp_path, monkeypatch):
+    import signal
+    monkeypatch.setattr(signal, "signal", lambda *a: (_ for _ in ()).throw(ValueError("main thread only")))
+    _Clock(monkeypatch, 1)
+    res = _loop(tmp_path, monkeypatch, _Srv())
+    assert res.exit_code == 0 and "agent: stopping" in res.output
+
+
+def test_flush_tick_with_only_rejected_files_does_not_claim_sent(tmp_path, capsys):
+    srv = _Srv()
+    srv.ingest = [413]
+    cfg = _cfg(tmp_path)
+    from pqcscan.cli._report import spool_bundle
+    spool_bundle(cfg.state_dir, b"big")
+    r = agent_mod.flush_only(cfg, _client(srv))
+    out = capsys.readouterr()
+    assert r.reported and "rejected; moved to spool/rejected" in out.err and "sent" not in out.out
+    assert len(list((cfg.state_dir / "spool" / "rejected").glob("*.bundle.gz"))) == 1
+
+
 @pytest.mark.parametrize("interval", ["0s", "0m"])
 def test_cmd_rejects_non_positive_interval(tmp_path, interval):
     res = CliRunner().invoke(agent_cmd, ["--server", "http://127.0.0.1:1", "--once", "--interval", interval,

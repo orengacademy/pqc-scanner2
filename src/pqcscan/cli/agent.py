@@ -1,6 +1,7 @@
 """`pqcscan agent` — scheduler loop around `scan --report-to` for hosts with no cron/CM agent."""
 from __future__ import annotations
 
+import contextlib
 import random
 import re
 import signal
@@ -166,7 +167,10 @@ def agent_cmd(server: str, enroll_token: str | None, labels: tuple[str, ...], in
     # the flush (not the scan) on backoff until it drains, but never later than the next scheduled scan,
     # which also re-enrolls.
     stop = threading.Event()
-    previous = signal.signal(signal.SIGTERM, lambda *_: stop.set())
+    previous = None
+    if not once:                              # a cron --once run must still die at once on SIGTERM
+        with contextlib.suppress(ValueError):  # not the main thread: no handler to install or restore
+            previous = signal.signal(signal.SIGTERM, lambda *_: stop.set())
     failures = retries = 0
     next_scan = 0.0
     try:
@@ -204,5 +208,6 @@ def agent_cmd(server: str, enroll_token: str | None, labels: tuple[str, ...], in
     except KeyboardInterrupt:
         pass
     finally:
-        signal.signal(signal.SIGTERM, previous)
+        if previous is not None:
+            signal.signal(signal.SIGTERM, previous)
     click.echo("agent: stopping", err=True)
