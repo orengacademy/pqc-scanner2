@@ -22,8 +22,10 @@ Smoke test (5 hosts, 10 s, SQLite, marker `benchmark`): `pytest tests/benchmark/
 
 ## What one simulated host does
 
-1. `POST /api/agents/enroll` once, with a machine id `m-load-NNNN`, hostname, and labels.
-2. Waits a random offset in `[0, 60 s)` (staggered, the default) or posts immediately (`--herd`).
+1. `POST /api/agents/enroll` once, with a machine id `m-load-NNNN`, hostname, and labels (after the offset below).
+2. Staggered (the default): waits a random offset in `[0, 60 s)` (seeded by `--seed`, recorded in the JSON) before
+   enrolling, as an agent does on its first scan. `--herd`: enrols and posts at once; with 500 hosts at 50 spawns/s
+   that is a 10 s ramp, not a single instant.
 3. `POST /api/ingest` with a gzip bundle and a fresh `scan_uuid`, then once more every 60 s. The collector's
    per-host token bucket refills one token a minute (burst 10), so a host that posts once a minute is never throttled.
 
@@ -35,6 +37,10 @@ literal reading of "500 hosts posting concurrently". Both are reported.
 - **Ingest percentiles** come from locust's `ingest` row only, not the enrolment calls. Requests time out after 60 s,
   the real agent's HTTP timeout; a timeout is an error. After the run locust waits up to 70 s for in-flight requests
   so a backlog is counted instead of discarded.
+- **Queueing.** The collector parses and stores at most `INGEST_PARALLELISM=2` bundles at once and holds that slot
+  across both steps, so at overload the p50 and p95 are mostly queue wait, not service time. The server also keeps
+  working on a request after the client gave up at 60 s, so an overloaded run wastes capacity on bundles nobody is
+  waiting for. `stored_scans` in the JSON (counted through `/api/fleet` after the run) shows how many arrived.
 - **429 and 503** are counted separately and are not errors: 429 is the per-host throttle working, 503 is the store
   reporting it is busy (the agent would spool and retry). Their latency is still inside the ingest percentiles.
 - **Every host sends the same findings.** One template scan (`--findings-per-bundle`, default 300, about 40% weak
@@ -72,7 +78,7 @@ The 500-host target is not met. Capacity at p95 under 2 s is about 250 hosts on 
 each posting once a minute. Rows near the line are noisy, so read the 60 to 250 host rows as a band, not a threshold.
 `rps` counts every completed request, timeouts included.
 
-What limited it: a 300-finding ingest used to issue about 1,450 SQL statements (one ORM flush per finding, cProfile of
+Probable cause of the old ceiling: a 300-finding ingest used to issue about 1,450 SQL statements (one ORM flush per finding, cProfile of
 one SQLite ingest). It now issues 308 on SQLite (one cheap insert per finding, kept so ids stay in order) and 9 on
 Postgres, at about a tenth of the CPU. Why Postgres still trails SQLite was not profiled.
 

@@ -57,6 +57,7 @@ def collector(db: str, workdir: Path, enroll_token: str = ENROLL_TOKEN) -> Itera
         raise ValueError(f"db must be sqlite or postgres, not {db!r}")
     logger.disable("pqcscan")   # one info line per enrolment would drown the run output
     with ExitStack() as stack:
+        stack.callback(logger.enable, "pqcscan")     # callbacks run last-in first-out: this is the final step
         target = workdir / "fleet.db" if db == "sqlite" else stack.enter_context(postgres_container())
         app = create_app(db_path=target, registry=Registry(), enroll_token=enroll_token)
         port = free_port()
