@@ -21,7 +21,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Crypto-agility score** — `core/agility.py` scores how cheaply each finding's crypto can be changed (0 to 100;
   bands high >= 70, medium >= 40, low). Shown in the PDF reports, the report context and the BUKUKERJA CBOM column.
 - **Host labels drive Mosca inputs** — `data_lifetime`, `migration_years` and `threat_years` host labels (years) feed the
-  Mosca X+Y>Z section of that host's reports. Explicit inputs win; invalid labels fall back to the defaults.
+  Mosca X+Y>Z section of that host's reports: labels, else the defaults; invalid labels fall back to the defaults.
+
+### Changed
+- `fleet.drift` rows are server-derived: any an agent sends are dropped at ingest (and logged). Drift rows store
+  algorithm `N/A`, and CBOM, `pqcscan diff`, readiness, totals, agility and the BUKUKERJA inventory ignore them.
+- Drift is capped at 500 rows per scan plus one summary row with the full counts; the ingest JSON `drift` reports
+  every change.
+- Retention (default 12, minimum 2) never deletes baselined scans or the host's newest completed scan.
 
 ## [0.10.1] — 2026-10-17
 

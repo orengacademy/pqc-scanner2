@@ -64,7 +64,7 @@ def diff_cmd(scan_id: int, baseline_id: int, db: str | None, as_json: bool,
     title (host names, addresses and `at <host>` phrases removed). `fleet.drift` rows are ignored.
 
     HA/DR parity: scan the primary and each peer (same DB, or merge them),
-    then `pqcscan diff --scan <peer> --baseline-scan <primary> --fail-on-drift`.
+    then `pqcscan diff --scan <peer> --baseline-scan <primary> --parity --fail-on-drift`.
     """
     repo = Repo(db_arg(db))
     repo.init_schema()

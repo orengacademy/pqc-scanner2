@@ -23,17 +23,21 @@ exports from them.
 3. **Fleet view.** `GET /api/fleet` (JSON), `pqcscan fleet summary --db …`.
    In the web UI, `/fleet` lists every host with its latest scan, readiness band and crit/high/total counts.
    Hosts not seen for 48 hours are flagged stale. Filter with `/fleet?label=env=prod`; `/fleet/<host_id>` shows one host's scan history.
-   Host labels `data_lifetime`, `migration_years` and `threat_years` (all in years) set the Mosca X, Y and Z inputs in that host's reports; an explicit CLI value wins, and invalid labels are ignored.
+   Host labels `data_lifetime`, `migration_years` and `threat_years` (all in years) set the Mosca X, Y and Z inputs in that host's reports; without them the defaults apply, and invalid labels are ignored.
+   Labels merge, so one the agent stops sending stays on the host. To drop it, have the agent send an invalid value
+   (for example `--labels data_lifetime=unset`) and the report falls back to the defaults.
 
    **Crypto-agility score.** Reports also carry a 0 to 100 crypto-agility score: how cheaply the quantum-vulnerable
    findings' cryptography can be changed (edit a config scores 90, rebuild or replace hardware scores 10). It is the
    mean per-finding score and is shown in the executive and technical PDFs, the JSON report context, and the
    BUKUKERJA CBOM sheet (per finding). Bands: `high` at 70 or more, `medium` at 40 or more, otherwise `low`.
    Informational and `fleet.drift` findings are ignored; a scan with nothing vulnerable scores 100.
+   The fleet export's score is the same mean over every host's findings, so it is weighted by finding count:
+   hosts with many findings dominate it.
 4. **Exports.** `pqcscan export --scan fleet --format cbom|sarif|xlsx-bukukerja|pdf-tech … -o …`
    builds the export from the latest scan of every host, each finding attributed to its host via `evidence._fleet`.
    The same works from the daemon API: `GET /api/scans/fleet/export/<fmt>`.
-5. **Parity (HA/DR).** `pqcscan diff --scan <dr scan> --baseline-scan <primary scan> --fail-on-drift`.
+5. **Parity (HA/DR).** `pqcscan diff --scan <dr scan> --baseline-scan <primary scan> --parity --fail-on-drift`.
    `pqcscan merge -o fleet.db a.db b.db` still folds per-host DBs offline.
 6. **Admin.**
    - `pqcscan agents list` shows every host with `first_seen` and `last_seen` (also in `--json`).
