@@ -1,0 +1,48 @@
+{
+  "db": "postgres",
+  "hosts": 60,
+  "spawn_rate": 50,
+  "duration_s": 120,
+  "interval_s": 60.0,
+  "findings_per_bundle": 300,
+  "arrival": "staggered",
+  "requests": 120,
+  "p50_ms": 380.0,
+  "p95_ms": 830.0,
+  "p99_ms": 1300.0,
+  "rps": 1.01,
+  "http_429": 0,
+  "http_503": 0,
+  "errors": 0,
+  "ingest_error_rate": 0.0,
+  "enroll_error_rate": 0.0,
+  "enroll_503": 0,
+  "stored_hosts": 60,
+  "stored_scans": 120,
+  "seed": 1,
+  "enroll_requests": 60,
+  "enroll_p95_ms": 130.0,
+  "failure_samples": [],
+  "pass_p95_lt_2s": true,
+  "commit": "97c8578a2cb097a7266543cff24a748767431104",
+  "src_hash": "9dc3246f95a9615ea7f6cde32c715f56d7f7b47839860a0c1b10389e7a17d21b",
+  "tree_dirty": false,
+  "dirty_files": [],
+  "box": {
+    "cpus": 8,
+    "cpu_model": "DO-Premium-Intel",
+    "mem_gb": 31
+  },
+  "box_load_start": {
+    "loadavg_1m": 12.4,
+    "cpu_pressure_avg60_pct": 30.49
+  },
+  "box_load_end": {
+    "loadavg_1m": 10.7,
+    "cpu_pressure_avg60_pct": 27.7
+  },
+  "command": "python -m benchmark.fleet.run_load --db postgres --hosts 60 --tag clean --spawn-rate 50 --duration 120s --findings-per-bundle 300",
+  "locust_command": "/home/farzul/Projects/pqc-scanner2/.venv/bin/python -m locust -f /tmp/claude-1000/-home-farzul-Projects-pqc-scanner2/998c29a9-000f-4315-9bb9-8d80d49c06ff/scratchpad/wt-clean/benchmark/fleet/locustfile.py --headless -u 60 -r 50 -t 120s --stop-timeout 70 --csv /tmp/fleet-load-346czaq6/run --only-summary --host http://127.0.0.1:37123",
+  "started_at": "2026-10-17T14:52:35.922562+00:00",
+  "provenance_note": "tree_dirty/dirty_files were wrong: the porcelain parser dropped the first path's leading characters, so LOAD.md (this harness's own output) was not excluded. The run was in a git worktree at the named commit with no other change."
+}

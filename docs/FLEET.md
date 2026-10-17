@@ -159,7 +159,7 @@ as change. `pqcscan diff --parity` uses the same key to compare a primary with i
   ingest gets 401 and its re-enroll gets 403, so its bundles spool and replay after `agents unrevoke`.
   Replaying needs the enrollment token on the host again (`--enroll-token` / `PQCSCAN_ENROLL_TOKEN`) if it was removed after the first run.
 - **Ingest capacity.** One collector (8 cores, local loopback, 300-finding bundles) holds ingest p95 under 2 s for
-  about 250 hosts posting once a minute on SQLite and about 90 on Postgres; 500 hosts in the same minute is not
-  met (SQLite p95 8.7 s). Hosts that scan daily are far below this. See `benchmark/fleet/LOAD.md`.
+  about 120 hosts posting once a minute on SQLite and about 30 to 60 on Postgres; 500 hosts in the same minute is not
+  met (SQLite p95 8.6 s, Postgres times out). Hosts that scan daily are far below this. See `benchmark/fleet/LOAD.md`.
 - **Postgres is wired but untested.** The URL is accepted and `fleet-pg` installs
   the driver, but the fleet test suite runs on SQLite only.

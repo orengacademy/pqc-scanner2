@@ -60,27 +60,27 @@ untested until then.
 
 ## Results (2026-10-17)
 
-`LOAD.md` has every run and the summary; commit and box load are in each row. Ingest p95, 300-finding bundles,
-staggered arrival, after the ingest bulk insert (commit 05289fd). Before it, 500 hosts timed out on both databases and
-the 2 s line was crossed between 60 and 90 hosts on SQLite and 30 and 60 on Postgres.
+`LOAD.md` has every run, the summary, and the commit and box load of each row. Ingest p50 / p95, 300-finding bundles,
+staggered arrival, from a clean worktree at commit 97c8578 (after the ingest bulk insert). Two seeds where run; the
+second seed ran on a busier box.
 
-| hosts (bundles/s offered) | SQLite p50 / p95 | Postgres p50 / p95 |
-|---|---|---|
-| 30 (0.5) | 75 ms / 260 ms | 300 ms / 870 ms |
-| 60 (1) | 67 ms / 1.4 s | 510 ms / 2.3 s |
-| 90 (1.5) | 65 ms / 210 ms | 340 ms / 690 ms |
-| 120 (2) | 81 ms / 2.9 s | 390 ms / 2.7 s |
-| 250 (4.2) | 100 ms / 540 ms | 1.2 s / 8.9 s |
-| 500 (8.3) | 2.0 s / 8.7 s | 50 s / 60 s, 307 timeouts |
-| 500, herd | 12 s / 44 s | 53 s / 60 s, 254 timeouts |
+| hosts (bundles/s offered) | SQLite seed 1 | SQLite seed 2 | Postgres seed 1 | Postgres seed 2 |
+|---|---|---|---|---|
+| 30 (0.5) | 120 ms / 1.1 s | | 370 ms / 940 ms | |
+| 60 (1) | 83 ms / 270 ms | 180 ms / 620 ms | 380 ms / 830 ms | 680 ms / 4.9 s |
+| 90 (1.5) | 180 ms / 3.9 s | 190 ms / 760 ms | 600 ms / 3.4 s | 880 ms / 2.4 s |
+| 120 (2) | 130 ms / 420 ms | 210 ms / 1.8 s | 570 ms / 1.7 s | 1.3 s / 5.7 s |
+| 250 (4.2) | 290 ms / 11 s | 280 ms / 1.7 s | 30 s / 38 s | 57 s / 60 s |
+| 500 (8.3) | 5.0 s / 8.6 s | | 60 s / 60 s | |
+| 500, herd | 16 s / 32 s | | 60 s / 61 s | |
 
-The 500-host target is not met. Capacity at p95 under 2 s is about 250 hosts on SQLite and about 90 on Postgres,
-each posting once a minute. Rows near the line are noisy, so read the 60 to 250 host rows as a band, not a threshold.
+The 500-host target is not met. Capacity at p95 under 2 s is about 120 hosts on SQLite and about 30 to 60 on
+Postgres, each posting once a minute. Rows near the line are noisy, so read them as a band, not a threshold.
 `rps` counts every completed request, timeouts included.
 
-Probable cause of the old ceiling: a 300-finding ingest used to issue about 1,450 SQL statements (one ORM flush per finding, cProfile of
-one SQLite ingest). It now issues 308 on SQLite (one cheap insert per finding, kept so ids stay in order) and 9 on
-Postgres, at about a tenth of the CPU. Why Postgres still trails SQLite was not profiled.
+Probable cause of the old ceiling: a 300-finding ingest used to issue about 1,450 SQL statements (one ORM flush per
+finding, from a cProfile of one SQLite ingest). It now issues 308 on SQLite (one cheap insert per finding, kept so ids
+stay in order) and 9 on Postgres, at about a tenth of the CPU. Why Postgres still trails SQLite was not profiled.
 
 Enrolment under load: before commit 41b9dea an enrolment waiting on SQLite's write lock blocked the whole event loop
 (enroll p95 22 s at 500 hosts) and a lock timeout escaped as a 500. After it, enroll p95 is about 2 s and a busy store

@@ -1,0 +1,48 @@
+{
+  "db": "sqlite",
+  "hosts": 250,
+  "spawn_rate": 50,
+  "duration_s": 120,
+  "interval_s": 60.0,
+  "findings_per_bundle": 300,
+  "arrival": "staggered",
+  "requests": 485,
+  "p50_ms": 290.0,
+  "p95_ms": 11000.0,
+  "p99_ms": 12000.0,
+  "rps": 3.92,
+  "http_429": 0,
+  "http_503": 0,
+  "errors": 0,
+  "ingest_error_rate": 0.0,
+  "enroll_error_rate": 0.0,
+  "enroll_503": 0,
+  "stored_hosts": 250,
+  "stored_scans": 491,
+  "seed": 1,
+  "enroll_requests": 250,
+  "enroll_p95_ms": 1100.0,
+  "failure_samples": [],
+  "pass_p95_lt_2s": false,
+  "commit": "97c8578a2cb097a7266543cff24a748767431104",
+  "src_hash": "9dc3246f95a9615ea7f6cde32c715f56d7f7b47839860a0c1b10389e7a17d21b",
+  "tree_dirty": false,
+  "dirty_files": [],
+  "box": {
+    "cpus": 8,
+    "cpu_model": "DO-Premium-Intel",
+    "mem_gb": 31
+  },
+  "box_load_start": {
+    "loadavg_1m": 14.6,
+    "cpu_pressure_avg60_pct": 34.06
+  },
+  "box_load_end": {
+    "loadavg_1m": 14.9,
+    "cpu_pressure_avg60_pct": 41.82
+  },
+  "command": "python -m benchmark.fleet.run_load --db sqlite --hosts 250 --tag clean --spawn-rate 50 --duration 120s --findings-per-bundle 300",
+  "locust_command": "/home/farzul/Projects/pqc-scanner2/.venv/bin/python -m locust -f /tmp/claude-1000/-home-farzul-Projects-pqc-scanner2/998c29a9-000f-4315-9bb9-8d80d49c06ff/scratchpad/wt-clean/benchmark/fleet/locustfile.py --headless -u 250 -r 50 -t 120s --stop-timeout 70 --csv /tmp/fleet-load-fn609_mu/run --only-summary --host http://127.0.0.1:38627",
+  "started_at": "2026-10-17T14:43:29.270795+00:00",
+  "provenance_note": "tree_dirty/dirty_files were wrong: the porcelain parser dropped the first path's leading characters, so LOAD.md (this harness's own output) was not excluded. The run was in a git worktree at the named commit with no other change."
+}

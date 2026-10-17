@@ -67,8 +67,9 @@ def _load() -> dict:
     return {"loadavg_1m": round(os.getloadavg()[0], 1), "cpu_pressure_avg60_pct": psi}
 
 
-def _git(*args: str) -> str:
-    return subprocess.run(["git", *args], cwd=REPO, capture_output=True, text=True).stdout.strip()
+def _git(*args: str, strip: bool = True) -> str:
+    out = subprocess.run(["git", *args], cwd=REPO, capture_output=True, text=True).stdout
+    return out.strip() if strip else out
 
 
 def _src_hash() -> str:
@@ -85,7 +86,7 @@ def _dirty_files() -> list[str]:
     """Paths `git status` reports, untracked included, minus this harness's own outputs (results/ and LOAD.md).
     Other work in a shared checkout shows up here."""
     own = ("benchmark/fleet/results/", "benchmark/fleet/LOAD.md")
-    return [ln[3:] for ln in _git("status", "--porcelain", "--untracked-files=all").splitlines()
+    return [ln[3:] for ln in _git("status", "--porcelain", "--untracked-files=all", strip=False).splitlines()
             if not ln[3:].startswith(own)]
 
 
