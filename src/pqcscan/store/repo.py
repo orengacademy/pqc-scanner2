@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 from loguru import logger
 from sqlalchemy import create_engine, delete, event, func, insert, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from pqcscan.core.parity import DRIFT_PROBE, drift_rows, parity_key
@@ -380,18 +381,27 @@ class Repo:
 
     # ------------------------------------------------------------------ fleet
     def upsert_host(self, identity: HostIdentity, *, token_hash: str | None = None) -> Host:
-        with Session(self.engine) as s:
-            h = s.execute(select(Host).where(Host.machine_id == identity.machine_id)).scalar_one_or_none()
-            if h is None:
-                h = Host(machine_id=identity.machine_id)
-                s.add(h)
-            _apply_identity(h, identity)
-            if token_hash is not None:
-                h.token_hash = token_hash   # never clears `revoked`: only unrevoke_host does
-            s.commit()
-            s.refresh(h)
-            s.expunge(h)
-            return h
+        # Two concurrent first-time enrolls for one machine_id both see "no host" and both insert; the loser
+        # hits the UNIQUE constraint. Retry once: the winner's row now exists, so the retry takes the update path.
+        for attempt in (0, 1):
+            with Session(self.engine) as s:
+                h = s.execute(select(Host).where(Host.machine_id == identity.machine_id)).scalar_one_or_none()
+                if h is None:
+                    h = Host(machine_id=identity.machine_id)
+                    s.add(h)
+                _apply_identity(h, identity)
+                if token_hash is not None:
+                    h.token_hash = token_hash   # never clears `revoked`: only unrevoke_host does
+                try:
+                    s.commit()
+                except IntegrityError:
+                    if attempt:
+                        raise
+                    continue
+                s.refresh(h)
+                s.expunge(h)
+                return h
+        raise AssertionError("unreachable")
 
     def get_host(self, host_id: int) -> Host | None:
         with Session(self.engine) as s:

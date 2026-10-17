@@ -424,3 +424,43 @@ def test_store_busy_on_enroll_or_auth_is_503_not_500(tmp_db_path, fast_registry,
     else:
         r = c.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": {**HOST, "machine_id": "m-2"}})
     assert r.status_code == 503 and r.headers["retry-after"] == "5"
+
+
+def test_concurrent_enrolls_for_one_machine_id_never_500(tmp_db_path, fast_registry):
+    """Two threadpool calls can both see "no host" and both insert: the loser must not surface as a 500."""
+    import asyncio
+
+    import httpx
+
+    app = create_app(db_path=tmp_db_path, registry=fast_registry, enroll_token="ENROLL")
+
+    async def burst(mid):
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1") as ac:
+            rs = await asyncio.gather(*[
+                ac.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": {**HOST, "machine_id": mid}})
+                for _ in range(24)])
+        return [r.status_code for r in rs]
+
+    codes = [c for rnd in range(8) for c in asyncio.run(burst(f"race-{rnd}"))]
+    assert set(codes) == {201}, {c: codes.count(c) for c in set(codes)}
+    assert len(Repo(tmp_db_path).list_hosts()) == 8
+
+
+def test_upsert_host_survives_losing_the_insert_race(tmp_db_path):
+    """Deterministic form of the race: the row appears between upsert_host's SELECT and its INSERT."""
+    from sqlalchemy import event
+
+    repo = Repo(tmp_db_path)
+    repo.init_schema()
+    ident = HostIdentity(machine_id="m-race", hostname="h", os="linux", labels={}, agent_version="x")
+    fired = []
+
+    @event.listens_for(repo.engine, "after_cursor_execute")
+    def _rival(conn, cursor, statement, parameters, context, executemany):
+        if statement.lstrip().upper().startswith("SELECT") and "hosts" in statement and not fired:
+            fired.append(1)       # the SELECT just returned no row; a rival enroll now wins the insert
+            Repo(tmp_db_path).upsert_host(ident, token_hash="rival")
+
+    host = repo.upsert_host(ident, token_hash="mine")
+    assert fired and host.machine_id == "m-race" and host.token_hash == "mine"
+    assert len(repo.list_hosts()) == 1
