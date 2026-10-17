@@ -53,8 +53,10 @@ OVERALL   TP=90  FP=8  FN=1  TN=72   precision=0.918   recall=0.989
 ```
 
 The 8 false positives are `code.crypto_primitives` failing open on C, C++, Ruby
-and Swift comments/strings (no trusted lexer for them); the pytest gate accepts
-exactly those by name and fails on any other.
+and Swift comments/strings (no trusted lexer for them). They are listed in
+`corpus/accepted_fp.txt`; with `--accept-fp-file` they are reported as `AFP`
+and left out of precision (1.000), and the run fails on any other FP or on a
+listed case that stops firing. The pytest gate reads the same file.
 
 The per-family table, the probes that were fixed, and the corpus limits are in
 [`docs/ACCURACY.md`](../docs/ACCURACY.md). Full per-probe, per-family and
@@ -127,7 +129,8 @@ PYTHONPATH=src python benchmark/corpus/generate_fixtures.py
 PYTHONPATH=src python benchmark/run_benchmark.py --json
 
 # CI-style gate: non-zero exit if thresholds are not met
-PYTHONPATH=src python benchmark/run_benchmark.py --min-recall 0.95   # precision: use the pytest gate
+PYTHONPATH=src python benchmark/run_benchmark.py --accept-fp-file benchmark/corpus/accepted_fp.txt \
+    --min-precision 1.0 --min-recall 0.95
 ```
 
 The pytest regression gate lives at `tests/benchmark/test_accuracy.py`:
@@ -136,7 +139,7 @@ The pytest regression gate lives at `tests/benchmark/test_accuracy.py`:
 PYTHONPATH=src python -m pytest tests/benchmark/ -q
 ```
 
-It asserts **zero false positives apart from the named fail-open cases** (`ACCEPTED_FP`) and
+It asserts **zero false positives apart from those in `corpus/accepted_fp.txt`** (none stale) and
 **recall >= 0.95**, and checks that every manifest input exists and every probe
 id resolves so the corpus cannot rot. It also checks that `corpus/CORPUS.sha256`
 matches the fixtures and that the first line of `docs/ACCURACY.md` names the

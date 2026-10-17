@@ -32,7 +32,7 @@ MIN_RECALL = 0.95
 @pytest.fixture(scope="module")
 def report() -> rb.Report:
     cases = rb.load_manifest()
-    return rb.evaluate(cases)
+    return rb.evaluate(cases, accepted_fp=rb.load_accepted_fp())
 
 
 def test_manifest_inputs_exist() -> None:
@@ -55,23 +55,12 @@ def test_corpus_has_both_polarities() -> None:
     assert len(cases) >= 40, f"corpus too small: {len(cases)} cases"
 
 
-# Documented fail-open decisions (docs/ACCURACY.md, "Limits"): code.crypto_primitives
-# does not strip comments/strings for C/C++, Ruby or Swift — no lexer is trusted for
-# them, and a wrong one would let a crafted literal hide real code — so a mention
-# there fires. These are the ONLY false positives the gate accepts; a fix that makes
-# one pass must remove it here, and any other FP fails the build.
-ACCEPTED_FP: dict[str, str] = {
-    f"cp-{lang}-{form}-md5": "code.crypto_primitives: no trusted lexer for this language (fail-open)"
-    for lang in ("c", "cpp", "rb", "swift") for form in ("comment", "string")
-}
-
-
 def test_precision_is_perfect(report: rb.Report) -> None:
-    # Zero false positives apart from the documented fail-open cases above.
-    fps = {c.id for c in report.cases if c.outcome == "FP"}
-    assert fps == set(ACCEPTED_FP), sorted(fps ^ set(ACCEPTED_FP))
-    tp = report.tp
-    assert tp / (tp + report.fp - len(ACCEPTED_FP)) == MIN_PRECISION
+    # Zero false positives apart from the documented, accepted ones in
+    # benchmark/corpus/accepted_fp.txt (the same file CI passes to the harness).
+    assert report.fp == 0, [c for c in report.cases if c.outcome == "FP"]
+    assert report.precision == MIN_PRECISION, report.precision
+    assert not report.stale_accepted_fp, report.stale_accepted_fp
 
 
 def test_recall_above_floor(report: rb.Report) -> None:
@@ -113,3 +102,13 @@ def test_raising_case_is_error_not_fn(tmp_path) -> None:  # type: ignore[no-unty
     r = rb.evaluate([case], corpus_dir=tmp_path)
     assert [c.outcome for c in r.cases] == ["ERROR"]
     assert (r.tp, r.fp, r.fn, r.tn, r.positives) == (0, 0, 0, 0, 0)
+
+
+def test_accepted_fp_is_reported_not_hidden(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    # An accepted FP leaves precision but stays visible as AFP; a stale entry is reported.
+    case = {"id": "cp-c-comment-md5", "probe": "code.crypto_primitives", "kind": "negative",
+            "input": "cases/c-comment-md5"}
+    r = rb.evaluate([case], accepted_fp=frozenset({"cp-c-comment-md5", "gone"}))
+    assert [c.outcome for c in r.cases] == ["AFP"]
+    assert (r.fp, r.afp, r.raw_precision) == (0, 1, 0.0)
+    assert r.stale_accepted_fp == ["gone"]

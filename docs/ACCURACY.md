@@ -1,10 +1,10 @@
-Measured on commit `7469e2a` (probe code; `src/` is unchanged in the commit that updates this page) with `PYTHONPATH=src python benchmark/run_benchmark.py --by-family`; corpus sha256 `6a2e4d115fc6703fe9b8bbaa0b4e67a612f77b117c56bb04c5936bb0e76e8ec5` (sha256 of `benchmark/corpus/CORPUS.sha256`).
+Measured on commit `7469e2a` (probe code; `src/` is unchanged in the commit that updates this page) with `PYTHONPATH=src python benchmark/run_benchmark.py --by-family --accept-fp-file benchmark/corpus/accepted_fp.txt`; corpus sha256 `e53e6f3fbc21ac02b0d3144d27f3b90a76fff8e68109120aea7a67c91c998c0a` (sha256 of `benchmark/corpus/CORPUS.sha256`).
 
 # Detection accuracy
 
 pqcscan's probes are scored against a labelled corpus of 171 cases: 91 positives, where the probe should fire, and 80 negatives, where it should stay silent. The cases cover certificates, keys, keystores, local TLS endpoints, source snippets, config files, SQLite files and two OCI container images. A probe "fires" when it emits a finding in a weak or quantum-vulnerable tier (`sangat-tinggi`, `tinggi`, `sederhana`, `rendah`). INFO, ERROR and `pqc-ready` findings never count. A positive with an `expect` block counts only when the matching finding fires. See `benchmark/README.md` for the scoring rule.
 
-Overall: **precision 0.918, recall 0.989** (TP 90, FP 8, FN 1, TN 72; no cases skipped or errored on this host). All 8 false positives are a deliberate fail-open choice in `code.crypto_primitives` (see Limits). Without them, precision is 1.000, and the gate fails on any other false positive. A case whose probe or fixture raises is recorded as ERROR, kept out of the counts and fails the run, so a crash can never pass as a plain FN.
+Overall: **precision 1.000, recall 0.989** (TP 90, FP 0, FN 1, TN 72, plus 8 accepted false positives; raw precision with those counted is 0.918; no cases skipped or errored on this host). The 8 accepted false positives are a deliberate fail-open choice in `code.crypto_primitives` (see Limits). They are listed in `benchmark/corpus/accepted_fp.txt`, which the harness (`--accept-fp-file`, as CI runs it) and the pytest gate both read. They are reported as AFP rows and left out of precision. The run fails on any other false positive, or if a listed case stops firing. A case whose probe or fixture raises is recorded as ERROR, kept out of the counts and fails the run, so a crash can never pass as a plain FN.
 
 ## Per family
 
@@ -12,7 +12,7 @@ A family is the probe id up to the second dot.
 
 | family | probes | TP | FP | FN | TN | precision | recall |
 |---|---|---:|---:|---:|---:|---:|---:|
-| code.crypto_primitives | crypto_primitives (13 suffixes) | 17 | 8 | 0 | 22 | 0.680 | 1.000 |
+| code.crypto_primitives | crypto_primitives (13 suffixes) | 17 | 0 (+8 accepted) | 0 | 22 | 1.000 (raw 0.680) | 1.000 |
 | code.ts | csharp, go, java (incl. Kotlin), javascript, php, python, rust | 20 | 0 | 0 | 27 | 1.000 | 1.000 |
 | fs.binary | crypto | 1 | 0 | 0 | 1 | 1.000 | 1.000 |
 | fs.cert | x509, privkey, privkey_encrypted | 15 | 0 | 0 | 4 | 1.000 | 1.000 |
@@ -22,13 +22,13 @@ A family is the probe id up to the second dot.
 | fs.ssh | host_keys | 4 | 0 | 0 | 1 | 1.000 | 1.000 |
 | net.tls | versions, kex_groups, https, cert_chain, cert_chain_tls13, pqc_handshake | 18 | 0 | 1 | 8 | 1.000 | 0.947 |
 | sbom.crypto_map | crypto_map | 1 | 0 | 0 | 1 | 1.000 | 1.000 |
-| **overall** | 28 probes | **90** | **8** | **1** | **72** | **0.918** | **0.989** |
+| **overall** | 28 probes | **90** | **0 (+8 accepted)** | **1** | **72** | **1.000 (raw 0.918)** | **0.989** |
 
 ## Probes below 1.0
 
 | probe | TP | FP | FN | TN | precision | recall | miss |
 |---|---:|---:|---:|---:|---:|---:|---|
-| code.crypto_primitives | 17 | 8 | 0 | 22 | 0.680 | 1.000 | comment and prose-string mentions in C, C++, Ruby and Swift fire by design (fail-open, see Limits) |
+| code.crypto_primitives | 17 | 0 (+8 accepted) | 0 | 22 | 1.000 (raw 0.680) | 1.000 | comment and prose-string mentions in C, C++, Ruby and Swift fire by design (fail-open, see Limits) |
 | net.tls.https | 6 | 0 | 1 | 0 | 1.000 | 0.857 | `ep-mtls-https`: the endpoint requires a client certificate |
 
 Every other probe scores 1.000 on both measures. Full per-probe and per-case numbers are in `benchmark/last_report.json`.
@@ -93,7 +93,7 @@ A security review of the fixes above found three more problems. Each was fixed i
 
 ```bash
 PYTHONPATH=src python benchmark/corpus/generate_fixtures.py         # regenerate fixtures + CORPUS.sha256 (~30 s)
-PYTHONPATH=src python benchmark/run_benchmark.py --by-family         # this table (~6 s; TLS servers on 127.0.0.1)
+PYTHONPATH=src python benchmark/run_benchmark.py --by-family --accept-fp-file benchmark/corpus/accepted_fp.txt --min-precision 1.0 --min-recall 0.95   # this table + the CI gate (~6 s; TLS servers on 127.0.0.1)
 PYTHONPATH=src python -m pytest -q tests/benchmark/test_accuracy.py  # gate: precision == 1.0, recall >= 0.95
 ```
 
