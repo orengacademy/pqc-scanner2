@@ -92,3 +92,12 @@ def test_never_raises_returns_same_length():
     src = 'let x = "unterminated md5\nmd5::compute();\n'
     out = strip_noncode(src, "rust")
     assert len(out) == len(src)
+
+
+def test_java_text_block_and_kotlin_raw_string_blanked():
+    # Java 15+ text blocks and Kotlin raw strings share the """...""" form.
+    src = 'String s = """\n    MessageDigest.getInstance("MD5")\n""";\ncode();\n'
+    out = strip_noncode(src, "java")
+    assert "MessageDigest" not in out
+    assert "code();" in out
+    assert len(out) == len(src)
