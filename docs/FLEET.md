@@ -141,7 +141,8 @@ as change. `pqcscan diff --parity` uses the same key to compare a primary with i
   keeps its own token in a 0600 file written without following symlinks.
 - **Ingest limits.** A bundle is capped at 8 MiB on the wire, 50 MiB after
   decompression and 200,000 findings. Each host may post a burst of 10 bundles,
-  refilled at one per minute; only a duplicate resend is free.
+  refilled at one per minute. Every post spends a token before the bundle is read, a duplicate resend included: it is
+  answered `200` with `duplicate: true`, and after 10 in a row the next one gets `429`.
   Host labels are capped at 64 per host, keys at 64 characters and values at 256, at enrollment and ingest.
   Labels merge across bundles. At 64 the host keeps its labels, existing keys take their new values, new keys are
   dropped (in sorted order) and the collector logs one warning naming them; the scan is still stored. There is no command to delete a label.

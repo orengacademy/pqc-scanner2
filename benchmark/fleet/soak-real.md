@@ -20,16 +20,19 @@ numbers have the same columns as the simulated ones and can be put next to them.
 
 ## 1. Start the collector (once per database)
 
-Run it the way production would, with its stderr kept in a file. The uvicorn access log in that file is the source of
+Run it the way production would, with its stderr kept in a file. Add `--allow-host <the DNS name the agents use>`
+(for example `--allow-host pqc.internal`, repeatable). The daemon answers 400 to any request whose Host header is not
+loopback, the bind address or the machine's own hostname, so without it every agent that reaches the collector by an
+alias fails to enrol (`daemon/app.py`, the DNS-rebinding guard). The uvicorn access log in that file is the source of
 the 429 and 503 counts.
 
 ```bash
 # SQLite
-pqcscan daemon --bind 0.0.0.0 --token "$SITE" --enroll-token "$ENROLL" --tls-cert c.pem --tls-key k.pem \
-    --db /var/lib/pqcscan/fleet.db --keep-scans-per-host 12 2>&1 | tee -a /var/log/pqcscan/collector-sqlite.log
+pqcscan daemon --bind 0.0.0.0 --allow-host pqc.internal --token "$SITE" --enroll-token "$ENROLL" \
+    --tls-cert c.pem --tls-key k.pem --db /var/lib/pqcscan/fleet.db --keep-scans-per-host 12 2>&1 | tee -a /var/log/pqcscan/collector-sqlite.log
 
 # Postgres (a separate run, see section 6)
-pqcscan daemon ... --db postgresql+psycopg://pqc:***@db.internal/pqc 2>&1 | tee -a /var/log/pqcscan/collector-pg.log
+pqcscan daemon --allow-host pqc.internal ... --db postgresql+psycopg://pqc:***@db.internal/pqc 2>&1 | tee -a /var/log/pqcscan/collector-pg.log
 ```
 
 Leave `--keep-scans-per-host` at the default 12 for the real run. The simulation used 3 so that pruning shows up in
@@ -70,6 +73,10 @@ the ingest and enrol status counts from the access log (200, 401, 403, 429, 503 
 
 Start the access log at the same moment, so day 1 does not count the rollout. If the log already has history, start
 a fresh file for the soak.
+
+The observer is read-only: it opens SQLite with `mode=ro` and Postgres with `default_transaction_read_only`, runs only
+SELECTs and never creates or migrates a table. It has one automated test (a database missing a column is left
+unchanged) and has not been run against a real fleet.
 
 Limits of the observer: it sees the collector only. It cannot count a bundle that was ingested and pruned within the
 same 24 h (more than the retention number in a day), and it cannot tell a duplicate (200 with `duplicate: true`)
@@ -136,8 +143,10 @@ print(r.status_code, r.json())
 EOF
 ```
 
-`FLEET.md` says "only a duplicate resend is free"; the simulation found the collector charges one token for it
-(see `SOAK.md`). To check on real hosts, re-post it ten times in a row and note whether a 429 appears.
+A duplicate resend costs a token like any other post (`docs/FLEET.md`, Ingest limits). The expected shape on a host with
+a full bucket is ten answers of `200` with `duplicate: true`, then `429`. To check, re-post the bundle until a 429
+appears and count the 200s; far more than 10, or no 429 at all, would be a finding. Do this after the last cycle,
+because it empties that host's bucket for a minute. The snippet is Linux-only (state dir and `os="linux"` are hard-coded).
 
 ## 6. Both databases
 
@@ -156,19 +165,26 @@ Do not point the same host at both in one week: its spool and token would be sha
 2. Fill this table for each database. Expected values are the ones in the right-hand column. A cell that differs
    is a finding, with the sentence in `docs/FLEET.md` that it contradicts, or "FLEET.md is silent".
 
-| Measure | Where it comes from | Expected |
-|---|---|---|
-| Ingest success rate | observer: 200 / all ingest calls | 100% on healthy days. Lower only on the injected-fault days, with the 401 and spool explained |
-| Duplicates | the day-6 replay only | 1 |
-| 429 | observer, access log | 0 (burst 10, one refill a minute, one post a day) |
-| 503 | observer, access log | 0 |
-| Spool depth per host | host CSV | 0 except during an injected fault |
-| Rejected files per host | host CSV | 0 |
-| Agent exit code | host CSV | 0 everywhere, always (a spooled report exits 0) |
-| Drift rows per host per day | observer | 0, except the host whose content you changed, on that day |
-| Pruned per day | observer, `old_scans_gone_total` | 0 until a host holds more than the retention number |
-| Labels per host | observer | 3, constant |
-| Stale hosts | `/fleet` or `pqcscan fleet summary` | none (a host unseen for 48 h is flagged) |
+Pass or fail. The soak **fails** if any of these is true on a healthy day (outside an injected fault): a 429 or a 503;
+an agent exit code other than 0; a file in any `spool/rejected`; a non-zero spool on a host that was not faulted at the
+end of its day; a drift row on a host whose content you did not change; a label count other than the one you set; a
+collector WARNING or ERROR line. Anything else that differs from the table is a finding, to be explained, which does
+not fail the soak by itself. The injected faults are expected to produce exactly the 401, 403, spool and replay
+numbers in section 5, and no others.
+
+| Measure | Where it comes from | Fails when (healthy day) | Expected |
+|---|---|---|---|
+| Ingest success rate | observer: 200 / all ingest calls | below 100% on a healthy day | 100% on healthy days. Lower only on injected-fault days, with the 401 explained |
+| Duplicates | the day-6 replay only | any duplicate other than the replay (a bundle stored twice by a retry) | 1 |
+| 429 | observer, access log | any | 0 (burst 10, one refill a minute, one post a day) |
+| 503 | observer, access log | any | 0 |
+| Spool depth per host | host CSV | above 0 on a host that is not faulted | 0 except during an injected fault |
+| Rejected files per host | host CSV | any | 0 |
+| Agent exit code | host CSV | any value other than 0 | 0 everywhere, always (a spooled report exits 0) |
+| Drift rows per host per day | observer | above 0 on a host whose content you did not change | 0, except the host whose content you changed, on that day |
+| Pruned per day | observer, `old_scans_gone_total` | a host above the retention number of scans | 0 until a host holds more than the retention number |
+| Labels per host | observer | any count other than the one you set | 3, constant |
+| Stale hosts | `/fleet` or `pqcscan fleet summary` | any host flagged stale | none (a host unseen for 48 h is flagged) |
 
 3. List every non-zero that the table does not predict under **Findings**. Do not average them away. For each one:
    the host, the day, the log line or drift sample, and whether it reproduces. The simulation's two product bugs
