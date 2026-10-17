@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- `net.tls.pqc_handshake` still classifies the server when the local openssl cannot offer hybrid groups, for
+  example OpenSSL 3.0 without oqs-provider. It falls back to the raw ClientHello of `net.tls.kex_groups`, which offers
+  `X25519MLKEM768` and the classical groups itself. A classical-only server is flagged again, and a hybrid-capable one
+  is not mistaken for a fallback. It used to report only "local openssl does not support PQC hybrid groups".
 - `net.tls.pqc_handshake` no longer offers the pre-standard `X25519Kyber768Draft00` group (codepoint 0x6399). A server
   that supports only that draft group now reads as a classical fallback. Before, the probe never connected on
   OpenSSL 3.5, which rejects the name.

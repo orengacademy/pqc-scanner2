@@ -196,22 +196,28 @@ class NetTlsKexGroups(Probe):
             ))
 
     async def _handshake(self, host: str, port: int) -> dict | None:
-        try:
-            reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(host, port), timeout=self.timeout)
-        except (OSError, TimeoutError):
-            return None
-        try:
-            writer.write(build_client_hello(host))
-            await writer.drain()
-            data = await asyncio.wait_for(reader.read(8192), timeout=self.timeout)
-        except (OSError, TimeoutError):
-            return None
-        finally:
-            writer.close()
-            with contextlib.suppress(OSError, TimeoutError):
-                await writer.wait_closed()
-        return parse_server_hello(data)
+        return await select_group(host, port, self.timeout)
+
+
+async def select_group(host: str, port: int, io_timeout: float) -> dict | None:
+    """Raw ClientHello offering classical and hybrid groups; the group the server
+    selects (parse_server_hello dict), or None. Needs no local OpenSSL support
+    for the hybrid groups, so net.tls.pqc_handshake falls back to it."""
+    try:
+        reader, writer = await asyncio.wait_for(asyncio.open_connection(host, port), timeout=io_timeout)
+    except (OSError, TimeoutError):
+        return None
+    try:
+        writer.write(build_client_hello(host))
+        await writer.drain()
+        data = await asyncio.wait_for(reader.read(8192), timeout=io_timeout)
+    except (OSError, TimeoutError):
+        return None
+    finally:
+        writer.close()
+        with contextlib.suppress(OSError, TimeoutError):
+            await writer.wait_closed()
+    return parse_server_hello(data)
 
 
 def _ev(result: dict) -> dict:

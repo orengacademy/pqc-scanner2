@@ -23,6 +23,7 @@ import shutil
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes.net_tls_kex_groups import select_group
 
 # Every name must be known to the local openssl: one unknown group makes
 # `s_client -groups` refuse the whole list before connecting. OpenSSL 3.5
@@ -119,6 +120,15 @@ class NetTlsPqcHandshake(Probe):
 
         text_lc = text.lower()
         if any(marker in text_lc for marker in _LOCAL_UNSUPPORTED):
+            # The local openssl (e.g. 3.0 without oqs-provider) cannot offer the
+            # hybrid groups. Re-asking it with classical groups only would make a
+            # hybrid-capable server look like a classical fallback, so ask the
+            # server directly with a raw ClientHello that offers both.
+            raw = await select_group(host, port, self.timeout_s)
+            if raw is not None:
+                self._emit_group(emit, host, port, raw["group_name"], f"0x{raw['version']:04x}",
+                                 method="raw ClientHello (local openssl lacks hybrid groups)")
+                return
             emit(Finding(
                 probe_id=self.id,
                 algorithm="N/A",
@@ -155,6 +165,10 @@ class NetTlsPqcHandshake(Probe):
             ))
             return
 
+        self._emit_group(emit, host, port, group, proto, method="openssl s_client")
+
+    def _emit_group(self, emit: Emitter, host: str, port: int, group: str, proto: str | None, *,
+                    method: str) -> None:
         if _is_pqc_group(group):
             emit(Finding(
                 probe_id=self.id,
@@ -167,6 +181,7 @@ class NetTlsPqcHandshake(Probe):
                     "protocol": proto,
                     "negotiated_group": group,
                     "groups_offered": list(self.groups),
+                    "method": method,
                 },
             ))
         else:
@@ -181,6 +196,7 @@ class NetTlsPqcHandshake(Probe):
                     "protocol": proto,
                     "negotiated_group": group,
                     "groups_offered": list(self.groups),
+                    "method": method,
                     "remediation": (
                         "Server does not support PQC hybrid KEX. "
                         "Upgrade to openssl 3.5 / load oqs-provider on remote."
