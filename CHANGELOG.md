@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- `code.crypto_primitives` decides each comment/string span once, and treats a span over 64 kB as code without
+  inspecting it (fail-open). A large literal full of tokens was re-inspected for every match inside it, which is
+  quadratic: about 15 s for 1 MiB with 10,000 `md5(` tokens. It now costs the same as any 1 MiB file.
 - Fleet drift no longer reports the system clock as a change on every scan. `aux.clock.cert_validity` put the
   scan's timestamp in its title, so each scan of each host produced two `fleet.drift` rows (the old clock finding
   removed, the new one added) and `/fleet` showed a drift chip on every host. The title is now fixed and the time stays

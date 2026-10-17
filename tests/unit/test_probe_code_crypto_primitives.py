@@ -267,3 +267,45 @@ async def test_prose_quoting_a_call_stays_suppressed(tmp_path: Path, name: str, 
 @pytest.mark.parametrize("name", ["a.h", "a.hpp", "a.cc", "a.cxx"])
 async def test_more_c_cpp_suffixes_are_scanned_unstripped(tmp_path: Path, name: str):
     assert "MD5" in [f.algorithm for f in await _run(tmp_path, name, "// MD5() is banned\n")]
+
+
+
+@pytest.mark.asyncio
+async def test_large_literal_with_many_tokens_is_linear(tmp_path: Path):
+    import time
+
+    # A 1 MiB single string literal holding 10,000 md5( tokens must cost about the
+    # same as a 1 MiB literal with none: the span verdict is computed once, and a
+    # span over 64 kB counts as code without inspection. (Absolute time is the
+    # probe's own ~40-pattern pass over 1 MiB, ~1.2 s here; before the memo the
+    # token file took ~15 s.)
+    async def scan(name: str, body: str) -> tuple[float, list[Finding]]:
+        d = tmp_path / name
+        d.mkdir()
+        (d / "app.js").write_text('const s = "' + body + '";\n')
+        found: list[Finding] = []
+        t0 = time.perf_counter()
+        await CodeCryptoPrimitives(roots=[d]).run(_ctx([d]), emit=found.append)
+        return time.perf_counter() - t0, found
+
+    t_plain, _ = await scan("plain", ("xxxx " + "x" * 100) * 10_000)
+    t_tokens, found = await scan("tokens", ("md5( " + "x" * 100) * 10_000)
+    assert t_tokens < 3 * t_plain + 1.0, (t_tokens, t_plain)   # quadratic was ~12x
+    assert "MD5" in [f.algorithm for f in found]   # over the inspection cap: fail open
+
+
+@pytest.mark.asyncio
+async def test_span_verdict_is_computed_once(tmp_path: Path, monkeypatch):
+    from pqcscan.probes import code_crypto_primitives as mod
+
+    calls: list[int] = []
+    real = mod._holds_call
+
+    def counting(body: str) -> bool:
+        calls.append(len(body))
+        return real(body)
+
+    monkeypatch.setattr(mod, "_holds_call", counting)
+    # one prose span with punctuation and many tokens, none in call context
+    await _run(tmp_path, "app.js", 'const s = "' + "md5, " * 500 + '";\n')
+    assert len(calls) == 1

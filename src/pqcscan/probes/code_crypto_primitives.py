@@ -69,6 +69,9 @@ _LANG_FOR_SUFFIX: dict[str, str] = {
 # Literal bodies that can carry code: ${...} (JS/TS, Kotlin, PHP), {$...} (PHP),
 # #{...} (Ruby), \(...) (Swift).
 _INTERPOLATION_MARKERS: tuple[str, ...] = ("${", "{$", "#{", "\\(")
+# A comment/string span longer than this is not inspected; it counts as code
+# (fail open). Bounds the per-span work.
+_MAX_SPAN_INSPECT = 64 * 1024
 # "Swallowed code" test for a string span (see module docstring).
 _CODE_PUNCT_RE = re.compile(r"[;=+,|&?]")
 _CALL_AFTER_RE = re.compile(r"\s*(?:\(|\.|::)")                     # md5(  MD5.Create  MD5::
@@ -188,13 +191,13 @@ class CodeCryptoPrimitives(Probe):
         spans = spans_for_scan(text, lang, probe_id=self.id, path=path, emit=emit)
         starts = [a for a, _ in spans]
 
-        def counts(pos: int) -> bool:
-            i = bisect.bisect_right(starts, pos) - 1
-            if i < 0 or pos >= spans[i][1]:
-                return True                                   # code
-            a, b = spans[i]
+        verdicts: dict[int, bool] = {}  # per span: decided at most once, however many matches land in it
+
+        def span_counts(a: int, b: int) -> bool:
             if is_comment_span(text, a, lang):
                 return False
+            if b - a > _MAX_SPAN_INSPECT:
+                return True                                   # too big to inspect: fail open
             body = text[a:b]
             if any(m in body for m in _INTERPOLATION_MARKERS):
                 return True                                   # interpolated: holds code
@@ -204,6 +207,14 @@ class CodeCryptoPrimitives(Probe):
             if _CODE_PUNCT_RE.search(body) and _holds_call(body):
                 return True                                   # looks like swallowed code
             return _TOKEN_STRING_RE.fullmatch(body.strip("\"'`@#")) is not None
+
+        def counts(pos: int) -> bool:
+            i = bisect.bisect_right(starts, pos) - 1
+            if i < 0 or pos >= spans[i][1]:
+                return True                                   # code
+            if i not in verdicts:
+                verdicts[i] = span_counts(*spans[i])
+            return verdicts[i]
 
         lines = text.splitlines()
         seen: set[str] = set()  # de-dup (file, algorithm) — file is fixed here
