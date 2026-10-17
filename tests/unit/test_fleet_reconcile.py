@@ -140,15 +140,45 @@ def test_markdown_has_counts_before_table(inputs):
     assert "| tls_below_expected | web02 |" in md
 
 
-def test_clean_run_exits_zero(inputs, tmp_path):
-    inv = tmp_path / "clean.csv"
-    inv.write_text("hostname,machine_id,expected_tls_min\nweb01,m-web01,TLSv1.2\n")
+def _one_host_fleet(tmp_path: Path) -> Path:
     fleet = tmp_path / "one.json"
     fleet.write_text(json.dumps({"hosts": [{"hostname": "web01", "machine_id": "m-web01", "last_seen": FRESH,
                                             "revoked": False}]}))
-    code, rows = _run({**inputs, "fleet": fleet}, cbom=False, inv=inv)
+    return fleet
+
+
+def test_no_discrepancies_but_unchecked_tls_is_not_a_clean_acceptance(inputs, tmp_path):
+    inv = tmp_path / "clean.csv"
+    inv.write_text("hostname,machine_id,expected_tls_min\nweb01,m-web01,TLSv1.2\n")
+    code, rows = _run({**inputs, "fleet": _one_host_fleet(tmp_path)}, cbom=False, inv=inv)
     assert (code, rows) == (0, [])
-    assert "None." in (inputs["out"] / "discrepancies.md").read_text()
+    md = (inputs["out"] / "discrepancies.md").read_text()
+    assert "None." in md and "## Not assessed" in md
+    assert "tls_below_expected: 1 host(s) have an expected_tls_min" in md
+
+
+def test_clean_run_with_tls_and_cert_data_has_nothing_unassessed(inputs, tmp_path):
+    inv = tmp_path / "clean.csv"
+    inv.write_text("hostname,machine_id,expected_tls_min,expected_cert_cn\nweb01,m-web01,TLSv1.2,web01.corp\n")
+    cbom = tmp_path / "web01.cbom.json"
+    cbom.write_text(json.dumps({"components": [
+        {"description": "TLSv1.3 negotiated cipher TLS_AES_256_GCM_SHA384",
+         "properties": [{"name": "pqcscan:probe", "value": "net.tls.handshake"},
+                        {"name": "pqcscan:host", "value": "web01"}, {"name": "pqcscan:machine_id", "value": "m-web01"},
+                        {"name": "pqcscan:cert_cn", "value": "web01.corp"}]}]}))
+    code, rows = _run({**inputs, "fleet": _one_host_fleet(tmp_path), "cbom": cbom}, inv=inv)
+    assert (code, rows) == (0, [])
+    assert "Not assessed" not in (inputs["out"] / "discrepancies.md").read_text()
+
+
+def test_exact_hostname_wins_over_weak_match_whatever_the_row_order(tmp_path):
+    inv = tmp_path / "inv.csv"
+    inv.write_text("hostname,machine_id\nweb01.corp.example,\nweb01,\nother,m-1\n")
+    fleet = tmp_path / "f.json"
+    fleet.write_text(json.dumps([{"hostname": "web01", "machine_id": "m-0", "last_seen": FRESH},
+                                 {"hostname": "box", "machine_id": "m-1", "last_seen": FRESH}]))
+    _, rows = _run({"inv": inv, "fleet": fleet, "out": tmp_path / "o"}, cbom=False)
+    assert _by_class(rows) == {"missing_from_fleet": ["web01.corp.example"], "identity_mismatch": ["other"]}
 
 
 def test_weak_match_is_flagged_not_silent_and_still_checked(tmp_path):
@@ -202,7 +232,21 @@ def test_spreadsheet_formulas_and_pipes_are_neutralised(tmp_path):
     assert "\\|evil" in (tmp_path / "o" / "discrepancies.md").read_text()
 
 
-def test_fleet_summary_cli_shape_loads(tmp_path):
+def test_naive_timestamp_as_the_daemon_emits_is_treated_as_utc(tmp_path):
+    inv = tmp_path / "inv.csv"
+    inv.write_text("hostname\nold01\nnew01\n")
+    fleet = tmp_path / "f.json"
+    fleet.write_text(json.dumps([{"hostname": "old01", "machine_id": "a", "last_seen": "2026-10-14T08:00:00.123456"},
+                                 {"hostname": "new01", "machine_id": "b", "last_seen": "2026-10-17T08:00:00.123456"}]))
+    _, rows = _run({"inv": inv, "fleet": fleet, "out": tmp_path / "o"}, cbom=False)
+    assert _by_class(rows) == {"stale": ["old01"]}
+
+
+def test_markdown_cell_escaping(tmp_path):
+    assert rc._md_cell("a\\|b\r\nc") == "a\\\\\\|b  c"
+
+
+def test_fleet_summary_cli_shape_reports_revoked_and_last_seen_proxy_as_not_assessed(tmp_path):
     """`pqcscan fleet summary --json` has finished_at, no machine_id/last_seen/revoked."""
     inv = tmp_path / "inv.csv"
     inv.write_text("hostname\nweb01\n")
@@ -211,6 +255,35 @@ def test_fleet_summary_cli_shape_loads(tmp_path):
                                   "finished_at": OLD, "readiness": 40, "crit": 1, "high": 0, "total": 1, "drift": 0}]))
     _, rows = _run({"inv": inv, "fleet": fleet, "out": tmp_path / "o"}, cbom=False)
     assert _by_class(rows) == {"stale": ["web01"]}
+    md = (tmp_path / "o" / "discrepancies.md").read_text()
+    assert "revoked: 1 matched host(s) have no 'revoked' field" in md
+    assert "finished_at) was used as a proxy" in md
+
+
+def test_api_fleet_shape_has_no_revoked_or_proxy_notes(inputs):
+    _run(inputs)
+    md = (inputs["out"] / "discrepancies.md").read_text()
+    assert "no 'revoked' field" not in md
+    assert "proxy" not in md
+
+
+def test_cbom_only_reports_stale_and_revoked_as_not_assessed(tmp_path):
+    cbom = tmp_path / "c.cbom.json"
+    cbom.write_text(json.dumps(_real_cbom(tmp_path)))
+    inv = tmp_path / "inv.csv"
+    inv.write_text("hostname\nweb01\n")
+    _run({"cbom": cbom, "inv": inv, "out": tmp_path / "o"}, fleet=False)
+    md = (tmp_path / "o" / "discrepancies.md").read_text()
+    assert "stale: 1 matched host(s) came only from the CBOM" in md and "revoked: 1 matched host(s)" in md
+
+
+def test_exact_match_beats_weak_match_for_the_fqdn_then_short_rows(tmp_path):
+    inv = tmp_path / "inv.csv"
+    inv.write_text("hostname\nweb01.corp.example\nweb01\n")
+    fleet = tmp_path / "f.json"
+    fleet.write_text(json.dumps([{"hostname": "web01", "machine_id": "m", "last_seen": FRESH, "revoked": False}]))
+    _, rows = _run({"inv": inv, "fleet": fleet, "out": tmp_path / "o"}, cbom=False)
+    assert _by_class(rows) == {"missing_from_fleet": ["web01.corp.example"]}   # web01 itself matched exactly
 
 
 @pytest.mark.parametrize("case", ["missing_inventory", "no_hostname_column", "bad_tls", "bad_fleet_json",
