@@ -14,7 +14,8 @@ permissions:
 jobs:
   postgres:
     # The fleet store, daemon and spool tests, with every tmp_db_path being a fresh PostgreSQL database.
-    # test_db_dialect.py runs first: it fails the job if the URL is wrong and the run fell back to SQLite.
+    # test_db_dialect.py runs first. PQCSCAN_REQUIRE_POSTGRES makes it fail, not skip, when the URL variable is
+    # missing, and it fails when the fixture yields anything but PostgreSQL; a wrong URL fails at connect.
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
@@ -30,6 +31,7 @@ jobs:
           --health-retries 10
     env:
       PQCSCAN_TEST_DB_URL: postgresql+psycopg://postgres:pqc@localhost:5432/postgres
+      PQCSCAN_REQUIRE_POSTGRES: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

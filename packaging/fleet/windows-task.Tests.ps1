@@ -45,6 +45,7 @@ BeforeAll {
         param([string]$Path, [hashtable]$Expected)
         $acl = Get-Acl -LiteralPath $Path
         $problems = @()
+        $isFolder = (Get-Item -LiteralPath $Path -Force).PSIsContainer
         if ($script:Allowed -notcontains $acl.Owner) { $problems += "owner is $($acl.Owner)" }
         $got = @{}
         foreach ($r in $acl.Access) {
@@ -52,6 +53,10 @@ BeforeAll {
             if ($r.AccessControlType -ne "Allow") { $problems += "$id has a $($r.AccessControlType) rule" }
             if ($got.ContainsKey($id)) { $problems += "$id is listed more than once" }
             $got[$id] = [int]$r.FileSystemRights
+            if ($isFolder) {                                   # the installer's (OI)(CI), applying to this folder too
+                if ([string]$r.InheritanceFlags -ne "ContainerInherit, ObjectInherit") { $problems += "$id inheritance is $($r.InheritanceFlags)" }
+                if ([string]$r.PropagationFlags -ne "None") { $problems += "$id propagation is $($r.PropagationFlags)" }
+            }
         }
         foreach ($id in $got.Keys) {
             if (-not $Expected.ContainsKey($id)) { $problems += "unexpected principal $id with $($got[$id])" }
@@ -292,6 +297,14 @@ Describe "windows-task.ps1 with a dedicated task account" {
     AfterAll {
         Remove-Install
         Remove-LocalUser -Name $SvcName -ErrorAction SilentlyContinue
+    }
+
+    It "fails to register the task, which is a known installer gap" {
+        # No password reaches Register-ScheduledTask for a password-logon account. This assertion documents that
+        # and breaks the day the installer takes a credential, so the finding gets revisited.
+        $Run.ExitCode | Should -Not -Be 0
+        $Run.Output | Should -Match "user name or password is incorrect"
+        Get-ScheduledTask -TaskName "pqcscan-agent" -ErrorAction SilentlyContinue | Should -BeNullOrEmpty
     }
 
     It "gives the task account Modify on the state folders and agent.env" {
