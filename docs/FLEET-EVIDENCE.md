@@ -11,7 +11,7 @@ Spec: `docs/superpowers/specs/2026-10-17-fleet-evidence-spec.md`.
 | 1 | Real-fleet soak, 30 hosts, 7 days | **Simulated only** | 30 agent state dirs on one Linux box, 7 cycles of 2 to 3 minutes, 4 injected faults, on SQLite and Postgres. 210 of 211 ingests succeeded; the one failure is the injected revoked-host 401. The real run was not done (see Not run here). `benchmark/fleet/SOAK.md`, `benchmark/fleet/results/soak-simulated-*.json`. |
 | 2 | Detection accuracy | **PASS, with limits** | 176 labelled cases (96 positive, 80 negative). Precision 1.000 excluding 8 named accepted false positives (raw 0.922). Recall 0.990 (TP 95, FP 0, FN 1). Limits: the corpus is synthetic and written for pqcscan, each probe has a handful of cases, there is no `net.tls.https` negative, and the one miss is the mTLS endpoint. `docs/ACCURACY.md`, `benchmark/corpus/accepted_fp.txt`. |
 | 3 | Load, p95 < 2 s at 500 hosts | **FAIL** | 500 hosts: SQLite p95 8.6 s, Postgres 61 s with 471 client timeouts. Measured with 300-finding bundles on a shared loopback box; real scans store about 1,670 findings, so real capacity is likely lower (F19). See F7. `benchmark/fleet/LOAD.md`. |
-| 4 | Threat model and fuzz | **PASS, with 7 rows that have no test** | 57 STRIDE rows over 7 surfaces, each with a named owner. 42 fuzz tests on `load_bundle`, `parity_key` and label parsing. Three product bugs fixed (F11). The spec asks for a test or fuzz target per abuse case; the rows without one are named here and in the table: E7, I10, X5, X6, D6, S5, T5. `docs/security/THREAT-MODEL-FLEET.md`, `tests/fuzz/`. |
+| 4 | Threat model and fuzz | **PASS on the spec's wording, with limits** | 57 STRIDE rows over 7 surfaces, each with a named owner. 42 fuzz tests on `load_bundle`, `parity_key` and label parsing. Three product bugs fixed (F11). The spec asks for a test or fuzz target per abuse case. Seven rows had none (E7, I10, X5, X6, D6, S5, T5); the final fix round added an in-process test for each, so 0 rows remain without one. Limits: E7, X6, D6, S5 and T5 are accepted gaps, so their tests pin the gap and fail on purpose if a control is added; they do not show a defence. I10 is checked end to end for four probes only. X5 shows linear scaling at 60 hosts and a non-blocking export, not memory at 500 or 2,000 hosts. The new tests ran locally on SQLite and on a local `postgres:16-alpine`; no CI run covers them yet. `docs/security/THREAT-MODEL-FLEET.md`, `tests/unit/test_fleet_threat_model_gaps.py`, `tests/fuzz/`. |
 | 5 | Bake-off | Delivered | anvilsecure/pqcscan 0.8.0, QuantaSeek 0.1.0 and csnp/cryptoscan 1.4.1 on the corpus's TLS endpoints, certificate files and source tree, not on container images. `docs/BAKEOFF.md`. Findings F3, F4. |
 | 6 | Acceptance reconciliation | Tooling delivered; **run blocked** | No prospect hosts or inventory exist. `benchmark/fleet/reconcile.py` and `docs/ACCEPTANCE-TEMPLATE.md` are ready. Finding F1 blocks the CN check. |
 
@@ -32,6 +32,8 @@ Evidence keys used in the table:
 | WIN | `verify.yml` job `windows-installer`: 28 Pester tests of `packaging/fleet/windows-task.ps1` on `windows-2022` and `windows-latest`. Same run. |
 | LOAD | `benchmark/fleet/LOAD.md` and `results/load-*.json`. Locust and the collector share one 8-core box on loopback. Bundles hold 300 findings. |
 | SOAK | `benchmark/fleet/SOAK.md` and `results/soak-simulated-*.json`, run 3. SQLite at `e4c753c`, Postgres at `9d086c3`. Simulated. |
+
+The CI runs cited for PG, FZ and WIN predate `05289fd` and `c4fe5b3`, the two Postgres ingest rewrites, so they do not cover the ingest path being shipped. They will be replaced by runs at the final commit.
 
 ## Claims in FLEET.md
 
@@ -74,7 +76,7 @@ Evidence keys used in the table:
 | Drift | At most 500 rows per scan then one summary row; over 50,000 findings only the summary | UT `test_parity_drift.py::test_drift_rows_capped_with_summary_and_true_total`; FZ `test_drift_rows_cap_is_enforced_with_a_summary`, `test_drift_rows_above_the_normalise_ceiling_count_raw_titles` | Evidenced |
 | Drift | The match key ignores host names, addresses and `at <host>` | UT `test_parity_drift.py::test_parity_key_strips_endpoints`, `test_parity_key_host_literals_and_server_attribution`; FZ | Evidenced |
 | Security | The enroll token holder can enroll any machine id | UT `test_daemon_fleet.py::test_reenroll_logs_warning_and_rotates_token` | Evidenced |
-| Security | Enrollment is not rate limited | No test (row E7), accepted risk AR2 | Asserted |
+| Security | Enrollment is not rate limited | UT `test_fleet_threat_model_gaps.py::test_e7_token_holder_can_enroll_without_limit` pins it (row E7); accepted risk AR2 | Evidenced |
 | Security | A revoked host cannot re-enroll until unrevoked | UT `test_daemon_fleet.py::test_revoked_host_cannot_reenroll_until_unrevoked`; SOAK host 5 | Evidenced |
 | Security | The agent token file is 0600 and written without following symlinks | UT `test_cli_report.py::test_write_private_refuses_symlink_and_exclusive_existing` | Evidenced |
 | Security | The collector stores only token hashes | UT `test_daemon_fleet.py::test_enroll_then_ingest_then_fleet` finds the host by `hash_token(agent_token)`. No test scans the DB for the raw token | Evidenced |
@@ -82,7 +84,7 @@ Evidence keys used in the table:
 | Security | Burst of 10 bundles, one per minute refill; a duplicate spends a token; the 11th post in a row gets 429 | UT `test_daemon_fleet.py::test_token_bucket_every_outcome_spends_a_token`; SOAK 10 duplicates answered 200 then 429, on both DBs. FLEET.md said a duplicate was free until `4cf62a5` (F10) | Evidenced |
 | Security | Label caps 64 per host, 64 characters per key, 256 per value; new keys beyond 64 are dropped and logged; the scan is stored | UT `test_fleet_repo.py::test_host_already_over_the_cap_keeps_labels_and_still_ingests_and_enrolls`, `test_bundle.py::test_load_caps_host_labels`; FZ `test_host_labels_never_exceed_the_cap_across_bundles`. Before the fix the cap was per bundle (F11) | Evidenced |
 | Security | The bundle `machine_id` must match the token | UT `test_fleet_threat_model_gaps.py::test_one_hosts_token_cannot_post_as_another_host` | Evidenced |
-| Security | Findings never carry key bytes | Threat row I10: no fleet-level test, enforced per probe | Asserted |
+| Security | Findings never carry key bytes | UT `test_fleet_threat_model_gaps.py::test_i10_probe_findings_carry_no_key_material_to_the_collector` runs four probes (private key, encrypted key, PKCS#12, JWT env); other probes only by their own unit tests (row I10) | Evidenced for four probes, Asserted for the rest |
 | Security | Machine ids are domain-separated hashes | UT `test_hostid.py::test_linux_machine_id_file` (hash of `pqcscan|<id>`) | Evidenced |
 | Known limits | No split-and-resend on 413; a scan over the raw cap fails to dump | No test | Asserted |
 | Known limits | 400, 403, 413 are never spooled at ingest; a revoked host's bundles spool and replay; nothing prunes `spool/rejected/` | UT `test_cli_agent.py::test_cycle_permanent_rejection_is_neither_reported_nor_spooled`; SOAK host 5 replay; the unpruned directory is accepted risk AR5 | Evidenced |
