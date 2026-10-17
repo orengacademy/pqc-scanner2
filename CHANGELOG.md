@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- `net.ports.tcp` no longer loses open ports when the box is busy. It timed each connect inside the event loop,
+  and the scan's other probes block that loop with synchronous database writes, so a port that accepted at once read
+  as closed. Two of twelve concurrent scans found none of the four open well-known ports on the test box. Fleet drift
+  then reported them as removed on one scan and added on the next, on hosts where nothing had changed. The connect now
+  runs in a thread with the socket's own timeout. Found by the simulated fleet soak.
 - `code.crypto_primitives` decides each comment/string span once, and treats a span over 64 kB as code without
   inspecting it (fail-open). A large literal full of tokens was re-inspected for every match inside it, which is
   quadratic: about 15 s for 1 MiB with 10,000 `md5(` tokens. It now costs the same as any 1 MiB file.

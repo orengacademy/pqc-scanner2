@@ -8,7 +8,7 @@ context for the dashboard and future probe-routing logic.
 from __future__ import annotations
 
 import asyncio
-import contextlib
+import socket
 from collections.abc import Iterable
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
@@ -77,21 +77,22 @@ class NetPortsTcp(Probe):
     async def applies(self, ctx: ScanContext) -> bool:
         return True
 
+    def _connect(self, port: int) -> None:
+        with socket.create_connection((self.host, port), timeout=self.connect_timeout_s):
+            pass
+
     async def run(self, ctx: ScanContext, emit: Emitter) -> None:
         sem = asyncio.Semaphore(self.max_concurrent)
 
         async def check(port: int) -> tuple[int, bool]:
             async with sem:
                 try:
-                    _, w = await asyncio.wait_for(
-                        asyncio.open_connection(self.host, port),
-                        timeout=self.connect_timeout_s,
-                    )
-                    w.close()
-                    with contextlib.suppress(Exception):
-                        await w.wait_closed()
+                    # In a thread, so the timeout is the socket's own. An in-loop wait_for is expired by whatever
+                    # blocks the loop (the scan's other probes write to the DB synchronously), and then a port that
+                    # accepted at once reads as closed and open ports flap between scans.
+                    await asyncio.to_thread(self._connect, port)
                     return port, True
-                except (TimeoutError, OSError):
+                except OSError:      # refused, unreachable, or timed out (TimeoutError is an OSError)
                     return port, False
 
         results = await asyncio.gather(*(check(p) for p in self.ports))

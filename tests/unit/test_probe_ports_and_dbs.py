@@ -32,6 +32,34 @@ async def test_ports_tcp_finds_an_open_port():
 
 
 @pytest.mark.asyncio
+async def test_ports_tcp_open_port_survives_a_blocked_event_loop():
+    """A scan's other probes block the loop with synchronous work; that must not turn an open port into 'closed'.
+
+    It did: under load `net.ports.tcp` lost every open port on some scans, which fleet drift reported as paired
+    removed/added rows on hosts where nothing had changed."""
+    import socket
+    import time
+
+    srv = socket.socket()
+    srv.bind(("127.0.0.1", 0))
+    srv.listen()
+    port = srv.getsockname()[1]
+    found: list = []
+
+    async def hog():
+        await asyncio.sleep(0)          # let the probe start its connects
+        time.sleep(1.0)  # noqa: ASYNC251  synchronous work on the loop, longer than the 0.4 s connect timeout
+
+    try:
+        probe = NetPortsTcp(host="127.0.0.1", ports=[port], connect_timeout_s=0.4)
+        ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
+        await asyncio.gather(probe.run(ctx, emit=found.append), hog())
+        assert [f.evidence["port"] for f in found] == [port]
+    finally:
+        srv.close()
+
+
+@pytest.mark.asyncio
 async def test_ports_tcp_skips_closed_port():
     found: list = []
     probe = NetPortsTcp(host="127.0.0.1", ports=[1])  # port 1 always closed
