@@ -216,3 +216,29 @@ def test_unterminated_block_comment_keeps_stripping_after_it():
     out = strip_noncode(src, "javascript")
     assert out.startswith("const re = /^\\/*/;")
     assert "md5" not in out
+
+
+def test_rust_unterminated_hashed_raw_does_not_disable_later_raw_strings():
+    # r##"... never closes, but a later r"\" closes at its first quote; reading it
+    # as an ordinary "\"..." string would blank the real call after it (evasion).
+    src = 'let a = r##"never closed\nlet b = r"\\"; md5::compute(b"x"); let c = "x";\n'
+    out = strip_noncode(src, "rust")
+    assert "md5::compute" in out
+    assert out.splitlines()[0] == 'let a = r##"never closed'   # unterminated: left as code
+
+
+def test_rust_raw_closer_needs_its_own_hash_count():
+    src = 'let a = r#"a "quoted" md5"#; let b = md5::compute(x);\n'
+    out = strip_noncode(src, "rust")
+    assert out.count("md5") == 1 and "md5::compute(x)" in out
+
+
+def test_text_block_and_raw_string_floods_are_linear():
+    mib = 1 << 20
+    assert _strip_seconds('"""\n' * (mib // 4), "java") < 1.0
+    assert _strip_seconds('"""\n' * (mib // 4), "kotlin") < 1.0
+    # openers inside a failed body (the """ of each escaped \""") used to rescan
+    # to the end of input: 17 s at 64 KiB
+    assert _strip_seconds('"""\n' + '\\"""\n' * (256 * 1024 // 5), "java") < 1.0
+    # descending hash counts, each unterminated
+    assert _strip_seconds("".join("r" + "#" * h + '"' for h in range(1400, 0, -1)), "rust") < 1.0

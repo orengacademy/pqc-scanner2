@@ -67,7 +67,8 @@ _SQ_STR = r"'(?:\\.|[^'\\\n])*+'"
 
 # Unterminated forms. Each follows the form it backs up and consumes what that
 # form scanned and then rejected: an unterminated quote to the end of its line,
-# an unterminated block comment / raw / verbatim string to the end of input.
+# an unterminated block comment / verbatim string / text block to the end of
+# input.
 # They are NOT blanked (fail-open: the text stays code). Without them finditer
 # retried at every later opener and rescanned the same span — quadratic, e.g.
 # 10 s for one 40 k-character line of \" escapes. The group names must start
@@ -75,7 +76,6 @@ _SQ_STR = r"'(?:\\.|[^'\\\n])*+'"
 _DQ_UNTERM = r'(?P<unterm_dq>"(?:\\.|[^"\\\n])*+)'
 _SQ_UNTERM = r"(?P<unterm_sq>'(?:\\.|[^'\\\n])*+)"
 _BLOCK_UNTERM = r"(?P<unterm_block>/\*[\s\S]*)"
-_RUST_RAW_UNTERM = r'(?P<unterm_raw>b?r#*"[\s\S]*)'
 _CSHARP_VERBATIM_UNTERM = r'(?P<unterm_verbatim>@"[\s\S]*)'
 # Single char / rune literal (Go / Java / Rust): exactly one char or one escape.
 # Matching only a single element keeps Rust lifetimes (``&'a T``) safe.
@@ -87,8 +87,10 @@ _LINE_SLASH = r"//[^\n]*"
 _LINE_HASH = r"#[^\n]*"
 # Backtick span: Go raw string literal and JS template literal.
 _BACKTICK = r"`[^`]*`"
-# Rust raw string: r"...", r#"..."#, br"..."# — hash count matched via backref.
-_RUST_RAW = r'(?:b?r)(?P<rrhash>#*)"[\s\S]*?"(?P=rrhash)'
+# Rust raw string opener: r"...", r#"..."#, br"..."#. The closer depends on the
+# opener's hash count, so _blank_spans finds it in code (not a backreference),
+# using a one-pass index of closers — see _raw_last_close.
+_RUST_RAW_OPEN = r'(?P<raw_open>b?r(?P<rrhash>#*)")'
 # C# verbatim string: @"..." where an embedded quote is written "". Spans
 # newlines, so it must precede _DQ in the alternation (matched at the '@').
 _CSHARP_VERBATIM = r'@"(?:""|[^"])*"'
@@ -109,6 +111,13 @@ _CSHARP_VERBATIM = r'@"(?:""|[^"])*"'
 # run of quotes the body refused, however long.
 _JAVA_TEXT_BLOCK = r'"""[ \t\f]*\r?\n(?:[^"\\]|\\[\s\S]|"(?!""))*+"*"""'
 _RAW_TRIPLE = r'"""(?:[^"]|"(?!""))*+"*"""'
+# Their end-of-input partners. Without them a later opener *inside* the failed
+# body (e.g. the """ of an escaped \""") rescanned to the end again: 17 s for
+# 64 KiB. A body that reached the end of input never met a closer, and a later
+# opener's body starts on the same token boundary (after a line break no escape
+# can own), so no later block can close either: the form is dropped.
+_JAVA_TEXT_BLOCK_UNTERM = r'(?P<unterm_tb>"""[ \t\f]*\r?\n[\s\S]*)'
+_RAW_TRIPLE_UNTERM = r'(?P<unterm_rawtriple>"""[\s\S]*)'
 
 # Per-language alternation members.  Order matters only where two forms can
 # start at the same character: triple-quoted / verbatim forms precede _DQ, and
@@ -117,11 +126,12 @@ _RAW_TRIPLE = r'"""(?:[^"]|"(?!""))*+"*"""'
 # input length (pinned by timing tests in tests/unit/test_srcstrip.py).
 _LANG_FORMS: dict[str, tuple[str, ...]] = {
     "go": (_BLOCK, _BLOCK_UNTERM, _LINE_SLASH, _BACKTICK, _DQ, _DQ_UNTERM, _CHAR),
-    "java": (_BLOCK, _BLOCK_UNTERM, _LINE_SLASH, _JAVA_TEXT_BLOCK, _DQ, _DQ_UNTERM, _CHAR),
-    "kotlin": (_BLOCK, _BLOCK_UNTERM, _LINE_SLASH, _RAW_TRIPLE, _DQ, _DQ_UNTERM, _CHAR),  # also Scala
+    "java": (_BLOCK, _BLOCK_UNTERM, _LINE_SLASH, _JAVA_TEXT_BLOCK, _JAVA_TEXT_BLOCK_UNTERM, _DQ, _DQ_UNTERM, _CHAR),
+    "kotlin": (_BLOCK, _BLOCK_UNTERM, _LINE_SLASH, _RAW_TRIPLE, _RAW_TRIPLE_UNTERM, _DQ, _DQ_UNTERM,
+               _CHAR),  # also Scala
     "javascript": (_BLOCK, _BLOCK_UNTERM, _LINE_SLASH, _BACKTICK, _DQ, _DQ_UNTERM, _SQ_STR, _SQ_UNTERM),
     "php": (_BLOCK, _BLOCK_UNTERM, _LINE_SLASH, _LINE_HASH, _DQ, _DQ_UNTERM, _SQ_STR, _SQ_UNTERM),
-    "rust": (_BLOCK, _BLOCK_UNTERM, _LINE_SLASH, _RUST_RAW, _RUST_RAW_UNTERM, _DQ, _DQ_UNTERM, _CHAR),
+    "rust": (_BLOCK, _BLOCK_UNTERM, _LINE_SLASH, _RUST_RAW_OPEN, _DQ, _DQ_UNTERM, _CHAR),
     "csharp": (_BLOCK, _BLOCK_UNTERM, _LINE_SLASH, _CSHARP_VERBATIM, _CSHARP_VERBATIM_UNTERM, _DQ, _DQ_UNTERM,
                _CHAR),
 }
@@ -132,14 +142,18 @@ _LANG_FORMS: dict[str, tuple[str, ...]] = {
 MAX_STRIP_CHARS = 2 * 1024 * 1024
 
 
-# Unterminated forms that reach the end of input. Once one matches, its form can
-# never match again later in the file (no closer remains), so the scan resumes
-# just past the opener without that form instead of leaving the rest of the file
-# unblanked. At most one restart per entry, so still linear.
+# Unterminated forms that reach the end of input and whose closer does not
+# depend on the opener. Once one matches, its form can never match again later
+# in the file (no closer remains), so the scan resumes just past the opener
+# without that form instead of leaving the rest of the file unblanked. At most
+# one restart per entry, so still linear. Rust raw strings are NOT here: their
+# closer depends on the hash count, so a later r"..." can still close after an
+# unterminated r##"..." (dropping the form would let _DQ misread it).
 _EOF_UNTERM: dict[str, tuple[str, str]] = {
     "unterm_block": (_BLOCK, _BLOCK_UNTERM),
-    "unterm_raw": (_RUST_RAW, _RUST_RAW_UNTERM),
     "unterm_verbatim": (_CSHARP_VERBATIM, _CSHARP_VERBATIM_UNTERM),
+    "unterm_tb": (_JAVA_TEXT_BLOCK, _JAVA_TEXT_BLOCK_UNTERM),
+    "unterm_rawtriple": (_RAW_TRIPLE, _RAW_TRIPLE_UNTERM),
 }
 
 
@@ -154,20 +168,46 @@ def _pattern_for(lang: str, drop: frozenset[str] = frozenset()) -> re.Pattern[st
     return re.compile("|".join(f"(?:{form})" for form in forms if form not in dropped))
 
 
+def _raw_last_close(source: str) -> list[int]:
+    """last[h] = start of the last ``"`` followed by >= h ``#`` (-1 if none).
+
+    A Rust raw opener with h hashes ending at e is terminated iff last[h] >= e,
+    an O(1) test, so unterminated openers never trigger a scan to the end."""
+    best: dict[int, int] = {}
+    for m in re.finditer(r'"(#*)', source):
+        best[len(m.group(1))] = m.start()
+    last = [-1] * (max(best, default=0) + 1)
+    running = -1
+    for run in range(len(last) - 1, -1, -1):
+        running = max(running, best.get(run, -1))
+        last[run] = running
+    return last
+
+
 def _blank_spans(source: str, lang: str) -> Iterator[tuple[int, int]]:
     """(start, end) of every comment / terminated literal, left to right."""
     drop: frozenset[str] = frozenset()
     pos = 0
+    raw_last: list[int] | None = None
     while (pattern := _pattern_for(lang, drop)) is not None:
-        for match in pattern.finditer(source, pos):
-            group = match.lastgroup or ""
-            if group in _EOF_UNTERM:
-                drop, pos = drop | {group}, match.start() + 1
-                break
-            if not group.startswith("unterm"):  # unterminated quote: leave as code
-                yield match.start(), match.end()
-        else:
+        match = pattern.search(source, pos)
+        if match is None:
             return
+        group = match.lastgroup or ""
+        if group in _EOF_UNTERM:
+            drop, pos = drop | {group}, match.start() + 1
+            continue
+        pos = match.end()
+        if group == "raw_open":
+            hashes = match.group("rrhash")
+            raw_last = raw_last if raw_last is not None else _raw_last_close(source)
+            if len(hashes) < len(raw_last) and raw_last[len(hashes)] >= match.end():
+                pos = source.find('"' + hashes, match.end()) + 1 + len(hashes)
+                yield match.start(), pos
+            # else unterminated: only the opener stays code; scanning goes on
+            continue
+        if not group.startswith("unterm"):  # unterminated quote: leave as code
+            yield match.start(), match.end()
 
 
 def strip_noncode(source: str, lang: str) -> str:

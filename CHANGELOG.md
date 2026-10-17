@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Rust raw strings are matched by their own hash count again. After one unterminated `r##"`, the stripper stopped
+  recognising raw strings, so a later `r"\"` was read as an ordinary string and the real call after it was blanked
+  (an evasion). Unterminated Java text blocks and Kotlin raw strings no longer let later openers rescan the rest of
+  the file, which took 17 s for 64 KiB of escaped `\"""` lines.
 - `net.tls.pqc_handshake` still classifies the server when the local openssl cannot offer hybrid groups, for
   example OpenSSL 3.0 without oqs-provider. It falls back to the raw ClientHello of `net.tls.kex_groups`, which offers
   `X25519MLKEM768` and the classical groups itself. A classical-only server is flagged again, and a hybrid-capable one
