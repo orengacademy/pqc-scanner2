@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Drift and `diff --parity` keys no longer outgrow their cap. A 512-character title of short host-like tokens normalised
+  to as many as 1,800 characters, because `<host>` is longer than the text it replaces. The normalised title is now cut
+  at 512 characters. Found by the new hypothesis fuzz targets.
 - Ingest rejects a gzip bundle whose stream is cut off (400). A truncated body used to inflate to complete JSON and be
   stored without its CRC and length check ever running. Found by the new hypothesis fuzz targets.
 

@@ -160,6 +160,14 @@ def test_parity_key_caps_title_and_path_at_512():
     assert len(d[0].evidence["title"]) == 512
 
 
+def test_parity_key_normalised_title_is_capped():
+    # `<host>` (6 chars) replaces a one-char host or a 3-char `a:1`, so the key used to grow to about 3.5x the cap
+    for title, host in (("a " * 256, "a"), ("a:1 " * 200, ""), ("at a " * 200, "")):
+        assert len(parity_key("p", "A", title, {"host": host})[2]) <= 512
+    short = parity_key("p", "A", "peer 10.0.0.1:443 uses RSA", {"host": "web01"})
+    assert short == ("p", "A", "peer <host>:443 uses RSA")
+
+
 def test_parity_key_normalises_at_host_and_bare_ipv6():
     assert parity_key("p", "A", "listener at web01.example.org", {}) == parity_key("p", "A", "listener at dr-02", {})
     assert parity_key("p", "A", "peer 2001:db8::1 uses RSA", {}) == parity_key("p", "A", "peer fe80::2 uses RSA", {})

@@ -50,7 +50,7 @@ def _norm_title(title: str, host: str = "") -> str:
     out: list[str] = []
     for tok in t.split():
         out.append(_norm_token(tok, bool(out) and out[-1] == "at"))
-    return " ".join(out)
+    return " ".join(out)[:MAX_TITLE_NORMALISE]   # `<host>` is longer than a one-letter host: the key must not outgrow the cap
 
 
 def parity_key(probe_id: str, algorithm: str, title: str, evidence: dict[str, Any]) -> tuple[str, str, str]:
@@ -59,7 +59,8 @@ def parity_key(probe_id: str, algorithm: str, title: str, evidence: dict[str, An
     `evidence["host"]` is the scan target and is stripped from the title together with host:port,
     IPv4/IPv6 literals and `at <host>` phrases. A file path is kept verbatim and replaces the title.
     An endpoint adds its port when the title lacks it. `evidence["_fleet"]` is server-side attribution and is ignored.
-    Only the first MAX_TITLE_NORMALISE characters of a title are examined.
+    Only the first MAX_TITLE_NORMALISE characters of a title are examined, and the normalised title is capped
+    at the same length.
     """
     ev = evidence or {}
     if ev.get("path"):
