@@ -81,7 +81,7 @@ packages = ["src/pqcscan"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-addopts = "-ra --strict-markers"
+addopts = "-ra --strict-markers -m 'not fuzz'"
 markers = ["fuzz: hypothesis fuzz targets for fleet ingest (needs the `verify` extra; PQCSCAN_FUZZ_EXAMPLES raises the count)"]
 
 [tool.ruff]

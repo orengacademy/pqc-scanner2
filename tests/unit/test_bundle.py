@@ -75,6 +75,14 @@ def test_load_rejects_truncated_gzip():
             load_bundle(blob[:-cut])
 
 
+def test_load_ignores_bytes_after_the_gzip_member():
+    # pins the end-of-stream rule: a complete first member is what counts, whatever follows it
+    blob = gzip.compress(json.dumps({"schema_version": 1, "scan_uuid": "u", "host": {"machine_id": "m"},
+                                     "scan": {}, "findings": []}).encode())
+    assert load_bundle(blob + b"trailing garbage").scan_uuid == "u"
+    assert load_bundle(blob + gzip.compress(b"{}")).scan_uuid == "u"       # a second member is not read
+
+
 def test_load_rejects_oversize():
     with pytest.raises(BundleTooLarge):
         load_bundle(b"\x1f\x8b" + b"\x00" * (MAX_GZIP_BYTES + 1))

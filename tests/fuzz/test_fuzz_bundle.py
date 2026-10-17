@@ -87,53 +87,101 @@ def test_mutated_gzip_stream(payload, pos, byte):
 # --- arbitrary JSON documents --------------------------------------------------------------------------------------
 
 @given(json_values)
-def test_arbitrary_json_document(doc):
+def test_arbitrary_json_top_level_document(doc):
+    # almost always rejected at the schema check; the point is that nothing but the two declared errors escapes
     try:
         b = load_bundle(_gz(doc))
     except _OK:
         return
     _check_loaded(b)
+
+
+def _skeleton() -> dict[str, Any]:
+    """A bundle that loads: hostile values are mutated INTO it, so identity checks do not reject every example."""
+    return {"schema_version": 1, "scan_uuid": "u-1",
+            "host": {"machine_id": "m-1", "hostname": "h", "os": "linux", "agent_version": "1", "labels": {}},
+            "scan": {"status": "done"}, "findings": []}
+
+
+def _put(doc: dict[str, Any], path: str, value: Any) -> dict[str, Any]:
+    node = doc
+    *parents, leaf = path.split(".")
+    for key in parents:
+        node = node[key]
+        if not isinstance(node, dict):          # an earlier mutation replaced this branch with a non-object
+            return doc
+    node[leaf] = value
+    return doc
+
+
+def _fuzz_loaded(strategy, minimum: float = 0.2) -> None:
+    """Run `strategy` through load_bundle and require that at least `minimum` of the examples reach the success path,
+    so the assertions on a loaded bundle are not vacuous."""
+    stats = [0, 0]                                   # examples, loaded
+
+    @given(strategy)
+    def inner(doc):
+        stats[0] += 1
+        try:
+            b = load_bundle(_gz(doc))
+        except _OK:
+            return
+        stats[1] += 1
+        _check_loaded(b)
+
+    inner()
+    print(f"load rate: {stats[1]} of {stats[0]} examples loaded")     # shown with pytest -rP
+    assert stats[1] >= minimum * stats[0], f"only {stats[1]} of {stats[0]} examples loaded"
 
 
 _label_values = st.one_of(_scalars, st.lists(st.text(max_size=5), max_size=3), st.text(max_size=300))
+_benign_labels = st.dictionaries(st.text(max_size=20), st.text(max_size=40), max_size=20)
 _labels = st.one_of(
+    _benign_labels, _benign_labels, _benign_labels,
+    st.dictionaries(st.text(max_size=80), _label_values, max_size=80),   # over the caps or non-string values
     st.none(), st.text(max_size=10), st.lists(st.integers(), max_size=3),
-    st.dictionaries(st.text(max_size=80), _label_values, max_size=80),
 )
 _evidence = st.one_of(
-    st.none(), st.integers(), st.lists(st.integers(), max_size=3),
     st.dictionaries(st.sampled_from(["_fleet", "host", "path", "endpoint", "x"]), json_values, max_size=5),
+    st.dictionaries(st.sampled_from(["_fleet", "host", "path", "endpoint", "x"]), json_values, max_size=5),
+    st.none(), st.integers(), st.lists(st.integers(), max_size=3),
 )
-_finding = st.one_of(
-    json_values,
-    st.fixed_dictionaries(
-        {"probe_id": st.sampled_from([DRIFT_PROBE, "net.tls.https", "fs.cert.x509"]) | _scalars},
-        optional={"algorithm": _scalars, "title": _scalars, "evidence": _evidence, "remediation": json_values,
-                  "views": json_values, "severity": _scalars, "classification": _scalars, "created_at": _scalars},
-    ),
+_finding_dict = st.fixed_dictionaries(
+    {"probe_id": st.sampled_from([DRIFT_PROBE, "net.tls.https", "fs.cert.x509"]) | _scalars},
+    optional={"algorithm": _scalars, "title": _scalars, "evidence": _evidence, "remediation": json_values,
+              "views": json_values, "severity": _scalars, "classification": _scalars, "created_at": _scalars},
 )
-_host = st.one_of(
-    json_values,
-    st.fixed_dictionaries(
-        {}, optional={"machine_id": _scalars | st.just("m-1"), "hostname": _scalars, "os": _scalars,
-                      "agent_version": _scalars, "labels": _labels},
-    ),
-)
-_hostile_doc = st.fixed_dictionaries(
-    {"schema_version": st.just(1) | _scalars},
-    optional={"scan_uuid": st.just("u-1") | _scalars, "host": _host, "scan": st.one_of(json_values, st.just({})),
-              "findings": st.one_of(st.none(), json_values, st.lists(_finding, max_size=8))},
-)
+_findings = st.one_of(st.lists(_finding_dict, max_size=8), st.lists(_finding_dict, max_size=8),
+                      st.lists(_finding_dict, max_size=8), st.lists(st.one_of(_finding_dict, json_values), max_size=4),
+                      json_values)
+_scan_extras = st.dictionaries(st.sampled_from(["started_at", "finished_at", "mode", "probe_versions",
+                                                "tool_versions", "x"]), json_values, max_size=4)
+_PATHS = ["schema_version", "scan_uuid", "host", "host.machine_id", "host.hostname", "host.os",
+          "host.agent_version", "host.labels", "scan", "scan.status", "findings",
+          "host.extra", "scan.extra", "scan.started_at", "scan.probe_versions", "scan.tool_versions",
+          "host.extra", "scan.extra", "scan.started_at", "scan.probe_versions", "scan.tool_versions"]
+_mutations = st.lists(st.tuples(st.sampled_from(_PATHS), json_values), max_size=2)
 
 
-@given(_hostile_doc)
-def test_hostile_structured_documents(doc):
-    doc.setdefault("schema_version", 1)
-    try:
-        b = load_bundle(_gz(doc))
-    except _OK:
-        return
-    _check_loaded(b)
+def test_arbitrary_json_inside_a_valid_skeleton():
+    def build(muts):
+        doc = _skeleton()
+        for path, value in muts:
+            _put(doc, path, value)
+        return doc
+    _fuzz_loaded(_mutations.map(build))
+
+
+def test_hostile_structured_documents():
+    def build(parts):
+        labels, host_text, extras, findings = parts
+        doc = _skeleton()
+        doc["host"].update(labels=labels, hostname=host_text, os=host_text[::-1])
+        doc["scan"].update(extras)
+        doc["scan"]["status"] = "done"
+        doc["findings"] = findings
+        return doc
+    _fuzz_loaded(st.tuples(_labels, st.text(max_size=30), _scan_extras, _findings).map(build))
 
 
 @given(st.integers(0, 130), st.integers(0, 140), st.integers(0, 600))
