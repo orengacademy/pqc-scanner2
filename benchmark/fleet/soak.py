@@ -911,6 +911,27 @@ def _readonly_engine(target: str):
     return create_engine(f"sqlite:///file:{Path(target).resolve()}?mode=ro&uri=true")
 
 
+_URL = re.compile(r"""[A-Za-z][\w+.-]*://[^\s'"]+""")
+
+
+def _redact(text: str) -> str:
+    """Hide the password in every URL inside `text` (a recorded command line): `user:secret@` becomes `user:***@`."""
+    from sqlalchemy.engine import make_url
+
+    def one(m: re.Match[str]) -> str:
+        u = m.group(0)
+        try:
+            parsed = make_url(u)
+            if parsed.password is not None:
+                u = parsed.render_as_string(hide_password=True)
+        except Exception:       # not a SQLAlchemy URL: the pattern below still strips the userinfo
+            pass
+        # Second pass: a password holding a bare '@' leaves a tail after the first '@'; cut to the last one.
+        return re.sub(r"(://[^:/@\s]*):[^/\s]*@", r"\1:***@", u)
+
+    return _URL.sub(one, text)
+
+
 def observe(*, target: str, access_log: Path | None, cycles: int, interval: float, command: str = "") -> dict[str, Any]:
     """REAL soak, collector side: every `interval` seconds snapshot a running collector's DB and access log.
 
@@ -924,7 +945,7 @@ def observe(*, target: str, access_log: Path | None, cycles: int, interval: floa
     offset = 0
     mark = None            # highest scan id seen at the previous snapshot
     prev: dict[str, int] = {}
-    out: dict[str, Any] = {"SIMULATED": False, "mode": "observe", "command": command, "interval_s": interval,
+    out: dict[str, Any] = {"SIMULATED": False, "mode": "observe", "command": _redact(command), "interval_s": interval,
                            "started_at": dt.datetime.now(dt.UTC).isoformat(), "commit": _git("rev-parse", "HEAD"),
                            "cycles": []}
     for c in range(1, cycles + 1):

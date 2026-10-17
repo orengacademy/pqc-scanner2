@@ -74,3 +74,37 @@ def test_main_with_the_runbook_argv_observes_and_never_simulates(tmp_path, monke
                                       "--cycles", "7", "--interval", "86400"])
     assert soak.main() == 0
     assert seen["target"] == str(db) and seen["cycles"] == 7 and seen["interval"] == 86400
+
+
+def test_observe_redacts_database_passwords_from_the_recorded_command(tmp_path, monkeypatch):
+    """soak-real.md says to commit the result JSON; a Postgres URL on the command line must not carry its password."""
+    import sqlite3
+
+    from sqlalchemy import create_engine
+
+    db = tmp_path / "live.db"
+    con = sqlite3.connect(db)
+    con.executescript(
+        "create table hosts (id integer primary key, machine_id text, labels text, last_seen text);"
+        "create table scans (id integer primary key, host_id integer);"
+        "create table findings (id integer primary key, scan_id integer, probe_id text, title text);"
+    )
+    con.close()
+    monkeypatch.setattr(soak, "_readonly_engine", lambda target: create_engine(f"sqlite:///{db}"))
+    monkeypatch.setattr(soak, "RESULTS", tmp_path / "results")
+    url = "postgresql+psycopg://user:secret@host/db"
+    monkeypatch.setattr(sys, "argv", ["soak", "--observe", url, "--cycles", "1", "--interval", "0"])
+    assert soak.main() == 0
+    (written,) = (tmp_path / "results").glob("soak-real-*.json")
+    text = written.read_text()
+    assert "secret" not in text
+    assert "postgresql+psycopg://user:***@host/db" in text
+
+
+def test_redact_handles_equals_form_odd_passwords_and_passwordless_urls():
+    assert "s3cr3t" not in soak._redact("soak --observe=postgresql://u:s3cr3t@h/d --cycles 7")
+    assert soak._redact("soak --observe 'postgresql://u:p@ss@h/d' --cycles 7") == \
+        "soak --observe 'postgresql://u:***@h/d' --cycles 7"
+    assert soak._redact("soak --observe postgresql://u:pw@h:5432/d") == "soak --observe postgresql://u:***@h:5432/d"
+    assert soak._redact("soak --observe postgresql://h/d --cycles 7") == "soak --observe postgresql://h/d --cycles 7"
+    assert soak._redact("soak --observe /var/lib/pqcscan/fleet.db") == "soak --observe /var/lib/pqcscan/fleet.db"

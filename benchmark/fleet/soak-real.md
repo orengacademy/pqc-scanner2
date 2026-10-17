@@ -66,6 +66,9 @@ python -m benchmark.fleet.soak --observe /var/lib/pqcscan/fleet.db \
 # Postgres: --observe 'postgresql+psycopg://pqc:***@db.internal/pqc'
 ```
 
+Passwords in any URL on the command line are redacted (`user:***@host`) before the result file is written, so the JSON is
+safe to commit. The shell history and the process list on the collector box still hold the password.
+
 Every 86,400 s it writes one snapshot, then at the end `benchmark/fleet/results/soak-real-<YYYYMMDD>.json` (never
 overwritten). Per cycle and host it records scans stored, label count, scans added since the last snapshot, older scans
 that retention removed, and the drift rows on the host's newest scan, with a sample of their text. Per cycle it records
