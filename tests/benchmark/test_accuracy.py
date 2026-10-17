@@ -67,3 +67,24 @@ def test_recall_above_floor(report: rb.Report) -> None:
         report.recall,
         [c for c in report.cases if c.outcome == "FN"],
     )
+
+
+def test_corpus_hash_file_matches_fixtures() -> None:
+    # CORPUS.sha256 pins every label and fixture byte; regenerate with
+    # `PYTHONPATH=src python benchmark/corpus/generate_fixtures.py --hash`.
+    pinned = (rb.CORPUS_DIR / "CORPUS.sha256").read_text(encoding="utf-8")
+    assert pinned == rb.corpus_listing(), "corpus changed without regenerating CORPUS.sha256"
+
+
+def test_family_table_present(report: rb.Report) -> None:
+    families = rb.report_to_dict(report)["per_family"]
+    for fam in ("code.ts", "fs.cert", "fs.keystore", "fs.ssh", "net.tls", "fs.binary"):
+        assert fam in families, sorted(families)
+        assert {"tp", "fp", "fn", "tn", "precision", "recall"} <= families[fam].keys()
+
+
+def test_accuracy_doc_names_current_corpus() -> None:
+    # docs/ACCURACY.md must state the corpus it was measured on, on its first line.
+    doc = (BENCHMARK_DIR.parent / "docs" / "ACCURACY.md").read_text(encoding="utf-8")
+    assert rb.corpus_hash() in doc.splitlines()[0], "docs/ACCURACY.md is stale: re-run --by-family"
+    assert "| family |" in doc

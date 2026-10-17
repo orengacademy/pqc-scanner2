@@ -1,16 +1,25 @@
 {
   "overall": {
-    "tp": 19,
+    "tp": 68,
     "fp": 0,
-    "fn": 0,
-    "tn": 22,
+    "fn": 1,
+    "tn": 48,
     "precision": 1.0,
-    "recall": 1.0,
-    "positives": 19,
-    "negatives": 22,
-    "cases": 41
+    "recall": 0.9855072463768116,
+    "positives": 69,
+    "negatives": 48,
+    "cases": 117
   },
+  "corpus_sha256": "6c00870b27d27388932bc63a55a4b784f92f6cd6e1e5051c98095f7ec13f3c69",
   "per_probe": {
+    "code.ts.csharp": {
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "tn": 4,
+      "precision": 1.0,
+      "recall": 1.0
+    },
     "code.ts.go": {
       "tp": 1,
       "fp": 0,
@@ -20,10 +29,10 @@
       "recall": 1.0
     },
     "code.ts.java": {
-      "tp": 2,
+      "tp": 4,
       "fp": 0,
       "fn": 0,
-      "tn": 2,
+      "tn": 6,
       "precision": 1.0,
       "recall": 1.0
     },
@@ -52,18 +61,42 @@
       "recall": 1.0
     },
     "code.ts.rust": {
-      "tp": 1,
+      "tp": 3,
       "fp": 0,
       "fn": 0,
-      "tn": 2,
+      "tn": 4,
       "precision": 1.0,
       "recall": 1.0
     },
-    "fs.cert.x509": {
+    "fs.binary.crypto": {
       "tp": 1,
       "fp": 0,
       "fn": 0,
       "tn": 1,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "fs.cert.privkey": {
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "tn": 1,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "fs.cert.privkey_encrypted": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "tn": 1,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "fs.cert.x509": {
+      "tp": 9,
+      "fp": 0,
+      "fn": 0,
+      "tn": 2,
       "precision": 1.0,
       "recall": 1.0
     },
@@ -99,6 +132,14 @@
       "precision": 1.0,
       "recall": 1.0
     },
+    "fs.conf.openssl_cnf": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "tn": 1,
+      "precision": 1.0,
+      "recall": 1.0
+    },
     "fs.conf.sshd": {
       "tp": 1,
       "fp": 0,
@@ -114,9 +155,162 @@
       "tn": 1,
       "precision": 1.0,
       "recall": 1.0
+    },
+    "fs.keystore.pkcs12": {
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "tn": 1,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "fs.ssh.host_keys": {
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "tn": 1,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "net.tls.cert_chain": {
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "tn": 0,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "net.tls.cert_chain_tls13": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "tn": 1,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "net.tls.https": {
+      "tp": 5,
+      "fp": 0,
+      "fn": 1,
+      "tn": 0,
+      "precision": 1.0,
+      "recall": 0.8333333333333334
+    },
+    "net.tls.kex_groups": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "tn": 2,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "net.tls.pqc_handshake": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "tn": 2,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "net.tls.versions": {
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "tn": 3,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "sbom.crypto_map": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "tn": 1,
+      "precision": 1.0,
+      "recall": 1.0
     }
   },
-  "misclassified": [],
+  "per_family": {
+    "code.ts": {
+      "tp": 18,
+      "fp": 0,
+      "fn": 0,
+      "tn": 25,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "fs.binary": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "tn": 1,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "fs.cert": {
+      "tp": 15,
+      "fp": 0,
+      "fn": 0,
+      "tn": 4,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "fs.conf": {
+      "tp": 7,
+      "fp": 0,
+      "fn": 0,
+      "tn": 6,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "fs.db": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "tn": 1,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "fs.keystore": {
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "tn": 1,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "fs.ssh": {
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "tn": 1,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "net.tls": {
+      "tp": 17,
+      "fp": 0,
+      "fn": 1,
+      "tn": 8,
+      "precision": 1.0,
+      "recall": 0.9444444444444444
+    },
+    "sbom.crypto_map": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "tn": 1,
+      "precision": 1.0,
+      "recall": 1.0
+    }
+  },
+  "misclassified": [
+    {
+      "id": "ep-mtls-https",
+      "probe": "net.tls.https",
+      "outcome": "FN",
+      "note": "expected a detection, none fired"
+    }
+  ],
   "cases": [
     {
       "id": "py-md5-real",
@@ -520,6 +714,796 @@
     {
       "id": "db-clean",
       "probe": "fs.db.crypto",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cert-rsa2048-pem",
+      "probe": "fs.cert.x509",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "RSA-2048"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cert-rsa2048-der",
+      "probe": "fs.cert.x509",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "RSA-2048"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cert-rsa3072-pem",
+      "probe": "fs.cert.x509",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "RSA-3072"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cert-rsa4096-der",
+      "probe": "fs.cert.x509",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "RSA-4096"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cert-ecdsa-p256-pem",
+      "probe": "fs.cert.x509",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "ECDSA-secp256r1"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cert-ecdsa-p384-der",
+      "probe": "fs.cert.x509",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "ECDSA-secp384r1"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cert-ed25519-pem",
+      "probe": "fs.cert.x509",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "Ed25519"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cert-ed25519-der",
+      "probe": "fs.cert.x509",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "Ed25519"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cert-mldsa65-der",
+      "probe": "fs.cert.x509",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "p12-rsa2048-changeit",
+      "probe": "fs.keystore.pkcs12",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "RSA-2048"
+      ],
+      "note": ""
+    },
+    {
+      "id": "p12-ed25519-nopass",
+      "probe": "fs.keystore.pkcs12",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "Ed25519"
+      ],
+      "note": ""
+    },
+    {
+      "id": "p12-ecdsa-p256-test",
+      "probe": "fs.keystore.pkcs12",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "PKCS12-ENCRYPTED"
+      ],
+      "note": ""
+    },
+    {
+      "id": "p12-truststore-rsa2048",
+      "probe": "fs.keystore.pkcs12",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "RSA-2048"
+      ],
+      "note": ""
+    },
+    {
+      "id": "p12-truststore-mldsa65",
+      "probe": "fs.keystore.pkcs12",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "key-rsa2048-pkcs8",
+      "probe": "fs.cert.privkey",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "RSA-2048"
+      ],
+      "note": ""
+    },
+    {
+      "id": "key-rsa1024-traditional",
+      "probe": "fs.cert.privkey",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "RSA-1024"
+      ],
+      "note": ""
+    },
+    {
+      "id": "key-ecdsa-p384-pkcs8",
+      "probe": "fs.cert.privkey",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "ECDSA-secp384r1"
+      ],
+      "note": ""
+    },
+    {
+      "id": "key-ed25519-pkcs8",
+      "probe": "fs.cert.privkey",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "Ed25519"
+      ],
+      "note": ""
+    },
+    {
+      "id": "key-mldsa65-pkcs8",
+      "probe": "fs.cert.privkey",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "key-rsa2048-pkcs8-encrypted",
+      "probe": "fs.cert.privkey_encrypted",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "PKCS8-PBES2"
+      ],
+      "note": ""
+    },
+    {
+      "id": "key-rsa2048-legacy-encrypted",
+      "probe": "fs.cert.privkey_encrypted",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "PEM-legacy/AES-256-CBC"
+      ],
+      "note": ""
+    },
+    {
+      "id": "key-unencrypted-not-flagged-encrypted",
+      "probe": "fs.cert.privkey_encrypted",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "ssh-hostkey-rsa1024",
+      "probe": "fs.ssh.host_keys",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "RSA-1024"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ssh-hostkey-ed25519",
+      "probe": "fs.ssh.host_keys",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "Ed25519"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ssh-hostkey-ecdsa-p256",
+      "probe": "fs.ssh.host_keys",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "ECDSA-P256"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ssh-authorized-keys-rsa2048",
+      "probe": "fs.ssh.host_keys",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "RSA-2048"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ssh-authorized-keys-comments",
+      "probe": "fs.ssh.host_keys",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cs-md5-real",
+      "probe": "code.ts.csharp",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cs-rsa-real",
+      "probe": "code.ts.csharp",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "RSA-2048"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cs-des-real",
+      "probe": "code.ts.csharp",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "TRIPLEDES"
+      ],
+      "note": ""
+    },
+    {
+      "id": "cs-comment-md5",
+      "probe": "code.ts.csharp",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cs-string-md5",
+      "probe": "code.ts.csharp",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cs-verbatim-md5",
+      "probe": "code.ts.csharp",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "cs-clean-sha256",
+      "probe": "code.ts.csharp",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "rust-rsa-real",
+      "probe": "code.ts.rust",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "RSA-2048"
+      ],
+      "note": ""
+    },
+    {
+      "id": "rust-des-real",
+      "probe": "code.ts.rust",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "DES"
+      ],
+      "note": ""
+    },
+    {
+      "id": "rust-raw-string-md5",
+      "probe": "code.ts.rust",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "rust-clean-sha256",
+      "probe": "code.ts.rust",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "kt-md5-real",
+      "probe": "code.ts.java",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5"
+      ],
+      "note": ""
+    },
+    {
+      "id": "kt-rsa-real",
+      "probe": "code.ts.java",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "RSA-2048"
+      ],
+      "note": ""
+    },
+    {
+      "id": "kt-comment-md5",
+      "probe": "code.ts.java",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "kt-string-md5",
+      "probe": "code.ts.java",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "kt-raw-string-md5",
+      "probe": "code.ts.java",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "kt-clean-sha256",
+      "probe": "code.ts.java",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "image-legacy-binary",
+      "probe": "fs.binary.crypto",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "pkg:generic/openssl@1.0.2u"
+      ],
+      "note": ""
+    },
+    {
+      "id": "image-modern-binary",
+      "probe": "fs.binary.crypto",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "image-legacy-openssl-cnf",
+      "probe": "fs.conf.openssl_cnf",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "MD5/RC4/etc-via-legacy-provider"
+      ],
+      "note": ""
+    },
+    {
+      "id": "image-modern-openssl-cnf",
+      "probe": "fs.conf.openssl_cnf",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "image-legacy-deps",
+      "probe": "sbom.crypto_map",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "pkg:pypi/pycryptodome"
+      ],
+      "note": ""
+    },
+    {
+      "id": "image-modern-deps",
+      "probe": "sbom.crypto_map",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "ep-tls10-versions",
+      "probe": "net.tls.versions",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "TLS 1.0",
+        "TLS 1.3"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ep-tls10-cert-chain",
+      "probe": "net.tls.cert_chain",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "RSA-2048"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ep-tls10-https",
+      "probe": "net.tls.https",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "ECDHE-RSA-AES256-SHA",
+        "RSA-2048"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ep-rsa-kex-versions",
+      "probe": "net.tls.versions",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "TLS 1.3"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ep-rsa-kex-cert-chain",
+      "probe": "net.tls.cert_chain",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "RSA-2048"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ep-rsa-kex-https",
+      "probe": "net.tls.https",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "AES256-GCM-SHA384",
+        "RSA-2048"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ep-null-cipher-versions",
+      "probe": "net.tls.versions",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "TLS 1.3"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ep-null-cipher-https",
+      "probe": "net.tls.https",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "NULL-SHA256",
+        "RSA-2048"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ep-tls12-ecdhe-versions",
+      "probe": "net.tls.versions",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "TLS 1.3"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ep-tls12-ecdhe-cert-chain",
+      "probe": "net.tls.cert_chain",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "RSA-2048"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ep-tls12-ecdhe-https",
+      "probe": "net.tls.https",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "ECDHE-RSA-AES128-GCM-SHA256",
+        "RSA-2048"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ep-mtls-cert-chain",
+      "probe": "net.tls.cert_chain",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "RSA-2048"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ep-mtls-https",
+      "probe": "net.tls.https",
+      "kind": "positive",
+      "outcome": "FN",
+      "fired": false,
+      "detections": [],
+      "note": "expected a detection, none fired"
+    },
+    {
+      "id": "ep-tls13-x25519-versions",
+      "probe": "net.tls.versions",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "ep-tls13-x25519-kex",
+      "probe": "net.tls.kex_groups",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "x25519"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ep-tls13-x25519-pqc-handshake",
+      "probe": "net.tls.pqc_handshake",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "X25519"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ep-tls13-x25519-cert-chain",
+      "probe": "net.tls.cert_chain_tls13",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "ECDSA-SECP256R1",
+        "ECDSA-SHA256"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ep-tls13-x25519-https",
+      "probe": "net.tls.https",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "TLS_AES_256_GCM_SHA384",
+        "ECDSA-secp256r1"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ep-hybrid-ed25519-versions",
+      "probe": "net.tls.versions",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "ep-hybrid-ed25519-kex",
+      "probe": "net.tls.kex_groups",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "ep-hybrid-ed25519-pqc-handshake",
+      "probe": "net.tls.pqc_handshake",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "ep-hybrid-ed25519-cert-chain",
+      "probe": "net.tls.cert_chain_tls13",
+      "kind": "positive",
+      "outcome": "TP",
+      "fired": true,
+      "detections": [
+        "Ed25519",
+        "Ed25519"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ep-hybrid-mldsa65-versions",
+      "probe": "net.tls.versions",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "ep-hybrid-mldsa65-kex",
+      "probe": "net.tls.kex_groups",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "ep-hybrid-mldsa65-pqc-handshake",
+      "probe": "net.tls.pqc_handshake",
+      "kind": "negative",
+      "outcome": "TN",
+      "fired": false,
+      "detections": [],
+      "note": ""
+    },
+    {
+      "id": "ep-hybrid-mldsa65-cert-chain",
+      "probe": "net.tls.cert_chain_tls13",
       "kind": "negative",
       "outcome": "TN",
       "fired": false,

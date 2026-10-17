@@ -46,13 +46,31 @@ never as a TP.
 
 ## Current measured numbers
 
-Corpus: **41 cases — 19 positive / 22 negative**, across 13 offline probes.
+Corpus: **117 cases — 69 positive / 48 negative**, across 27 probes in 9 families.
 
 ```
-OVERALL   TP=19  FP=0  FN=0  TN=22   precision=1.000   recall=1.000
+OVERALL   TP=68  FP=0  FN=1  TN=48   precision=1.000   recall=0.986
 ```
 
-Full per-probe numbers are written to `benchmark/last_report.json` on every run.
+The per-family table, the probes that were fixed, and the corpus limits are in
+[`docs/ACCURACY.md`](../docs/ACCURACY.md). Full per-probe, per-family and
+per-case numbers are written to `benchmark/last_report.json` on every run.
+
+## Fixture kinds
+
+A manifest case may set `fixture:` (default `file`):
+
+- `file` — `input` is a file or directory handed to the probe as its roots.
+- `endpoint` — `input` is an `endpoint.yaml` (`cert`, `key`, `min_version`,
+  `max_version`, optional `ciphers`, `group`, `require_client_cert`,
+  `requires_openssl`). The harness serves TLS from it on a free 127.0.0.1 port
+  for the case and binds the probe to it the way `--target` does
+  (`runner.bind_context`).
+- `image` — `input` is an OCI image layout; its layers are extracted into a
+  temp rootfs and the file probes are pointed at it.
+
+A case the host cannot serve (an endpoint needing a newer OpenSSL) is reported
+as `SKIP` and left out of every count.
 
 ## Coverage
 
@@ -73,10 +91,19 @@ Full per-probe numbers are written to `benchmark/last_report.json` on every run.
 - `fs.db.crypto`: a SQLite DB with an RSA-2048 PEM cert in a TEXT column
   (positive) and a SQLite DB of ordinary text (negative). Built with stdlib
   `sqlite3` at authoring time and committed.
+- Fleet-evidence extension: RSA-2048/3072/4096, ECDSA P-256/P-384 and Ed25519
+  certs in PEM and DER (`fs.cert.x509`); PKCS#12 keystores and truststores
+  (`fs.keystore.pkcs12`); PKCS#8, PKCS#1 and encrypted private keys
+  (`fs.cert.privkey`, `fs.cert.privkey_encrypted`); OpenSSH host keys and
+  `authorized_keys` (`fs.ssh.host_keys`); C#, Rust and Kotlin snippets; eight
+  local TLS endpoints (TLS 1.0-only, static-RSA-only, NULL cipher, TLS 1.2
+  ECDHE, mTLS, TLS 1.3 X25519, two hybrid X25519MLKEM768) against the six
+  `net.tls.*` probes; two OCI images (OpenSSL 1.0.2 vs 3.5) against
+  `fs.binary.crypto`, `fs.conf.openssl_cnf` and `sbom.crypto_map`.
 
-Probes that need a live network socket (`net.*`), a running daemon, or host-only
-artefacts (`host.*`) are intentionally excluded — they cannot be pointed at a
-static fixture. See the comment header in `manifest.yaml`.
+Probes that need a running daemon (docker, syft) or host-only artefacts
+(`host.*`) are excluded — they cannot be pointed at a fixture. TLS probes are
+covered through local `endpoint` fixtures.
 
 ## How to run
 
@@ -85,6 +112,12 @@ source .venv/bin/activate
 
 # print the table (+ writes last_report.json)
 PYTHONPATH=src python benchmark/run_benchmark.py
+
+# add the per-family table (the docs/ACCURACY.md run)
+PYTHONPATH=src python benchmark/run_benchmark.py --by-family
+
+# regenerate fixtures and CORPUS.sha256 (deterministic; --hash = hash only)
+PYTHONPATH=src python benchmark/corpus/generate_fixtures.py
 
 # JSON to stdout
 PYTHONPATH=src python benchmark/run_benchmark.py --json
@@ -101,18 +134,24 @@ PYTHONPATH=src python -m pytest tests/benchmark/ -q
 
 It asserts overall **precision == 1.0** (the zero-false-positive guarantee) and
 **recall >= 0.95**, and checks that every manifest input exists and every probe
-id resolves so the corpus cannot rot.
+id resolves so the corpus cannot rot. It also checks that `corpus/CORPUS.sha256`
+matches the fixtures and that the first line of `docs/ACCURACY.md` names the
+current corpus hash.
 
 ## How to add a case
 
-1. Create the fixture under `corpus/cases/`. Code probes walk a directory, so a
-   `code.ts.*` case is a **directory** holding one source file; the config /
-   cert / DB probes take a single file (certs are directories because the cert
-   probe walks a tree). Keep fixtures tiny.
+1. Add the fixture to `corpus/generate_fixtures.py` (it writes `corpus/cases/`).
+   Code probes walk a directory, so a `code.ts.*` case is a **directory**
+   holding one source file; the config / cert / DB probes take a single file
+   (certs are directories because the cert probe walks a tree). Keep fixtures
+   tiny and derive keys from a fixed seed.
 2. Add an entry to `corpus/manifest.yaml` with a unique `id`, the real `probe`
    id (must resolve in `default_registry()`), `kind`, `input` (path relative to
-   `corpus/`), and — for positives — an optional `expect` block.
-3. Re-run the harness; confirm precision stays 1.0.
+   `corpus/`), optional `fixture`, and — for positives — an optional `expect`
+   block.
+3. Regenerate (`generate_fixtures.py`, which rewrites `CORPUS.sha256`), re-run
+   with `--by-family`, confirm precision stays 1.0, and refresh
+   `docs/ACCURACY.md`.
 
 ## Development notes
 
@@ -130,8 +169,9 @@ id resolves so the corpus cannot rot.
 
 ## Known misclassifications
 
-None. Every negative is silent and every positive fires, so the seeded corpus
-measures precision 1.000 and recall 1.000.
+One: `ep-mtls-https`. `net.tls.https` cannot finish a handshake with a server
+that requires a client certificate, so it never sees the server cert;
+`net.tls.cert_chain` does (see `docs/ACCURACY.md`).
 
 A design note worth recording (not a bug): under the "real detection" rule,
 `tinggi`-tier findings count as fires, so a *classical-but-modern* certificate
