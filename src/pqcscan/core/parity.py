@@ -50,7 +50,8 @@ def _norm_title(title: str, host: str = "") -> str:
     out: list[str] = []
     for tok in t.split():
         out.append(_norm_token(tok, bool(out) and out[-1] == "at"))
-    return " ".join(out)[:MAX_TITLE_NORMALISE]   # `<host>` is longer than a one-letter host: the key must not outgrow the cap
+    # `<host>` is longer than a one-letter host, so the normalised text can outgrow its input: cap it too
+    return " ".join(out)[:MAX_TITLE_NORMALISE]
 
 
 def parity_key(probe_id: str, algorithm: str, title: str, evidence: dict[str, Any]) -> tuple[str, str, str]:
