@@ -1,7 +1,7 @@
 """Language-aware comment/string blanking for regex-based source probes.
 
-The non-Python source-code probes (``code.ts.go`` / ``.java`` / ``.javascript``
-/ ``.php`` / ``.rust``) detect weak crypto with plain regexes over raw source
+The non-Python source-code probes (``code.ts.go`` / ``.java`` (also Kotlin and
+Scala) / ``.javascript`` / ``.php`` / ``.rust`` / ``.csharp``) detect weak crypto with plain regexes over raw source
 text.  A weak-crypto token that appears inside a ``// comment`` or a
 ``"string literal"`` is a false positive.  This module neutralises those
 regions *before* the detection regexes run, without any native grammar (so the
@@ -39,8 +39,14 @@ Known best-effort limitations (documented, acceptable for a regex MVP):
   first ``*/`` closes the comment).
 - Rust raw strings ``r"..."`` / ``r#"..."#`` / ``br"..."`` are matched
   best-effort via a hash-count backreference.
-- JavaScript template-literal ``${ ... }`` interpolations are blanked wholesale
-  (the embedded expression is treated as string content).
+- JavaScript template-literal ``${ ... }`` interpolations and Kotlin / Scala
+  ``$name`` / ``${ ... }`` string templates are blanked wholesale (the embedded
+  expression is treated as string content, so a call inside one is missed).
+- C# verbatim strings ``@"..."`` are handled; interpolated ``$"{...}"`` holes are
+  blanked as string content like the templates above.
+- An unterminated string or comment is left as code (not blanked) from its
+  opener to the end of its line (quotes) or of the input (block comments, raw /
+  verbatim strings).
 - PHP heredoc/nowdoc (``<<<EOT``) bodies are not stripped.
 - Multi-char Rust/Go char escapes such as ``'\\u{1F600}'`` are not matched.
 """
@@ -54,11 +60,23 @@ from pathlib import Path
 from pqcscan.core.types import Classification, Finding, Severity
 
 # --- Lexical building blocks -------------------------------------------------
-# Double-quoted string with backslash escapes, confined to a single line so an
-# unterminated quote fails to match (and is thus left as code — fail-open).
-_DQ = r'"(?:\\.|[^"\\\n])*"'
+# Double-quoted string with backslash escapes, confined to a single line.
+_DQ = r'"(?:\\.|[^"\\\n])*+"'
 # Single-quoted *string* (JS / PHP): multi-character, backslash escapes.
-_SQ_STR = r"'(?:\\.|[^'\\\n])*'"
+_SQ_STR = r"'(?:\\.|[^'\\\n])*+'"
+
+# Unterminated forms. Each follows the form it backs up and consumes what that
+# form scanned and then rejected: an unterminated quote to the end of its line,
+# an unterminated block comment / raw / verbatim string to the end of input.
+# They are NOT blanked (fail-open: the text stays code). Without them finditer
+# retried at every later opener and rescanned the same span — quadratic, e.g.
+# 10 s for one 40 k-character line of \" escapes. The group names must start
+# with "unterm" (strip_noncode skips blanking on them).
+_DQ_UNTERM = r'(?P<unterm_dq>"(?:\\.|[^"\\\n])*+)'
+_SQ_UNTERM = r"(?P<unterm_sq>'(?:\\.|[^'\\\n])*+)"
+_BLOCK_UNTERM = r"(?P<unterm_block>/\*[\s\S]*)"
+_RUST_RAW_UNTERM = r'(?P<unterm_raw>b?r#*"[\s\S]*)'
+_CSHARP_VERBATIM_UNTERM = r'(?P<unterm_verbatim>@"[\s\S]*)'
 # Single char / rune literal (Go / Java / Rust): exactly one char or one escape.
 # Matching only a single element keeps Rust lifetimes (``&'a T``) safe.
 _CHAR = r"'(?:\\.|[^'\\\n])'"
@@ -85,23 +103,27 @@ _CSHARP_VERBATIM = r'@"(?:""|[^"])*"'
 # - Kotlin / Scala raw string: no escapes; also closes on the final quote run
 #   ("""x"""" holds x").
 # The body alternatives are disjoint (a quote is body only when it does not
-# start a """ run) and possessive (*+), so matching is linear: no input can
-# make the engine backtrack through the body. The closer is "*""" — the run of
-# quotes the body refused, however long.
+# start a """ run) and possessive (*+), so the body never backtracks, and it
+# cannot run past a """ — so an unterminated block only scans to the end of
+# input once, with no later opener left to rescan. The closer is "*""" — the
+# run of quotes the body refused, however long.
 _JAVA_TEXT_BLOCK = r'"""[ \t\f]*\r?\n(?:[^"\\]|\\[\s\S]|"(?!""))*+"*"""'
 _RAW_TRIPLE = r'"""(?:[^"]|"(?!""))*+"*"""'
 
-# Per-language alternation members.  Order is immaterial for correctness (the
-# left-to-right scan disambiguates by start position; block vs line comments
-# disambiguate on their second character) but roughly follows likelihood.
+# Per-language alternation members.  Order matters only where two forms can
+# start at the same character: triple-quoted / verbatim forms precede _DQ, and
+# each *_UNTERM form directly follows the form it backs up.  With those, every
+# character is scanned a bounded number of times, so stripping is linear in the
+# input length (pinned by timing tests in tests/unit/test_srcstrip.py).
 _LANG_FORMS: dict[str, tuple[str, ...]] = {
-    "go": (_BLOCK, _LINE_SLASH, _BACKTICK, _DQ, _CHAR),
-    "java": (_BLOCK, _LINE_SLASH, _JAVA_TEXT_BLOCK, _DQ, _CHAR),
-    "kotlin": (_BLOCK, _LINE_SLASH, _RAW_TRIPLE, _DQ, _CHAR),  # also Scala
-    "javascript": (_BLOCK, _LINE_SLASH, _BACKTICK, _DQ, _SQ_STR),
-    "php": (_BLOCK, _LINE_SLASH, _LINE_HASH, _DQ, _SQ_STR),
-    "rust": (_BLOCK, _LINE_SLASH, _RUST_RAW, _DQ, _CHAR),
-    "csharp": (_BLOCK, _LINE_SLASH, _CSHARP_VERBATIM, _DQ, _CHAR),
+    "go": (_BLOCK, _BLOCK_UNTERM, _LINE_SLASH, _BACKTICK, _DQ, _DQ_UNTERM, _CHAR),
+    "java": (_BLOCK, _BLOCK_UNTERM, _LINE_SLASH, _JAVA_TEXT_BLOCK, _DQ, _DQ_UNTERM, _CHAR),
+    "kotlin": (_BLOCK, _BLOCK_UNTERM, _LINE_SLASH, _RAW_TRIPLE, _DQ, _DQ_UNTERM, _CHAR),  # also Scala
+    "javascript": (_BLOCK, _BLOCK_UNTERM, _LINE_SLASH, _BACKTICK, _DQ, _DQ_UNTERM, _SQ_STR, _SQ_UNTERM),
+    "php": (_BLOCK, _BLOCK_UNTERM, _LINE_SLASH, _LINE_HASH, _DQ, _DQ_UNTERM, _SQ_STR, _SQ_UNTERM),
+    "rust": (_BLOCK, _BLOCK_UNTERM, _LINE_SLASH, _RUST_RAW, _RUST_RAW_UNTERM, _DQ, _DQ_UNTERM, _CHAR),
+    "csharp": (_BLOCK, _BLOCK_UNTERM, _LINE_SLASH, _CSHARP_VERBATIM, _CSHARP_VERBATIM_UNTERM, _DQ, _DQ_UNTERM,
+               _CHAR),
 }
 
 
@@ -110,14 +132,42 @@ _LANG_FORMS: dict[str, tuple[str, ...]] = {
 MAX_STRIP_CHARS = 2 * 1024 * 1024
 
 
+# Unterminated forms that reach the end of input. Once one matches, its form can
+# never match again later in the file (no closer remains), so the scan resumes
+# just past the opener without that form instead of leaving the rest of the file
+# unblanked. At most one restart per entry, so still linear.
+_EOF_UNTERM: dict[str, tuple[str, str]] = {
+    "unterm_block": (_BLOCK, _BLOCK_UNTERM),
+    "unterm_raw": (_RUST_RAW, _RUST_RAW_UNTERM),
+    "unterm_verbatim": (_CSHARP_VERBATIM, _CSHARP_VERBATIM_UNTERM),
+}
+
+
 @cache
-def _pattern_for(lang: str) -> re.Pattern[str] | None:
-    """Compile (and cache) the combined comment/string pattern for ``lang``."""
+def _pattern_for(lang: str, drop: frozenset[str] = frozenset()) -> re.Pattern[str] | None:
+    """Compile (and cache) the combined comment/string pattern for ``lang``,
+    without the end-of-input forms named in ``drop``."""
     forms = _LANG_FORMS.get(lang)
     if forms is None:
         return None
-    combined = "|".join(f"(?:{form})" for form in forms)
-    return re.compile(combined)
+    dropped = {form for name in drop for form in _EOF_UNTERM[name]}
+    return re.compile("|".join(f"(?:{form})" for form in forms if form not in dropped))
+
+
+def _blank_spans(source: str, lang: str) -> Iterator[tuple[int, int]]:
+    """(start, end) of every comment / terminated literal, left to right."""
+    drop: frozenset[str] = frozenset()
+    pos = 0
+    while (pattern := _pattern_for(lang, drop)) is not None:
+        for match in pattern.finditer(source, pos):
+            group = match.lastgroup or ""
+            if group in _EOF_UNTERM:
+                drop, pos = drop | {group}, match.start() + 1
+                break
+            if not group.startswith("unterm"):  # unterminated quote: leave as code
+                yield match.start(), match.end()
+        else:
+            return
 
 
 def strip_noncode(source: str, lang: str) -> str:
@@ -132,12 +182,11 @@ def strip_noncode(source: str, lang: str) -> str:
     (fail-open: detection recall must never regress).
     """
     try:
-        pattern = _pattern_for(lang)
-        if pattern is None or len(source) > MAX_STRIP_CHARS:
+        if lang not in _LANG_FORMS or len(source) > MAX_STRIP_CHARS:
             return source
         chars = list(source)
-        for match in pattern.finditer(source):
-            for i in range(match.start(), match.end()):
+        for start, end in _blank_spans(source, lang):
+            for i in range(start, end):
                 if chars[i] != "\n":
                     chars[i] = " "
         return "".join(chars)

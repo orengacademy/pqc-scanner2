@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- The source stripper is linear on long lines and unterminated comments. An unterminated `"`/`'` used to be
+  rescanned from every later quote on its line, about 10 s for one 40 k-character line of `\"` escapes, so the 2 MiB
+  limit did not bound the work. Unterminated quotes are now left as code to the end of their line. Unterminated block
+  comments and raw/verbatim strings are left as code once, and stripping resumes after their opener.
 - The source stripper matches text blocks and raw strings in linear time (disjoint, possessive body), and skips
   stripping for inputs over 2 MiB. Such a file is still scanned, unstripped, with an INFO note saying so.
 - OpenSSL-spelled suite names now get the same grade as their RFC spelling. The new OpenSSL branch above rated

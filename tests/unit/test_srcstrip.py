@@ -174,3 +174,45 @@ def test_oversize_input_is_not_stripped_and_noted():
     assert len(notes) == 1 and notes[0].evidence["chars"] == len(src)
     assert strip_for_scan("// md5\n", "java", probe_id="p", path=Path("s.java"), emit=notes.append) == " " * 6 + "\n"
     assert len(notes) == 1
+
+
+def _strip_seconds(src: str, lang: str) -> float:
+    import time
+
+    t0 = time.perf_counter()
+    out = strip_noncode(src, lang)
+    assert len(out) == len(src)
+    return time.perf_counter() - t0
+
+
+def test_unterminated_quote_on_a_long_line_is_linear():
+    # One 1 MiB line of escaped quotes after an opening quote never closes; the
+    # scan used to retry at every quote (quadratic: ~10 s at 40 k characters).
+    mib = 1 << 20
+    for lang in ("go", "java", "kotlin", "rust", "csharp", "javascript", "php"):
+        assert _strip_seconds('x = "' + '\\"' * (mib // 2), lang) < 1.0, lang
+    for lang in ("javascript", "php"):
+        assert _strip_seconds("x = '" + "\\'" * (mib // 2), lang) < 1.0, lang
+
+
+def test_unterminated_block_raw_and_verbatim_floods_are_linear():
+    kib = 1 << 10
+    assert _strip_seconds("/* x " * (256 * kib // 5), "go") < 1.0
+    assert _strip_seconds('r#"' * (256 * kib // 3), "rust") < 1.0
+    assert _strip_seconds('@"' + 'x""' * (256 * kib // 3), "csharp") < 1.0
+
+
+def test_unterminated_quote_is_left_as_code_to_end_of_line_only():
+    src = 'x = "open md5\n// md5 comment\ny = "md5";\n'
+    out = strip_noncode(src, "java")
+    assert out.splitlines()[0] == 'x = "open md5'      # left as code (fail-open)
+    assert "md5" not in out.splitlines()[1]            # later lines still stripped
+    assert "md5" not in out.splitlines()[2]
+
+
+def test_unterminated_block_comment_keeps_stripping_after_it():
+    # A JS regex like /^\/*/ contains "/*" with no "*/" anywhere after it.
+    src = "const re = /^\\/*/;\n// crypto.createHash('md5') is forbidden\nconst s = \"md5\";\n"
+    out = strip_noncode(src, "javascript")
+    assert out.startswith("const re = /^\\/*/;")
+    assert "md5" not in out
