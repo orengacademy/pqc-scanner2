@@ -7,6 +7,7 @@ repo reads.
 """
 from __future__ import annotations
 
+import math
 from collections import Counter, defaultdict
 from dataclasses import asdict
 from datetime import date
@@ -86,8 +87,33 @@ def _priority_groups(findings: list[Any]) -> list[dict[str, Any]]:
     return rows
 
 
+def _label_years(labels: dict[str, str], key: str) -> float | None:
+    """Parse one agent-supplied label as years: finite, > 0, <= 200, else None."""
+    try:
+        v = float(labels[key])
+    except (KeyError, TypeError, ValueError):
+        return None
+    return v if math.isfinite(v) and 0 < v <= 200 else None
+
+
+def mosca_from_labels(labels: dict[str, str]) -> MoscaInputs | None:
+    """Mosca inputs from host labels ``data_lifetime`` / ``migration_years`` / ``threat_years`` (years).
+
+    Labels are untrusted strings: bad values are ignored, never raised. Without a
+    valid ``data_lifetime`` there is nothing to anchor on, so the result is None.
+    """
+    x = _label_years(labels, "data_lifetime")
+    if x is None:
+        return None
+    return MoscaInputs(
+        data_lifetime_years=x,
+        migration_years=_label_years(labels, "migration_years") or 5.0,
+        threat_years=_label_years(labels, "threat_years") or 10.0,
+    )
+
+
 def _mosca_context(
-    findings: list[Any], lang: str, mosca_inputs: MoscaInputs | None
+    findings: list[Any], lang: str, mosca_inputs: MoscaInputs | None, source: str | None = None
 ) -> dict[str, Any]:
     """Build the ``"mosca"`` context entry (Mosca X+Y>Z shelf-life analysis).
 
@@ -103,6 +129,7 @@ def _mosca_context(
     ctx = result.as_dict()
     ctx.update(
         assumed=assumed,
+        source=source or ("default" if assumed else "explicit"),
         vulnerable=vulnerable,
         summary=lines.get(lang) or lines["en"],
         summary_en=lines["en"],
@@ -120,6 +147,12 @@ def build_report_context(
     scan = repo.get_scan(scan_id)
     if scan is None:
         raise ValueError(f"scan {scan_id} not found")
+    host = repo.get_host(scan.host_id) if scan.host_id else None
+    labels = dict(host.labels or {}) if host else {}
+    source = None
+    if mosca_inputs is None:
+        mosca_inputs = mosca_from_labels(labels)
+        source = "labels" if mosca_inputs else "default"
     findings = repo.list_findings(scan_id)
     framework_views = repo.list_framework_views(scan_id)
 
@@ -181,7 +214,8 @@ def build_report_context(
         "readiness": score,
         "migration_readiness": migration_readiness,
         "exposure": exposure,
-        "mosca": _mosca_context(findings, lang, mosca_inputs),
+        "mosca": _mosca_context(findings, lang, mosca_inputs, source),
+        "host_labels": labels,
         "fw_summary": {k: dict(v) for k, v in fw_summary.items()},
         "priority": priority,
         "hndl_count": hndl_count,

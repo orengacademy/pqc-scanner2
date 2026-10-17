@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Host labels drive Mosca inputs** — `data_lifetime`, `migration_years` and `threat_years` host labels (years) feed the
+  Mosca X+Y>Z section of that host's reports. Explicit inputs win; invalid labels fall back to the defaults.
+
 ## [0.10.1] — 2026-10-17
 
 ### Added — fleet mode, phase 2 (see `docs/FLEET.md`)

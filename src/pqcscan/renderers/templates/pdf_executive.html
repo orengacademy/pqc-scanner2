@@ -104,6 +104,7 @@
   <p class="lede"><span class="pill pqc-ready">{{ t('verdict.compliant') }}</span> {{ mosca.summary }}</p>
   {% endif %}
   {% if mosca.assumed %}<p class="muted" style="font-size:8.5pt">{{ t('mosca.assumed') }}</p>{% endif %}
+  {% if mosca.source == 'labels' %}<p class="muted" style="font-size:8.5pt">{{ t('mosca.from_labels') }}</p>{% endif %}
   {% endif %}
 
   {% if migration_readiness %}

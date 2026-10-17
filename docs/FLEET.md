@@ -23,6 +23,7 @@ exports from them.
 3. **Fleet view.** `GET /api/fleet` (JSON), `pqcscan fleet summary --db …`.
    In the web UI, `/fleet` lists every host with its latest scan, readiness band and crit/high/total counts.
    Hosts not seen for 48 hours are flagged stale. Filter with `/fleet?label=env=prod`; `/fleet/<host_id>` shows one host's scan history.
+   Host labels `data_lifetime`, `migration_years` and `threat_years` (all in years) set the Mosca X, Y and Z inputs in that host's reports; an explicit CLI value wins, and invalid labels are ignored.
 4. **Exports.** `pqcscan export --scan fleet --format cbom|sarif|xlsx-bukukerja|pdf-tech … -o …`
    builds the export from the latest scan of every host, each finding attributed to its host via `evidence._fleet`.
    The same works from the daemon API: `GET /api/scans/fleet/export/<fmt>`.
