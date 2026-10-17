@@ -56,7 +56,7 @@ def test_windows_task_installs_code_under_program_files():
 
 def test_windows_task_creates_folders_atomically_and_verifies_before_writing_secret():
     ps = (ROOT / "windows-task.ps1").read_text()
-    for needle in ("CreateDirectory(", "DirectorySecurity", "CreateNew", "Get-Acl", "already exists"):
+    for needle in ("CreateDirectory(", "DirectorySecurity", "CreateNew", "Get-Acl", "already exists", "ReparsePoint"):
         assert needle in ps, needle
     assert "icacls" not in ps and "Set-Content" not in ps
     assert ps.index("foreach ($path in @($Data, $Bin))") < ps.index("Protect-Folder $Data")

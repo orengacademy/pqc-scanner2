@@ -93,6 +93,11 @@ function Protect-Folder([string]$Path, $RunAsRights) {
             (New-Object System.Security.Principal.NTAccount($g[0])), $g[1], $flags, $noProp, $allow)))
     }
     [IO.Directory]::CreateDirectory($Path, $sec) | Out-Null
+    # CreateDirectory succeeds silently on a path planted since the Test-Path check; a junction or symlink, a
+    # foreign owner (Assert-Acl) or any content (below) all fail closed.
+    if (((Get-Item -LiteralPath $Path -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw "refusing to use ${Path}: reparse point"
+    }
     if (@(Get-ChildItem -LiteralPath $Path -Force).Count -ne 0) { throw "$Path is not empty right after creation" }
     Assert-Acl $Path
 }
