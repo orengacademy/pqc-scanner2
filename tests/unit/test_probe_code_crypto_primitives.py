@@ -224,3 +224,46 @@ async def test_interpolated_literals_count_as_code(tmp_path: Path, name: str, bo
 ])
 async def test_crafted_literals_do_not_hide_real_use(tmp_path: Path, name: str, body: str):
     assert "MD5" in [f.algorithm for f in await _run(tmp_path, name, body)]
+
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("name", "body", "expected"), [
+    ("S.java", 'Signature s = Signature.getInstance("LMS");\n', True),
+    ("K.java", 'KeyPairGenerator g = KeyPairGenerator.getInstance("LMS");\n', True),
+    ("s.py", 'sig = oqs.Signature("LMS")\n', True),
+    ("r.py", 'report.title("LMS")\n', False),     # not a crypto call
+])
+async def test_bare_lms_string_in_a_crypto_call(tmp_path: Path, name: str, body: str, expected: bool):
+    assert ("LMS" in [f.algorithm for f in await _run(tmp_path, name, body)]) is expected
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("name", "body"), [
+    ("app.js", "const r = /\"/; const h = crypto.createHash('md5'); const s = \"y\";\n"),
+    ("app.ts", "const r = /'/; const h = crypto.createHash(\"md5\"); const s = 'y';\n"),
+    ("a.py", "s = f\"{'\"'}\"; h = hashlib.md5(b); t = 'x'\n"),                 # Python 3.12 f-string
+    ("A.cs", 'var a = """a\\"""; var h = MD5.Create(); var s = "x";\n'),       # C# 11 raw string
+    ("A.kt", 'val a = "${"\\""}"; val d = MessageDigest.getInstance(md5); val s = "y"\n'),
+])
+async def test_stray_quote_cannot_swallow_a_real_call(tmp_path: Path, name: str, body: str):
+    # One misread construct opens a "string" at a stray quote; the statement it
+    # swallows holds a primitive in call context plus code punctuation -> code.
+    assert "MD5" in [f.algorithm for f in await _run(tmp_path, name, body)]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("name", "body"), [
+    ("a.php", '<?php\n$note = "md5($password) is forbidden";\n'),
+    ("A.cs", 'class C { string s = "never call MD5.Create() here"; }\n'),
+    ("app.js", 'const note = "crypto.createHash(\'md5\') is forbidden";\n'),
+    ("a.py", 'label = "use hashlib.md5 for the checksum"\n'),
+])
+async def test_prose_quoting_a_call_stays_suppressed(tmp_path: Path, name: str, body: str):
+    assert "MD5" not in [f.algorithm for f in await _run(tmp_path, name, body)]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("name", ["a.h", "a.hpp", "a.cc", "a.cxx"])
+async def test_more_c_cpp_suffixes_are_scanned_unstripped(tmp_path: Path, name: str):
+    assert "MD5" in [f.algorithm for f in await _run(tmp_path, name, "// MD5() is banned\n")]

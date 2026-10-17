@@ -39,16 +39,21 @@ untouched, so detection recall can never regress — only false positives drop.
 Known best-effort limitations (documented, acceptable for a regex MVP):
 - Rust nested ``/* /* */ */`` block comments are treated as non-nested (the
   first ``*/`` closes the comment).
-- Rust raw strings ``r"..."`` / ``r#"..."#`` / ``br"..."`` are matched
-  best-effort via a hash-count backreference.
+- Rust raw strings ``r"..."`` / ``r#"..."#`` / ``br"..."``: the regex matches
+  only the opener; the closer (``"`` plus the opener's hash count) is located in
+  code using a one-pass index of the last closer for each hash count
+  (``_raw_last_close``), so an unterminated opener is detected in O(1) and only
+  the opener itself is left as code.
 - JavaScript template-literal ``${ ... }`` interpolations and Kotlin / Scala
   ``$name`` / ``${ ... }`` string templates are blanked wholesale (the embedded
   expression is treated as string content, so a call inside one is missed).
 - C# verbatim strings ``@"..."`` are handled; interpolated ``$"{...}"`` holes are
   blanked as string content like the templates above.
-- An unterminated string or comment is left as code (not blanked) from its
-  opener to the end of its line (quotes) or of the input (block comments, raw /
-  verbatim strings).
+- An unterminated string or comment is left as code (not blanked): a quote to
+  the end of its line; a block comment, C# verbatim string, Java text block or
+  Kotlin/Python triple-quoted string just at its opener (that form is then
+  disabled for the rest of the input, since no closer remains); a Rust raw
+  string just at its opener.
 - PHP heredoc/nowdoc (``<<<EOT``) bodies are not stripped.
 - Multi-char Rust/Go char escapes such as ``'\\u{1F600}'`` are not matched.
 """

@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- `code.crypto_primitives` keeps a call visible when a misread construct opens a "string" at a stray quote:
+  a regex literal `/"/`, a Python 3.12 nested f-string quote, a C# 11 raw string, or a Kotlin nested template.
+  A string span that holds one of the probe's primitives in call context (`md5(`, `MD5.Create`, `hashlib.md5`,
+  `createHash('md5'`) and code punctuation (`; = + , | & ?`) now counts as code. Prose that quotes a call still does
+  not. A bare `"LMS"` passed to a crypto call (`getInstance("LMS")`) is recognised, and `.cc`, `.cxx`, `.h` and
+  `.hpp` are scanned (unstripped, like `.c` and `.cpp`).
 - Fleet ingest stores findings and compliance views with bulk inserts instead of one ORM flush per finding. A
   300-finding bundle took about 1,450 SQL statements; it now takes 308 on SQLite (one cheap insert per finding,
   to keep ids in order) and 9 on Postgres, and about a tenth of the CPU. Found by the 500-host load test.

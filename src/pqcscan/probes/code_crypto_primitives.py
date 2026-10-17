@@ -23,12 +23,22 @@ sits in code, never when it sits in a comment, and inside a string literal only
 when that literal is a bare identifier (``"MD5"``, ``"AES/GCM/NoPadding"``,
 ``"secp256r1"``) — not prose such as ``"never use md5 here"`` — or can
 interpolate code (``${...}``, ``#{...}``, Swift ``\\(...)``, a Python f-string or a C#
-``$"..."`` with ``{``), since the "string" then holds real calls.
+``$"..."`` with ``{``), since the "string" then holds real calls — or looks
+like swallowed code: it holds one of this probe's own primitives in call
+context (``md5(``, ``MD5.Create``, ``hashlib.md5``, ``createHash('md5'``,
+``getInstance(md5``; derived from ``PRIMITIVE_PATTERNS``, not a second list)
+*and* code punctuation (``; = + , | & ?``). A lexer that misreads one construct
+(a regex literal ``/"/``, a nested f-string quote, a C# raw string) opens a
+"string" at a stray quote that then swallows the next statement; this rule
+keeps that statement visible, while prose quoting a call
+(``"md5($password) is forbidden"``) stays suppressed.
 
-Fail-open by design: a false positive is cheaper than a hidden MD5. Only the
-languages whose lexer the code.ts.* probes already trust are stripped (Python,
-Java/Kotlin/Scala, JavaScript/TypeScript, Go, PHP, C#, Rust). C/C++, Ruby and
-Swift are scanned unstripped, so a mention in a comment or string there fires.
+Fail-open by design: a false positive is cheaper than a hidden MD5. Stripping
+uses the lexers the code.ts.* probes already use (Java/Kotlin/Scala,
+JavaScript/TypeScript, Go, PHP, C#, Rust) plus a Python lexer added for this
+probe (code.ts.python parses with ``ast`` instead). C/C++ (``.c .cc .cpp .cxx
+.h .hpp``), Ruby and Swift are scanned unstripped, so a mention in a comment or
+string there fires.
 """
 from __future__ import annotations
 
@@ -47,6 +57,7 @@ from pqcscan.probes._severity import sev_for
 _SUFFIXES: tuple[str, ...] = (
     ".py", ".js", ".ts", ".go", ".rs", ".java",
     ".rb", ".php", ".c", ".cpp", ".cs", ".kt", ".swift",
+    ".cc", ".cxx", ".h", ".hpp",  # more C/C++ spellings; unstripped like .c/.cpp
 )
 
 # srcstrip lexer per suffix. .c/.cpp/.rb/.swift are absent on purpose (no lexer
@@ -58,6 +69,10 @@ _LANG_FOR_SUFFIX: dict[str, str] = {
 # Literal bodies that can carry code: ${...} (JS/TS, Kotlin, PHP), {$...} (PHP),
 # #{...} (Ruby), \(...) (Swift).
 _INTERPOLATION_MARKERS: tuple[str, ...] = ("${", "{$", "#{", "\\(")
+# "Swallowed code" test for a string span (see module docstring).
+_CODE_PUNCT_RE = re.compile(r"[;=+,|&?]")
+_CALL_AFTER_RE = re.compile(r"\s*(?:\(|\.|::)")                     # md5(  MD5.Create  MD5::
+_CALL_BEFORE_RE = re.compile(r"(?:[\w)\]]\s*\(\s*['\"`]?|\w(?:\.|::))$")  # f('md5  hashlib.md5  Digest::MD5
 # A string literal whose body is only these characters names an algorithm.
 _TOKEN_STRING_RE = re.compile(r"[\w./:+-]+")
 
@@ -112,7 +127,10 @@ _RAW_PATTERNS: tuple[tuple[str, str, Classification], ...] = (
     # the bare acronym is common outside cryptography.
     (r"(?<![A-Za-z])XMSS(?:\^?MT)?(?![A-Za-z])", "XMSS", _PQC),
     (r"HSS[-_/]?LMS|(?<![A-Za-z])LMS[-_](?:SHA|SHAKE)|(?<![A-Za-z])lms_(?:sign|verify|keypair|keygen|key|signature)"
-     r"|generate_lms", "LMS", _PQC),
+     r"|generate_lms"
+     # bare "LMS" as the string argument of a crypto call: getInstance("LMS"), oqs.Signature("LMS")
+     r"|\b(?:getInstance|Signature|Signer|KeyPairGenerator|KeyFactory|KeyGenerator|sign|keygen)\s*\(\s*[\"']LMS[\"']",
+     "LMS", _PQC),
     # --- RSA key-gen sizes ---
     (
         r"RSA.{0,20}(?:1024|2048)|generate_private_key[\s\S]{0,60}?(?:1024|2048)"
@@ -132,6 +150,15 @@ _RAW_PATTERNS: tuple[tuple[str, str, Classification], ...] = (
 PRIMITIVE_PATTERNS: tuple[tuple[re.Pattern[str], str, Classification], ...] = tuple(
     (re.compile(pat, re.IGNORECASE), alg, cls) for pat, alg, cls in _RAW_PATTERNS
 )
+
+
+def _holds_call(body: str) -> bool:
+    """True when ``body`` holds one of PRIMITIVE_PATTERNS in call context."""
+    for pattern, _alg, _cls in PRIMITIVE_PATTERNS:
+        for m in pattern.finditer(body):
+            if _CALL_AFTER_RE.match(body, m.end()) or _CALL_BEFORE_RE.search(body, max(0, m.start() - 80), m.start()):
+                return True
+    return False
 
 
 class CodeCryptoPrimitives(Probe):
@@ -174,6 +201,8 @@ class CodeCryptoPrimitives(Probe):
             prefix = text[max(0, a - 2):a].lower()            # f"..", rf"..", $"..", $@".."
             if "{" in body and (("f" in prefix and lang == "python") or ("$" in prefix and lang == "csharp")):
                 return True
+            if _CODE_PUNCT_RE.search(body) and _holds_call(body):
+                return True                                   # looks like swallowed code
             return _TOKEN_STRING_RE.fullmatch(body.strip("\"'`@#")) is not None
 
         lines = text.splitlines()
