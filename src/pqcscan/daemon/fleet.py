@@ -169,11 +169,15 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_h
                 if existing is None:
                     raise HTTPException(400, "bundle violates a store constraint") from e
                 return {"scan_id": existing, "stored_findings": 0, "stored_views": 0, "duplicate": True}
-            if not res.duplicate:             # after the write: drift was computed against the older scans
-                try:
-                    await run_in_threadpool(repo.prune_host, host.id, keep_scans_per_host)
-                except Exception:             # the scan is stored; a failed trim must not make the agent resend
-                    logger.opt(exception=True).warning("fleet: retention prune failed for host {}", host.id)
+        if bundle.dropped_drift:
+            logger.warning("fleet: dropped {} agent-sent fleet.drift rows from host {}", bundle.dropped_drift, host.id)
+        # After the write (drift was computed against the older scans) and outside parse_slots: these only delete.
+        if not res.duplicate:
+            try:
+                await run_in_threadpool(repo.prune_host, host.id, keep_scans_per_host)
+                await run_in_threadpool(repo.delete_stale_rollups)
+            except Exception:                 # the scan is stored; a failed trim must not make the agent resend
+                logger.opt(exception=True).warning("fleet: retention prune failed for host {}", host.id)
         return {"scan_id": res.scan_id, "stored_findings": res.stored_findings,
                 "stored_views": res.stored_views, "duplicate": res.duplicate, "drift": res.drift}
 

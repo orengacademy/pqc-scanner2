@@ -193,6 +193,34 @@ def test_ingest_succeeds_when_prune_fails(tmp_db_path, fast_registry, tmp_path, 
     assert r.status_code == 200 and r.json()["duplicate"] is False       # stored scan is not reported as a failure
 
 
+def test_ingest_sweeps_stale_rollups_and_logs_dropped_drift(tmp_db_path, fast_registry, tmp_path):
+    import gzip
+    from datetime import timedelta
+
+    from sqlalchemy.orm import Session
+
+    from pqcscan.store.schema import Scan
+    c = _client(tmp_db_path, fast_registry)
+    tok = _enroll(c)["agent_token"]
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(tok)).status_code == 200
+    repo = Repo(tmp_db_path)
+    rollup = repo.materialize_fleet_rollup()             # an orphan left by a killed export, aged past the hour
+    with Session(repo.engine) as s:
+        s.get(Scan, rollup).started_at -= timedelta(hours=2)
+        s.commit()
+    doc = json.loads(gzip.decompress(_bundle(tmp_path)))
+    doc["findings"].append({**doc["findings"][0], "probe_id": "fleet.drift"})
+    seen: list[str] = []
+    sink = logger.add(lambda m: seen.append(str(m)), level="WARNING")
+    try:
+        r = c.post("/api/ingest", content=gzip.compress(json.dumps(doc).encode()), headers=_hdr(tok))
+    finally:
+        logger.remove(sink)
+    assert r.status_code == 200, r.text
+    assert repo.get_scan(rollup) is None                 # swept after the prune
+    assert any("dropped 1 agent-sent fleet.drift" in m and "host 1" in m for m in seen)
+
+
 def test_reenroll_logs_warning_and_rotates_token(tmp_db_path, fast_registry):
     c = _client(tmp_db_path, fast_registry)
     seen: list[str] = []
