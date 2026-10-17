@@ -191,7 +191,7 @@ class CodeCryptoPrimitives(Probe):
         spans = spans_for_scan(text, lang, probe_id=self.id, path=path, emit=emit)
         starts = [a for a, _ in spans]
 
-        verdicts: dict[int, bool] = {}  # per span: decided at most once, however many matches land in it
+        verdicts: dict[int, bool] = {}  # memo: per span index, decided at most once however many matches land in it
 
         def span_counts(a: int, b: int) -> bool:
             if is_comment_span(text, a, lang):
