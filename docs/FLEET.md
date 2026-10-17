@@ -48,8 +48,9 @@ exports from them.
      discards `<state dir>/agent.token`, re-enrolls and sends (spooled bundles included). Without
      `--enroll-token` it spools the bundle and tells you to re-run with it or delete the token file.
    - `pqcscan fleet prune --keep 12` keeps the newest 12 scans per host. It is for one-off trims: the daemon already does this after every ingest (see Retention).
-7. **Scale.** SQLite handles roughly 2,000 hosts daily (an estimate from the load run, see
-   [FLEET-EVIDENCE.md](FLEET-EVIDENCE.md)). Past roughly 10k per day,
+7. **Scale.** SQLite handles roughly 2,000 hosts daily. That is an arithmetic estimate from the load run's per-post
+   cost, not a measurement at 2,000 hosts: about 1.4 posts a minute on average, 17 with the 2 h jitter, and about 28 GB of
+   database at the default 12 scans per host (1.2 MB per scan on one measurement). See [FLEET-EVIDENCE.md](FLEET-EVIDENCE.md). Past roughly 10k per day,
    run the daemon with `--db postgresql+psycopg://user:pw@host/db` (every CLI command
    takes the same `--db` URL; `fleet-pg` installs psycopg 3, so the URL needs
    the `+psycopg` driver suffix) after
