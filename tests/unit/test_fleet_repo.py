@@ -421,3 +421,80 @@ def test_ingest_issues_a_bounded_number_of_statements(tmp_db_path, tmp_path):
         pairs = s.execute(select(FindingRow.title, func.count(FrameworkView.id)).join(
             FrameworkView, FrameworkView.finding_id == FindingRow.id).group_by(FindingRow.id)).all()
     assert len(pairs) == 40 and all(c == 5 for _, c in pairs)
+
+
+# --- bulk ingest path: no RETURNING, batch boundaries, empty and drift-only bundles -------------------------------
+
+def _doc_bundle(host: HostIdentity, n: int, *, views: int = 1, uuid: str | None = None) -> ScanBundle:
+    """A bundle built straight from a document (no source Repo), n findings with `views` views each."""
+    import gzip
+    import json
+    import uuid as uuid_mod
+    doc = {"schema_version": 1, "scan_uuid": uuid or str(uuid_mod.uuid4()),
+           "host": {"machine_id": host.machine_id, "hostname": host.hostname, "os": host.os, "labels": host.labels,
+                    "agent_version": ""},
+           "scan": {"started_at": "2026-10-17T00:00:00+00:00", "finished_at": "2026-10-17T00:01:00+00:00",
+                    "mode": "user", "status": "done", "probe_versions": {}, "tool_versions": {}},
+           "findings": [{"probe_id": "fs.cert.x509", "algorithm": f"RSA-{i}", "classification": "tinggi",
+                         "severity": "high", "title": f"f{i}", "evidence": {"path": f"/p/{i}"}, "remediation": {},
+                         "created_at": "2026-10-17T00:00:30+00:00",
+                         "views": [{"framework": f"fw{k}", "clause": f"c{i}", "verdict": "at-risk", "deadline": None}
+                                   for k in range(views)]} for i in range(n)]}
+    return load_bundle(gzip.compress(json.dumps(doc).encode()))
+
+
+def _no_returning(repo: Repo) -> None:
+    """What SQLite < 3.35 looks like to SQLAlchemy: no RETURNING and no batched insert-many."""
+    repo.engine.dialect.insert_returning = False
+    repo.engine.dialect.use_insertmanyvalues = False
+
+
+def test_bulk_ingest_works_without_returning(tmp_db_path):
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    _no_returning(fleet)
+    host = fleet.upsert_host(WEB01)
+    b = _doc_bundle(WEB01, 40, views=3)
+    r = fleet.ingest_bundle(b, host.id)
+    assert (r.stored_findings, r.stored_views, r.duplicate) == (40, 120, False)
+    scan = fleet.get_scan(r.scan_id)
+    assert scan.host_id == host.id and scan.scan_uuid == b.scan_uuid
+    views = {(f.title, v.clause) for f in fleet.list_findings(r.scan_id) for v in fleet.list_framework_views(r.scan_id)
+             if v.finding_id == f.id}
+    assert views == {(f"f{i}", f"c{i}") for i in range(40)}      # every view sits on its own finding
+
+
+def test_bulk_ingest_across_the_batch_boundary(tmp_db_path):
+    """2,500 findings is past SQLAlchemy's 1,000-row insert batch; views must still land on the right finding."""
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    host = fleet.upsert_host(WEB01)
+    r = fleet.ingest_bundle(_doc_bundle(WEB01, 2500, views=2), host.id)
+    assert (r.stored_findings, r.stored_views) == (2500, 5000)
+    with Session(fleet.engine) as s:
+        pairs = s.execute(select(FindingRow.title, FrameworkView.clause).join(
+            FrameworkView, FrameworkView.finding_id == FindingRow.id).where(FindingRow.scan_id == r.scan_id)).all()
+    assert len(pairs) == 5000 and all(t == "f" + c[1:] for t, c in pairs)
+
+
+def test_empty_bundle_and_drift_only_bundle(tmp_db_path):
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    host = fleet.upsert_host(WEB01)
+    empty = fleet.ingest_bundle(_doc_bundle(WEB01, 0), host.id)
+    assert (empty.stored_findings, empty.stored_views, empty.duplicate, empty.drift) == (0, 0, False, 0)
+    fleet.ingest_bundle(_doc_bundle(WEB01, 3), host.id)
+    gone = fleet.ingest_bundle(_doc_bundle(WEB01, 0), host.id)       # everything removed: only drift rows are stored
+    assert (gone.stored_findings, gone.stored_views, gone.drift) == (0, 0, 3)
+    rows = fleet.list_findings(gone.scan_id)
+    assert len(rows) == 3 and {f.probe_id for f in rows} == {"fleet.drift"}
+    assert {f.evidence["change"] for f in rows} == {"removed"}
+
+
+def test_bulk_ingest_keeps_identity_fleet_namespace_and_retention(tmp_db_path):
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    host = fleet.upsert_host(WEB01)
+    ids = [fleet.ingest_bundle(_doc_bundle(WEB01, 5, views=2), host.id).scan_id for _ in range(3)]
+    assert all(fleet.get_scan(i).host_id == host.id for i in ids)
+    assert fleet.prune_host(host.id, 2) == 1
+    assert fleet.get_scan(ids[0]) is None and fleet.get_scan(ids[2]) is not None
+    rollup = fleet.materialize_fleet_rollup()
+    rows = fleet.list_findings(rollup)
+    assert len(rows) == 5 and {r.evidence["_fleet"]["machine_id"] for r in rows} == {WEB01.machine_id}

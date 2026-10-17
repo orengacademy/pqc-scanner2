@@ -180,7 +180,10 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_h
                 raise HTTPException(503, "store busy, retry later", headers={"Retry-After": "5"}) from e
             except IntegrityError as e:
                 # Two requests with the same scan_uuid raced past the duplicate check; the loser is a duplicate.
-                existing = await run_in_threadpool(repo.get_scan_id_by_uuid, bundle.scan_uuid)
+                try:
+                    existing = await run_in_threadpool(repo.get_scan_id_by_uuid, bundle.scan_uuid)
+                except OperationalError as e2:
+                    raise HTTPException(503, "store busy, retry later", headers={"Retry-After": "5"}) from e2
                 if existing is None:
                     raise HTTPException(400, "bundle violates a store constraint") from e
                 return {"scan_id": existing, "stored_findings": 0, "stored_views": 0, "duplicate": True}

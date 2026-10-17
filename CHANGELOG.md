@@ -21,9 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `createHash('md5'`) and code punctuation (`; = + , | & ?`) now counts as code. Prose that quotes a call still does
   not. A bare `"LMS"` passed to a crypto call (`getInstance("LMS")`) is recognised, and `.cc`, `.cxx`, `.h` and
   `.hpp` are scanned (unstripped, like `.c` and `.cpp`).
-- Fleet ingest stores findings and compliance views with bulk inserts instead of one ORM flush per finding. A
-  300-finding bundle took about 1,450 SQL statements; it now takes 308 on SQLite (one cheap insert per finding,
-  to keep ids in order) and 9 on Postgres, and about a tenth of the CPU. Found by the 500-host load test.
+- Fleet ingest stores findings and compliance views with two executemany inserts and one id query instead of one
+  ORM flush per finding, and does not use `INSERT ... RETURNING`, so it works on SQLite older than 3.35. A
+  300-finding bundle took about 1,450 SQL statements; it now takes 10, at about a tenth of the CPU. The minimum
+  SQLAlchemy is now 2.0.10. A busy store during the duplicate-scan recovery lookup answers 503, not 500. Found by
+  the 500-host load test.
 - `code.crypto_primitives` fails open where its lexer could be fooled. C/C++, Ruby and Swift files are scanned
   unstripped again, because raw strings, regex and `%`-literals, `?x` characters and heredocs could make a crafted
   literal blank the real call after it. A string that can interpolate code (`${...}`, `{$...}`, `#{...}`,

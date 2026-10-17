@@ -485,7 +485,10 @@ class Repo:
             )
             s.add(scan)
             s.flush()
-            # Two executemany inserts (findings, then their views) instead of a flush per finding.
+            # One executemany for the findings, one query for their ids, one executemany for the views: no flush per
+            # finding, and no INSERT ... RETURNING (SQLite before 3.35 lacks it). The scan row is new in this
+            # transaction, so its findings are exactly ours, and rows of one executemany get ascending ids in
+            # parameter order (one session draws its sequence/rowid values in execution order).
             rows = [{
                 "scan_id": scan.id, "probe_id": str(f["probe_id"]), "algorithm": str(f.get("algorithm", "N/A")),
                 "classification": str(f.get("classification", "info")), "severity": str(f.get("severity", "info")),
@@ -499,9 +502,13 @@ class Repo:
                 "classification": d.classification.value, "severity": d.severity.value, "title": d.title,
                 "evidence": d.evidence, "remediation": d.remediation, "created_at": d.created_at,
             } for d in drift]
+            view_rows: list[dict] = []
             if rows:
-                ids = s.scalars(insert(FindingRow).returning(FindingRow.id, sort_by_parameter_order=True),
-                                rows).all()
+                s.execute(insert(FindingRow), rows)
+                ids = list(s.scalars(select(FindingRow.id).where(FindingRow.scan_id == scan.id)
+                                     .order_by(FindingRow.id)))
+                if len(ids) != len(rows):
+                    raise RuntimeError(f"stored {len(ids)} findings for {len(rows)} rows")
                 view_rows = [{
                     "finding_id": fid, "framework": str(v["framework"]), "clause": str(v["clause"]),
                     "verdict": str(v["verdict"]),
@@ -509,7 +516,7 @@ class Repo:
                 } for fid, f in zip(ids, bundle.findings, strict=False) for v in f.get("views") or []]
                 if view_rows:
                     s.execute(insert(FrameworkView), view_rows)
-            n_v = len(view_rows) if rows else 0
+            n_v = len(view_rows)
             _apply_identity(h, bundle.host)
             s.commit()
             return IngestResult(scan_id=scan.id, stored_findings=n_f, stored_views=n_v, duplicate=False,
