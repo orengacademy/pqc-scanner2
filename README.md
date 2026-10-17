@@ -29,7 +29,7 @@ chmod +x pqcscan
 **What v0.10.1 brings** (the full 0.9.x–0.10.x arc is in [`CHANGELOG.md`](CHANGELOG.md)
 and [`docs/STATUS.md` §10](docs/STATUS.md)):
 
-- **Fleet mode** — hosts run `pqcscan scan --report-to https://collector:8765`;
+- **Fleet mode** — hosts run `pqcscan agent --once --server https://collector:8765` (or `scan --report-to`);
   one daemon enrolls them, keeps the latest scan per host and serves fleet-wide
   JSON, CBOM, SARIF and XLSX exports. 0.10.1 adds `pqcscan agent` (a scan-and-report loop
   for hosts with no scheduler), the `/fleet` and `/fleet/{host}` web pages, and deployment
@@ -258,7 +258,7 @@ pqcscan export --scan N --format FMT -o ...  # FMT: cbom | sarif | pdf-tech |
 ```
 
 **Fleet mode.** For many hosts, run `pqcscan daemon --enroll-token …` on one
-collector and `pqcscan scan --report-to …` on each host (cron, systemd timer,
+collector and `pqcscan agent --once …` on each host (cron, systemd timer,
 BigFix, Ansible). Hosts enroll once, spool results if the collector is down, and
 the collector builds fleet-wide views and exports. Setup, security notes and
 known limits are in [`docs/FLEET.md`](docs/FLEET.md).

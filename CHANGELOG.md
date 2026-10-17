@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Permanent ingest rejections (400/403/413) are terminal: not spooled, and spooled files that get one move to `spool/rejected/`.
+- Enroll-time 400/403 spool the bundle; only ingest 400/403/413 are permanent.
 - Agent: a spooled report is not a failure, backoff counts from cycle end, SIGTERM stops the loop cleanly,
   the state dir is created mode 0700, and `--keep-local` only prunes the agent's own database.
 

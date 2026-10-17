@@ -78,7 +78,7 @@
         state: started
         daemon_reload: true
 
-    # `pqcscan scan --report-to` runs from the timer; start the first report now instead of waiting up to a day.
+    # `pqcscan agent --once` runs from the timer; start the first report now instead of waiting up to a day.
     - name: First report now (optional; skipped with -e pqcscan_first_run=false)
       ansible.builtin.systemd:
         name: pqcscan-agent.service

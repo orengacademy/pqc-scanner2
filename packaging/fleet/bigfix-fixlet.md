@@ -36,14 +36,15 @@ name of operating system = "Linux" AND exists file "/usr/local/bin/pqcscan"
 Action script:
 
 ```
-wait /bin/sh -c "set -a; [ -r /etc/pqcscan/agent.env ] && . /etc/pqcscan/agent.env; set +a; exec /usr/local/bin/pqcscan scan --fail-on none --report-to https://pqc.internal:8765 --labels env=prod,group=web --db /var/lib/pqcscan/pqcscan.db --state-dir /var/lib/pqcscan/agent"
+wait /bin/sh -c "set -a; [ -r /etc/pqcscan/agent.env ] && . /etc/pqcscan/agent.env; set +a; exec /usr/local/bin/pqcscan agent --once --server https://pqc.internal:8765 --labels env=prod,group=web --state-dir /var/lib/pqcscan/agent"
 ```
 
 `/etc/pqcscan/agent.env` (root, mode 0600) holds `PQCSCAN_ENROLL_TOKEN=<token>`. The first run enrolls and stores
 `/var/lib/pqcscan/agent/agent.token` (mode 0600); after that the file can be removed; the scan line skips it when it is missing. Rotate the enroll token on the
 collector after rollout. For a private CA add `--ca-cert /etc/pqcscan/ca.pem`.
 
-Exit codes: 0 reported or spooled for retry, 2 scan failed.
+Exit codes: 0 reported or spooled for retry, 1 scan crashed or the collector permanently rejected the report. The agent keeps
+its own small database in the state dir and trims it, so nothing grows without bound.
 
 ## Windows
 

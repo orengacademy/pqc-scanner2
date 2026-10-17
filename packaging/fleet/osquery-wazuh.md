@@ -11,8 +11,8 @@ can read; for a fuller inventory use the systemd unit instead, which grants `CAP
 ```sh
 #!/bin/sh
 set -a; [ -r /etc/pqcscan/agent.env ] && . /etc/pqcscan/agent.env; set +a   # PQCSCAN_SERVER, PQCSCAN_LABELS, PQCSCAN_ENROLL_TOKEN (first run only)
-exec runuser -u pqcscan -- /usr/local/bin/pqcscan scan --fail-on none --report-to "$PQCSCAN_SERVER" ${PQCSCAN_LABELS:+"--labels=$PQCSCAN_LABELS"} \
-  --db /var/lib/pqcscan/pqcscan.db --state-dir /var/lib/pqcscan/agent
+exec runuser -u pqcscan -- /usr/local/bin/pqcscan agent --once --server "$PQCSCAN_SERVER" ${PQCSCAN_LABELS:+"--labels=$PQCSCAN_LABELS"} \
+  --state-dir /var/lib/pqcscan/agent
 ```
 
 `/var/ossec/etc/ossec.conf` (or the agent group's `agent.conf`):
@@ -30,8 +30,8 @@ exec runuser -u pqcscan -- /usr/local/bin/pqcscan scan --fail-on none --report-t
 ```
 
 Install the pinned binary with SHA-256 verification as in `docs/DEPLOYMENT.md` section 1. The first run
-enrolls and stores `/var/lib/pqcscan/agent/agent.token`; remove `PQCSCAN_ENROLL_TOKEN` from `agent.env`
-and rotate it on the collector after rollout. Add `--ca-cert /etc/pqcscan/ca.pem` for a private CA.
+enrolls and stores `/var/lib/pqcscan/agent/agent.token`; delete the `PQCSCAN_ENROLL_TOKEN` line from `agent.env`
+(keep the file: it holds the server and labels) and rotate the token on the collector after rollout. Add `--ca-cert /etc/pqcscan/ca.pem` for a private CA.
 
 ## osquery
 

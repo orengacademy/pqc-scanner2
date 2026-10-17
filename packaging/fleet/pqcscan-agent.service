@@ -13,18 +13,22 @@ Group=pqcscan
 # /etc/pqcscan/agent.env (root:root, mode 0600; systemd reads it as root) holds, one per line:
 #   PQCSCAN_SERVER=https://pqc.internal:8765
 #   PQCSCAN_LABELS=env=prod,group=web
-#   PQCSCAN_ENROLL_TOKEN=<enroll token, first run only; remove or rotate after rollout>
+#   PQCSCAN_ENROLL_TOKEN=<enroll token, first run only; delete this line after the first successful report>
+# Keep the file (server and labels live in it). The token is optional once the host has enrolled; before that, a
+# missing token means every report is spooled under the state dir (a warning in the journal, exit 0) until it is set.
 # For a private CA, append  --ca-cert /etc/pqcscan/ca.pem  to ExecStart (do not skip TLS verification).
 Environment=PQCSCAN_LABELS=
 EnvironmentFile=-/etc/pqcscan/agent.env
-ExecStart=/usr/local/bin/pqcscan scan --fail-on none --report-to ${PQCSCAN_SERVER} --labels=${PQCSCAN_LABELS} --db /var/lib/pqcscan/pqcscan.db --state-dir /var/lib/pqcscan/agent
+# `agent --once`: one scan, report, trim the local DB (<state-dir>/agent.db) to the newest scans, then exit.
+# Exit 0 = reported or spooled for retry; exit 1 = scan crashed or the collector permanently rejected the report.
+ExecStart=/usr/local/bin/pqcscan agent --once --server ${PQCSCAN_SERVER} --labels=${PQCSCAN_LABELS} --state-dir /var/lib/pqcscan/agent
 # A scan that outruns this is killed; a spooled report is retried on the next run.
 TimeoutStartSec=2h
 KillSignal=SIGTERM
 TimeoutStopSec=30
 
-# agent.token and the spool live under the state dir: private to the pqcscan user.
-StateDirectory=pqcscan
+# agent.token, the spool and agent.db live under the state dir: private to the pqcscan user.
+StateDirectory=pqcscan/agent
 StateDirectoryMode=0700
 
 # --- Sandbox: read the whole host, write only the state dir. ---
@@ -35,7 +39,7 @@ CapabilityBoundingSet=CAP_DAC_READ_SEARCH
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/var/lib/pqcscan
+ReadWritePaths=/var/lib/pqcscan/agent
 PrivateTmp=true
 ProtectKernelTunables=true
 ProtectControlGroups=true

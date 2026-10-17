@@ -11,14 +11,16 @@
   %ProgramFiles%\pqcscan and %ProgramData%\pqcscan aside, re-run.
   Layout:
     %ProgramFiles%\pqcscan   pqcscan.exe and run-agent.ps1   (code: only administrators can write here)
-    %ProgramData%\pqcscan    agent.env, pqcscan.db, agent\agent.token and agent\spool   (state)
+    %ProgramData%\pqcscan    agent.env, agent\agent.token, agent\spool and agent\agent.db   (state)
   Each folder is created fresh and locked down at once: no inherited entries, SYSTEM and Administrators full
   control, and the task account (-RunAs) modify on state or read and execute on code. The script then verifies
   the folders and every file it writes with Get-Acl and fails if any other principal has access.
   It downloads the pinned release binary, verifies it against SHA256SUMS.txt, writes the enrollment token to
-  agent.env, and registers a task that runs `pqcscan scan --report-to` daily at 02:00 plus up to 2 hours of
+  agent.env, and registers a task that runs `pqcscan agent --once` daily at 02:00 plus up to 2 hours of
   random delay. The first run enrolls and stores agent\agent.token. Rotate the enroll token on the collector
-  after rollout and delete agent.env (or re-run this script with a new token).
+  after rollout and delete agent.env.
+  To rotate the token on this host or upgrade: stop the task, move %ProgramData%\pqcscan and %ProgramFiles%\pqcscan
+  aside (this drops the spool and agent.token, so the host re-enrolls), then re-run this script.
   For a private CA pass -CaCert (keep the file in a folder only administrators can write); TLS verification
   is never switched off.
 
@@ -138,12 +140,12 @@ Assert-Acl $exe
 # Enrollment token for the first run, in a file only the principals above can read.
 Write-ProtectedFile $envFile $EnrollToken ([Text.Encoding]::ASCII)
 
-# Wrapper: read the token, then `scan --report-to`. The task action itself carries no secret.
+# Wrapper: read the token, then `agent --once` (one cycle; trims its own local DB). The task action itself carries no secret.
 $lab = if ($Labels) { " --labels `"$Labels`"" } else { "" }
 $ca = if ($CaCert) { " --ca-cert `"$CaCert`"" } else { "" }
 $body = @"
 `$env:PQCSCAN_ENROLL_TOKEN = (Get-Content -Raw -ErrorAction SilentlyContinue "$envFile")
-& "$exe" scan --fail-on none --report-to "$Server"$lab --db "$Data\pqcscan.db" --state-dir "$state"$ca
+& "$exe" agent --once --server "$Server"$lab --state-dir "$state"$ca
 exit `$LASTEXITCODE
 "@
 Write-ProtectedFile $wrapper $body (New-Object System.Text.UTF8Encoding($true))

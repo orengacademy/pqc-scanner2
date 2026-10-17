@@ -8,11 +8,15 @@ FILES = ("pqcscan-agent.service", "pqcscan-agent.timer", "windows-task.ps1",
          "ansible-playbook.yml", "bigfix-fixlet.md", "osquery-wazuh.md")
 
 
-def test_recipes_exist_and_reference_report_to():
+def test_recipes_exist_and_run_agent_once_without_db():
     for name in FILES:
         assert (ROOT / name).is_file(), name
-    for name in ("pqcscan-agent.service", "windows-task.ps1", "ansible-playbook.yml", "bigfix-fixlet.md"):
-        assert "--report-to" in (ROOT / name).read_text(), name
+    for name in ("pqcscan-agent.service", "windows-task.ps1", "ansible-playbook.yml", "bigfix-fixlet.md",
+                 "osquery-wazuh.md"):
+        text = (ROOT / name).read_text()
+        assert "agent --once" in text, name
+        assert "--db" not in text, name
+        assert "--report-to" not in text, name
 
 
 def test_systemd_units_parse():
@@ -31,7 +35,8 @@ def test_service_is_sandboxed_and_not_root():
     s = svc["Service"]
     assert s["User"] != "root"
     assert s["ProtectSystem"] == "strict"
-    assert s["ReadWritePaths"] == "/var/lib/pqcscan"
+    assert s["ReadWritePaths"] == "/var/lib/pqcscan/agent"
+    assert s["StateDirectory"] == "pqcscan/agent"
     assert s["KillSignal"] == "SIGTERM"
 
 

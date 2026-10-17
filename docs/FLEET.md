@@ -12,7 +12,7 @@ exports from them.
    `location` block for those two paths does this.
    `--enroll-token` (or `PQCSCAN_ENROLL_TOKEN`) enables `/api/agents/enroll`;
    without it the endpoint is off.
-2. **Host, one-shot (recommended).** From cron / systemd timer / Task Scheduler / BigFix / Ansible:
+2. **Host, one-shot.** For ad-hoc and CI runs. For scheduled jobs use `pqcscan agent --once` (see Deployment recipes), which also prunes its local DB:
    `pqcscan scan --report-to https://pqc.internal:8765 --enroll-token <enroll> --labels env=prod,group=web --fail-on none`
    The first run enrolls and stores a per-agent token in `<db dir>/agent/agent.token`
    (mode 0600). Later runs reuse it, so the enroll token can be dropped from the
@@ -43,7 +43,7 @@ exports from them.
 
 ## Agent loop (fallback)
 
-Cron or a timer running the one-shot `scan --report-to` stays the recommended mode.
+Cron or a timer running `pqcscan agent --once` (see Deployment recipes) stays the recommended mode.
 Use the loop only where nothing can schedule a job:
 
 `pqcscan agent --server https://pqc.internal:8765 --enroll-token <enroll> --labels env=prod --interval 24h --jitter 2h`
@@ -68,17 +68,25 @@ rotate it on the collector after rollout.
 
 | File | What it does |
 |---|---|
-| `pqcscan-agent.service` + `pqcscan-agent.timer` | systemd one-shot `scan --report-to`, daily with up to 2 h random delay. Runs as a dedicated `pqcscan` user with `ProtectSystem=strict`, write access to `/var/lib/pqcscan` only, read-only root access through `CAP_DAC_READ_SEARCH`. Settings come from `/etc/pqcscan/agent.env`. |
-| `windows-task.ps1` | Windows PowerShell 5.1 (Desktop edition), not PowerShell 7. Downloads the pinned `.exe` into `%ProgramFiles%\pqcscan` (admin-write only), verifies it against `SHA256SUMS.txt`, creates the state folder `%ProgramData%\pqcscan` fresh and locks it down (SYSTEM and Administrators full, task account modify, verified with `Get-Acl`; it refuses to run over an existing install, so move the old folders aside to upgrade), and registers a daily Scheduled Task (02:00 plus up to 2 h random delay). |
+| `pqcscan-agent.service` + `pqcscan-agent.timer` | systemd one-shot `agent --once`, daily with up to 2 h random delay. Runs as a dedicated `pqcscan` user with `ProtectSystem=strict`, write access to the state dir `/var/lib/pqcscan/agent` only, read-only root access through `CAP_DAC_READ_SEARCH`. Settings come from `/etc/pqcscan/agent.env`. |
+| `windows-task.ps1` | Windows PowerShell 5.1 (Desktop edition), not PowerShell 7. Downloads the pinned `.exe` into `%ProgramFiles%\pqcscan` (admin-write only), verifies it against `SHA256SUMS.txt`, creates the state folder `%ProgramData%\pqcscan` fresh and locks it down (SYSTEM and Administrators full, task account modify, verified with `Get-Acl`; it refuses to run over an existing install, so to upgrade or rotate the token stop the task and move both folders aside, which drops the spool and `agent.token` and makes the host re-enroll), and registers a daily Scheduled Task (02:00 plus up to 2 h random delay). |
 | `ansible-playbook.yml` | Installs the verified binary, the `pqcscan` user, `agent.env` (root:root 0600, enroll token from a vaulted variable, `no_log`) and the timer. Rotate the token after rollout. |
 | `bigfix-fixlet.md` | Relevance clause and action script for BigFix. |
 | `osquery-wazuh.md` | Wazuh `command` wodle for the daily scan, plus an osquery query that spots a stuck spool. osquery only watches; the CM agent runs the binary. |
 
-The recipes run the one-shot `scan --report-to`, which exits 0 when the report was sent or spooled and 2 when the scan failed.
-To get a non-zero exit when the collector permanently rejects a report, change the command to
-`pqcscan agent --server "$PQCSCAN_SERVER" --labels "$PQCSCAN_LABELS" --once --db … --state-dir …`
-(it reads `PQCSCAN_ENROLL_TOKEN` from the same env file). For a long-running `pqcscan agent` under systemd, use
-`Type=simple`, `Restart=on-failure`, `KillSignal=SIGTERM` and `TimeoutStopSec=` longer than a scan.
+The recipes run `pqcscan agent --once`: one scan, report, then a trim of the agent's own local database
+(`<state-dir>/agent.db`, newest `--keep-local` scans, default 3). It exits 0 when the report was sent or spooled for retry
+and 1 when the scan crashed or the collector permanently rejected the report, so the timer or task records the failure.
+`scan --report-to` stays for ad-hoc and CI runs: it never prunes the database it scans into, so a daily cron of it grows
+that database by one scan a day. For a long-running `pqcscan agent` under systemd, use `Type=simple`,
+`Restart=on-failure`, `KillSignal=SIGTERM` and `TimeoutStopSec=` longer than a scan.
+
+**Rotating the enrollment token.** Restart the daemon with a new `--enroll-token` (or `PQCSCAN_ENROLL_TOKEN`).
+Hosts that already enrolled keep working, because they use their own agent token. Only new or re-enrolling hosts need the new value.
+
+**`machine_id` mismatch (403).** The ingest endpoint refuses a bundle whose machine id does not match the agent token, for example
+after a cloned VM image. Delete `<state-dir>/agent.token` on that host and run it again with `--enroll-token`.
+Bundles that already got the 403 are in `<state-dir>/spool/rejected/`.
 
 ## Security
 
