@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Fleet drift no longer reports the system clock as a change on every scan. `aux.clock.cert_validity` put the
+  scan's timestamp in its title, so each scan of each host produced two `fleet.drift` rows (the old clock finding
+  removed, the new one added) and `/fleet` showed a drift chip on every host. The title is now fixed and the time stays
+  in `evidence.utc_now`. Found by the simulated fleet soak.
 - `code.crypto_primitives` keeps a call visible when a misread construct opens a "string" at a stray quote:
   a regex literal `/"/`, a Python 3.12 nested f-string quote, a C# 11 raw string, or a Kotlin nested template.
   A string span that holds one of the probe's primitives in call context (`md5(`, `MD5.Create`, `hashlib.md5`,

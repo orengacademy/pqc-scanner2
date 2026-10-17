@@ -234,3 +234,30 @@ def test_drift_rows_capped_with_summary_and_true_total(tmp_db_path, tmp_path, mo
     rows, total = drift_rows(prev, cur)
     assert total == 3 and [r.evidence for r in rows] == [
         {"change": "summary", "added": 2, "removed": 1, "truncated": True}]
+
+
+def test_clock_probe_is_not_drift_between_scans(tmp_path, monkeypatch):
+    """The clock finding differs on every scan by design; its title must not, or every host drifts every scan."""
+    import asyncio
+    from datetime import datetime
+
+    import pqcscan.probes.aux_clock_cert_validity as mod
+    from pqcscan.probes._base import ScanContext
+
+    def scan_at(when: str) -> list[Finding]:
+        out: list[Finding] = []
+        monkeypatch.setattr(mod, "utcnow", lambda: datetime.fromisoformat(when))
+        asyncio.run(mod.AuxClockCertValidity().run(ScanContext(1, "user", set()), out.append))
+        return out
+
+    first, second = scan_at("2026-10-17T10:00:00"), scan_at("2026-10-18T10:00:00")
+    assert first[0].evidence["utc_now"] != second[0].evidence["utc_now"]
+    repo = Repo(tmp_path / "d.db")
+    repo.init_schema()
+    ids = []
+    for fs in (first, second):
+        sid = repo.create_scan(mode="user", probe_versions={}, tool_versions={})
+        for f in fs:
+            repo.record_finding(sid, f)
+        ids.append(sid)
+    assert drift_rows(repo.list_findings(ids[0]), repo.list_findings(ids[1])) == ([], 0)
