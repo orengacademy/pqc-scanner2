@@ -40,6 +40,21 @@ exports from them.
    the `+psycopg` driver suffix) after
    `pip install 'pqcscan[fleet-pg]'`. See Known limits.
 
+## Agent loop (fallback)
+
+Cron or a timer running the one-shot `scan --report-to` stays the recommended mode.
+Use the loop only where nothing can schedule a job:
+
+`pqcscan agent --server https://pqc.internal:8765 --enroll-token <enroll> --labels env=prod --interval 24h --jitter 2h`
+
+Each cycle flushes the spool, scans, posts, and spools on failure, with the same token
+and re-enroll rules as `scan --report-to`. After a failed cycle the next try comes after
+an exponential backoff from 1 minute, capped at 1 hour. A 429 from the collector counts
+as a failure: the bundle is spooled and sent on a later cycle. Each retry runs a fresh scan.
+The agent keeps its own DB at `<state-dir>/agent.db` and trims it to `--keep-local` scans (default 3).
+Other flags: `--once` (one cycle, exit 0 if reported, 1 if spooled), `--path` (repeatable),
+`--db`, `--state-dir`, `--ca-cert`, `--insecure`, `--allow-http`.
+
 ## Security
 
 - **Enroll token.** Anyone holding `--enroll-token` can enroll any machine id.

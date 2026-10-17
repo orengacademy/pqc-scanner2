@@ -7,6 +7,7 @@ import os
 import ssl
 import time
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -168,8 +169,10 @@ def flush_spool(server: str, token: str, state_dir: Path, client: httpx.Client) 
 
 def report_scan(repo: Repo, scan_id: int, *, server: str, enroll_token: str | None, agent_token: str | None,
                 labels: dict[str, str], state_dir: Path, client: httpx.Client,
-                allow_http: bool = False) -> dict | None:
-    """Dump, enroll if needed, flush the spool, POST. Once the bundle exists, any failure spools it."""
+                allow_http: bool = False, on_reenroll: Callable[[], None] | None = None) -> dict | None:
+    """Dump, enroll if needed, flush the spool, POST. Once the bundle exists, any failure spools it.
+
+    on_reenroll is called when a rejected stored token is dropped and a fresh enroll is attempted."""
     from pqcscan.util.hostid import host_identity
     check_server_scheme(server, allow_http)      # config error: raise before dumping, nothing to spool
     identity = host_identity(labels)
@@ -193,6 +196,8 @@ def report_scan(repo: Repo, scan_id: int, *, server: str, enroll_token: str | No
                                   ) from e
             logger.warning("fleet: agent token rejected by {}; re-enrolling", server)
             token_path.unlink(missing_ok=True)
+            if on_reenroll:
+                on_reenroll()
             return send()                        # once: a second 401 spools like any failure
     except Exception as e:  # a dumped bundle must never be lost
         try:

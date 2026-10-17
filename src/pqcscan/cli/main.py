@@ -3,6 +3,7 @@ from __future__ import annotations
 import click
 
 from pqcscan import __version__
+from pqcscan.cli.agent import agent_cmd
 from pqcscan.cli.daemon_cmd import daemon_cmd
 from pqcscan.cli.export import export_cmd
 from pqcscan.cli.fleet import agents_cmd, diff_cmd, fleet_cmd, merge_cmd
@@ -31,6 +32,7 @@ cli.add_command(merge_cmd, name="merge")
 cli.add_command(diff_cmd, name="diff")
 cli.add_command(agents_cmd, name="agents")
 cli.add_command(fleet_cmd, name="fleet")
+cli.add_command(agent_cmd, name="agent")
 
 
 if __name__ == "__main__":

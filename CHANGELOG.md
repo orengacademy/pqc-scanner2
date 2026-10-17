@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`pqcscan agent`** — scheduled scan-and-report loop for hosts with no cron or config-management agent
+  (spool, backoff with jitter, re-enroll on 401; `--once` for cron). See `docs/FLEET.md`.
+
 ## [0.10.0] — 2026-10-16
 
 ### Added — fleet mode, phase 1 (see `docs/FLEET.md`)
