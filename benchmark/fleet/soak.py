@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import concurrent.futures as cf
 import datetime as dt
+import hashlib
 import json
 import os
 import re
@@ -29,6 +30,7 @@ import tempfile
 import threading
 import time
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import httpx
@@ -39,7 +41,7 @@ from pqcscan.daemon.app import create_app
 from pqcscan.probes._registry import Registry
 
 from . import _collector
-from .run_load import _git, _load
+from .run_load import _dirty_files, _git, _load, _src_hash
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
@@ -170,9 +172,7 @@ class Collector:
         self.log: list[str] = []
         self._server: uvicorn.Server | None = None
         self._thread: threading.Thread | None = None
-        logger.remove()
-        logger.add(sys.stderr, level="WARNING")
-        logger.add(lambda m: self.log.append(str(m).rstrip()), level="INFO", format="{level}: {message}")
+        self._sink = logger.add(lambda m: self.log.append(str(m).rstrip()), level="INFO", format="{level}: {message}")
 
     def start(self) -> None:
         app = create_app(
@@ -196,6 +196,10 @@ class Collector:
                 pass
             time.sleep(0.05)
         raise RuntimeError("collector did not become healthy")
+
+    def close(self) -> None:
+        self.stop()
+        logger.remove(self._sink)         # only our sink: other code in the process keeps its own
 
     def stop(self) -> None:
         if self._server and self._thread:
@@ -472,8 +476,10 @@ def run(
         "command": command,
         "started_at": started.isoformat(),
         "commit": _git("rev-parse", "HEAD"),
-        "tree_dirty": bool(_git("status", "--porcelain", "--untracked-files=no")),
-        "dirty_files": _git("status", "--porcelain", "--untracked-files=no").splitlines(),
+        "src_hash": _src_hash(),
+        "harness_hash": hashlib.sha256((HERE / "soak.py").read_bytes()).hexdigest(),
+        "tree_dirty": bool(_dirty_files()),
+        "dirty_files": _dirty_files(),
         "box": {
             "cpus": os.cpu_count(),
             "mem_kb": int(Path("/proc/meminfo").read_text().split()[1]),
@@ -493,7 +499,7 @@ def run(
         target = work / "fleet.db" if db == "sqlite" else stack.enter_context(_collector.postgres_container())
         col = Collector(target, tap, keep)
         col.start()
-        stack.callback(col.stop)
+        stack.callback(col.close)
         sim = Sim(work, hosts, col.url)
         probe = Repo(target)
         probe.init_schema()
@@ -596,6 +602,9 @@ def run(
         result["collector_log_info_lines"] = sum(1 for ln in col.log if ln.startswith("INFO"))
     result["box"]["load_end"] = _load()
     result["finished_at"] = dt.datetime.now(dt.UTC).isoformat()
+    result["ingest_success"] = ingest_success(
+        [e for e in tap.events if e["path"] == "ingest" and not e["injected"]]
+    )
     result["checks"] = evaluate(result, exp)
     result["anomalies"] = [
         f"cycle {cy['cycle']} {h}: {m}"
@@ -614,6 +623,21 @@ def run(
         path.write_text(json.dumps(result, indent=2) + "\n")
         result["result_file"] = path.name
     return result
+
+
+def ingest_success(ingests: list[dict]) -> dict[str, Any]:
+    """Ingest calls that stored or recognised a bundle (200), out of all of them, with every other answer named."""
+    ok = sum(1 for e in ingests if e["status"] == 200)
+    return {
+        "ok": ok,
+        "calls": len(ingests),
+        "rate": round(ok / len(ingests), 4) if ingests else None,
+        "non_200": [
+            {"cycle": e["cycle"], "machine": e["machine"], "status": e["status"], "detail": e["detail"]}
+            for e in ingests
+            if e["status"] != 200
+        ],
+    }
 
 
 def _admin(target: Path | str, verb: str, host_id: int) -> dict[str, Any]:
@@ -804,13 +828,17 @@ def evaluate(result: dict, exp: dict) -> list[dict[str, Any]]:
         ),
         (
             "does a duplicate resend spend an ingest token?",
-            not dup.get("got_429", True),
-            "free: re-posting the same bundle never reaches 429",
-            "only a duplicate resend is free",
+            bool(dup.get("got_429")) and dup.get("duplicates_before_429", 99) <= 10,
+            "spent like any post: duplicates answered 200 with `duplicate: true`, at most 10 in a row, then 429",
+            "Every post spends a token before the bundle is read, a duplicate resend included: it is answered `200` "
+            "with `duplicate: true`, and after 10 in a row the next one gets `429`.",
             "Security, Ingest limits",
             f"{dup.get('sequence')}: "
-            + (f"429 after {dup.get('duplicates_before_429')} duplicates, so tokens ARE spent"
-               if dup.get("got_429") else "free"),
+            + (
+                f"429 after {dup.get('duplicates_before_429')} duplicates"
+                if dup.get("got_429")
+                else "never reached 429, so duplicates were free"
+            ),
         ),
         (
             f"retention at --keep-scans-per-host {result['keep_scans_per_host']}",
@@ -874,6 +902,15 @@ def evaluate(result: dict, exp: dict) -> list[dict[str, Any]]:
 _ACCESS = re.compile(r'"POST (/api/ingest|/api/agents/enroll) HTTP/[\d.]+" (\d{3})')
 
 
+def _readonly_engine(target: str):
+    """Engine on the live collector DB that cannot write: SQLite `mode=ro`, Postgres read-only transactions."""
+    from sqlalchemy import create_engine
+
+    if "://" in target:
+        return create_engine(target, connect_args={"options": "-c default_transaction_read_only=on"})
+    return create_engine(f"sqlite:///file:{Path(target).resolve()}?mode=ro&uri=true")
+
+
 def observe(*, target: str, access_log: Path | None, cycles: int, interval: float, command: str = "") -> dict[str, Any]:
     """REAL soak, collector side: every `interval` seconds snapshot a running collector's DB and access log.
 
@@ -883,10 +920,7 @@ def observe(*, target: str, access_log: Path | None, cycles: int, interval: floa
     (soak-real.md)."""
     from sqlalchemy import text
 
-    from pqcscan.store.repo import Repo
-
-    probe = Repo(target)
-    probe.init_schema()
+    probe = SimpleNamespace(engine=_readonly_engine(target))     # never Repo(): its constructor path can migrate
     offset = 0
     mark = None            # highest scan id seen at the previous snapshot
     prev: dict[str, int] = {}

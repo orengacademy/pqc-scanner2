@@ -5737,11 +5737,11 @@
     },
     {
       "fault": "does a duplicate resend spend an ingest token?",
-      "ok": false,
-      "expected": "free: re-posting the same bundle never reaches 429",
-      "cite": "only a duplicate resend is free",
+      "ok": true,
+      "expected": "spent like any post: duplicates answered 200 with `duplicate: true`, at most 10 in a row, then 429",
+      "cite": "Every post spends a token before the bundle is read, a duplicate resend included: it is answered `200` with `duplicate: true`, and after 10 in a row the next one gets `429`.",
       "source": "FLEET.md Security, Ingest limits",
-      "observed": "['200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '429']: 429 after 10 duplicates, so tokens ARE spent"
+      "observed": "['200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '429']: 429 after 10 duplicates"
     },
     {
       "fault": "retention at --keep-scans-per-host 3",
@@ -5792,5 +5792,20 @@
       "observed": "0 warning lines, 31 info lines"
     }
   ],
-  "anomalies": []
+  "anomalies": [],
+  "ingest_success": {
+    "ok": 210,
+    "calls": 211,
+    "rate": 0.9953,
+    "non_200": [
+      {
+        "cycle": 4,
+        "machine": "m-soak-005",
+        "status": 401,
+        "detail": null
+      }
+    ],
+    "derived_from": "per-cell counts after the run; the harness now computes it from the tap"
+  },
+  "provenance_note": "This run was made while benchmark/fleet/soak.py and the smoke test were untracked (committed in e5c43e0 after the run), so `dirty_files: []` covers tracked files only and the hash of the harness that ran is unknown; the committed soak.py is not proven identical to it. The recorded cycles, cells and probe data are untouched. Two fields were added afterwards from them: `ingest_success`, and `checks`, re-evaluated with the corrected FLEET.md sentence on duplicate resends (the run-time check expected duplicates to be free and recorded a miss)."
 }

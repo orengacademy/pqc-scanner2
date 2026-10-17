@@ -14,6 +14,7 @@ runbook is [`soak-real.md`](soak-real.md), and nothing in this file counts as ha
 | Item | Value |
 |---|---|
 | Box | 8 cores, 31 GB, Linux 7.0.0-38-generic, Python 3.11, Docker for Postgres. Shared with other work: load average 7 to 33 at cycle starts across all runs |
+| Provenance | `soak.py` and the smoke test were untracked when runs 1 to 3 were made and were committed afterwards (`e5c43e0`). The run-3 JSONs say so in `provenance_note`; the harness hash is unknown for them. Later runs record `src_hash`, `harness_hash` and `dirty_files` with untracked files counted |
 | Commits | Run 3 (the one tabled below): SQLite at `e4c753c`, Postgres at `9d086c3`, clean tree. Both include the ingest bulk-insert commit `05289fd` |
 | Command | `python -m benchmark.fleet.soak --db sqlite --hosts 30 --cycles 7 --interval 60 --fault-plan default`, and the same with `--db postgres` |
 | Results | `results/soak-simulated-<db>-20261017[-N].json`, one per run, with every per-host, per-cycle value, the collector log and the commands |
@@ -67,6 +68,9 @@ Six runs were made. Runs 1 and 2 are kept because they show the two product bugs
 | 3 | SQLite | `e4c753c` | 12 to 23 | 0 | After the fixes below |
 | 3 | Postgres | `9d086c3` | 11 to 21 | 0 | After the fixes below |
 
+Run-1 JSONs have `tree_dirty: true`: unrelated files (`LOAD.md`, `run_load.py`, `benchmark/last_report.json`) were modified
+in the shared checkout, and the harness did not count untracked files at all.
+
 Run 2 changed the harness to store the text of every drifting ingest. The first run's JSON had a hard-coded
 `final.stale: 0` field that measured nothing; it was removed from the two run-1 files and from the code. Nothing
 else in any result file was edited.
@@ -77,7 +81,12 @@ changed.
 ## Expected against observed, run 3
 
 The expected column comes from the sentence of `docs/FLEET.md` quoted next to it. A "NO" is a disagreement between
-the code and that sentence.
+the code and that sentence. The duplicate-resend row was re-evaluated after `docs/FLEET.md` was corrected to what the code does
+(see Finding 3); at run time it recorded a miss against the old sentence.
+
+**Ingest success rate: 210 of 211 (99.5%) on SQLite and on Postgres.** The one call that was not a 200 is the 401 that
+revoked host 5 (`m-soak-005`) got in cycle 4, which is the injected fault. Without it the rate is 100%. The result
+JSON has it as `ingest_success`.
 
 ### SQLite, run 3 (2026-10-17T15:47:53Z, commit e4c753c6c)
 
@@ -90,7 +99,7 @@ the code and that sentence.
 | unrevoke host 5 at the end of cycle 5; cycle 6 | host 5 enrols (201), its 2 spooled bundles and the new one are stored (3), spool 0 | `pqcscan agents unrevoke <id>` lets it enroll again ... re-enrolls and sends (spooled bundles included). (FLEET.md section 6) | enrol 201 x1, stored 3, spool 0 | yes |
 | host 7 scans a different cert dir from cycle 4 | drift > 0 in the ingest response and as fleet.drift rows in the stored scan; 0 the next cycle; 0 for every other host in every cycle | Each finding that appeared or vanished becomes one `fleet.drift` finding (severity info) in the new scan. The ingest response reports the number of changes as `drift`. (FLEET.md Drift between scans) | host 7 cycle 4: drift [6], drift rows in DB 6; cycle 5: [0]; drift rows from all other hosts and cycles: 0 | yes |
 | replay host 9's previous bundle after cycle 6 | 200 with `duplicate: true`, 0 findings stored, no new scan | a duplicate bundle prunes nothing (FLEET.md Retention) | status 200, body {'scan_id': 126, 'stored_findings': 0, 'stored_views': 0, 'duplicate': True, 'drift': 0}, scans for the host 3 -> 3 | yes |
-| does a duplicate resend spend an ingest token? | free: re-posting the same bundle never reaches 429 | only a duplicate resend is free (FLEET.md Security, Ingest limits) | ['200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '429']: 429 after 10 duplicates, so tokens ARE spent | **NO** |
+| does a duplicate resend spend an ingest token? | spent like any post: duplicates answered 200 with `duplicate: true`, at most 10 in a row, then 429 | Every post spends a token before the bundle is read, a duplicate resend included: it is answered `200` with `duplicate: true`, and after 10 in a row the next one gets `429`. (FLEET.md Security, Ingest limits) | ['200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '429']: 429 after 10 duplicates | yes |
 | retention at --keep-scans-per-host 3 | scans pruned per cycle [0, 0, 0, 29, 29, 32, 30]; no host above 3 stored scans | After each stored bundle the daemon deletes that host's scans beyond the newest N ... Change the number with `pqcscan daemon --keep-scans-per-host N` (FLEET.md Retention) | pruned per cycle [0, 0, 0, 29, 29, 32, 30]; most scans on one host 3 | yes |
 | 429 and 503 answers | no 429, no 503, no other ingest status in any cycle | Each host may post a burst of 10 bundles, refilled at one per minute (FLEET.md Security) | 429: 0, 503: 0, other: 0 | yes |
 | rejected spool files | 0 files in spool/rejected on every host (nothing in this plan draws a 400, 403 or 413 on ingest) | A spooled file that gets one of these moves to `<state dir>/spool/rejected/` (FLEET.md Known limits) | files over all cycles and hosts: 0 | yes |
@@ -119,7 +128,7 @@ the code and that sentence.
 | unrevoke host 5 at the end of cycle 5; cycle 6 | host 5 enrols (201), its 2 spooled bundles and the new one are stored (3), spool 0 | `pqcscan agents unrevoke <id>` lets it enroll again ... re-enrolls and sends (spooled bundles included). (FLEET.md section 6) | enrol 201 x1, stored 3, spool 0 | yes |
 | host 7 scans a different cert dir from cycle 4 | drift > 0 in the ingest response and as fleet.drift rows in the stored scan; 0 the next cycle; 0 for every other host in every cycle | Each finding that appeared or vanished becomes one `fleet.drift` finding (severity info) in the new scan. The ingest response reports the number of changes as `drift`. (FLEET.md Drift between scans) | host 7 cycle 4: drift [6], drift rows in DB 6; cycle 5: [0]; drift rows from all other hosts and cycles: 0 | yes |
 | replay host 9's previous bundle after cycle 6 | 200 with `duplicate: true`, 0 findings stored, no new scan | a duplicate bundle prunes nothing (FLEET.md Retention) | status 200, body {'scan_id': 127, 'stored_findings': 0, 'stored_views': 0, 'duplicate': True, 'drift': 0}, scans for the host 3 -> 3 | yes |
-| does a duplicate resend spend an ingest token? | free: re-posting the same bundle never reaches 429 | only a duplicate resend is free (FLEET.md Security, Ingest limits) | ['200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '429']: 429 after 10 duplicates, so tokens ARE spent | **NO** |
+| does a duplicate resend spend an ingest token? | spent like any post: duplicates answered 200 with `duplicate: true`, at most 10 in a row, then 429 | Every post spends a token before the bundle is read, a duplicate resend included: it is answered `200` with `duplicate: true`, and after 10 in a row the next one gets `429`. (FLEET.md Security, Ingest limits) | ['200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '200/dup', '429']: 429 after 10 duplicates | yes |
 | retention at --keep-scans-per-host 3 | scans pruned per cycle [0, 0, 0, 29, 29, 32, 30]; no host above 3 stored scans | After each stored bundle the daemon deletes that host's scans beyond the newest N ... Change the number with `pqcscan daemon --keep-scans-per-host N` (FLEET.md Retention) | pruned per cycle [0, 0, 0, 29, 29, 32, 30]; most scans on one host 3 | yes |
 | 429 and 503 answers | no 429, no 503, no other ingest status in any cycle | Each host may post a burst of 10 bundles, refilled at one per minute (FLEET.md Security) | 429: 0, 503: 0, other: 0 | yes |
 | rejected spool files | 0 files in spool/rejected on every host (nothing in this plan draws a 400, 403 or 413 on ingest) | A spooled file that gets one of these moves to `<state dir>/spool/rejected/` (FLEET.md Known limits) | files over all cycles and hosts: 0 | yes |
@@ -147,22 +156,32 @@ Every number above zero that `docs/FLEET.md` does not predict, and every sentenc
    findings that "appeared or vanished". Seen as drift 2 on every host in the smoke run's second cycle. Fixed in
    `91372e4` (the title is fixed, the time stays in `evidence.utc_now`), with a test and a CHANGELOG line.
 2. **Fixed, product bug: `net.ports.tcp` lost open ports when the box was busy, and fleet drift reported it.** The
-   probe timed each connect with an in-loop `wait_for` (0.4 s). The scan's other probes write to the database
-   synchronously on that loop, so a port that accepted at once could still read as closed. On this box four well-known
+   probe timed each connect with an in-loop `wait_for` (0.4 s). Anything that blocks the loop for more than
+   0.4 s expires that timer, so a port that accepted at once could still read as closed. The scan's other probes write
+   to the database synchronously on that loop, which is the likely stall; no loop-lag measurement was made, and the fix
+   does not depend on which stall it is. On this box four well-known
    ports are open, so the effect was exactly four drift rows (`removed net.ports.tcp`), and four `added` on the next
    scan. Runs 2 on both databases: 19 such cells at box load 7 to 33, always four rows, and wherever the same host had
    a later scan, that scan reversed the change. Run 1 SQLite (load 9 to 14) had none, run 1 Postgres had one cell whose text was not
-   captured. Reproduced outside the harness: of 12 concurrent local scans, 2 found none of the four ports and 10 found
-   all four; after the fix 12 of 12 found all four. Fixed in `e4c753c` (the connect runs in a thread with the socket's
+   captured. Reproduced outside the harness with the command below: of 12 concurrent local scans, 2 found none of the four ports
+   and 10 found all four; after the fix 12 of 12 found all four. Fixed in `e4c753c` (the connect runs in a thread with the socket's
    own timeout), with a deterministic test that blocks the loop for a second. Runs 3, after both fixes, had 6 drift rows
    in each database, all from host 7's injected change. Caveat: that is one run per database after the fix, on a box
    whose load changes by the minute. Other probes that time a connect inside the loop (`grep open_connection
    src/pqcscan/probes` finds 29 uses) were not checked for the same weakness.
-3. **Open, documentation: "only a duplicate resend is free" is wrong.** `docs/FLEET.md` (Security, Ingest limits)
-   says so. Re-posting an already stored bundle returned `200` with `duplicate: true` ten times and then `429`, on both
+   ```bash
+   # 12 full host scans at once on a loaded box; the number of open well-known ports (4 here) should be the same in every DB
+   mkdir -p /tmp/ports/empty
+   for i in $(seq 1 12); do pqcscan scan --db /tmp/ports/r$i.db --path /tmp/ports/empty --fail-on none >/dev/null 2>&1 & done; wait
+   for f in /tmp/ports/r*.db; do python -c "import sqlite3,sys; print(sqlite3.connect(sys.argv[1]).execute(\"select count(*) from findings where probe_id='net.ports.tcp'\").fetchone()[0])" $f; done | sort | uniq -c
+   ```
+   Before the fix this printed `2 0` and `10 4`; after it, `12 4`. The counts depend on the box and its load, so a
+   single run proves little. Run it a few times, and on an idle box expect all 4.
+3. **Fixed, documentation: "only a duplicate resend is free" was wrong.** `docs/FLEET.md` (Security, Ingest limits)
+   said so. Re-posting an already stored bundle returned `200` with `duplicate: true` ten times and then `429`, on both
    databases, so a duplicate spends a token like any other bundle. The comment in `daemon/fleet.py` says that is on
-   purpose ("Every outcome spends the token, duplicates included"). The sentence should say the same. This file does
-   not edit FLEET.md.
+   purpose ("Every outcome spends the token, duplicates included"). `docs/FLEET.md` now says the same: every post spends a token,
+   a duplicate is answered `200` with `duplicate: true`, and after 10 in a row the next gets `429`.
 4. **Observation, not in FLEET.md: ingest latency at real bundle size.** A real scan stores about 1,670 findings, not the
    300 of the load test. With six agents posting at once, the collector's own ingest time per call was
    0.3 to 1.3 s (p50) and 0.6 to 7.9 s (p95) on SQLite, and 3.1 to 4.6 s (p50) and 6.0 to 10.6 s (p95) on Postgres,
@@ -173,7 +192,7 @@ Every number above zero that `docs/FLEET.md` does not predict, and every sentenc
    each), about 1.2 MB per scan. A straight-line extrapolation to the default 12 scans per host is 420 MB for 30
    hosts and about 28 GB for 2,000. That is arithmetic on one measurement, not a test.
 
-Nothing else was above zero. Over the 14 run-3 fault checks per database, 13 matched. All three runs of each
+Nothing else was above zero. All 14 run-3 checks per database match (the duplicate row after the FLEET.md correction). All three runs of each
 database showed the same fault behaviour: no 429, no 503, no rejected spool file, every agent exit code 0, three
 labels on every host in every cycle, no collector log line above INFO.
 
@@ -194,5 +213,4 @@ python -m benchmark.fleet.soak --db postgres --hosts 30 --cycles 7 --interval 60
 pytest tests/benchmark/test_fleet_soak_smoke.py        # 3 hosts, 2 cycles, no faults, about 40 s
 ```
 
-Each run takes 15 to 20 minutes. The exit status is 0 only if every expected-versus-observed row matches, so the
-duplicate-token row makes it 1 until `docs/FLEET.md` is corrected. A result file is never overwritten; reruns get `-2`, `-3`.
+Each run takes 15 to 20 minutes. The exit status is 0 only if every expected-versus-observed row matches. A result file is never overwritten; reruns get `-2`, `-3`.
