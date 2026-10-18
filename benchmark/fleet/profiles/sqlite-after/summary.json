@@ -1,0 +1,166 @@
+{
+  "run": {
+    "db": "sqlite",
+    "hosts": 500,
+    "interval_s": 125.0,
+    "offered_rps": 4.0,
+    "rps": 3.48,
+    "p50_ms": 2600.0,
+    "p95_ms": 35000.0,
+    "findings_per_bundle": 1670,
+    "stored_scans": 527,
+    "seed": 1,
+    "commit": "0881a0db89ebc70e8881b53f1ab167de9f97c6dd",
+    "src_hash": "e40608db63b36ae9dc7931f8bcf497c14aa62e06f154514e652e8e026587ba60",
+    "tree_dirty": false,
+    "box": {
+      "cpus": 8,
+      "cpu_model": "DO-Regular",
+      "mem_gb": 16
+    },
+    "command": "python -m benchmark.fleet.run_load --db sqlite --hosts 500 --rate 4 --duration 300s --profile benchmark/fleet/profiles/sqlite-after --tag after"
+  },
+  "wall_s": 316.0,
+  "ingest_requests": 1091,
+  "enroll_requests": 500,
+  "top_frames": [
+    {
+      "frame": "do_execute (sqlalchemy/engine/default.py:1192)",
+      "self_pct": 26.1,
+      "total_pct": 26.1
+    },
+    {
+      "frame": "fetchall (sqlalchemy/engine/cursor.py:1315)",
+      "self_pct": 5.6,
+      "total_pct": 5.6
+    },
+    {
+      "frame": "raw_decode (json/decoder.py:353)",
+      "self_pct": 5.2,
+      "total_pct": 5.2
+    },
+    {
+      "frame": "construct_params (sqlalchemy/sql/compiler.py:2025)",
+      "self_pct": 4.3,
+      "total_pct": 4.3
+    },
+    {
+      "frame": "ingest_bundle (pqcscan/store/repo.py:532)",
+      "self_pct": 3.1,
+      "total_pct": 3.1
+    },
+    {
+      "frame": "run (asyncio/runners.py:118)",
+      "self_pct": 2.3,
+      "total_pct": 7.5
+    },
+    {
+      "frame": "do_commit (sqlalchemy/engine/default.py:954)",
+      "self_pct": 2.3,
+      "total_pct": 2.3
+    },
+    {
+      "frame": "<genexpr> (pqcscan/store/repo.py:527)",
+      "self_pct": 1.5,
+      "total_pct": 1.5
+    },
+    {
+      "frame": "_init_compiled (sqlalchemy/engine/default.py:1750)",
+      "self_pct": 1.4,
+      "total_pct": 6.2
+    },
+    {
+      "frame": "iterencode (json/encoder.py:258)",
+      "self_pct": 1.4,
+      "total_pct": 1.4
+    }
+  ],
+  "instrumentation_pct": 13.9,
+  "slow_callbacks": {
+    "count": 0,
+    "max_s": 0.0,
+    "top": []
+  },
+  "statements_source": "sqlite3 trace callback",
+  "statements_total": 16838,
+  "statements_per_ingest": 32.0,
+  "statements_note": "total statements over the run divided by the 527 scans the collector reports stored; enrolments (500) and the post-run fleet reads are included",
+  "statements_top": [
+    {
+      "sql": "INSERT INTO framework_views (finding_id, framework, clause, verdict, deadline)",
+      "count": 3689
+    },
+    {
+      "sql": "SELECT hosts.id, hosts.machine_id, hosts.hostname, hosts.os, hosts.labels, hosts.agent_version, hosts.first_seen, hosts.",
+      "count": 3609
+    },
+    {
+      "sql": "INSERT INTO findings (scan_id, probe_id, algorithm, classification, severity, title, evidence, remediation, created_at)",
+      "count": 1054
+    },
+    {
+      "sql": "BEGIN",
+      "count": 1027
+    },
+    {
+      "sql": "SELECT scans.id, scans.started_at, scans.finished_at, scans.host_fingerprint, scans.mode, scans.status, scans.label, sca",
+      "count": 1022
+    },
+    {
+      "sql": "COMMIT",
+      "count": 1021
+    },
+    {
+      "sql": "SELECT scans.id FROM scans WHERE scans.scan_uuid = ?",
+      "count": 527
+    },
+    {
+      "sql": "SELECT scans.id FROM scans WHERE scans.host_id = ? AND scans.status = ? ORDER BY scans.id DESC LIMIT ? OFFSET ?",
+      "count": 527
+    },
+    {
+      "sql": "SELECT scans.id, scans.host_id FROM scans WHERE scans.scan_uuid = ?",
+      "count": 527
+    },
+    {
+      "sql": "INSERT INTO scans (started_at, finished_at, host_fingerprint, mode, status, label, probe_versions, tool_versions, host_i",
+      "count": 527
+    },
+    {
+      "sql": "SELECT findings.id, findings.probe_id, findings.algorithm, findings.title FROM findings WHERE findings.scan_id = ? ORDER",
+      "count": 527
+    },
+    {
+      "sql": "UPDATE hosts SET last_seen=? WHERE hosts.id = ?",
+      "count": 527
+    },
+    {
+      "sql": "SELECT max(scans.id) AS max_? FROM scans WHERE scans.host_id = ? AND scans.status = ?",
+      "count": 527
+    },
+    {
+      "sql": "SELECT scans.id FROM scans WHERE scans.host_id = ? AND (scans.id NOT IN (SELECT baselines.scan_id FROM baselines)) ORDER",
+      "count": 527
+    },
+    {
+      "sql": "SELECT scans.id, scans.tool_versions FROM scans WHERE scans.label = ? AND scans.started_at < ?",
+      "count": 527
+    },
+    {
+      "sql": "INSERT INTO hosts (machine_id, hostname, os, labels, agent_version, first_seen, last_seen, token_hash, revoked)",
+      "count": 500
+    },
+    {
+      "sql": "SELECT findings.id, findings.scan_id, findings.component_id, findings.probe_id, findings.algorithm, findings.classificat",
+      "count": 166
+    },
+    {
+      "sql": "ROLLBACK",
+      "count": 6
+    },
+    {
+      "sql": "SELECT findings.scan_id, findings.classification, findings.algorithm, findings.probe_id, findings.severity, count(*) AS ",
+      "count": 1
+    }
+  ]
+}
