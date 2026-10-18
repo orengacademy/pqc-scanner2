@@ -1,9 +1,12 @@
 """Enroll → ingest → fleet view, with every rejection path."""
+import asyncio
 import gzip
 import json
 import os
+from types import SimpleNamespace
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from loguru import logger
 from sqlalchemy.exc import IntegrityError, OperationalError
@@ -94,6 +97,7 @@ def test_revoked_token_is_401(tmp_db_path, fast_registry, tmp_path):
     tok = _enroll(c)["agent_token"]
     assert c.post("/api/agents/1/revoke").json() == {"revoked": True}
     assert c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(tok)).status_code == 401
+    assert c.get("/api/fleet/1").json()["host"]["revoked"] is True
     assert c.post("/api/agents/99/revoke").status_code == 404
 
 
@@ -754,3 +758,56 @@ def test_resolved_ingest_parallelism_is_on_app_state(tmp_db_path, fast_registry,
     want = 5 if str(tmp_db_path).startswith("postgresql") else 1
     assert create_app(db_path=tmp_db_path, registry=fast_registry).state.ingest_parallelism == want
     assert create_app(db_path=tmp_db_path, registry=fast_registry, ingest_parallelism=3).state.ingest_parallelism == 3
+
+
+def test_token_bucket_refills_sub_second_intervals_and_denials_cost_nothing(monkeypatch):
+    clock = [100.0]
+    monkeypatch.setattr(fleet, "time", SimpleNamespace(monotonic=lambda: clock[0]))
+    monkeypatch.setattr(fleet, "INGEST_BURST", 1)
+    monkeypatch.setattr(fleet, "INGEST_MIN_INTERVAL_S", 0.5)    # under one second still throttles
+    b = fleet._TokenBucket()
+    assert b.take(1) and not b.take(1) and not b.take(1)          # burst spent; the denials spend nothing
+    clock[0] += 0.5
+    assert b.take(1) and not b.take(1)                            # one interval later, exactly one token is back
+
+
+def _body_request(chunks, content_length=None):
+    headers = [] if content_length is None else [(b"content-length", str(content_length).encode())]
+    msgs = [{"type": "http.request", "body": c, "more_body": i < len(chunks) - 1} for i, c in enumerate(chunks)]
+    msgs = msgs or [{"type": "http.request", "body": b"", "more_body": False}]
+
+    async def receive():
+        return msgs.pop(0)
+    return Request({"type": "http", "method": "POST", "headers": headers}, receive)
+
+
+def _read(chunks, cap, content_length=None):
+    return asyncio.run(fleet._read_capped(_body_request(chunks, content_length), cap))
+
+
+def test_read_capped_bounds():
+    assert _read([b"abcd"], 4, content_length=4) == b"abcd"        # exactly the cap is accepted
+    for chunks, length in (([], 5), ([b"abc", b"de"], None)):       # declared over the cap; chunks summed past it
+        with pytest.raises(HTTPException) as e:
+            _read(chunks, 4, content_length=length)
+        assert e.value.status_code == 413
+    assert _read([b"ab"], 4, content_length="junk") == b"ab"       # an unparseable length: capped while reading
+    assert _read([], 0) == _read([], 0, content_length="junk") == b""   # no usable length counts as zero bytes
+
+
+def test_resolve_ingest_parallelism_picks_the_constant_by_dialect(monkeypatch):
+    monkeypatch.setattr(fleet, "INGEST_PARALLELISM", 1)
+    monkeypatch.setattr(fleet, "INGEST_PARALLELISM_PG", 5)
+
+    def repo(dialect):
+        return SimpleNamespace(engine=SimpleNamespace(dialect=SimpleNamespace(name=dialect)))
+    assert fleet.resolve_ingest_parallelism(repo("postgresql"), None) == 5
+    assert fleet.resolve_ingest_parallelism(repo("sqlite"), None) == 1
+    assert fleet.resolve_ingest_parallelism(repo("postgresql"), 3) == 3
+    fleet.build_fleet_router(repo("sqlite"), enroll_token=None)      # not given: resolved from the router's repo
+
+
+def test_one_place_ingest_queue_admits_a_bundle(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    monkeypatch.setattr(fleet, "INGEST_QUEUE_MAX", 1)
+    c = _client(tmp_db_path, fast_registry)
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(_enroll(c)["agent_token"])).status_code == 200

@@ -1,11 +1,14 @@
 """ScanBundle round-trip: everything a host scan produced survives dump -> load."""
 import gzip
 import json
+import tracemalloc
+import zlib
 from datetime import date
 
 import pytest
 
 from pqcscan.core.types import Classification, Finding, Severity
+from pqcscan.store import bundle
 from pqcscan.store.bundle import (
     MAX_FINDINGS,
     MAX_GZIP_BYTES,
@@ -98,7 +101,44 @@ def _doc(**over):
 
 
 def test_load_accepts_minimal_valid_doc():
-    assert load_bundle(_doc()).host.labels == {}
+    h = load_bundle(_doc()).host
+    assert h.labels == {} and (h.hostname, h.os, h.agent_version) == ("", "", "")   # absent optional fields are ''
+
+
+def test_load_defaults_absent_findings_to_empty():
+    doc = {"schema_version": 1, "scan_uuid": "u", "host": {"machine_id": "m"}, "scan": {}}
+    assert load_bundle(gzip.compress(json.dumps(doc).encode())).findings == []
+
+
+def test_load_size_caps_are_inclusive(monkeypatch):
+    blob = _doc(findings=[{}, {}])
+    raw = gzip.decompress(blob)
+    monkeypatch.setattr(bundle, "MAX_GZIP_BYTES", len(blob))
+    monkeypatch.setattr(bundle, "MAX_RAW_BYTES", len(raw))
+    monkeypatch.setattr(bundle, "MAX_FINDINGS", 2)
+    assert len(load_bundle(blob).findings) == 2                    # exactly at all three caps: accepted
+    monkeypatch.setattr(bundle, "MAX_RAW_BYTES", len(raw) - 1)     # one byte over, the whole stream consumed
+    with pytest.raises(BundleTooLarge):
+        load_bundle(blob)
+
+
+def test_load_inflates_a_bomb_no_further_than_the_cap(monkeypatch):
+    monkeypatch.setattr(bundle, "MAX_RAW_BYTES", 1024 * 1024)
+    bomb = gzip.compress(b"\0" * (64 * 1024 * 1024))              # 64 MiB of zeros in about 64 KiB
+    tracemalloc.start()
+    try:
+        with pytest.raises(BundleTooLarge):
+            load_bundle(bomb)
+        peak = tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+    assert peak < 8 * 1024 * 1024, peak
+
+
+def test_load_rejects_zlib_framing():
+    doc = {"schema_version": 1, "scan_uuid": "u", "host": {"machine_id": "m"}, "scan": {}, "findings": []}
+    with pytest.raises(BundleInvalid, match="bad gzip"):
+        load_bundle(zlib.compress(json.dumps(doc).encode()))
 
 
 def test_load_strips_server_only_evidence_keys():
