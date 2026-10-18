@@ -5,7 +5,7 @@
   <p class="text-xs font-mono uppercase tracking-[0.2em] text-zinc-500 mb-2"><a href="/fleet" class="hover:text-zinc-300">{{ t('fleet.title') }}</a></p>
   <h1 class="text-3xl font-semibold tracking-tight text-zinc-50">
     {{ host.hostname or host.machine_id }}
-    {% if stale %}<span class="sev-chip ml-2 align-middle">{{ t('fleet.stale') }}</span>{% endif %}
+    {% if stale %}<span class="sev-pill ml-2 align-middle" data-sev="med">{{ t('fleet.stale') }}</span>{% endif %}
   </h1>
   <dl class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 text-sm font-mono text-zinc-400">
     <div><dt class="inline text-zinc-500">machine id:</dt> <dd class="inline">{{ host.machine_id }}</dd></div>
@@ -35,7 +35,7 @@
           <td class="py-2.5 px-5 font-mono text-zinc-500 text-xs">{{ s.started_at }}</td>
           <td class="py-2.5 px-5">
             <span class="status-pill" data-status="{{ s.status }}"><span class="pulse"></span>{{ s.status }}</span>
-            {% if drift.get(s.id) %}<span class="sev-chip ml-2">{{ t('fleet.drift') }} {{ drift[s.id] }}</span>{% endif %}
+            {% if drift.get(s.id) %}<span class="sev-pill ml-2 border border-zinc-800 text-zinc-300">{{ t('fleet.drift') }} {{ drift[s.id] }}</span>{% endif %}
           </td>
           <td class="py-2.5 px-5 text-right">
             <a href="/scans/{{ s.id }}" class="text-blue-400 hover:text-blue-300 text-xs">{{ t('common.view') }} &rarr;</a>
