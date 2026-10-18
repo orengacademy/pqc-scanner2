@@ -739,3 +739,15 @@ def test_one_host_has_at_most_two_uploads_in_flight(tmp_db_path, fast_registry, 
     assert third.status_code == 503 and third.headers["retry-after"] == "60"
     assert third.json()["detail"] == "collector busy: this host already has 2 uploads in flight"
     assert elsewhere.status_code == 200 and [r.status_code for r in first] == [200, 200], elsewhere.text
+
+
+@pytest.mark.parametrize("given", [0, -1])
+def test_ingest_parallelism_below_one_is_refused(tmp_db_path, fast_registry, given):
+    with pytest.raises(ValueError, match="at least 1"):
+        create_app(db_path=tmp_db_path, registry=fast_registry, ingest_parallelism=given)
+
+
+def test_resolved_ingest_parallelism_is_on_app_state(tmp_db_path, fast_registry):
+    want = fleet.INGEST_PARALLELISM_PG if str(tmp_db_path).startswith("postgresql") else fleet.INGEST_PARALLELISM
+    assert create_app(db_path=tmp_db_path, registry=fast_registry).state.ingest_parallelism == want
+    assert create_app(db_path=tmp_db_path, registry=fast_registry, ingest_parallelism=3).state.ingest_parallelism == 3

@@ -159,10 +159,11 @@ def _profile_hooks(stack: ExitStack, app, profile_dir: Path) -> None:
 
 @contextmanager
 def collector(db: str, workdir: Path, enroll_token: str = ENROLL_TOKEN,
-              profile_dir: Path | None = None, ingest_parallelism: int | None = None) -> Iterator[str]:
+              profile_dir: Path | None = None, ingest_parallelism: int | None = None,
+              info: dict | None = None) -> Iterator[str]:
     """Yield the base URL of a running collector; `db` is "sqlite" or "postgres". `profile_dir` turns on the
     profile hooks (asyncio slow callbacks, statement counts, Postgres auto_explain log). `ingest_parallelism` goes to
-    `create_app` (None: its per-dialect default)."""
+    `create_app` (None: its per-dialect default); `info`, when given, receives the resolved `ingest_parallelism`."""
     if db not in ("sqlite", "postgres"):
         raise ValueError(f"db must be sqlite or postgres, not {db!r}")
     logger.disable("pqcscan")   # one info line per enrolment would drown the run output
@@ -177,6 +178,8 @@ def collector(db: str, workdir: Path, enroll_token: str = ENROLL_TOKEN,
                 stack.callback(_pg_statements, target, profile_dir / "statements.json")
         app = create_app(db_path=target, registry=Registry(), enroll_token=enroll_token,
                          ingest_parallelism=ingest_parallelism)
+        if info is not None:
+            info["ingest_parallelism"] = app.state.ingest_parallelism
         if profile_dir:                              # registered before the server: dumps run after it stops
             _profile_hooks(stack, app, profile_dir)
         port = free_port()

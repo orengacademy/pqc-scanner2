@@ -99,16 +99,23 @@ def _host_dict(h: Any) -> dict[str, Any]:
             "last_seen": h.last_seen.isoformat() if h.last_seen else None, "revoked": bool(h.revoked)}
 
 
+def resolve_ingest_parallelism(repo: Repo, given: int | None) -> int:
+    """Bundles parsed/stored at once: `given`, else by dialect (INGEST_PARALLELISM_PG on Postgres, INGEST_PARALLELISM
+    elsewhere). Below 1 no ingest could ever run, so it is refused."""
+    n = given if given is not None else (
+        INGEST_PARALLELISM_PG if repo.engine.dialect.name == "postgresql" else INGEST_PARALLELISM)
+    if n < 1:
+        raise ValueError(f"ingest_parallelism must be at least 1, not {n}")
+    return n
+
+
 def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_host: int = 12,
                        ingest_parallelism: int | None = None) -> APIRouter:
-    """`ingest_parallelism` (bundles parsed/stored at once) defaults by dialect: INGEST_PARALLELISM_PG on Postgres,
-    INGEST_PARALLELISM elsewhere."""
+    """`ingest_parallelism`: see resolve_ingest_parallelism."""
     router = APIRouter()
     limiter = _TokenBucket()
     # Per router (one per app): an asyncio.Semaphore binds to the loop it first blocks on.
-    if ingest_parallelism is None:
-        ingest_parallelism = INGEST_PARALLELISM_PG if repo.engine.dialect.name == "postgresql" else INGEST_PARALLELISM
-    parse_slots = asyncio.Semaphore(ingest_parallelism)
+    parse_slots = asyncio.Semaphore(resolve_ingest_parallelism(repo, ingest_parallelism))
     queued = 0      # ingest requests with their body read, waiting for or holding a parse slot
     reading = 0     # ingest requests reading their body
     reading_by_host: dict[int, int] = {}   # of those, per host id; a host with none has no entry

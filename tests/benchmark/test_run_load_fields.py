@@ -41,3 +41,26 @@ def test_append_row_refuses_a_header_with_a_different_column_count(tmp_path):
         run_load._check_md_columns(md, run_load.ROW_COLUMNS)
     md.write_text(run_load._load_md_head())          # the header the harness writes matches the row it appends
     run_load._check_md_columns(md, run_load.ROW_COLUMNS)
+
+
+def test_committed_load_md_matches_the_row_format():
+    run_load._check_md_columns(run_load.HERE / "LOAD.md", run_load.ROW_COLUMNS)
+
+
+def test_ingest_parallelism_flag_refuses_below_one():
+    import argparse
+    assert run_load._at_least_one("3") == 3
+    with pytest.raises(argparse.ArgumentTypeError, match="at least 1"):
+        run_load._at_least_one("0")
+
+
+def test_collector_reports_the_resolved_ingest_parallelism(tmp_path):
+    from benchmark.fleet import _collector
+    from pqcscan.daemon.fleet import INGEST_PARALLELISM
+    for given, want in ((None, INGEST_PARALLELISM), (3, 3)):
+        info: dict = {}
+        work = tmp_path / str(given)
+        work.mkdir()
+        with _collector.collector("sqlite", work, ingest_parallelism=given, info=info):
+            pass
+        assert info == {"ingest_parallelism": want}

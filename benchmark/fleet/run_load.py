@@ -35,7 +35,7 @@ P95_LIMIT_MS = 2000
 DEFAULT_FINDINGS = 1670          # a real scan stores about this many (FLEET-EVIDENCE F19)
 JITTER_WINDOW_S = 7200           # FLEET.md: daily timer, 2 h random delay
 LITTLE_BAND = (0.9, 1.1)
-ROW_COLUMNS = 21                 # cells in a LOAD.md row; the header written by _load_md_head has the same count
+ROW_COLUMNS = 22                 # cells in a LOAD.md row; the header written by _load_md_head has the same count
 SRC_DIRS = ("src/pqcscan/daemon", "src/pqcscan/store")      # the collector code a result depends on
 
 
@@ -87,14 +87,16 @@ def _load_md_head() -> str:
         "FLEET.md's daily timer with a 2 h random delay puts 2,000 hosts at 0.28 posts/s, while 500 hosts every 60 s "
         "is 8.3 posts/s, about 60,000 daily hosts. `Little ratio` is the achieved rate over the Little's law "
         "expectation hosts / (interval + mean response); outside 0.9 to 1.1 the run lost requests and is a "
-        "measurement defect, not a capacity result (None: run shorter than two intervals, not evaluated). Rows from "
+        "measurement defect, not a capacity result (None: run shorter than two intervals, not evaluated). "
+        "`parse slots` is how many bundles the collector parsed and stored at once. Rows from "
         "PR #92 (19-column format, 300-finding bundles) are in [LOAD-pr92.md](LOAD-pr92.md). The box was shared "
         "with unrelated work, so the load average "
         "column matters when reading a row. Postgres rows ran against a local `postgres:16-alpine` container.\n\n"
-        "| date (UTC) | db | arrival | hosts | spawn/s | duration | findings/bundle | ingest reqs | p50 ms | p95 ms "
+        "| date (UTC) | db | arrival | hosts | spawn/s | duration | findings/bundle | parse slots | ingest reqs "
+        "| p50 ms | p95 ms "
         "| p99 ms | rps | offered rps | Little ratio | 429 | 503 | errors | p95 < 2 s "
         "| box load (1 min avg, start / end) | commit | command |\n"
-        "|" + "---|" * 21 + "\n")
+        "|" + "---|" * ROW_COLUMNS + "\n")
 
 
 def parse_duration(s: str) -> int:
@@ -156,7 +158,7 @@ def run(*, db: str, hosts: int, spawn_rate: int, duration_s: int, findings: int 
     `rate` (total posts/s offered by all hosts) sets the interval; else `interval_s`, default 60 s.
     `profile_dir` records a py-spy profile, slow callbacks and statement counts there and writes its summary.
     `md_path` overrides the LOAD.md the row is appended to. `ingest_parallelism` overrides the collector's per-dialect
-    default (recorded in the result; None means the default)."""
+    default; the result records the value the collector resolved."""
     interval_s = interval_for(hosts=hosts, rate=rate) if rate is not None else interval_s or 60.0
     if record:                                    # fail before a long run, not after it
         _check_md_columns(md_path or HERE / "LOAD.md", ROW_COLUMNS)
@@ -172,7 +174,9 @@ def run(*, db: str, hosts: int, spawn_rate: int, duration_s: int, findings: int 
         locust_cmd = [sys.executable, "-m", "locust", "-f", str(HERE / "locustfile.py"), "--headless",
                       "-u", str(hosts), "-r", str(spawn_rate), "-t", f"{duration_s}s", "--stop-timeout", "70",
                       "--csv", str(prefix), "--csv-full-history", "--only-summary"]
-        with _collector.collector(db, work, profile_dir=profile_dir, ingest_parallelism=ingest_parallelism) as url:
+        info: dict = {}
+        with _collector.collector(db, work, profile_dir=profile_dir, ingest_parallelism=ingest_parallelism,
+                                  info=info) as url:
             env = {**os.environ, "LOAD_TEMPLATE": str(template), "LOAD_ENROLL_TOKEN": _collector.ENROLL_TOKEN,
                    "LOAD_INTERVAL_S": str(interval_s), "LOAD_COUNTERS": str(counters), "LOAD_PREFIX": "m-load-",
                    "LOAD_STAGGER": "1" if stagger else "0", "LOAD_SEED": str(seed),
@@ -216,7 +220,7 @@ def run(*, db: str, hosts: int, spawn_rate: int, duration_s: int, findings: int 
         "ingest_error_rate": error_rate(ing), "enroll_error_rate": error_rate(enr),
         "enroll_503": seen.get("enroll_503", 0),
         "stored_hosts": stored_hosts, "stored_scans": stored_scans, "seed": seed,
-        "ingest_parallelism": ingest_parallelism,
+        "ingest_parallelism": info["ingest_parallelism"],
         "enroll_requests": int(enr.get("Request Count", 0) or 0), "enroll_p95_ms": float(enr.get("95%", 0) or 0),
         "failure_samples": [f"{f['Name']}: {f['Error']} x{f['Occurrences']}" for f in failures[:10]],
         "pass_p95_lt_2s": p95 < P95_LIMIT_MS and bool(ing),
@@ -266,7 +270,8 @@ def _append_row(r: dict, started: datetime, md: Path | None = None) -> None:
         md.write_text(_load_md_head())
     commit = r["commit"][:9] + ("+dirty tree" if r["tree_dirty"] else "")
     cells = [f"{started:%Y-%m-%d %H:%M}", r["db"], r["arrival"], r["hosts"], r["spawn_rate"], f"{r['duration_s']} s",
-             r["findings_per_bundle"], r["requests"], f"{r['p50_ms']:.0f}", f"{r['p95_ms']:.0f}", f"{r['p99_ms']:.0f}",
+             r["findings_per_bundle"], r["ingest_parallelism"], r["requests"], f"{r['p50_ms']:.0f}",
+             f"{r['p95_ms']:.0f}", f"{r['p99_ms']:.0f}",
              r["rps"], r["offered_rps"], r["littles_ratio"], r["http_429"], r["http_503"], r["errors"],
              "PASS" if r["pass_p95_lt_2s"] else "FAIL",
              f"{r['box_load_start']['loadavg_1m']} / {r['box_load_end']['loadavg_1m']}", commit, f"`{r['command']}`"]
@@ -274,6 +279,13 @@ def _append_row(r: dict, started: datetime, md: Path | None = None) -> None:
     row = "| " + " | ".join(map(str, cells)) + " |\n"
     with md.open("a") as fh:
         fh.write(row)
+
+
+def _at_least_one(s: str) -> int:
+    n = int(s)
+    if n < 1:
+        raise argparse.ArgumentTypeError(f"must be at least 1, not {n}")
+    return n
 
 
 def main() -> int:
@@ -288,7 +300,7 @@ def main() -> int:
     ap.add_argument("--tag", default="", help="suffix for the result file name, e.g. a code revision label")
     ap.add_argument("--profile", type=Path, default=None, metavar="DIR",
                     help="record py-spy, asyncio slow callbacks and statements per ingest into DIR")
-    ap.add_argument("--ingest-parallelism", type=int, default=None, metavar="N",
+    ap.add_argument("--ingest-parallelism", type=_at_least_one, default=None, metavar="N",
                     help="bundles the collector parses/stores at once (default: 2 on SQLite, 4 on Postgres)")
     ap.add_argument("--no-record", action="store_true", help="write no result file and no LOAD.md row (dry runs)")
     g = ap.add_mutually_exclusive_group()

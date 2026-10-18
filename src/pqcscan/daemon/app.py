@@ -15,7 +15,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Stre
 from starlette.concurrency import run_in_threadpool
 
 from pqcscan import __version__
-from pqcscan.daemon.fleet import FLEET_BEARER_PATHS, build_fleet_router
+from pqcscan.daemon.fleet import FLEET_BEARER_PATHS, build_fleet_router, resolve_ingest_parallelism
 from pqcscan.daemon.sse import sse_stream
 from pqcscan.probes._registry import Registry, default_registry
 from pqcscan.runner.capabilities import current_mode, detect_capabilities
@@ -394,8 +394,9 @@ def create_app(
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
+    app.state.ingest_parallelism = resolve_ingest_parallelism(repo, ingest_parallelism)     # the harness records it
     app.include_router(build_fleet_router(repo, enroll_token=enroll_token, keep_scans_per_host=keep_scans_per_host,
-                                          ingest_parallelism=ingest_parallelism))
+                                          ingest_parallelism=app.state.ingest_parallelism))
 
     # Mount the web UI (Jinja + HTMX + SSE).
     from pqcscan.ui.routes import mount_static
