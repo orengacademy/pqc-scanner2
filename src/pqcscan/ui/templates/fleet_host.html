@@ -13,7 +13,7 @@
     <div><dt class="inline text-zinc-500">{{ t('fleet.labels') }}:</dt>
       <dd class="inline">{% for k, v in (host.labels or {}).items() %}{{ k }}={{ v }}{% if not loop.last %}, {% endif %}{% else %}&mdash;{% endfor %}</dd></div>
     <div><dt class="inline text-zinc-500">agent:</dt> <dd class="inline">{{ host.agent_version or '—' }}</dd></div>
-    <div><dt class="inline text-zinc-500">{{ t('fleet.last_seen') }}:</dt> <dd class="inline">{{ host.last_seen }}</dd></div>
+    <div><dt class="inline text-zinc-500">{{ t('fleet.last_seen') }}:</dt> <dd class="inline">{{ host.last_seen.strftime('%Y-%m-%d %H:%M UTC') if host.last_seen else '—' }}</dd></div>
   </dl>
 </section>
 
@@ -32,7 +32,7 @@
       {% for s in scans %}
         <tr class="row-hover">
           <td class="py-2.5 px-5 font-mono text-zinc-300">#{{ s.id }}</td>
-          <td class="py-2.5 px-5 font-mono text-zinc-500 text-xs">{{ s.started_at }}</td>
+          <td class="py-2.5 px-5 font-mono text-zinc-500 text-xs">{{ s.started_at.strftime('%Y-%m-%d %H:%M UTC') if s.started_at else '—' }}</td>
           <td class="py-2.5 px-5">
             <span class="status-pill" data-status="{{ s.status }}"><span class="pulse"></span>{{ s.status }}</span>
             {% if drift.get(s.id) %}<span class="sev-pill ml-2 border border-zinc-800 text-zinc-300">{{ t('fleet.drift') }} {{ drift[s.id] }}</span>{% endif %}
