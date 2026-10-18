@@ -1,0 +1,4 @@
+ts,role,load1,mem_used_kb,mem_avail_kb,disk_used_kb,db_bytes,wal_bytes,state_bytes,spool_files,hosts,scans,findings
+2026-10-18T13:26:33Z,agent,0.91,284608,498756,1658308,,,2502740,0,,,
+2026-10-18T13:30:01Z,agent,0.02,284288,499076,1658360,,,2502740,0,,,
+2026-10-18T13:40:02Z,agent,0.00,283588,499776,1657988,,,2502740,0,,,

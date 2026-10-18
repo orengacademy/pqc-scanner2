@@ -1,0 +1,4 @@
+ts,role,load1,mem_used_kb,mem_avail_kb,disk_used_kb,db_bytes,wal_bytes,state_bytes,spool_files,hosts,scans,findings
+2026-10-18T13:20:22Z,collector,1.68,530388,3479472,2142344,4096,222512,,,0,0,0
+2026-10-18T13:30:01Z,collector,0.00,515900,3493960,2151144,4308992,4832792,,,2,2,3000
+2026-10-18T13:40:02Z,collector,0.00,509152,3500708,2151176,4308992,4832792,,,3,3,4219
