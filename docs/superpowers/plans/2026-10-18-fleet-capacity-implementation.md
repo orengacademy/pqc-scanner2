@@ -745,3 +745,36 @@ For each `survivors/<id>.diff` whose hunk touches `_TokenBucket`, `_agent_host`,
 - [ ] **Step 3: FLEET.md read-through**: Ingest limits, Ingest capacity, Postgres, Recipes rows all consistent with CAPACITY.md and the profiles; no `TODO(task5)` left (`grep -rn "TODO(task" docs benchmark` empty).
 - [ ] **Step 4: STATUS.md** test count at the final commit; **TODO.md** Postgres item updated, soak day-7 item added with the date; **CHANGELOG.md** Unreleased: perf fixes (each with its frame), bounded ingest queue, installer fix, harness changes.
 - [ ] **Step 5: Full suite once (no load or fuzz run active)**: `.venv/bin/python -m pytest -q -p no:cacheprovider`; `.venv/bin/ruff check src tests benchmark`; `.venv/bin/mypy src`. Commit: `docs(fleet-evidence): Since PR #92 — regrades, capacity, soak day 0, test strength, F6`
+
+---
+
+### Task 11: Fleet web UI at fleet scale, reviewed in a real browser
+
+**Files:**
+- Create: `benchmark/fleet/make_fleet_db.py` (offline 500-host SQLite DB from the harness bundles), `benchmark/fleet/ui/` (screenshots, timings JSON), `docs/FLEET-UI-REVIEW.md`
+- Modify (defect fixes only, no features): `src/pqcscan/ui/templates/fleet*.html`, `src/pqcscan/ui/static/*`, `src/pqcscan/daemon/app.py` fleet routes if a measured defect lives there
+- Test: `tests/benchmark/test_make_fleet_db.py` (10 hosts, asserts host and scan counts through `Repo`)
+
+**Interfaces:**
+- Consumes: `benchmark/fleet/_bundles.build_template`, `host_bundle`, `pqcscan.store.bundle.load_bundle`, `Repo.upsert_host`, `Repo.ingest_bundle`; `pqcscan daemon --db <file> --bind 127.0.0.1 --port <free>`; Chrome DevTools MCP (`new_page`, `navigate_page`, `take_screenshot`, `performance_start_trace`/`stop_trace`, `lighthouse_audit`, `take_snapshot`) and Playwright MCP (`browser_navigate`, `browser_snapshot`, `browser_take_screenshot`).
+- Produces: `python -m benchmark.fleet.make_fleet_db --hosts 500 --scans-per-host 2 --findings 1670 --out <db>`; `benchmark/fleet/ui/timings.json` (`{"page": "/fleet", "hosts": 500, "ttfb_ms", "dom_content_loaded_ms", "load_ms", "transfer_bytes", "lighthouse": {...}}` per page); screenshots `fleet-500-desktop.png`, `fleet-500-mobile.png`, `fleet-host.png`, `fleet-filter.png`; the review document with one row per finding (page, element, problem, evidence screenshot, severity, fixed-in commit or "open").
+
+- [ ] **Step 1: `make_fleet_db.py` with its test (TDD).** Hosts named `soak-NNNN`, labels `env` over prod/dr/dev and `site` dc0..dc4, machine ids `m-ui-NNNN`; each host gets `scans_per_host` bundles through `ingest_bundle` so drift is computed; the second bundle of every 10th host changes one finding title so the fleet page shows a non-zero drift chip. Runs in under 3 minutes for 500 hosts (use the same `Repo` the daemon uses; one `Repo` instance).
+- [ ] **Step 2: Start the daemon on the DB** (`.venv/bin/pqcscan daemon --db <db> --port <free>` in the background, loopback, no token needed) and record its URL.
+- [ ] **Step 3: Measure with Chrome DevTools MCP.** For `/fleet`, `/fleet?label=env=prod`, one host page `/fleet/<id>` and the fleet export trigger (`/api/scans/fleet/export/json`, time only): navigation timings via `performance_start_trace` → `performance_stop_trace` (TTFB, DOMContentLoaded, load, transfer size) and a `lighthouse_audit` (performance, accessibility, best-practices) per page; write `timings.json`; screenshots at 1440×900 and 390×844 with `take_screenshot`. F13 in FLEET-EVIDENCE ("the export works at fleet scale: nothing timed") gets numbers here: also time `GET /api/scans/fleet/export/json` and `/cbom` with curl (`-w %{time_total}`) at 500 hosts and record them.
+- [ ] **Step 4: Design and accessibility review with the installed skills.** Invoke, in this order, each on the live pages (give them the URL and the screenshots): `interfaces:interface-review`, `interfaces:better-accessibility`, `impeccable:impeccable` (review mode, not a redesign), `taste-skill:taste-skill`, `ui-ux-pro-max:ui-ux-pro-max` (design-review). Collect every finding into `docs/FLEET-UI-REVIEW.md`: page, element, problem, evidence (screenshot name or Lighthouse audit id), severity (defect: broken, unreadable, inaccessible, misleading, or slow; or polish), and the skill that raised it. Defects get fixed in this task when the fix is a template/CSS/route change under 40 lines each and adds no feature; polish stays open with the skill's suggestion recorded. Re-screenshot after each fix; the review table cites the before and after images.
+- [ ] **Step 5: Tests, lint, commit.** Existing UI tests (`tests/integration/test_ui_fleet.py`) must pass; ruff, mypy. Commit the tooling, screenshots (PNG, each under 400 KB; use 80 % quality JPEG if larger), timings, review doc and fixes in separate commits: `bench(ui): make_fleet_db and browser timings at 500 hosts`, `docs(ui): FLEET-UI-REVIEW with skill findings`, one `fix(ui): …` per defect.
+
+### Task 12: The evidence summary as a designed, regenerable page
+
+**Files:**
+- Create: `benchmark/fleet/evidence_page.py`, `docs/evidence/index.html` (self-contained: inline CSS, no external scripts except fonts), `docs/evidence/README.md`
+- Test: `tests/benchmark/test_evidence_page.py` (builds the page from the committed JSONs into tmp; asserts the item verdict table, the capacity numbers and the soak counts appear; no `<script src=` to anything but the allowed CDNs)
+
+**Interfaces:**
+- Consumes: `docs/FLEET-EVIDENCE.md` (the "Since PR #92" section, Task 10), `benchmark/fleet/results/*.json` (capacity sweep, herd, par, pginsert, ci-baseline, soak-real-*.json), `benchmark/fleet/profiles/*/summary.json`, `benchmark/fleet/mutation/score.json`, `benchmark/fleet/fuzz/stats.json`.
+- Produces: `python -m benchmark.fleet.evidence_page` regenerates `docs/evidence/index.html` with: the six item verdicts, the capacity table with the measured bands per backend, the before/after top-three frames, the soak day counters per host, mutation score and fuzz CPU-hours/coverage, the findings list with status, and the tag decision; a dark/light theme via CSS tokens; readable at 390 px width; every number traceable to a named file (a "source" cell per row).
+
+- [ ] **Step 1: Build the data loader and the page generator (TDD on the loader with synthetic JSONs).**
+- [ ] **Step 2: Design pass with the skills:** `ui-ux-pro-max:design` for the layout and system, `taste-skill:taste-skill`, then `impeccable:impeccable` for the finish review; view the result in Chrome DevTools MCP at 1440 and 390 px; Lighthouse accessibility ≥ 95; fix what the skills and Lighthouse flag.
+- [ ] **Step 3: Commit** `docs(evidence): regenerable evidence page under docs/evidence` with the screenshots in `benchmark/fleet/ui/evidence-*.png`. Task 10 links it from the top of FLEET-EVIDENCE.md.
