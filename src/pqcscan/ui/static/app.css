@@ -509,6 +509,7 @@ html { font-family: var(--font-sans); }
 :root[data-theme="light"] .status-pill[data-status="error"]   { color: rgb(185 28 28); }
 :root[data-theme="light"] .status-pill[data-status="running"] { color: rgb(29 78 216); }
 :root[data-theme="light"] .sev-pill[data-sev="med"] { color: rgb(154 52 18); }       /* orange-800 on its tint, 6.1:1 */
+:root[data-theme="light"] .btn-primary { color: #fff; }   /* white on amber-700 5.0:1, on amber-800 hover 7.1:1 (zinc-900 measured 3.5 / 2.5) */
 
 /* ── Component tokenisation so custom widgets follow the theme ──────── */
 .card         { background: var(--surface); border-color: var(--border); }
