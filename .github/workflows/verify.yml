@@ -127,6 +127,10 @@ jobs:
     # 15,000 ms, head 28,000 ms, base rps 1.57 against 1.87 offered (requests lost). SQLite passed both times
     # (280 to 190 ms, 0.68x). ratio.py now fails the job as inconclusive when the baseline itself saturates the runner
     # (rps below 0.9 x offered, or p95 above 5 s): a saturated runner is a job failure with a reason, not a regression.
+    # Run at c189c82 (1 post/s): SQLite 260 to 190 ms, Postgres base p95 2,000 ms, head 4,400 ms (2.20x), rps 0.98 vs
+    # 0.96, not saturated. A diagnostic run with HEAD at --ingest-parallelism 2 on Postgres (431cc50) passed: p50 520 to
+    # 510 ms, p95 910 to 880 ms (0.97x), SQLite 0.71x. The Postgres slot count of 4 was the regression, so the product
+    # default is 2 again and the job runs HEAD with its default.
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
@@ -149,10 +153,7 @@ jobs:
           set -e
           for db in sqlite postgres; do
             (cd baseline && ${{ runner.temp }}/venv-base/bin/python -m benchmark.fleet.run_load --db $db --hosts 60 --interval 60 --duration 120s --findings-per-bundle 1670 --tag ci-base | tail -1 >/dev/null)
-            # diagnostic: isolates the Postgres slot count (the baseline harness ran with 2); revert or make the
-            # default after run N. SQLite keeps its own default.
-            par=""; [ "$db" = postgres ] && par="--ingest-parallelism 2"
-            ${{ runner.temp }}/venv-head/bin/python -m benchmark.fleet.run_load --db $db --hosts 60 --interval 60 --duration 120s --findings-per-bundle 1670 $par --tag ci-head | tail -1 >/dev/null
+            ${{ runner.temp }}/venv-head/bin/python -m benchmark.fleet.run_load --db $db --hosts 60 --interval 60 --duration 120s --findings-per-bundle 1670 --tag ci-head | tail -1 >/dev/null
             base=$(ls -t baseline/benchmark/fleet/results/load-$db-*-ci-base*.json | head -1)
             head=$(ls -t benchmark/fleet/results/load-$db-*-ci-head*.json | head -1)
             [ -n "$base" ] && [ -n "$head" ] || { echo "missing result for $db: base=$base head=$head"; exit 1; }
