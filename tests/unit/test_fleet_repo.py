@@ -467,19 +467,24 @@ def test_bulk_ingest_works_without_returning(tmp_db_path):
 def test_bulk_ingest_across_the_batch_boundary(tmp_db_path):
     """2,500 findings is past SQLAlchemy's 1,000-row insert batch; views must still land on the right finding.
 
-    Findings and views go as multi-row INSERT ... VALUES pages, never executemany: sqlite3 steps an executemany row
-    by row and psycopg 3 pipelines one Execute per row (benchmark/fleet/profiles/*-before)."""
+    SQLite sends findings and views as multi-row INSERT ... VALUES pages (sqlite3 would step an executemany row by
+    row); Postgres keeps psycopg 3's pipelined executemany, one VALUES row per parameter set (measured faster under
+    load on the box: benchmark/fleet/results/load-postgres-20261018-r4-pginsert*.json)."""
     fleet = Repo(tmp_db_path); fleet.init_schema()
     host = fleet.upsert_host(WEB01)
-    rows_per_statement: list[int] = []
+    sent: list[tuple[int, int]] = []         # (VALUES rows in the statement, parameter sets sent with it)
 
     @event.listens_for(fleet.engine, "before_cursor_execute")
     def _note(conn, cursor, statement, parameters, context, executemany):
         if statement.startswith(("INSERT INTO findings", "INSERT INTO framework_views")):
-            rows_per_statement.append(statement.count("), (") + 1)
+            many = executemany and parameters and isinstance(parameters[0], (tuple, list, dict))
+            sent.append((statement.count("), (") + 1, len(parameters) if many else 1))
     r = fleet.ingest_bundle(_doc_bundle(WEB01, 2500, views=2), host.id)
     assert (r.stored_findings, r.stored_views) == (2500, 5000)
-    assert sum(rows_per_statement) == 7500 and len(rows_per_statement) <= 10, rows_per_statement
+    if fleet.engine.dialect.name == "sqlite":
+        assert all(sets == 1 for _, sets in sent) and sum(rows for rows, _ in sent) == 7500 and len(sent) <= 10, sent
+    else:
+        assert all(rows == 1 for rows, _ in sent) and sum(sets for _, sets in sent) == 7500, sent
     with Session(fleet.engine) as s:
         pairs = s.execute(select(FindingRow.title, FrameworkView.clause).join(
             FrameworkView, FrameworkView.finding_id == FindingRow.id).where(FindingRow.scan_id == r.scan_id)).all()

@@ -164,8 +164,9 @@ def collector(db: str, workdir: Path, enroll_token: str = ENROLL_TOKEN,
     """Yield the base URL of a running collector; `db` is "sqlite" or "postgres". `profile_dir` turns on the
     profile hooks (asyncio slow callbacks, statement counts, Postgres auto_explain log). `ingest_parallelism` goes to
     `create_app` (None: its per-dialect default). `insert_mode` picks the bulk-insert strategy: "pages" (multi-row
-    INSERT ... VALUES, the product default) or "executemany" (one parameter set per row); None leaves the product
-    default. `info`, when given, receives the resolved `ingest_parallelism` and `insert_mode`."""
+    INSERT ... VALUES, the product default on SQLite) or "executemany" (one parameter set per row, the product default
+    on Postgres); None leaves the product default. `info`, when given, receives the resolved `ingest_parallelism`
+    and `insert_mode`."""
     if db not in ("sqlite", "postgres"):
         raise ValueError(f"db must be sqlite or postgres, not {db!r}")
     if insert_mode not in (None, "pages", "executemany"):

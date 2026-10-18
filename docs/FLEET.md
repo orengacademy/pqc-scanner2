@@ -175,4 +175,6 @@ as change. `pqcscan diff --parity` uses the same key to compare a primary with i
   `postgres` (`.github/workflows/verify.yml`) runs 120 fleet tests against `postgres:16-alpine`. Under the load test
   it was no faster than SQLite. Profiled in `benchmark/fleet/profiles/postgres-before`: `_communicate_gen`
   (the psycopg pipeline: one server execution and one FK check per inserted row) was 28.1 %; after TODO(task5) it
-  is TODO(task5) %.
+  is TODO(task5) %. SQLite stores findings as multi-row `INSERT ... VALUES` pages and Postgres keeps psycopg's pipelined
+  one-row-per-execution inserts: on the load box Postgres reached the same rate either way, bound by its per-row FK
+  checks, with lower latency pipelined (`benchmark/fleet/results/load-postgres-20261018-r4-pginsert*.json`).
