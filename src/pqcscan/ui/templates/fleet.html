@@ -44,7 +44,7 @@
           </td>
           <td class="py-2.5 px-5 font-mono text-xs text-zinc-500">{{ row.host.last_seen.strftime('%Y-%m-%d %H:%M UTC') if row.host.last_seen else '—' }}</td>
           <td class="py-2.5 px-5 text-right font-mono tabular-nums">
-            {% if row.readiness is none %}<span class="text-zinc-600">&mdash;</span>
+            {% if row.readiness is none %}<span class="text-zinc-500">&mdash;</span>
             {% else %}
               <span class="{{ 'text-emerald-400' if row.readiness >= 67 else ('text-amber-400' if row.readiness >= 34 else 'text-red-400') }}">{{ row.readiness }}</span>
             {% endif %}
