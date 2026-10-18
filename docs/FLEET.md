@@ -150,8 +150,9 @@ as change. `pqcscan diff --parity` uses the same key to compare a primary with i
   dropped (in sorted order) and the collector logs one warning naming them; the scan is still stored. There is no command to delete a label.
   The bundle `machine_id` must match the token that posted it.
   The collector parses and stores two bundles at a time and holds at most 32 in all, those two included; past that it
-  answers `503` with `Retry-After: 60` without reading the body, and the agent spools the bundle and sends it on its
-  next run. A queued bundle waits at most about half a minute, so no request is abandoned at the agent's 60 s timeout.
+  answers `503` with `Retry-After: 60`, before reading the body when it is already full, and the agent spools the
+  bundle and sends it on its next run. A bundle takes its place only once its body is fully read, so a slow upload
+  holds none. A queued bundle waits at most about half a minute, so no request is abandoned at the agent's 60 s timeout.
 - **No key material.** Findings never carry key bytes. Machine ids are
   domain-separated hashes, not raw `/etc/machine-id` values.
 

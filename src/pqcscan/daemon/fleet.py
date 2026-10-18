@@ -98,7 +98,7 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_h
     limiter = _TokenBucket()
     # Per router (one per app): an asyncio.Semaphore binds to the loop it first blocks on.
     parse_slots = asyncio.Semaphore(INGEST_PARALLELISM)
-    queued = 0      # ingest requests past the queue check and not yet out of parse-and-store
+    queued = 0      # ingest requests with their body read, waiting for or holding a parse slot
 
     async def _agent_host(request: Request):
         auth = request.headers.get("authorization", "")
@@ -155,6 +155,10 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_h
         logger.info("fleet: enrolled host {} ({})", host.hostname, host.machine_id)
         return {"host_id": host.id, "agent_token": token}
 
+    def _queue_full() -> HTTPException:
+        return HTTPException(503, f"collector busy: ingest queue full ({INGEST_QUEUE_MAX} bundles); "
+                                  "the agent spools and retries", headers={"Retry-After": "60"})
+
     @router.post("/api/ingest")
     async def ingest(request: Request) -> dict:
         nonlocal queued
@@ -164,12 +168,15 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_h
                                      f"{INGEST_MIN_INTERVAL_S:g} s per host")
         # Every outcome spends the token, duplicates included: a free resend would let one agent token push
         # 50 MiB through the parser endlessly, and the burst already absorbs a rare retry after a lost response.
-        if queued >= INGEST_QUEUE_MAX:    # before reading the body; one event loop, so the count needs no lock
-            raise HTTPException(503, f"collector busy: ingest queue full ({INGEST_QUEUE_MAX} bundles); "
-                                     "the agent spools and retries", headers={"Retry-After": "60"})
+        if queued >= INGEST_QUEUE_MAX:    # early and cheap: nothing reserved, the body not read
+            raise _queue_full()
+        data = await _read_capped(request, MAX_GZIP_BYTES)
+        # A place is taken only once the whole capped body is in, so a slow upload holds none. No await between the
+        # re-check and the increment, and one event loop, so the count needs no lock.
+        if queued >= INGEST_QUEUE_MAX:
+            raise _queue_full()
         queued += 1
         try:
-            data = await _read_capped(request, MAX_GZIP_BYTES)
             async with parse_slots:
                 try:
                     bundle = await run_in_threadpool(load_bundle, data)
