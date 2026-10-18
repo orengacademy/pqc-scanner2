@@ -7,10 +7,12 @@
     <h1 class="text-3xl font-semibold tracking-tight text-zinc-50">{{ t('fleet.title') }}</h1>
     <p class="mt-2 text-sm text-zinc-400">{{ rows|length }} {{ t('fleet.host') }}</p>
   </div>
-  <form method="get" action="/fleet" class="flex items-center gap-2">
+  <form method="get" action="/fleet" class="flex flex-wrap items-center gap-2">
     <label for="fleet-label" class="text-xs font-mono uppercase tracking-wider text-zinc-500">{{ t('fleet.labels') }}</label>
     <input id="fleet-label" type="text" name="label" value="{{ label }}" placeholder="env=prod"
+           {% if label_error %}aria-invalid="true" aria-describedby="fleet-label-error"{% endif %}
            class="px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-sm font-mono text-zinc-200">
+    {% if label_error %}<p id="fleet-label-error" class="w-full text-xs text-red-400">{{ t('fleet.label_error') }}</p>{% endif %}
   </form>
 </section>
 
@@ -56,7 +58,8 @@
       {% else %}
         <tr>
           <td colspan="8" class="py-12 text-center text-sm text-zinc-500">
-            {% if label %}{{ t('fleet.no_match') }} <code class="font-mono text-zinc-300">{{ label }}</code>.
+            {% if label_error %}<a href="/fleet" class="text-blue-400 hover:text-blue-300">{{ t('fleet.show_all') }}</a>
+            {% elif label %}{{ t('fleet.no_match') }} <code class="font-mono text-zinc-300">{{ label }}</code>.
               <a href="/fleet" class="text-blue-400 hover:text-blue-300">{{ t('fleet.show_all') }}</a>
             {% else %}{{ t('fleet.none') }}{% endif %}
           </td>
