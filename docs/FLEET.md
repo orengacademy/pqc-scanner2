@@ -173,4 +173,5 @@ as change. `pqcscan diff --parity` uses the same key to compare a primary with i
 - **Postgres is tested in CI and profiled.** The URL is accepted, `fleet-pg` installs the driver, and the CI job
   `postgres` (`.github/workflows/verify.yml`) runs 120 fleet tests against `postgres:16-alpine`. Under the load test
   it was no faster than SQLite. Profiled in `benchmark/fleet/profiles/postgres-before`: `_communicate_gen`
-  (psycopg pipeline, one round trip per inserted row) was 28.1 %; after TODO(task5) it is TODO(task5) %.
+  (the psycopg pipeline: one server execution and one FK check per inserted row) was 28.1 %; after TODO(task5) it
+  is TODO(task5) %.
