@@ -152,7 +152,8 @@ as change. `pqcscan diff --parity` uses the same key to compare a primary with i
   The collector parses and stores two bundles at a time on SQLite and four on Postgres, and holds at most 32 bundles
   in all, those being parsed included; past that it answers `503` with `Retry-After: 60`, before reading the body
   when it is already full, and the agent spools the bundle and sends it on its next run. At most 64 uploads are read
-  at once, with the same `503` past that.
+  at once, with the same `503` past that; a body must arrive within 120 s (`408` otherwise, which the agent also
+  retries), and one host may have two uploads in flight.
   A bundle takes its place in the queue only once its body is fully read, so a slow upload holds none. A queued bundle
   waits at most about half a minute, so no request is abandoned at the agent's 60 s timeout.
 - **No key material.** Findings never carry key bytes. Machine ids are

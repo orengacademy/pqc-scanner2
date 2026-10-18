@@ -474,6 +474,7 @@ def test_ingest_queue_full_answers_503_with_retry_after(tmp_db_path, fast_regist
     import httpx
 
     monkeypatch.setattr(fleet, "INGEST_QUEUE_MAX", 2)
+    monkeypatch.setattr(fleet, "INGEST_READ_PER_HOST", 99)   # three posts from one host; this is about the queue
     gate = threading.Event()
     real = fleet.load_bundle
 
@@ -549,6 +550,7 @@ def test_ingest_parallelism_defaults_by_dialect(tmp_db_path, fast_registry, tmp_
 
     import httpx
 
+    monkeypatch.setattr(fleet, "INGEST_READ_PER_HOST", 99)   # one host sends them all; this is about parse slots
     want = given or (fleet.INGEST_PARALLELISM_PG if str(tmp_db_path).startswith("postgresql")
                      else fleet.INGEST_PARALLELISM)
     lock, gate, reached = threading.Lock(), threading.Event(), threading.Event()
@@ -663,3 +665,77 @@ def test_queue_is_rechecked_after_the_body_read(tmp_db_path, fast_registry, tmp_
     a_done, a, b = asyncio.run(run())
     assert a_done and a.status_code == 503 and a.headers["retry-after"] == "60", a.text
     assert "ingest queue full" in a.json()["detail"] and b.status_code == 200, b.text
+
+
+def test_slow_body_hits_the_upload_deadline(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    """A body that does not arrive within INGEST_BODY_TIMEOUT_S is answered 408 and gives its read place back."""
+    import asyncio
+
+    import httpx
+
+    monkeypatch.setattr(fleet, "INGEST_BODY_TIMEOUT_S", 0.2)
+    monkeypatch.setattr(fleet, "INGEST_READ_MAX", 1)
+    real = fleet._read_capped
+    stalled: list[bool] = []
+
+    async def stall_once(request, cap):
+        if request.url.path == "/api/ingest" and not stalled:
+            stalled.append(True)
+            await asyncio.Event().wait()     # the body never finishes arriving
+        return await real(request, cap)
+    monkeypatch.setattr(fleet, "_read_capped", stall_once)
+    app = create_app(db_path=tmp_db_path, registry=fast_registry, enroll_token="ENROLL")
+    bodies = [_bundle(tmp_path) for _ in range(2)]
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1") as ac:
+            tok = (await ac.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": HOST})).json()
+            hdr = _hdr(tok["agent_token"])
+            slow = await asyncio.wait_for(ac.post("/api/ingest", content=bodies[0], headers=hdr), 10)
+            return slow, await ac.post("/api/ingest", content=bodies[1], headers=hdr)
+
+    slow, after = asyncio.run(run())
+    assert slow.status_code == 408 and slow.json()["detail"] == "upload too slow: body not received within 0.2 s"
+    assert after.status_code == 200, after.text
+
+
+def test_one_host_has_at_most_two_uploads_in_flight(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    """A third concurrent upload from one host is shed while another host's upload proceeds."""
+    import asyncio
+
+    import httpx
+
+    real = fleet._read_capped
+    held, release = asyncio.Event(), asyncio.Event()
+    holding: list[str] = []
+    app = create_app(db_path=tmp_db_path, registry=fast_registry, enroll_token="ENROLL")
+    one = _hdr("placeholder")
+
+    async def hold_host_one(request, cap):
+        if request.url.path == "/api/ingest" and request.headers["authorization"] == one["authorization"]:
+            holding.append("x")
+            if len(holding) == 2:
+                held.set()
+            await release.wait()             # host one's bodies are still streaming
+        return await real(request, cap)
+    monkeypatch.setattr(fleet, "_read_capped", hold_host_one)
+    mine = [_bundle(tmp_path) for _ in range(3)]
+    other = _bundle(tmp_path, machine_id="m-2")
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1") as ac:
+            t1 = (await ac.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": HOST})).json()
+            t2 = (await ac.post("/api/agents/enroll", json={"enroll_token": "ENROLL",
+                                                            "host": {**HOST, "machine_id": "m-2"}})).json()
+            one.update(_hdr(t1["agent_token"]))
+            first = [asyncio.create_task(ac.post("/api/ingest", content=b, headers=one)) for b in mine[:2]]
+            await held.wait()
+            third = await asyncio.wait_for(ac.post("/api/ingest", content=mine[2], headers=one), 10)
+            elsewhere = await ac.post("/api/ingest", content=other, headers=_hdr(t2["agent_token"]))
+            release.set()
+            return third, elsewhere, await asyncio.gather(*first)
+
+    third, elsewhere, first = asyncio.run(run())
+    assert third.status_code == 503 and third.headers["retry-after"] == "60"
+    assert third.json()["detail"] == "collector busy: this host already has 2 uploads in flight"
+    assert elsewhere.status_code == 200 and [r.status_code for r in first] == [200, 200], elsewhere.text

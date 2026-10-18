@@ -43,6 +43,8 @@ INGEST_QUEUE_MAX = 32   # bundles waiting for or holding a parse slot, all hosts
                         # under the agent's 60 s timeout, so a queued request is served, never abandoned. Past the
                         # bound the collector answers 503 + Retry-After and the agent spools (FLEET.md, Ingest limits).
 INGEST_READ_MAX = 64    # ingest bodies being read at once, all hosts: 64 x 8 MiB = 512 MiB worst case in flight
+INGEST_READ_PER_HOST = 2       # of those, from one host: a trickling host cannot hold the read places alone
+INGEST_BODY_TIMEOUT_S = 120.0  # a body must arrive within this; 408 past it (the agent spools and retries)
 MAX_ENROLL_BYTES = 64 * 1024
 _TERMINAL_STATUSES = ("done", "failed", "interrupted")
 
@@ -109,6 +111,7 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_h
     parse_slots = asyncio.Semaphore(ingest_parallelism)
     queued = 0      # ingest requests with their body read, waiting for or holding a parse slot
     reading = 0     # ingest requests reading their body
+    reading_by_host: dict[int, int] = {}   # of those, per host id; a host with none has no entry
 
     async def _agent_host(request: Request):
         auth = request.headers.get("authorization", "")
@@ -182,11 +185,20 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_h
             raise _queue_full()
         if reading >= INGEST_READ_MAX:    # bounds the capped bodies held in memory at once
             raise HTTPException(503, "collector busy: too many uploads in flight", headers={"Retry-After": "60"})
+        if reading_by_host.get(host.id, 0) >= INGEST_READ_PER_HOST:
+            raise HTTPException(503, f"collector busy: this host already has {INGEST_READ_PER_HOST} uploads in flight",
+                                headers={"Retry-After": "60"})
         reading += 1
+        reading_by_host[host.id] = reading_by_host.get(host.id, 0) + 1
         try:
-            data = await _read_capped(request, MAX_GZIP_BYTES)
+            data = await asyncio.wait_for(_read_capped(request, MAX_GZIP_BYTES), INGEST_BODY_TIMEOUT_S)
+        except TimeoutError as e:
+            raise HTTPException(408, f"upload too slow: body not received within {INGEST_BODY_TIMEOUT_S:g} s") from e
         finally:
             reading -= 1
+            reading_by_host[host.id] -= 1
+            if not reading_by_host[host.id]:
+                del reading_by_host[host.id]
         # A place is taken only once the whole capped body is in, so a slow upload holds none. No await between the
         # re-check and the increment, and one event loop, so the count needs no lock.
         if queued >= INGEST_QUEUE_MAX:
