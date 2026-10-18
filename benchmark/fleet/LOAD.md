@@ -4,3 +4,5 @@ Locust drives simulated agent hosts at the collector (uvicorn plus the database,
 
 | date (UTC) | db | arrival | hosts | spawn/s | duration | findings/bundle | ingest reqs | p50 ms | p95 ms | p99 ms | rps | offered rps | Little ratio | 429 | 503 | errors | p95 < 2 s | box load (1 min avg, start / end) | commit | command |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 2026-10-18 10:32 | sqlite | staggered | 500 | 50 | 300 s | 1670 | 424 | 60000 | 60000 | 60000 | 1.18 | 4.0 | 0.432 | 0 | 1 | 663 | FAIL | 0.4 / 1.0 | c330937af+dirty tree | `python -m benchmark.fleet.run_load --db sqlite --hosts 500 --rate 4 --duration 300s --profile benchmark/fleet/profiles/sqlite-before --tag before` |
+| 2026-10-18 10:39 | postgres | staggered | 500 | 50 | 300 s | 1670 | 929 | 60000 | 60000 | 60000 | 2.59 | 4.0 | 0.954 | 0 | 0 | 895 | FAIL | 1.0 / 2.9 | c330937af+dirty tree | `python -m benchmark.fleet.run_load --db postgres --hosts 500 --rate 4 --duration 300s --profile benchmark/fleet/profiles/postgres-before --tag before` |

@@ -1,0 +1,67 @@
+{
+  "db": "sqlite",
+  "hosts": 500,
+  "spawn_rate": 50,
+  "duration_s": 300,
+  "interval_s": 125.0,
+  "findings_per_bundle": 1670,
+  "arrival": "staggered",
+  "requests": 424,
+  "p50_ms": 60000.0,
+  "p95_ms": 60000.0,
+  "p99_ms": 60000.0,
+  "rps": 1.18,
+  "offered_rps": 4.0,
+  "mean_ms": 57950.70778019336,
+  "littles_expected_rps": 2.733,
+  "littles_ratio": 0.432,
+  "measurement_defect": true,
+  "measurement_defect_reason": "achieved 1.18 rps is 0.43 of the Little's law expectation 2.73 rps (500 hosts / (125 s + 57.95 s)); requests were lost or timed out",
+  "hosts_daily_2h_equiv": 28800,
+  "hosts_daily_24h_equiv": 345600,
+  "schema_version": 2,
+  "requests_csv": "load-sqlite-20261018-r4-before-requests.csv.gz",
+  "history_csv": "load-sqlite-20261018-r4-before-history.csv.gz",
+  "http_429": 0,
+  "http_503": 1,
+  "errors": 663,
+  "ingest_error_rate": 0.9481,
+  "enroll_error_rate": 0.522,
+  "enroll_503": 109,
+  "stored_hosts": 339,
+  "stored_scans": 301,
+  "seed": 1,
+  "enroll_requests": 500,
+  "enroll_p95_ms": 60000.0,
+  "failure_samples": [
+    "enroll: CatchResponseError('enroll 503: {\"detail\":\"store busy, retry later\"}') x109",
+    "ingest: CatchResponseError('ingest 0: ') x402",
+    "enroll: CatchResponseError('enroll 0: ') x152"
+  ],
+  "pass_p95_lt_2s": false,
+  "commit": "c330937af7c269af8c2688341ee9025be8ad7771",
+  "src_hash": "d8a022136d3622c06654ab6b950f56144ef07033d7a15eb71f71d9f6f25f02c2",
+  "tree_dirty": true,
+  "dirty_files": [
+    "benchmark/fleet/profiles/sqlite-before/asyncio-slow.log",
+    "benchmark/fleet/profiles/sqlite-before/pyspy.collapsed.txt",
+    "benchmark/fleet/profiles/sqlite-before/statements.json"
+  ],
+  "box": {
+    "cpus": 8,
+    "cpu_model": "DO-Regular",
+    "mem_gb": 16
+  },
+  "box_load_start": {
+    "loadavg_1m": 0.4,
+    "cpu_pressure_avg60_pct": 0.12
+  },
+  "box_load_end": {
+    "loadavg_1m": 1.0,
+    "cpu_pressure_avg60_pct": 0.51
+  },
+  "command": "python -m benchmark.fleet.run_load --db sqlite --hosts 500 --rate 4 --duration 300s --profile benchmark/fleet/profiles/sqlite-before --tag before",
+  "locust_command": "/root/pqc-scanner2/.venv/bin/python -m locust -f /root/pqc-scanner2/benchmark/fleet/locustfile.py --headless -u 500 -r 50 -t 300s --stop-timeout 70 --csv /tmp/fleet-load-y5gk17dq/run --csv-full-history --only-summary --host http://127.0.0.1:52211",
+  "started_at": "2026-10-18T10:32:06.858596+00:00",
+  "profile_dir": "benchmark/fleet/profiles/sqlite-before"
+}
