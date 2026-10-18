@@ -110,8 +110,10 @@ operator checkout's HEAD. Collect from a checkout at `SOAK_REF`, which the env f
 
 ## Day 7
 
-1. After 03:30 UTC, so the Linux timers and the Windows runs have reported, run `soak.sh status`. All five hosts must show
-   `last_seen` within the last 26 hours.
+1. After 05:00 UTC, run `soak.sh status`. The Linux timers report by about 02:00. The Windows jobs start at 02:00 at the
+   earliest, often later, because GitHub delays scheduled runs, and then add up to 30 minutes of jitter. All five hosts
+   must show `last_seen` within the last 26 hours. Before counting a missed Windows night, check
+   `gh run list --workflow soak-windows.yml` for a late, queued or failed run.
 2. Run `soak.sh collect`.
 3. Windows exit codes and logs:
    `gh run list --workflow soak-windows.yml --limit 20 --json databaseId,createdAt,conclusion`. Then run

@@ -27,10 +27,19 @@ jobs:
       run:
         shell: pwsh
     steps:
-      - name: Require SOAK_REF
+      # Every input up front: an empty enroll token would also turn the agent.log scrub below into garbage.
+      - name: Require SOAK_REF and the soak secrets
         env:
           SOAK_REF: ${{ vars.SOAK_REF }}
-        run: if (-not $env:SOAK_REF) { throw "repository variable SOAK_REF is not set (gh variable set SOAK_REF)" }
+          SOAK_SERVER_URL: ${{ secrets.SOAK_SERVER_URL }}
+          SOAK_ENROLL_TOKEN: ${{ secrets.SOAK_ENROLL_TOKEN }}
+          SOAK_CA_PEM: ${{ secrets.SOAK_CA_PEM }}
+          SOAK_STATE_KEY: ${{ secrets.SOAK_STATE_KEY }}
+        run: |
+          if (-not $env:SOAK_REF) { throw "repository variable SOAK_REF is not set (gh variable set SOAK_REF)" }
+          $missing = 'SOAK_SERVER_URL', 'SOAK_ENROLL_TOKEN', 'SOAK_CA_PEM', 'SOAK_STATE_KEY' |
+            Where-Object { -not [Environment]::GetEnvironmentVariable($_) }
+          if ($missing) { throw "repository secret(s) not set: $($missing -join ', ') (see benchmark/fleet/soak-real.md)" }
 
       - uses: actions/checkout@v4
         with:

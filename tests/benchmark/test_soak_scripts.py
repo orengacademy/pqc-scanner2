@@ -47,3 +47,14 @@ def test_loadbox_run_takes_its_modes_from_suite():
     r = subprocess.run(["bash", str(CLOUD / "loadbox.sh"), "run", "no-such-mode"], capture_output=True, text=True)
     assert r.returncode == 2
     assert "before|after|sweep|ratio-baseline|pg-insert" in r.stderr
+
+
+def test_soak_down_fails_when_doctl_cannot_list(tmp_path):
+    # A failed list must not read as "already gone": down exits non-zero and never claims the droplets are gone.
+    fake = tmp_path / "doctl"
+    fake.write_text("#!/bin/sh\necho 'Error: unable to reach api' >&2\nexit 1\n")
+    fake.chmod(0o755)
+    env = {"PATH": f"{tmp_path}:/usr/bin:/bin", "HOME": str(tmp_path)}
+    r = subprocess.run(["bash", str(CLOUD / "soak.sh"), "down"], capture_output=True, text=True, env=env)
+    assert r.returncode != 0
+    assert "droplet list failed" in r.stderr and "droplets gone" not in r.stdout

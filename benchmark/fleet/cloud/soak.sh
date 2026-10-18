@@ -28,6 +28,13 @@ ssh_opts() {
 }
 # </dev/null: doctl must not eat the stdin that `on` hands to ssh (a tar stream, the enroll token).
 ip() { doctl compute droplet list --format Name,PublicIPv4 --no-header </dev/null | awk -v n="$1" '$1==n{print $2}'; }
+# Names of the pqc-soak-* droplets that exist. A failed doctl call exits: an empty answer must mean "none".
+soak_droplets() {
+  local all
+  all=$(doctl compute droplet list --format Name --no-header </dev/null) \
+    || { echo "doctl compute droplet list failed; cannot tell which soak droplets exist" >&2; exit 1; }
+  grep -x 'pqc-soak-.*' <<< "$all" || true
+}
 host() { local h; h=$(ip "$1"); [ -n "$h" ] || { echo "no droplet named $1" >&2; return 1; }; echo "$h"; }
 # on <droplet> <remote command...>: ssh as root with that droplet's pinned host key.
 on() { local n=$1 h o; shift; h=$(host "$n") || return 1; mapfile -t o < <(ssh_opts "$n"); ssh "${o[@]}" "root@$h" "$@"; }
@@ -39,7 +46,7 @@ load_env() {
   . "$ENV_FILE"
   : "${SOAK_SERVER_URL:?}" "${SOAK_SITE_TOKEN:?}" "${SOAK_ENROLL_TOKEN:?}" "${SOAK_CA_PEM_PATH:?}" "${SOAK_REF:?}"
 }
-still_billing="the soak droplets still exist and bill: inspect them, then run 'soak.sh down'"
+still_billing="the soak droplets still exist and bill: inspect them, then run: bash benchmark/fleet/cloud/soak.sh down"
 # The CA and the tokens reach an agent only here: the CA by scp, the enroll token on ssh's stdin (never in argv).
 agent_init() {
   local name=$1 ref=$2
@@ -57,14 +64,16 @@ agent_init() {
 }
 case "${1:-}" in
   up)
-    for n in "$COLLECTOR" "${AGENTS[@]}"; do
-      [ -z "$(ip "$n")" ] || { echo "$n already exists ($(ip "$n")); run 'soak.sh down' first" >&2; exit 2; }
-    done
+    existing=$(soak_droplets)
+    [ -z "$existing" ] || { echo "soak droplets already exist: $(echo "$existing" | xargs); run 'soak.sh down' first" >&2; exit 2; }
     REF=$(git -C "$REPO" rev-parse "${PQC_REF:-HEAD}^{commit}")
     [ -n "$(git -C "$REPO" branch -r --contains "$REF")" ] \
       || { echo "$REF is on no remote-tracking branch; push it first (the droplets fetch it from GitHub)" >&2; exit 2; }
     keyid=$(doctl compute ssh-key list --format ID,Name --no-header | awk -v k="$KEY" '$2==k{print $1}')
     [ -n "$keyid" ] || { echo "ssh key $KEY not in DigitalOcean (doctl compute ssh-key import)" >&2; exit 2; }
+    # From the first create on, any failing command (agent_init's too: -E) names `down` before set -e exits.
+    set -E
+    trap 'echo "soak.sh up failed at line $LINENO: $BASH_COMMAND; $still_billing" >&2' ERR
     rm -rf "$KNOWN"; mkdir -p "$KNOWN"
     doctl compute droplet create "$COLLECTOR" --region "$REGION" --size s-2vcpu-4gb --image ubuntu-24-04-x64 \
       --ssh-keys "$keyid" --user-data "$(sed "s|@PQC_REF@|$REF|" "$HERE/soak-collector-init.yaml")" \
@@ -109,7 +118,8 @@ rows = json.load(sys.stdin)
 print(f"{len(rows)} hosts")
 for r in sorted(rows, key=lambda r: r["hostname"] or ""):
     os_ = r["labels"].get("os", r["os"])
-    print("%-28s %-8s last_seen=%s  drift=%s" % (r["hostname"], os_, r["last_seen"], r["drift"]))';;
+    runner = r["labels"].get("runner", "")
+    print("%-28s %-8s %-15s last_seen=%s  drift=%s" % (r["hostname"], os_, runner, r["last_seen"], r["drift"]))';;
   collect)
     load_env
     out=$RESULTS/soak-real; day=$(date -u +%Y%m%d); mkdir -p "$out"
@@ -126,23 +136,30 @@ for r in sorted(rows, key=lambda r: r["hostname"] or ""):
     fetch "$COLLECTOR" /tmp/fleet-copy.db "$db"
     on "$COLLECTOR" 'rm -f /tmp/fleet-copy.db'
     # The journal carries uvicorn's access log, which the observer counts 200/401/403/429/503 from. Tokens are
-    # replaced before anything is written into the repo, and the result is checked.
+    # replaced before anything is written into the repo, and the result is checked. The tokens reach sed and grep
+    # through process substitution (printf is a builtin), never through argv.
     journal=$CONF/collector-journal-$day.log
+    tokens() { printf '%s\n%s\n' "$SOAK_SITE_TOKEN" "$SOAK_ENROLL_TOKEN"; }
     on "$COLLECTOR" 'journalctl -u pqcscan-collector --since -8d -o short-iso --no-pager' \
-      | sed -e "s/$SOAK_SITE_TOKEN/<site-token>/g" -e "s/$SOAK_ENROLL_TOKEN/<enroll-token>/g" \
+      | sed -f <(printf 's/%s/<site-token>/g\ns/%s/<enroll-token>/g\n' "$SOAK_SITE_TOKEN" "$SOAK_ENROLL_TOKEN") \
             -e 's/\(Bearer \)[A-Za-z0-9._~+\/=-]*/\1<redacted>/g' > "$journal"
-    if grep -qF -e "$SOAK_SITE_TOKEN" -e "$SOAK_ENROLL_TOKEN" "$journal"; then
+    if grep -qF -f <(tokens) "$journal"; then
       echo "redaction failed: a token is still in $journal" >&2; exit 1
     fi
     gzip -c "$journal" > "$out/collector-journal.log.gz"
-    (cd "$REPO" && "$PY" -m benchmark.fleet.soak --observe "$db" --access-log "$journal" --cycles 1 --interval 0)
-    if grep -rqF -e "$SOAK_SITE_TOKEN" -e "$SOAK_ENROLL_TOKEN" "$out" "$RESULTS"/soak-real-*.json; then
+    # Run from $CONF with relative names: the JSON records its command line, which must not hold a home directory.
+    (cd "$CONF" && PYTHONPATH=$REPO "$PY" -m benchmark.fleet.soak --observe "${db##*/}" --access-log "${journal##*/}" \
+      --cycles 1 --interval 0)
+    if grep -rqF -f <(tokens) "$out" "$RESULTS"/soak-real-*.json; then
       echo "a token is in a result file under $RESULTS; do not commit" >&2; exit 1
     fi;;
   down)
-    for n in "$COLLECTOR" "${AGENTS[@]}"; do
-      if [ -n "$(ip "$n")" ]; then doctl compute droplet delete -f "$n"; else echo "$n: already gone"; fi
-    done
+    existing=$(soak_droplets)
+    for n in $existing; do doctl compute droplet delete -f "$n"; done
+    [ -n "$existing" ] || echo "no soak droplets to delete"
+    # Deletion is asynchronous: a droplet can stay listed for a little while. Wait up to 2 min, then name what is left.
+    for _ in $(seq 24); do left=$(soak_droplets); [ -z "$left" ] && break; sleep 5; done
+    [ -z "$left" ] || { echo "still listed after delete, and billing: $(echo "$left" | xargs)" >&2; exit 1; }
     rm -rf "$KNOWN"
     echo "droplets gone. The Windows workflow still runs nightly: gh workflow disable soak-windows.yml";;
   *) sed -n 2,9p "$0"; exit 2;;

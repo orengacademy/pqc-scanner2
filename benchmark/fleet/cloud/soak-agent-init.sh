@@ -30,7 +30,11 @@ case $ID in
 esac
 "$py" -c 'import sys; assert sys.version_info >= (3, 11), sys.version'
 "$py" -m venv /opt/pqcscan
-/opt/pqcscan/bin/pip install -q "git+https://github.com/orengacademy/pqc-scanner2@$ref"
+# pip counts an unchanged requirement name as installed, so a re-run at a new sha would keep the old code: force the
+# package itself, then let a plain install add whatever dependencies that sha needs (all of them on the first run).
+pkg="git+https://github.com/orengacademy/pqc-scanner2@$ref"
+/opt/pqcscan/bin/pip install -q --force-reinstall --no-deps "$pkg"
+/opt/pqcscan/bin/pip install -q "$pkg"
 ln -sfn /opt/pqcscan/bin/pqcscan /usr/local/bin/pqcscan
 pqcscan version
 
