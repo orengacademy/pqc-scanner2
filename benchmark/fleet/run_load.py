@@ -1,7 +1,7 @@
 """Drive the fleet collector with simulated agent hosts (locust) and record the result.
 
     python -m benchmark.fleet.run_load --db sqlite|postgres --hosts 500 --spawn-rate 50 --duration 120s \
-        --findings-per-bundle 300
+        --findings-per-bundle 1670
 
 Writes benchmark/fleet/results/load-<db>-<YYYYMMDD>[-<hosts>h][-herd][-<tag>][-N].json and appends a row to LOAD.md.
 PASS means the ingest p95 is under 2 s. 429 and 503 are counted apart from errors.
@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import gzip
 import hashlib
 import json
 import os
@@ -28,7 +29,34 @@ from . import _bundles, _collector
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 P95_LIMIT_MS = 2000
+DEFAULT_FINDINGS = 1670          # a real scan stores about this many (FLEET-EVIDENCE F19)
+JITTER_WINDOW_S = 7200           # FLEET.md: daily timer, 2 h random delay
+LITTLE_BAND = (0.9, 1.1)
 SRC_DIRS = ("src/pqcscan/daemon", "src/pqcscan/store")      # the collector code a result depends on
+
+
+def interval_for(*, hosts: int, rate: float) -> float:
+    """Seconds between one host's posts so that `hosts` hosts offer `rate` posts/s in total."""
+    if rate <= 0:
+        raise ValueError("rate must be > 0")
+    return hosts / rate
+
+
+def littles(*, hosts: int, interval_s: float, mean_ms: float, achieved_rps: float) -> dict:
+    """Little's law for the closed loop locust runs: each host cycles every (interval + mean response), so
+    N hosts offer N / (interval + W) requests per second. A measured rate outside LITTLE_BAND of that means
+    requests were lost (timeouts, crashed users) or the clock lied: the run is a measurement defect."""
+    expected = hosts / (interval_s + mean_ms / 1000.0)
+    ratio = achieved_rps / expected if expected else 0.0
+    ok = LITTLE_BAND[0] <= ratio <= LITTLE_BAND[1]
+    return {
+        "offered_rps": round(hosts / interval_s, 4), "mean_ms": mean_ms,
+        "littles_expected_rps": round(expected, 4), "littles_ratio": round(ratio, 3),
+        "measurement_defect": not ok,
+        "measurement_defect_reason": "" if ok else
+        f"achieved {achieved_rps:.2f} rps is {ratio:.2f} of the Little's law expectation {expected:.2f} rps "
+        f"({hosts} hosts / ({interval_s:g} s + {mean_ms / 1000:.2f} s)); requests were lost or timed out",
+    }
 
 
 def _box() -> dict:
@@ -45,12 +73,17 @@ def _load_md_head() -> str:
         "one host, so these numbers are not a network result.\n\n"
         "Locust drives simulated agent hosts at the collector (uvicorn plus the database, same host). Pass means "
         "ingest p95 under 2 s. Arrival is `staggered` (each host enrols and sends its first bundle at a random offset "
-        "in the first minute, steady hosts/60 s) or `herd` (every host enrols and posts as it spawns: a 10 s ramp at "
-        "50 hosts/s for 500 hosts). The box was shared with unrelated work, so the load average column matters when "
-        "reading a row. Postgres rows ran against a local `postgres:16-alpine` container.\n\n"
+        "in the first interval, so the offered load is steady at hosts/interval posts/s) or `herd` (every host enrols "
+        "and posts as it spawns: a 10 s ramp at 50 hosts/s for 500 hosts). Read the rate, not the host count: "
+        "FLEET.md's daily timer with a 2 h random delay puts 2,000 hosts at 0.28 posts/s, while 500 hosts every 60 s "
+        "is 8.3 posts/s, about 60,000 daily hosts. `Little ratio` is the achieved rate over the Little's law "
+        "expectation hosts / (interval + mean response); outside 0.9 to 1.1 the run lost requests and is a "
+        "measurement defect, not a capacity result. The box was shared with unrelated work, so the load average "
+        "column matters when reading a row. Postgres rows ran against a local `postgres:16-alpine` container.\n\n"
         "| date (UTC) | db | arrival | hosts | spawn/s | duration | findings/bundle | ingest reqs | p50 ms | p95 ms "
-        "| p99 ms | rps | 429 | 503 | errors | p95 < 2 s | box load (1 min avg, start / end) | commit | command |\n"
-        "|" + "---|" * 19 + "\n")
+        "| p99 ms | rps | offered rps | Little ratio | 429 | 503 | errors | p95 < 2 s "
+        "| box load (1 min avg, start / end) | commit | command |\n"
+        "|" + "---|" * 21 + "\n")
 
 
 def parse_duration(s: str) -> int:
@@ -104,10 +137,14 @@ def _stats(path: Path) -> dict[str, dict[str, str]]:
         return {row["Name"]: row for row in csv.DictReader(fh)}
 
 
-def run(*, db: str, hosts: int, spawn_rate: int, duration_s: int, findings: int, interval_s: float = 60.0,
-        stagger: bool = True, seed: int = 1, tag: str = "", results_dir: Path | None = None, record: bool = True,
-        command: str = "") -> dict:
-    """One load run; returns the result dict (also written to `results_dir` and LOAD.md when `record`)."""
+def run(*, db: str, hosts: int, spawn_rate: int, duration_s: int, findings: int = DEFAULT_FINDINGS,
+        interval_s: float | None = None, rate: float | None = None, stagger: bool = True, seed: int = 1,
+        tag: str = "", results_dir: Path | None = None, record: bool = True, command: str = "",
+        profile_dir: Path | None = None) -> dict:
+    """One load run; returns the result dict (also written to `results_dir` and LOAD.md when `record`).
+    `rate` (total posts/s offered by all hosts) sets the interval; else `interval_s`, default 60 s.
+    `profile_dir` is accepted and ignored here."""
+    interval_s = interval_for(hosts=hosts, rate=rate) if rate is not None else interval_s or 60.0
     started = datetime.now(UTC)
     load_start = _load()
     with tempfile.TemporaryDirectory(prefix="fleet-load-") as td:
@@ -116,13 +153,15 @@ def run(*, db: str, hosts: int, spawn_rate: int, duration_s: int, findings: int,
         template.write_text(json.dumps(_bundles.build_template(work, findings)))
         prefix = work / "run"
         counters = work / "counters.json"
+        requests_csv = work / "requests.csv"
         locust_cmd = [sys.executable, "-m", "locust", "-f", str(HERE / "locustfile.py"), "--headless",
                       "-u", str(hosts), "-r", str(spawn_rate), "-t", f"{duration_s}s", "--stop-timeout", "70",
-                      "--csv", str(prefix), "--only-summary"]
+                      "--csv", str(prefix), "--csv-full-history", "--only-summary"]
         with _collector.collector(db, work) as url:
             env = {**os.environ, "LOAD_TEMPLATE": str(template), "LOAD_ENROLL_TOKEN": _collector.ENROLL_TOKEN,
                    "LOAD_INTERVAL_S": str(interval_s), "LOAD_COUNTERS": str(counters), "LOAD_PREFIX": "m-load-",
-                   "LOAD_STAGGER": "1" if stagger else "0", "LOAD_SEED": str(seed)}
+                   "LOAD_STAGGER": "1" if stagger else "0", "LOAD_SEED": str(seed),
+                   "LOAD_REQUESTS_CSV": str(requests_csv)}
             locust_cmd += ["--host", url]
             p = subprocess.run(locust_cmd, env=env, capture_output=True, text=True)
             stored_hosts, stored_scans = _stored(url) if p.returncode in (0, 1) else (0, 0)
@@ -134,21 +173,28 @@ def run(*, db: str, hosts: int, spawn_rate: int, duration_s: int, findings: int,
             raise RuntimeError("locust wrote no counters file; its 429/503 counts would be unknown")
         seen = json.loads(counters.read_text())
         failures = list(csv.DictReader((work / "run_failures.csv").open(newline="")))
+        raw_csvs = {"requests": requests_csv.read_bytes() if requests_csv.exists() else b"",
+                    "history": (work / "run_stats_history.csv").read_bytes()}
     p95 = float(ing.get("95%", 0) or 0)
 
-    def rate(row: dict) -> float:
+    def error_rate(row: dict) -> float:
         return round(int(row.get("Failure Count", 0) or 0) / max(int(row.get("Request Count", 0) or 0), 1), 4)
 
     dirty = _dirty_files()
+    rps = round(float(ing.get("Requests/s", 0) or 0), 2)
+    mean_ms = float(ing.get("Average Response Time", 0) or 0)
     result = {
         "db": db, "hosts": hosts, "spawn_rate": spawn_rate, "duration_s": duration_s, "interval_s": interval_s,
         "findings_per_bundle": findings, "arrival": "staggered" if stagger else "herd",
         "requests": int(ing.get("Request Count", 0) or 0),
         "p50_ms": float(ing.get("50%", 0) or 0), "p95_ms": p95, "p99_ms": float(ing.get("99%", 0) or 0),
-        "rps": round(float(ing.get("Requests/s", 0) or 0), 2),
+        "rps": rps, **littles(hosts=hosts, interval_s=interval_s, mean_ms=mean_ms, achieved_rps=rps),
+        "hosts_daily_2h_equiv": round(hosts / interval_s * JITTER_WINDOW_S),
+        "hosts_daily_24h_equiv": round(hosts / interval_s * 86400), "schema_version": 2,
         "http_429": seen.get("http_429", 0), "http_503": seen.get("http_503", 0),
         "errors": int(agg.get("Failure Count", 0) or 0),
-        "ingest_error_rate": rate(ing), "enroll_error_rate": rate(enr), "enroll_503": seen.get("enroll_503", 0),
+        "ingest_error_rate": error_rate(ing), "enroll_error_rate": error_rate(enr),
+        "enroll_503": seen.get("enroll_503", 0),
         "stored_hosts": stored_hosts, "stored_scans": stored_scans, "seed": seed,
         "enroll_requests": int(enr.get("Request Count", 0) or 0), "enroll_p95_ms": float(enr.get("95%", 0) or 0),
         "failure_samples": [f"{f['Name']}: {f['Error']} x{f['Occurrences']}" for f in failures[:10]],
@@ -161,12 +207,17 @@ def run(*, db: str, hosts: int, spawn_rate: int, duration_s: int, findings: int,
     if record:
         out = results_dir or HERE / "results"
         out.mkdir(parents=True, exist_ok=True)
-        base = (f"load-{db}-{started:%Y%m%d}" + (f"-{hosts}h" if hosts != 500 else "") + ("" if stagger else "-herd")
+        base = (f"load-{db}-{started:%Y%m%d}" + (f"-{hosts}h" if hosts != 500 else "")
+                + (f"-r{rate:g}" if rate is not None else "") + ("" if stagger else "-herd")
                 + (f"-{tag}" if tag else ""))
         path, n = out / f"{base}.json", 1
         while path.exists():                  # never overwrite an earlier run's record
             n += 1
             path = out / f"{base}-{n}.json"
+        for key, suffix in (("requests", "requests"), ("history", "history")):
+            gz = out / f"{path.stem}-{suffix}.csv.gz"
+            gz.write_bytes(gzip.compress(raw_csvs[key]))
+            result[f"{key}_csv"] = gz.name
         path.write_text(json.dumps(result, indent=2) + "\n")
         result["result_file"] = path.name
         _append_row(result, started)
@@ -180,7 +231,8 @@ def _append_row(r: dict, started: datetime) -> None:
     commit = r["commit"][:9] + ("+dirty tree" if r["tree_dirty"] else "")
     cells = [f"{started:%Y-%m-%d %H:%M}", r["db"], r["arrival"], r["hosts"], r["spawn_rate"], f"{r['duration_s']} s",
              r["findings_per_bundle"], r["requests"], f"{r['p50_ms']:.0f}", f"{r['p95_ms']:.0f}", f"{r['p99_ms']:.0f}",
-             r["rps"], r["http_429"], r["http_503"], r["errors"], "PASS" if r["pass_p95_lt_2s"] else "FAIL",
+             r["rps"], r["offered_rps"], r["littles_ratio"], r["http_429"], r["http_503"], r["errors"],
+             "PASS" if r["pass_p95_lt_2s"] else "FAIL",
              f"{r['box_load_start']['loadavg_1m']} / {r['box_load_end']['loadavg_1m']}", commit, f"`{r['command']}`"]
     row = "| " + " | ".join(map(str, cells)) + " |\n"
     with md.open("a") as fh:
@@ -193,16 +245,18 @@ def main() -> int:
     ap.add_argument("--hosts", type=int, default=500)
     ap.add_argument("--spawn-rate", type=int, default=50)
     ap.add_argument("--duration", default="120s", help="e.g. 120s, 2m")
-    ap.add_argument("--findings-per-bundle", type=int, default=300)
+    ap.add_argument("--findings-per-bundle", type=int, default=DEFAULT_FINDINGS)
     ap.add_argument("--herd", action="store_true", help="post as soon as spawned (default: random offset)")
     ap.add_argument("--seed", type=int, default=1, help="seeds the per-host start offsets; recorded in the JSON")
     ap.add_argument("--tag", default="", help="suffix for the result file name, e.g. a code revision label")
-    ap.add_argument("--interval", type=float, default=60.0, help="seconds between bundles from one host")
+    g = ap.add_mutually_exclusive_group()
+    g.add_argument("--interval", type=float, default=None, help="seconds between bundles from one host (default 60)")
+    g.add_argument("--rate", type=float, default=None, help="total posts/s all hosts offer; sets the interval")
     args = ap.parse_args()
     cmd = "python -m benchmark.fleet.run_load " + shlex.join(sys.argv[1:])
     r = run(db=args.db, hosts=args.hosts, spawn_rate=args.spawn_rate, duration_s=parse_duration(args.duration),
-            findings=args.findings_per_bundle, interval_s=args.interval, stagger=not args.herd, seed=args.seed,
-            tag=args.tag, command=cmd)
+            findings=args.findings_per_bundle, interval_s=args.interval, rate=args.rate, stagger=not args.herd,
+            seed=args.seed, tag=args.tag, command=cmd)
     print(json.dumps({k: v for k, v in r.items() if k not in ("command", "locust_command")}, indent=2))
     return 0 if r["pass_p95_lt_2s"] and not r["errors"] else 1
 

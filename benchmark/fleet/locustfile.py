@@ -4,7 +4,8 @@ Env (set by run_load.py): LOAD_TEMPLATE (template bundle json), LOAD_PREFIX (mac
 LOAD_ENROLL_TOKEN, LOAD_INTERVAL_S (default 60, the collector's per-host refill), LOAD_COUNTERS (output json),
 LOAD_STAGGER (1: a host enrols and sends its first bundle at a random offset in [0, interval), so offered load is
 steady at hosts/interval; 0, "herd": every host enrols and posts as soon as it is spawned, which with 500 hosts at 50
-spawns/s is a 10 s ramp), LOAD_SEED (seeds the per-host offsets).
+spawns/s is a 10 s ramp), LOAD_SEED (seeds the per-host offsets),
+LOAD_REQUESTS_CSV (one row per request: ts,name,status,response_ms,bytes).
 Requests time out after 60 s, the real agent's HTTP timeout.
 429 (throttled) and 503 (store busy) are expected collector answers: counted, not failures.
 """
@@ -13,6 +14,7 @@ import json
 import os
 import random
 import sys
+import time
 from collections import Counter
 from pathlib import Path
 
@@ -30,6 +32,23 @@ STAGGER = os.environ.get("LOAD_STAGGER", "1") == "1"
 SEED = int(os.environ.get("LOAD_SEED", "1"))
 COUNTERS: Counter = Counter()
 _seq = itertools.count(1)   # locust users are greenlets in one process: no lock needed
+_REQ_CSV = os.environ.get("LOAD_REQUESTS_CSV")
+_req_fh = open(_REQ_CSV, "w", newline="") if _REQ_CSV else None   # noqa: SIM115 - open for the process life
+if _req_fh:
+    _req_fh.write("ts,name,status,response_ms,bytes\n")
+
+
+@events.request.add_listener
+def _record_request(request_type, name, response_time, response_length, response, exception, **_kw):
+    if _req_fh:
+        status = getattr(response, "status_code", 0) if response is not None else 0
+        _req_fh.write(f"{time.time():.3f},{name},{status},{response_time:.1f},{response_length}\n")
+
+
+@events.quitting.add_listener
+def _close_requests(environment, **_kw):
+    if _req_fh:
+        _req_fh.close()
 
 
 @events.quitting.add_listener

@@ -22,4 +22,6 @@ def test_five_hosts_ten_seconds_sqlite():
     assert r["errors"] == 0, r["failure_samples"]
     assert r["requests"] == 5 and r["enroll_requests"] == 5      # one host, one bundle: interval is 60 s
     assert r["http_429"] == 0 and r["http_503"] == 0
+    assert r["schema_version"] == 2 and "littles_ratio" in r    # Little's law is meaningless over a truncated run
+    assert r["findings_per_bundle"] == 50
     assert r["stored_hosts"] == 5 and r["stored_scans"] == 5      # wiring only: no latency assertion on a shared box
