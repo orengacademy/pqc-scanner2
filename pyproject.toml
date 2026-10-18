@@ -146,4 +146,11 @@ ignore_missing_imports = true
 source_paths = ["src"]
 only_mutate = ["src/pqcscan/daemon/fleet.py", "src/pqcscan/store/bundle.py"]
 do_not_mutate = []
-pytest_add_cli_args_test_selection = ["tests/unit"]
+pytest_add_cli_args_test_selection = [
+  "tests/unit/test_daemon_fleet.py", "tests/unit/test_fleet_repo.py", "tests/unit/test_fleet_threat_model_gaps.py",
+  "tests/unit/test_bundle.py", "tests/unit/test_fleet_schema.py", "tests/unit/test_parity_drift.py",
+  "tests/unit/test_daemon_guard.py", "tests/integration/test_daemon_api.py", "tests/integration/test_fleet_spool.py",
+  # test_fleet_reconcile.py does `import reconcile` through a sys.path hack that fails inside ./mutants/, and it
+  # tests benchmark/fleet/reconcile.py, not the mutated modules.
+  "--ignore=tests/unit/test_fleet_reconcile.py", "-p", "no:cacheprovider",
+]

@@ -1,7 +1,7 @@
 # Mutation testing: fleet collector and bundle loader
 
 mutmut 3.8.0 (the `verify` extra asks for `mutmut>=3.8`) mutates `src/pqcscan/daemon/fleet.py` and
-`src/pqcscan/store/bundle.py` and re-runs `tests/unit` for each mutant. A surviving mutant is a behaviour the unit
+`src/pqcscan/store/bundle.py` and re-runs the fleet test files for each mutant. A surviving mutant is a behaviour the unit
 tests do not pin.
 
 ```bash
@@ -36,8 +36,16 @@ selection is in `[tool.mutmut]`.
 - `source_paths = ["src"]` and `only_mutate = [fleet.py, bundle.py]`. The task brief named `paths_to_mutate` with the
   two files; in 3.8 that key is deprecated and copies only the listed files into `mutants/`, so `import pqcscan`
   would fail. Copying all of `src` and restricting mutants with `only_mutate` mutates the same two files.
-- `pytest_add_cli_args_test_selection = ["tests/unit"]` replaces the deprecated `tests_dir`.
-- pytest's own `addopts` (`-m 'not fuzz'`) is left alone: no test under `tests/unit` is fuzz-marked, and mutmut adds
+- `pytest_add_cli_args_test_selection` replaces the deprecated `tests_dir` and names the nine test files that exercise
+  the two mutated modules (`test_daemon_fleet`, `test_fleet_repo`, `test_fleet_threat_model_gaps`, `test_bundle`,
+  `test_fleet_schema`, `test_parity_drift`, `test_daemon_guard` under `tests/unit`; `test_daemon_api` and
+  `test_fleet_spool` under `tests/integration`). Selecting all of `tests/unit` made the stats pass fail:
+  `test_fleet_reconcile.py` does `import reconcile` through a `sys.path` hack that does not resolve from the
+  `mutants/` copy, pytest stopped at that one collection error and mutmut reported "failed to collect stats". That
+  test covers `benchmark/fleet/reconcile.py`, not the mutated code, so it is also passed `--ignore`. `-p
+  no:cacheprovider` keeps pytest from writing caches into the copy. Checked locally: the stats pass completes and
+  mutants get verdicts (447 mutants; stopped after 12).
+- pytest's own `addopts` (`-m 'not fuzz'`) is left alone: no test in the selection is fuzz-marked, and mutmut adds
   its own `-x -q`.
 - Only the config was verified here (it loads without warnings and lists exactly the two files); `mutmut run` was
   not started.

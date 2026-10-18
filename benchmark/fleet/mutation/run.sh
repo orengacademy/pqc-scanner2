@@ -4,7 +4,7 @@
 #   bash benchmark/fleet/mutation/run.sh            # MUTMUT_CHILDREN=4 bash ... to change the worker count
 #
 # Mutates src/pqcscan/daemon/fleet.py and src/pqcscan/store/bundle.py ([tool.mutmut] in pyproject.toml) against
-# tests/unit. mutmut copies src/ and tests/ into ./mutants/ and runs pytest there, so do not run other tests in this
+# the fleet test files (see README). mutmut copies src/ and tests/ into ./mutants/ and runs pytest there, so do not run other tests in this
 # checkout while it runs. Outputs (in benchmark/fleet/mutation/):
 #   run.log              full mutmut output
 #   results.txt          `mutmut results --all true`: one line per mutant, "<mutant id>: <status>"
