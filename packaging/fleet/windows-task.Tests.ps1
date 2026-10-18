@@ -274,41 +274,53 @@ Describe "windows-task.ps1 refuses a pre-planted junction" {
     }
 }
 
-Describe "windows-task.ps1 with a plain local user as -RunAs" {
-    # A plain user would need a password the installer does not take, so it must refuse before writing anything.
+Describe "windows-task.ps1 refuses a shared or password-logon -RunAs" {
+    # A plain user would need a password the installer does not take; LOCAL SERVICE and NETWORK SERVICE are shared
+    # by many services, any of which could read agent.env. Each must be refused before anything is written.
     BeforeAll {
         Remove-Install
         $script:UserName = "pqcusr" + (Get-Random -Maximum 99999)
         $pw = ConvertTo-SecureString ("Pq1!" + [guid]::NewGuid().ToString("N")) -AsPlainText -Force
         New-LocalUser -Name $UserName -Password $pw -PasswordNeverExpires | Out-Null
         $script:User = "$env:COMPUTERNAME\$UserName"
-        $script:Run = Invoke-Installer -Extra @("-RunAs", $User)
-        Write-Host "installer (-RunAs $User) exit $($Run.ExitCode): $($Run.Output.Trim())"
     }
     AfterAll {
         Remove-Install
         Remove-LocalUser -Name $UserName -ErrorAction SilentlyContinue
     }
 
-    It "refuses with a message naming the supported accounts" {
-        $Run.ExitCode | Should -Not -Be 0 -Because $Run.Output
-        $Run.Output | Should -Match "is not supported"
-        $Run.Output | Should -Match "LOCAL SERVICE"
-    }
-
-    It "writes nothing and registers no task" {
-        Test-Path -LiteralPath $Bin | Should -BeFalse -Because $Run.Output
-        Test-Path -LiteralPath $Data | Should -BeFalse -Because $Run.Output
-        Get-ScheduledTask -TaskName "pqcscan-agent" -ErrorAction SilentlyContinue | Should -BeNullOrEmpty
+    It "refuses <Name>, names the supported accounts, and writes nothing" -ForEach @(
+        @{ Name = "a plain local user" }
+        @{ Name = "NT AUTHORITY\LOCAL SERVICE" }
+        @{ Name = "NT AUTHORITY\NETWORK SERVICE" }
+    ) {
+        $acct = if ($Name -eq "a plain local user") { $User } else { $Name }
+        $r = Invoke-Installer -Extra @("-RunAs", $acct)
+        Write-Host "installer (-RunAs $acct) exit $($r.ExitCode): $($r.Output.Trim())"
+        try {
+            $r.ExitCode | Should -Not -Be 0 -Because $r.Output
+            $r.Output | Should -Match "is not supported"
+            $r.Output | Should -Match "NT SERVICE"
+            Test-Path -LiteralPath $Bin | Should -BeFalse -Because $r.Output
+            Test-Path -LiteralPath $Data | Should -BeFalse -Because $r.Output
+            Get-ScheduledTask -TaskName "pqcscan-agent" -ErrorAction SilentlyContinue | Should -BeNullOrEmpty
+        } finally {
+            Remove-Install
+        }
     }
 }
 
-Describe "windows-task.ps1 with LOCAL SERVICE as -RunAs" {
-    # A built-in service account logs on as ServiceAccount, needs no password, and gets the narrower grants:
-    # Modify on state, ReadAndExecute on code. (A gMSA takes the Password logon path; no runner has a domain.)
+Describe "windows-task.ps1 with a per-service virtual account as -RunAs" {
+    # NT SERVICE\<name> has its own SID, so only that service gets at the state. The account resolves only while
+    # the service exists, so the test registers a stopped placeholder service. It logs on as ServiceAccount, needs
+    # no password, and gets the narrower grants: Modify on state, ReadAndExecute on code.
+    # (A gMSA takes the Password logon path; no runner has a domain.)
     BeforeAll {
         Remove-Install
-        $script:Svc = "NT AUTHORITY\LOCAL SERVICE"
+        $script:SvcName = "pqcsvc" + (Get-Random -Maximum 99999)
+        New-Service -Name $SvcName -BinaryPathName "$env:SystemRoot\System32\svchost.exe -k pqcscan-test" `
+            -StartupType Manual | Out-Null
+        $script:Svc = "NT SERVICE\$SvcName"
         $script:Run = Invoke-Installer -Extra @("-RunAs", $Svc)
         Write-Host "installer (-RunAs $Svc) exit $($Run.ExitCode): $($Run.Output.Trim())"
         $f = [int][Security.AccessControl.FileSystemRights]::FullControl
@@ -319,14 +331,17 @@ Describe "windows-task.ps1 with LOCAL SERVICE as -RunAs" {
         $script:State = @{ "NT AUTHORITY\SYSTEM" = $f; "BUILTIN\Administrators" = $f; $Svc = $m }
         $script:Code  = @{ "NT AUTHORITY\SYSTEM" = $f; "BUILTIN\Administrators" = $f; $Svc = $x }
     }
-    AfterAll { Remove-Install }
+    AfterAll {
+        Remove-Install
+        sc.exe delete $SvcName | Out-Null
+    }
 
-    It "installs and registers the task as LOCAL SERVICE" {
+    It "installs and registers the task as the virtual account" {
         $Run.ExitCode | Should -Be 0 -Because $Run.Output
         $Run.Output | Should -Match "Registered task pqcscan-agent"
         $t = Get-ScheduledTask -TaskName "pqcscan-agent" -ErrorAction SilentlyContinue
         $t | Should -Not -BeNullOrEmpty -Because $Run.Output
-        $t.Principal.UserId | Should -Match "LOCAL SERVICE"
+        $t.Principal.UserId | Should -Match $SvcName
         "$($t.Principal.LogonType)" | Should -Be "ServiceAccount"
     }
 
