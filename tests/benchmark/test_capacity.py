@@ -66,3 +66,30 @@ def test_load_matches_whole_name_segments_and_keeps_both_host_counts(tmp_path):
     assert sorted(r["hosts"] for r in res["-sweep"]) == [250, 500]
     assert [r["_file"] for r in res["-par"]] == ["load-sqlite-20261018-r4-par.json"]
     assert res["-herd"] == [] and res["-pginsert"] == []
+
+
+def test_both_seeds_means_two_distinct_seeds_not_two_rows():
+    rows = [{**row("sqlite", 2, 1, 900), "hosts": 250}, {**row("sqlite", 2, 1, 950), "hosts": 400}]
+    c = capacity.capacity(rows)["sqlite"]
+    assert c["lambda_max"] is None and c["band"] == [None, None]
+    c = capacity.capacity([*rows, row("sqlite", 2, 2, 920)])["sqlite"]
+    assert c["lambda_max"] == 2
+
+
+def test_unmeasured_rows_at_a_rate_do_not_veto_two_passing_seeds():
+    rows = [{**row("sqlite", 2, s, 900), "hosts": 250} for s in (1, 2)]
+    rows += [{**row("sqlite", 2, s, 1300, defect=None), "hosts": 500} for s in (1, 2)]
+    c = capacity.capacity(rows)["sqlite"]
+    assert c["lambda_max"] == 2 and c["band"] == [2, None]
+    assert [r["hosts"] for r in c["excluded"]] == [500, 500]
+    # a real failure at the same rate still wins over the passes
+    c = capacity.capacity([*rows, {**row("sqlite", 2, 1, 2500), "hosts": 250, "seed": 3}])["sqlite"]
+    assert c["lambda_max"] is None and c["band"] == [None, 2]
+
+
+def test_cli_help_prints_help_and_does_not_regenerate(capsys, monkeypatch):
+    import pytest
+    monkeypatch.setattr(sys, "argv", ["capacity", "--help"])
+    with pytest.raises(SystemExit) as e:
+        capacity.main()
+    assert e.value.code == 0 and "CAPACITY.md" in capsys.readouterr().out

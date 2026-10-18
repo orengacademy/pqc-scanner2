@@ -9,6 +9,7 @@ superseded and never set λ_max. A row with `measurement_defect` True or None is
 requests were lost, None means Little's law could not be checked. Only True also counts as a failure when placing
 the upper edge of the band.
 """
+import argparse
 import contextlib
 import json
 import re
@@ -52,9 +53,10 @@ def capacity(results: list[dict]) -> dict:
         passing, failing = [], []
         for rate, rs in by_rate.items():
             verdicts = [_verdict(r) for r in rs]
+            # rows with measurement_defect None are ignored for the verdict; a rate needs passes on two distinct seeds
             if any(r.get("measurement_defect") is True for r in rs) or "fail" in verdicts:
                 failing.append(rate)
-            elif verdicts.count("pass") >= 2 and "excluded" not in verdicts:
+            elif len({r["seed"] for r, v in zip(rs, verdicts, strict=True) if v == "pass"}) >= 2:
                 passing.append(rate)
         fail_rate = min(failing, default=None)
         # a rate above the first failure does not count: capacity is where the curve is still under the line
@@ -81,13 +83,14 @@ def _num(x, fmt="{}"):
 
 
 def _sweep_table(rows: list[dict]) -> list[str]:
-    head = ["rate (posts/s)", "hosts", "seed", "requests", "p50 ms", "p95 ms", "p99 ms", "achieved rps",
+    head = ["rate (posts/s)", "hosts", "seed", "commit", "requests", "p50 ms", "p95 ms", "p99 ms", "achieved rps",
             "Little ratio", "429", "503", "errors", "result"]
     out = ["| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
     for r in rows:
         g = r.get
-        cells = [f"{r['offered_rps']:g}", _num(g("hosts")), r["seed"], r["requests"], _num(g("p50_ms"), "{:.0f}"),
-                 f"{r['p95_ms']:.0f}", _num(g("p99_ms"), "{:.0f}"), _num(g("rps")), _num(g("littles_ratio")),
+        cells = [f"{r['offered_rps']:g}", _num(g("hosts")), r["seed"], g("commit", "-")[:7], r["requests"],
+                 _num(g("p50_ms"), "{:.0f}"), f"{r['p95_ms']:.0f}", _num(g("p99_ms"), "{:.0f}"), _num(g("rps")),
+                 _num(g("littles_ratio")),
                  _num(g("http_429")), _num(g("http_503")), _num(g("errors")), _pass_cell(r)]
         out.append("| " + " | ".join(str(c) for c in cells) + " |")
     return out
@@ -186,10 +189,14 @@ def render(res: dict[str, list[dict]], ci: dict | None = None, prof: dict | None
            "fails or loses requests. Little's law (hosts / (interval + mean latency) against the achieved rate) "
            "decides whether requests were lost. It cannot be checked when a host's interval exceeds half the run, "
            "so the host count follows the rate: 60 hosts at 0.5 posts/s (120 s interval), 100 at 1 (100 s), 250 at 2 "
-           "(125 s), 300 at 3 (100 s), 500 at 4 and above. The first SQLite and Postgres passes at 2 posts/s used 500 "
-           "hosts, a 250 s interval; their `measurement_defect` is `None`, so they are listed as excluded and the "
-           "250-host rows decide that rate. The capacity tables come from unprofiled runs at the shipped ingest "
-           "parallelism (2 slots on both backends). Profiled runs carry asyncio debug-mode overhead and their "
+           "(125 s), 300 at 3 (100 s), 500 at 4 and above. The first SQLite pass at 2 posts/s used 500 hosts, a 250 s "
+           "interval; its `measurement_defect` is `None`, so those rows are listed as excluded and the 250-host rows "
+           "decide that rate. The Postgres 500-host rows at 2 posts/s are 4-slot rows (see the superseded section), "
+           "not passes. The SQLite rows come from two code commits, shown in the commit column (`2a25807` for "
+           "all but the 250- and 300-host rows at 2 and 3 posts/s, which are `04c2650`). The SQLite ingest code is "
+           "identical between them: under `src/` only the Postgres slot default (and a comment) and UI files "
+           "changed. The capacity tables come from unprofiled runs at the shipped ingest parallelism (2 slots on "
+           "both backends). Profiled runs carry asyncio debug-mode overhead and their "
            "latencies are not capacity numbers.", ""]
     if not caps:
         md += ["No sweep results exist yet.", ""]
@@ -214,8 +221,11 @@ def render(res: dict[str, list[dict]], ci: dict | None = None, prof: dict | None
            "all at 4 posts/s or more, far past saturation on both backends: they compare settings, not capacity."]
     if sup:
         md += ["", "Sweep rows at the old 4-slot default:", "", *_sweep_table(sup)]
-    md += ["", "The 4-slot rows at 0.5 and 1 posts/s were overwritten by the 2-slot re-sweep (same file names). They "
-           "survive in git at `f0955d9`: p95 7.5 and 8.8 s at 0.5 posts/s, 47 and 50 s at 1 post/s.", "",
+    md += ["", "Four 4-slot Postgres rows were overwritten by the 2-slot re-sweep under the same file names. They ran "
+           "at code `2a25807` and survive in git: `git show f0955d9:benchmark/fleet/results/<file>` for "
+           "`load-postgres-20261018-60h-r0.5-sweep.json` and `load-postgres-20261018-60h-r0.5-sweep-2.json` "
+           "(p95 7.5 and 8.8 s at 0.5 posts/s), `load-postgres-20261018-100h-r1-sweep.json` and "
+           "`load-postgres-20261018-100h-r1-sweep-2.json` (p95 47 and 50 s at 1 post/s).", "",
            "### Postgres ingest parallelism (500 hosts)", ""]
     if par:
         md += ["| rate (posts/s) | slots | p95 ms | achieved rps | Little ratio | result |",
@@ -283,6 +293,7 @@ def load_profiles(profiles_dir: Path = HERE / "profiles") -> dict[str, dict]:
 
 
 def main() -> None:
+    argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter).parse_args()
     out = HERE / "CAPACITY.md"
     res = load()
     out.write_text(render(res, load_ci(), load_profiles()))

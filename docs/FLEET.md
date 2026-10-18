@@ -175,8 +175,9 @@ as change. `pqcscan diff --parity` uses the same key to compare a primary with i
   lower. FLEET.md's 2,000 hosts offer 0.28 posts/s, inside the SQLite figure with margin. A herd of 500 hosts at once gets
   1,186 `503`s on SQLite and 1,272 on Postgres, and 6 and 14 ingests that were never answered; p95 stays at 15 s and
   27 s, below the agent's 60 s timeout. These figures are for this box class: the GitHub `ubuntu-latest` runner measured
-  p95 150 ms (SQLite) and 710 ms (Postgres) at 1 post/s, five to six times faster than this box at that rate. History:
-  the PR #92 rows ran at 8.3 posts/s, 30 times FLEET.md's 2,000-host rate. See `benchmark/fleet/LOAD.md` and
+  p95 150 ms (SQLite) and 710 ms (Postgres) at 1 post/s, about five times faster on SQLite (4.9 to 5.1 times) and
+  six on Postgres (5.8 to 6.6 times), at 60 hosts on the runner against 100 on the box. History: the PR #92 rows ran
+  at 8.3 posts/s, 30 times FLEET.md's 2,000-host rate. See `benchmark/fleet/LOAD.md` and
   [FLEET-EVIDENCE.md](FLEET-EVIDENCE.md).
 - **Postgres is tested in CI and profiled.** The URL is accepted, `fleet-pg` installs the driver, and the CI job
   `postgres` (`.github/workflows/verify.yml`) runs 120 fleet tests against `postgres:16-alpine`. Under the load test

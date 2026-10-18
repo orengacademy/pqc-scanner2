@@ -10,7 +10,7 @@ Commit `04c2650dd`, box {'cpus': 8, 'cpu_model': 'DO-Regular', 'mem_gb': 16}, wa
 | `_communicate_gen (psycopg/_pipeline_base.py:112)` | 26.8 | 26.8 |
 | `run (asyncio/runners.py:118)` | 3.2 | 5.3 |
 
-Before: `_communicate_gen (psycopg/_pipeline_base.py:112)` 28.1% (profiles/postgres-before)
+Before: `_communicate_gen (psycopg/_pipeline_base.py:112)` 28.1 % self, 26.8 % after; `wait (psycopg/connection.py:495)` was 24.5 % self before, 28.1 % after (profiles/postgres-before)
 
 Harness instrumentation (statement counter, asyncio debug tracebacks), left out of the table: 12.7 % of samples.
 

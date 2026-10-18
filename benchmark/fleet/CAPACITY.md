@@ -13,49 +13,49 @@ Measured on 8 vCPU, 16 GB, `cpu_model: DO-Regular` (a shared-CPU DigitalOcean dr
 
 ## Method
 
-Open arrival: each host enrols and posts at a random offset within its interval, so the offered load is a steady λ posts/s. Each post is a 1,670-finding bundle. Every run lasts 300 s and is repeated with two seeds. The rule: λ_max is the largest swept rate at which both seeds have p95 below 2 s and a sound measurement, with no higher rate failing; the band's upper edge is the lowest rate where any seed fails or loses requests. Little's law (hosts / (interval + mean latency) against the achieved rate) decides whether requests were lost. It cannot be checked when a host's interval exceeds half the run, so the host count follows the rate: 60 hosts at 0.5 posts/s (120 s interval), 100 at 1 (100 s), 250 at 2 (125 s), 300 at 3 (100 s), 500 at 4 and above. The first SQLite and Postgres passes at 2 posts/s used 500 hosts, a 250 s interval; their `measurement_defect` is `None`, so they are listed as excluded and the 250-host rows decide that rate. The capacity tables come from unprofiled runs at the shipped ingest parallelism (2 slots on both backends). Profiled runs carry asyncio debug-mode overhead and their latencies are not capacity numbers.
+Open arrival: each host enrols and posts at a random offset within its interval, so the offered load is a steady λ posts/s. Each post is a 1,670-finding bundle. Every run lasts 300 s and is repeated with two seeds. The rule: λ_max is the largest swept rate at which both seeds have p95 below 2 s and a sound measurement, with no higher rate failing; the band's upper edge is the lowest rate where any seed fails or loses requests. Little's law (hosts / (interval + mean latency) against the achieved rate) decides whether requests were lost. It cannot be checked when a host's interval exceeds half the run, so the host count follows the rate: 60 hosts at 0.5 posts/s (120 s interval), 100 at 1 (100 s), 250 at 2 (125 s), 300 at 3 (100 s), 500 at 4 and above. The first SQLite pass at 2 posts/s used 500 hosts, a 250 s interval; its `measurement_defect` is `None`, so those rows are listed as excluded and the 250-host rows decide that rate. The Postgres 500-host rows at 2 posts/s are 4-slot rows (see the superseded section), not passes. The SQLite rows come from two code commits, shown in the commit column (`2a25807` for all but the 250- and 300-host rows at 2 and 3 posts/s, which are `04c2650`). The SQLite ingest code is identical between them: under `src/` only the Postgres slot default (and a comment) and UI files changed. The capacity tables come from unprofiled runs at the shipped ingest parallelism (2 slots on both backends). Profiled runs carry asyncio debug-mode overhead and their latencies are not capacity numbers.
 
 ## postgres
 
-| rate (posts/s) | hosts | seed | requests | p50 ms | p95 ms | p99 ms | achieved rps | Little ratio | 429 | 503 | errors | result |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 0.5 | 60 | 1 | 140 | 1100 | 2200 | 3100 | 0.48 | 0.961 | 0 | 0 | 0 | FAIL |
-| 0.5 | 60 | 2 | 145 | 1300 | 2300 | 2700 | 0.48 | 0.981 | 0 | 0 | 0 | FAIL |
-| 1 | 100 | 1 | 292 | 2000 | 4700 | 5200 | 0.97 | 0.989 | 0 | 0 | 0 | FAIL |
-| 1 | 100 | 2 | 296 | 1700 | 4100 | 4500 | 0.99 | 1.008 | 0 | 0 | 0 | FAIL |
-| 2 | 250 | 1 | 530 | 24000 | 28000 | 29000 | 1.63 | 0.926 | 0 | 134 | 0 | FAIL |
-| 2 | 250 | 2 | 527 | 24000 | 29000 | 30000 | 1.62 | 0.916 | 0 | 148 | 0 | FAIL |
-| 3 | 300 | 1 | 830 | 84 | 28000 | 29000 | 2.57 | 0.953 | 0 | 439 | 0 | FAIL |
-| 3 | 300 | 2 | 820 | 100 | 29000 | 30000 | 2.54 | 0.941 | 0 | 450 | 0 | FAIL |
-| 4 | 500 | 1 | 1112 | 49 | 27000 | 28000 | 3.44 | 0.919 | 0 | 719 | 0 | FAIL |
-| 4 | 500 | 2 | 1111 | 56 | 27000 | 28000 | 3.43 | 0.916 | 0 | 726 | 0 | FAIL |
-| 6 | 500 | 1 | 1675 | 48 | 28000 | 29000 | 5.16 | 0.92 | 0 | 1288 | 0 | FAIL |
-| 6 | 500 | 2 | 1673 | 66 | 29000 | 31000 | 5.16 | 0.919 | 0 | 1310 | 0 | FAIL |
+| rate (posts/s) | hosts | seed | commit | requests | p50 ms | p95 ms | p99 ms | achieved rps | Little ratio | 429 | 503 | errors | result |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0.5 | 60 | 1 | 04c2650 | 140 | 1100 | 2200 | 3100 | 0.48 | 0.961 | 0 | 0 | 0 | FAIL |
+| 0.5 | 60 | 2 | 04c2650 | 145 | 1300 | 2300 | 2700 | 0.48 | 0.981 | 0 | 0 | 0 | FAIL |
+| 1 | 100 | 1 | 04c2650 | 292 | 2000 | 4700 | 5200 | 0.97 | 0.989 | 0 | 0 | 0 | FAIL |
+| 1 | 100 | 2 | 04c2650 | 296 | 1700 | 4100 | 4500 | 0.99 | 1.008 | 0 | 0 | 0 | FAIL |
+| 2 | 250 | 1 | 04c2650 | 530 | 24000 | 28000 | 29000 | 1.63 | 0.926 | 0 | 134 | 0 | FAIL |
+| 2 | 250 | 2 | 04c2650 | 527 | 24000 | 29000 | 30000 | 1.62 | 0.916 | 0 | 148 | 0 | FAIL |
+| 3 | 300 | 1 | 04c2650 | 830 | 84 | 28000 | 29000 | 2.57 | 0.953 | 0 | 439 | 0 | FAIL |
+| 3 | 300 | 2 | 04c2650 | 820 | 100 | 29000 | 30000 | 2.54 | 0.941 | 0 | 450 | 0 | FAIL |
+| 4 | 500 | 1 | 04c2650 | 1112 | 49 | 27000 | 28000 | 3.44 | 0.919 | 0 | 719 | 0 | FAIL |
+| 4 | 500 | 2 | 04c2650 | 1111 | 56 | 27000 | 28000 | 3.43 | 0.916 | 0 | 726 | 0 | FAIL |
+| 6 | 500 | 1 | 04c2650 | 1675 | 48 | 28000 | 29000 | 5.16 | 0.92 | 0 | 1288 | 0 | FAIL |
+| 6 | 500 | 2 | 04c2650 | 1673 | 66 | 29000 | 31000 | 5.16 | 0.919 | 0 | 1310 | 0 | FAIL |
 
 **λ_max: none.** No swept rate passed on both seeds; the lowest failure is 0.5 posts/s.
 
 ## sqlite
 
-| rate (posts/s) | hosts | seed | requests | p50 ms | p95 ms | p99 ms | achieved rps | Little ratio | 429 | 503 | errors | result |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 0.5 | 60 | 1 | 141 | 330 | 550 | 590 | 0.47 | 0.948 | 0 | 0 | 0 | PASS |
-| 0.5 | 60 | 2 | 147 | 390 | 610 | 670 | 0.49 | 0.99 | 0 | 0 | 0 | PASS |
-| 1 | 100 | 1 | 300 | 420 | 760 | 1100 | 1.01 | 1.012 | 0 | 0 | 0 | PASS |
-| 1 | 100 | 2 | 298 | 410 | 730 | 880 | 1.0 | 1.006 | 0 | 0 | 0 | PASS |
-| 2 | 250 | 1 | 588 | 460 | 1500 | 1900 | 1.97 | 0.987 | 0 | 0 | 0 | PASS |
-| 2 | 500 | 1 | 593 | 370 | 1300 | 2600 | 1.98 | 0.993 | 0 | 0 | 0 | excluded (unmeasured) |
-| 2 | 250 | 2 | 587 | 510 | 2500 | 3200 | 1.96 | 0.988 | 0 | 0 | 0 | FAIL |
-| 2 | 500 | 2 | 573 | 380 | 1100 | 1500 | 1.91 | 0.959 | 0 | 0 | 0 | excluded (unmeasured) |
-| 3 | 300 | 1 | 858 | 5100 | 13000 | 13000 | 2.76 | 0.977 | 0 | 33 | 0 | FAIL |
-| 3 | 300 | 2 | 848 | 5400 | 13000 | 13000 | 2.73 | 0.97 | 0 | 47 | 1 | FAIL |
-| 4 | 500 | 1 | 1114 | 8500 | 13000 | 14000 | 3.57 | 0.947 | 0 | 224 | 4 | FAIL |
-| 4 | 500 | 2 | 1098 | 7700 | 14000 | 14000 | 3.53 | 0.934 | 0 | 225 | 6 | FAIL |
-| 6 | 500 | 1 | 1665 | 420 | 13000 | 14000 | 5.36 | 0.954 | 0 | 829 | 1 | FAIL |
-| 6 | 500 | 2 | 1668 | 370 | 13000 | 13000 | 5.37 | 0.955 | 0 | 822 | 1 | FAIL |
-| 8 | 500 | 1 | 2207 | 170 | 13000 | 14000 | 7.1 | 0.949 | 0 | 1394 | 1 | FAIL |
-| 8 | 500 | 2 | 2204 | 200 | 13000 | 14000 | 7.08 | 0.946 | 0 | 1368 | 5 | FAIL |
-| 12 | 500 | 1 | 3255 | 370 | 13000 | 14000 | 10.5 | 0.943 | 0 | 2443 | 8 | FAIL |
-| 12 | 500 | 2 | 3254 | 460 | 13000 | 14000 | 10.44 | 0.939 | 0 | 2432 | 17 | FAIL |
+| rate (posts/s) | hosts | seed | commit | requests | p50 ms | p95 ms | p99 ms | achieved rps | Little ratio | 429 | 503 | errors | result |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0.5 | 60 | 1 | 2a25807 | 141 | 330 | 550 | 590 | 0.47 | 0.948 | 0 | 0 | 0 | PASS |
+| 0.5 | 60 | 2 | 2a25807 | 147 | 390 | 610 | 670 | 0.49 | 0.99 | 0 | 0 | 0 | PASS |
+| 1 | 100 | 1 | 2a25807 | 300 | 420 | 760 | 1100 | 1.01 | 1.012 | 0 | 0 | 0 | PASS |
+| 1 | 100 | 2 | 2a25807 | 298 | 410 | 730 | 880 | 1.0 | 1.006 | 0 | 0 | 0 | PASS |
+| 2 | 250 | 1 | 04c2650 | 588 | 460 | 1500 | 1900 | 1.97 | 0.987 | 0 | 0 | 0 | PASS |
+| 2 | 500 | 1 | 2a25807 | 593 | 370 | 1300 | 2600 | 1.98 | 0.993 | 0 | 0 | 0 | excluded (unmeasured) |
+| 2 | 250 | 2 | 04c2650 | 587 | 510 | 2500 | 3200 | 1.96 | 0.988 | 0 | 0 | 0 | FAIL |
+| 2 | 500 | 2 | 2a25807 | 573 | 380 | 1100 | 1500 | 1.91 | 0.959 | 0 | 0 | 0 | excluded (unmeasured) |
+| 3 | 300 | 1 | 04c2650 | 858 | 5100 | 13000 | 13000 | 2.76 | 0.977 | 0 | 33 | 0 | FAIL |
+| 3 | 300 | 2 | 04c2650 | 848 | 5400 | 13000 | 13000 | 2.73 | 0.97 | 0 | 47 | 1 | FAIL |
+| 4 | 500 | 1 | 2a25807 | 1114 | 8500 | 13000 | 14000 | 3.57 | 0.947 | 0 | 224 | 4 | FAIL |
+| 4 | 500 | 2 | 2a25807 | 1098 | 7700 | 14000 | 14000 | 3.53 | 0.934 | 0 | 225 | 6 | FAIL |
+| 6 | 500 | 1 | 2a25807 | 1665 | 420 | 13000 | 14000 | 5.36 | 0.954 | 0 | 829 | 1 | FAIL |
+| 6 | 500 | 2 | 2a25807 | 1668 | 370 | 13000 | 13000 | 5.37 | 0.955 | 0 | 822 | 1 | FAIL |
+| 8 | 500 | 1 | 2a25807 | 2207 | 170 | 13000 | 14000 | 7.1 | 0.949 | 0 | 1394 | 1 | FAIL |
+| 8 | 500 | 2 | 2a25807 | 2204 | 200 | 13000 | 14000 | 7.08 | 0.946 | 0 | 1368 | 5 | FAIL |
+| 12 | 500 | 1 | 2a25807 | 3255 | 370 | 13000 | 14000 | 10.5 | 0.943 | 0 | 2443 | 8 | FAIL |
+| 12 | 500 | 2 | 2a25807 | 3254 | 460 | 13000 | 14000 | 10.44 | 0.939 | 0 | 2432 | 17 | FAIL |
 
 **λ_max = 1 posts/s** (band 1 to 2). Under the daily timer with a 2 h jitter that is about 7,200 hosts; spread over 24 h, about 86,400.
 
@@ -78,16 +78,16 @@ Not capacity numbers. The 4-slot Postgres default was replaced by 2 slots after 
 
 Sweep rows at the old 4-slot default:
 
-| rate (posts/s) | hosts | seed | requests | p50 ms | p95 ms | p99 ms | achieved rps | Little ratio | 429 | 503 | errors | result |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2 | 500 | 1 | 563 | 92 | 45000 | 47000 | 1.65 | 0.882 | 0 | 308 | 0 | excluded (unmeasured) |
-| 2 | 500 | 2 | 543 | 81 | 51000 | 52000 | 1.57 | 0.841 | 0 | 320 | 0 | excluded (unmeasured) |
-| 8 | 500 | 1 | 2214 | 120 | 56000 | 60000 | 6.54 | 0.878 | 0 | 2027 | 29 | excluded (defect) |
-| 8 | 500 | 2 | 2240 | 89 | 46000 | 51000 | 6.61 | 0.887 | 0 | 2010 | 0 | excluded (defect) |
-| 12 | 500 | 1 | 3299 | 330 | 44000 | 58000 | 9.77 | 0.88 | 0 | 3113 | 20 | excluded (defect) |
-| 12 | 500 | 2 | 3305 | 190 | 43000 | 49000 | 9.85 | 0.887 | 0 | 3050 | 22 | excluded (defect) |
+| rate (posts/s) | hosts | seed | commit | requests | p50 ms | p95 ms | p99 ms | achieved rps | Little ratio | 429 | 503 | errors | result |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 2 | 500 | 1 | 2a25807 | 563 | 92 | 45000 | 47000 | 1.65 | 0.882 | 0 | 308 | 0 | excluded (unmeasured) |
+| 2 | 500 | 2 | 2a25807 | 543 | 81 | 51000 | 52000 | 1.57 | 0.841 | 0 | 320 | 0 | excluded (unmeasured) |
+| 8 | 500 | 1 | 2a25807 | 2214 | 120 | 56000 | 60000 | 6.54 | 0.878 | 0 | 2027 | 29 | excluded (defect) |
+| 8 | 500 | 2 | 2a25807 | 2240 | 89 | 46000 | 51000 | 6.61 | 0.887 | 0 | 2010 | 0 | excluded (defect) |
+| 12 | 500 | 1 | 2a25807 | 3299 | 330 | 44000 | 58000 | 9.77 | 0.88 | 0 | 3113 | 20 | excluded (defect) |
+| 12 | 500 | 2 | 2a25807 | 3305 | 190 | 43000 | 49000 | 9.85 | 0.887 | 0 | 3050 | 22 | excluded (defect) |
 
-The 4-slot rows at 0.5 and 1 posts/s were overwritten by the 2-slot re-sweep (same file names). They survive in git at `f0955d9`: p95 7.5 and 8.8 s at 0.5 posts/s, 47 and 50 s at 1 post/s.
+Four 4-slot Postgres rows were overwritten by the 2-slot re-sweep under the same file names. They ran at code `2a25807` and survive in git: `git show f0955d9:benchmark/fleet/results/<file>` for `load-postgres-20261018-60h-r0.5-sweep.json` and `load-postgres-20261018-60h-r0.5-sweep-2.json` (p95 7.5 and 8.8 s at 0.5 posts/s), `load-postgres-20261018-100h-r1-sweep.json` and `load-postgres-20261018-100h-r1-sweep-2.json` (p95 47 and 50 s at 1 post/s).
 
 ### Postgres ingest parallelism (500 hosts)
 
