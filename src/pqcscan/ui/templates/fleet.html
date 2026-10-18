@@ -5,7 +5,7 @@
   <div>
     <p class="text-xs font-mono uppercase tracking-[0.2em] text-zinc-500 mb-2">{{ t('nav.fleet') }}</p>
     <h1 class="text-3xl font-semibold tracking-tight text-zinc-50">{{ t('fleet.title') }}</h1>
-    <p class="mt-2 text-sm text-zinc-400">{{ rows|length }} {{ t('fleet.host') }}</p>
+    {% if not label_error %}<p class="mt-2 text-sm text-zinc-400">{{ rows|length }} {{ t('fleet.host') }}</p>{% endif %}
   </div>
   <form method="get" action="/fleet" class="flex flex-wrap items-center gap-2">
     <label for="fleet-label" class="text-xs font-mono uppercase tracking-wider text-zinc-500">{{ t('fleet.labels') }}</label>

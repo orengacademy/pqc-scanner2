@@ -41,6 +41,7 @@ def test_fleet_page_lists_hosts_and_filters(tmp_db_path, fast_registry, tmp_path
     r = c.get("/fleet?label=env")                               # malformed: the page with an inline error, not JSON
     assert r.status_code == 400 and r.headers["content-type"].startswith("text/html")
     assert "Use key=value" in r.text and 'aria-invalid="true"' in r.text
+    assert "0 Host" not in r.text                               # no count for a filter that never ran
     assert 'href="/fleet"' in c.get("/").text                   # nav entry
     c.cookies.set("pqcscan_locale", "ms")
     body = c.get("/fleet").text
