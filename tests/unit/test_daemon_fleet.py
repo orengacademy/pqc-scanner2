@@ -473,7 +473,6 @@ def test_ingest_queue_full_answers_503_with_retry_after(tmp_db_path, fast_regist
 
     import httpx
 
-    monkeypatch.setattr(fleet, "INGEST_PARALLELISM", 1)
     monkeypatch.setattr(fleet, "INGEST_QUEUE_MAX", 2)
     gate = threading.Event()
     real = fleet.load_bundle
@@ -482,7 +481,7 @@ def test_ingest_queue_full_answers_503_with_retry_after(tmp_db_path, fast_regist
         gate.wait(10)            # hold the single parse slot until a request has been shed
         return real(data)
     monkeypatch.setattr(fleet, "load_bundle", slow_load)
-    app = create_app(db_path=tmp_db_path, registry=fast_registry, enroll_token="ENROLL")
+    app = create_app(db_path=tmp_db_path, registry=fast_registry, enroll_token="ENROLL", ingest_parallelism=1)
     bodies = [_bundle(tmp_path) for _ in range(4)]
 
     async def run():
@@ -515,7 +514,6 @@ def test_slow_body_upload_holds_no_queue_place(tmp_db_path, fast_registry, tmp_p
 
     import httpx
 
-    monkeypatch.setattr(fleet, "INGEST_PARALLELISM", 1)
     monkeypatch.setattr(fleet, "INGEST_QUEUE_MAX", 1)
     real = fleet._read_capped
     reading, release = asyncio.Event(), asyncio.Event()
@@ -526,7 +524,7 @@ def test_slow_body_upload_holds_no_queue_place(tmp_db_path, fast_registry, tmp_p
             await release.wait()             # this upload is still streaming its body
         return await real(request, cap)
     monkeypatch.setattr(fleet, "_read_capped", trickle)
-    app = create_app(db_path=tmp_db_path, registry=fast_registry, enroll_token="ENROLL")
+    app = create_app(db_path=tmp_db_path, registry=fast_registry, enroll_token="ENROLL", ingest_parallelism=1)
     bodies = [_bundle(tmp_path) for _ in range(2)]
 
     async def run():
@@ -541,3 +539,45 @@ def test_slow_body_upload_holds_no_queue_place(tmp_db_path, fast_registry, tmp_p
 
     fast, slow = asyncio.run(run())
     assert (fast.status_code, slow.status_code) == (200, 200), (fast.text, slow.text)
+
+
+@pytest.mark.parametrize("given", [None, 3])
+def test_ingest_parallelism_defaults_by_dialect(tmp_db_path, fast_registry, tmp_path, monkeypatch, given):
+    """SQLite has one writer: two bundles at a time. Postgres runs each ingest in its own backend: four."""
+    import asyncio
+    import threading
+
+    import httpx
+
+    want = given or (fleet.INGEST_PARALLELISM_PG if str(tmp_db_path).startswith("postgresql")
+                     else fleet.INGEST_PARALLELISM)
+    lock, gate, reached = threading.Lock(), threading.Event(), threading.Event()
+    inside = [0, 0]                          # now, peak
+    real = fleet.load_bundle
+
+    def held_load(data):
+        with lock:
+            inside[0] += 1
+            inside[1] = max(inside)
+            if inside[0] == want:
+                reached.set()
+        gate.wait(10)
+        with lock:
+            inside[0] -= 1
+        return real(data)
+    monkeypatch.setattr(fleet, "load_bundle", held_load)
+    app = create_app(db_path=tmp_db_path, registry=fast_registry, enroll_token="ENROLL", ingest_parallelism=given)
+    bodies = [_bundle(tmp_path) for _ in range(want + 2)]
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1") as ac:
+            tok = (await ac.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": HOST})).json()
+            posts = [asyncio.create_task(ac.post("/api/ingest", content=b, headers=_hdr(tok["agent_token"])))
+                     for b in bodies]
+            await asyncio.to_thread(reached.wait, 10)
+            await asyncio.sleep(0.3)         # time for a slot past the bound to be (wrongly) taken
+            gate.set()
+            return await asyncio.gather(*posts)
+
+    codes = [r.status_code for r in asyncio.run(run())]
+    assert codes == [200] * len(bodies) and inside[1] == want, (codes, inside)

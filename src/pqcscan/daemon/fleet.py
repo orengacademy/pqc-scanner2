@@ -34,11 +34,13 @@ from pqcscan.store.repo import Repo
 FLEET_BEARER_PATHS = ("/api/ingest", "/api/agents/enroll")
 INGEST_MIN_INTERVAL_S = 60.0   # one ingest token refilled per interval, per host
 INGEST_BURST = 10               # tokens a host can spend at once (spool replay after an outage)
-INGEST_PARALLELISM = 2          # bundles parsed/stored at once, across all hosts
+INGEST_PARALLELISM = 2          # bundles parsed/stored at once, across all hosts, on SQLite (one writer)
+INGEST_PARALLELISM_PG = 4       # on Postgres: server exec is about 0.9 s per ingest (per-row FK and index work), so
+                                # throughput is slot-bound. A starting value: change it only on a measured load sweep.
 INGEST_QUEUE_MAX = 32   # bundles waiting for or holding a parse slot, all hosts. Longest wait ≈ QUEUE_MAX x service
-                        # time / INGEST_PARALLELISM; at 2 s per large bundle and 2 slots that is 32 s, under the
-                        # agent's 60 s timeout, so a queued request is served, never abandoned. Past the bound the
-                        # collector answers 503 + Retry-After and the agent spools (FLEET.md, Ingest limits).
+                        # time / slots; at 2 s per large bundle and SQLite's 2 slots (the worst case) that is 32 s,
+                        # under the agent's 60 s timeout, so a queued request is served, never abandoned. Past the
+                        # bound the collector answers 503 + Retry-After and the agent spools (FLEET.md, Ingest limits).
 MAX_ENROLL_BYTES = 64 * 1024
 _TERMINAL_STATUSES = ("done", "failed", "interrupted")
 
@@ -93,11 +95,16 @@ def _host_dict(h: Any) -> dict[str, Any]:
             "last_seen": h.last_seen.isoformat() if h.last_seen else None, "revoked": bool(h.revoked)}
 
 
-def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_host: int = 12) -> APIRouter:
+def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_host: int = 12,
+                       ingest_parallelism: int | None = None) -> APIRouter:
+    """`ingest_parallelism` (bundles parsed/stored at once) defaults by dialect: INGEST_PARALLELISM_PG on Postgres,
+    INGEST_PARALLELISM elsewhere."""
     router = APIRouter()
     limiter = _TokenBucket()
     # Per router (one per app): an asyncio.Semaphore binds to the loop it first blocks on.
-    parse_slots = asyncio.Semaphore(INGEST_PARALLELISM)
+    if ingest_parallelism is None:
+        ingest_parallelism = INGEST_PARALLELISM_PG if repo.engine.dialect.name == "postgresql" else INGEST_PARALLELISM
+    parse_slots = asyncio.Semaphore(ingest_parallelism)
     queued = 0      # ingest requests with their body read, waiting for or holding a parse slot
 
     async def _agent_host(request: Request):

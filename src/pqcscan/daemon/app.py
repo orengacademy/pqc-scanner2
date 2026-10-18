@@ -88,6 +88,7 @@ def _host_allowed(request: Request, allowed: frozenset[str]) -> bool:
 def create_app(
     *, db_path: Path | str, registry: Registry | None = None, token: str | None = None,
     allowed_hosts: Iterable[str] = (), enroll_token: str | None = None, keep_scans_per_host: int = 12,
+    ingest_parallelism: int | None = None,
 ) -> FastAPI:
     """Build the daemon app.
 
@@ -105,7 +106,8 @@ def create_app(
     guard, since Origin==Host alone is satisfied by a rebound domain.
 
     `keep_scans_per_host` is the fleet retention: after each ingest the host's
-    scans beyond the newest N are deleted.
+    scans beyond the newest N are deleted. `ingest_parallelism` is the number of
+    bundles parsed and stored at once; None picks it by database dialect.
     """
     app = FastAPI(title="pqcscan", version=__version__)
     token = token if token is not None else os.environ.get("PQCSCAN_TOKEN") or None
@@ -392,7 +394,8 @@ def create_app(
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
-    app.include_router(build_fleet_router(repo, enroll_token=enroll_token, keep_scans_per_host=keep_scans_per_host))
+    app.include_router(build_fleet_router(repo, enroll_token=enroll_token, keep_scans_per_host=keep_scans_per_host,
+                                          ingest_parallelism=ingest_parallelism))
 
     # Mount the web UI (Jinja + HTMX + SSE).
     from pqcscan.ui.routes import mount_static

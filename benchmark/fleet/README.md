@@ -40,12 +40,13 @@ literal reading of "500 hosts posting concurrently". Both are reported.
 - **Ingest percentiles** come from locust's `ingest` row only, not the enrolment calls. Requests time out after 60 s,
   the real agent's HTTP timeout; a timeout is an error. After the run locust waits up to 70 s for in-flight requests
   so a backlog is counted instead of discarded.
-- **Queueing.** The collector parses and stores at most `INGEST_PARALLELISM=2` bundles at once and holds that slot
-  across both steps, so at overload the p50 and p95 are mostly queue wait, not service time. The server also keeps
-  working on a request after the client gave up at 60 s, so an overloaded run wastes capacity on bundles nobody is
-  waiting for. `stored_scans` in the JSON (counted through `/api/fleet` after the run) shows how many arrived.
+- **Queueing.** The collector parses and stores at most 2 bundles at once on SQLite and 4 on Postgres
+  (`INGEST_PARALLELISM`, `INGEST_PARALLELISM_PG`; `--ingest-parallelism N` overrides it and is recorded in the JSON) and
+  holds that slot across both steps, so at overload the p50 and p95 are mostly queue wait, not service time. At most
+  `INGEST_QUEUE_MAX=32` bundles wait for or hold a slot; past that the collector answers 503 with `Retry-After: 60`.
+  `stored_scans` in the JSON (counted through `/api/fleet` after the run) shows how many arrived.
 - **429 and 503** are counted separately and are not errors: 429 is the per-host throttle working, 503 is the store
-  reporting it is busy (the agent would spool and retry). Their latency is still inside the ingest percentiles.
+  reporting it is busy or the ingest queue full (the agent would spool and retry). Their latency is still inside the ingest percentiles.
 - **Every host sends the same findings.** One template scan (`--findings-per-bundle`, default 300, about 40% weak
   rows with 8 compliance views each, the rest SBOM info rows with one) is stored through the real `Repo` and exported by
   the real `dump_bundle`; hosts differ only in identity and `scan_uuid`. The test therefore measures ingest cost per

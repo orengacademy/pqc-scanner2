@@ -151,11 +151,12 @@ def _stats(path: Path) -> dict[str, dict[str, str]]:
 def run(*, db: str, hosts: int, spawn_rate: int, duration_s: int, findings: int = DEFAULT_FINDINGS,
         interval_s: float | None = None, rate: float | None = None, stagger: bool = True, seed: int = 1,
         tag: str = "", results_dir: Path | None = None, record: bool = True, command: str = "",
-        profile_dir: Path | None = None, md_path: Path | None = None) -> dict:
+        profile_dir: Path | None = None, md_path: Path | None = None, ingest_parallelism: int | None = None) -> dict:
     """One load run; returns the result dict (also written to `results_dir` and LOAD.md when `record`).
     `rate` (total posts/s offered by all hosts) sets the interval; else `interval_s`, default 60 s.
     `profile_dir` records a py-spy profile, slow callbacks and statement counts there and writes its summary.
-    `md_path` overrides the LOAD.md the row is appended to."""
+    `md_path` overrides the LOAD.md the row is appended to. `ingest_parallelism` overrides the collector's per-dialect
+    default (recorded in the result; None means the default)."""
     interval_s = interval_for(hosts=hosts, rate=rate) if rate is not None else interval_s or 60.0
     if record:                                    # fail before a long run, not after it
         _check_md_columns(md_path or HERE / "LOAD.md", ROW_COLUMNS)
@@ -171,7 +172,7 @@ def run(*, db: str, hosts: int, spawn_rate: int, duration_s: int, findings: int 
         locust_cmd = [sys.executable, "-m", "locust", "-f", str(HERE / "locustfile.py"), "--headless",
                       "-u", str(hosts), "-r", str(spawn_rate), "-t", f"{duration_s}s", "--stop-timeout", "70",
                       "--csv", str(prefix), "--csv-full-history", "--only-summary"]
-        with _collector.collector(db, work, profile_dir=profile_dir) as url:
+        with _collector.collector(db, work, profile_dir=profile_dir, ingest_parallelism=ingest_parallelism) as url:
             env = {**os.environ, "LOAD_TEMPLATE": str(template), "LOAD_ENROLL_TOKEN": _collector.ENROLL_TOKEN,
                    "LOAD_INTERVAL_S": str(interval_s), "LOAD_COUNTERS": str(counters), "LOAD_PREFIX": "m-load-",
                    "LOAD_STAGGER": "1" if stagger else "0", "LOAD_SEED": str(seed),
@@ -215,6 +216,7 @@ def run(*, db: str, hosts: int, spawn_rate: int, duration_s: int, findings: int 
         "ingest_error_rate": error_rate(ing), "enroll_error_rate": error_rate(enr),
         "enroll_503": seen.get("enroll_503", 0),
         "stored_hosts": stored_hosts, "stored_scans": stored_scans, "seed": seed,
+        "ingest_parallelism": ingest_parallelism,
         "enroll_requests": int(enr.get("Request Count", 0) or 0), "enroll_p95_ms": float(enr.get("95%", 0) or 0),
         "failure_samples": [f"{f['Name']}: {f['Error']} x{f['Occurrences']}" for f in failures[:10]],
         "pass_p95_lt_2s": p95 < P95_LIMIT_MS and bool(ing),
@@ -286,6 +288,8 @@ def main() -> int:
     ap.add_argument("--tag", default="", help="suffix for the result file name, e.g. a code revision label")
     ap.add_argument("--profile", type=Path, default=None, metavar="DIR",
                     help="record py-spy, asyncio slow callbacks and statements per ingest into DIR")
+    ap.add_argument("--ingest-parallelism", type=int, default=None, metavar="N",
+                    help="bundles the collector parses/stores at once (default: 2 on SQLite, 4 on Postgres)")
     ap.add_argument("--no-record", action="store_true", help="write no result file and no LOAD.md row (dry runs)")
     g = ap.add_mutually_exclusive_group()
     g.add_argument("--interval", type=float, default=None, help="seconds between bundles from one host (default 60)")
@@ -294,7 +298,8 @@ def main() -> int:
     cmd = "python -m benchmark.fleet.run_load " + shlex.join(sys.argv[1:])
     r = run(db=args.db, hosts=args.hosts, spawn_rate=args.spawn_rate, duration_s=parse_duration(args.duration),
             findings=args.findings_per_bundle, interval_s=args.interval, rate=args.rate, stagger=not args.herd,
-            seed=args.seed, tag=args.tag, command=cmd, record=not args.no_record, profile_dir=args.profile)
+            seed=args.seed, tag=args.tag, command=cmd, record=not args.no_record, profile_dir=args.profile,
+            ingest_parallelism=args.ingest_parallelism)
     print(json.dumps({k: v for k, v in r.items() if k not in ("command", "locust_command")}, indent=2))
     return 0 if r["pass_p95_lt_2s"] and not r["errors"] else 1
 
