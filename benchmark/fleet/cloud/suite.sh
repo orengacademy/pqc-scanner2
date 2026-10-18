@@ -25,14 +25,22 @@ case "$1" in
     for db in sqlite postgres; do
       run --db "$db" --hosts 500 --rate 4 --duration 300s --profile "benchmark/fleet/profiles/$db-$1" --tag "$1"
     done;;
-  sweep)
+  sweep)  # per-host interval = hosts / rate must stay under half the 300 s run, or Little's law cannot be checked:
+    # 60 hosts at 0.5/s (120 s) and 100 at 1/s (100 s); 500 hosts (250 s or less) from 2/s up
     for db in sqlite postgres; do
       for rate in 0.5 1 2 4 6 8 12; do
+        case $rate in 0.5) hosts=60;; 1) hosts=100;; *) hosts=500;; esac
         for seed in 1 2; do
-          run --db "$db" --hosts 500 --rate "$rate" --duration 300s --seed "$seed" --tag sweep
+          run --db "$db" --hosts "$hosts" --rate "$rate" --duration 300s --seed "$seed" --tag sweep
         done
       done
       run --db "$db" --herd --hosts 500 --duration 180s --seed 1 --tag herd
+    done
+    # Postgres only: does a wider ingest gate move the saturation point? (the knob's default stays 4)
+    for rate in 4 6; do
+      for slots in 2 4 8; do
+        run --db postgres --hosts 500 --rate "$rate" --duration 300s --seed 1 --ingest-parallelism "$slots" --tag par
+      done
     done;;
   ratio-baseline)  # the CI job's shape
     for db in sqlite postgres; do
