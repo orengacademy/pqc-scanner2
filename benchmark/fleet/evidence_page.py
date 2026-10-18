@@ -20,9 +20,6 @@ from benchmark.fleet import capacity as cap
 ROOT = Path(__file__).resolve().parents[2]
 RES = "benchmark/fleet/results"
 TAGS = ("-sweep", "-herd", "-par", "-pginsert")
-# Base side of the first green load-ratio run; only the commit message 34a9e6c records it, the files hold the head side.
-CI_BASE_P95_MS = {"sqlite": 190.0, "postgres": 810.0}
-CI_BASE_SOURCE = "commit 34a9e6c (run 39133754655, base 77867a1)"
 
 
 def _json(p: Path):
@@ -110,14 +107,19 @@ def _fuzz(root: Path) -> dict | None:
 
 
 def _ci(root: Path) -> list[dict]:
+    """Head side `ci-baseline-<db>.json` against base side `ci-baseline-77867a1-<db>.json` of the same CI run."""
     out = []
     for db in ("sqlite", "postgres"):
-        r = _json(root / RES / f"ci-baseline-{db}.json")
-        if r:
-            base = CI_BASE_P95_MS[db]
-            out.append({"db": db, "hosts": r.get("hosts"), "offered_rps": r.get("offered_rps"), "p95_ms": r["p95_ms"],
-                        "base_p95_ms": base, "ratio": round(r["p95_ms"] / base, 2), "rps": r.get("rps"),
-                        "source": f"{RES}/ci-baseline-{db}.json; base: {CI_BASE_SOURCE}"})
+        head = _json(root / RES / f"ci-baseline-{db}.json")
+        if not head:
+            continue
+        base = _json(root / RES / f"ci-baseline-77867a1-{db}.json") or {}
+        b = base.get("p95_ms")
+        out.append({"db": db, "hosts": head.get("hosts"), "offered_rps": head.get("offered_rps"),
+                    "p95_ms": head["p95_ms"], "base_p95_ms": b, "ratio": round(head["p95_ms"] / b, 2) if b else None,
+                    "rps": head.get("rps"),
+                    "source": f"{RES}/ci-baseline-{db}.json"
+                              + (f", {RES}/ci-baseline-77867a1-{db}.json" if b else "; base side pending")})
     return out
 
 
@@ -221,15 +223,28 @@ def _items(d: dict) -> list[dict]:
     mtxt = f"Mutation score {mut['score']:.1%}." if mut else "Mutation score pending (the mutmut run was relaunched)."
     i5 = ("ok" if fuzz and mut else "wait", "Delivered" if fuzz and mut else "Partial", ftxt + mtxt,
           "benchmark/fleet/fuzz/stats.json, benchmark/fleet/mutation/score.json")
-    i6 = ("ok", "Fixed",
-          "F6: windows-task.ps1 refuses unsupported -RunAs accounts before writing and removes its writes if task "
-          "registration fails; Pester pins it on windows-2022 and windows-latest. Postgres: profiled before and after; "
-          "the postgres and load-ratio CI jobs pin it.",
-          "commits 8447455, 6c694c6; benchmark/fleet/profiles/postgres-*")
+    i6 = _item6(d)
     names = ["Profile before fixing", "Arrival model and capacity", "Overload behaviour", "Real soak, 7 days",
              "Test strength", "The two contradicted claims"]
     return [{"n": n, "item": name, "kind": k, "verdict": v, "basis": b, "source": s}
             for n, (name, (k, v, b, s)) in enumerate(zip(names, [i1, i2, i3, i4, i5, i6], strict=True), 1)]
+
+
+def _item6(d: dict) -> tuple[str, str, str, str]:
+    """Item 6 follows the F6 row of FLEET-EVIDENCE.md, so the verdict and the findings table cannot disagree."""
+    f6 = next((f for f in d["findings"] if f["id"] == "F6"), None)
+    src = "docs/FLEET-EVIDENCE.md (F6 row)"
+    pg = (" Postgres: profiled before and after (benchmark/fleet/profiles/postgres-*)."
+          if {"before", "after"} <= d["profiles"].get("postgres", {}).keys() else " Postgres profile pending.")
+    if f6 is None:
+        return "wait", "Pending", "No F6 row in the findings table of FLEET-EVIDENCE.md." + pg, src
+    kind = _state_kind(f6["state"])
+    text = f"F6 (Windows installer, non-SYSTEM -RunAs) is {f6['state'].lower()} in FLEET-EVIDENCE.md."
+    run = d["ci_runs"].get("windows_installer_f6")
+    if kind == "ok" and run:
+        text += f" Pester {run['result']}, CI run {run['run']} at {run['commit']}."
+        src += f"; {RES}/ci-runs.json"
+    return kind, f6["state"].split(" (")[0], text + pg, src + "; benchmark/fleet/profiles/postgres-*"
 
 
 def _g(x) -> str:
@@ -250,7 +265,8 @@ def load(repo_root: Path = ROOT) -> dict:
     since = _section(ledger, "Since PR #92")
     d = {"results": res, "capacity": caps, "profiles": _profiles(root), "soak": _soak(root), "fuzz": _fuzz(root),
          "mutation": mut if isinstance(mut, dict) and "score" in mut else None, "ci": _ci(root), "ui": _ui(root),
-         "findings": _findings(ledger), "since": _md_tables(since) if since else None}
+         "findings": _findings(ledger), "since": _md_tables(since) if since else None,
+         "ci_runs": _json(root / RES / "ci-runs.json") or {}}
     d["items"] = _items(d)
     blocking = [i for i in d["items"][:4] if i["kind"] != "ok"]
     d["tag_ok"] = not blocking

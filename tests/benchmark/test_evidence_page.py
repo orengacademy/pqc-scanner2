@@ -49,6 +49,11 @@ def _tree(tmp_path: Path) -> Path:
             "run": {"p95_ms": 60000.0 if side == "before" else 35000.0, "rps": 1.2},
             "top_frames": [{"frame": f"frame{i} ({side})", "self_pct": 10.0 - i, "total_pct": 10.0} for i in range(5)],
             "statements_per_ingest": 8528.2, "instrumentation_pct": 20.2}))
+    (res / "ci-runs.json").write_text(json.dumps({
+        "windows_installer_f6": {"run": 39131286228, "commit": "6c694c6", "result": "31/31 on both runners"}}))
+    for db, head, base in (("sqlite", 150.0, 190.0), ("postgres", 710.0, 810.0)):
+        (res / f"ci-baseline-{db}.json").write_text(json.dumps({"db": db, "hosts": 60, "p95_ms": head, "rps": 1.0}))
+        (res / f"ci-baseline-77867a1-{db}.json").write_text(json.dumps({"db": db, "p95_ms": base}))
     (fl / "fuzz").mkdir()
     (fl / "fuzz" / "stats.json").write_text(json.dumps([
         {"harness": "json", "cpu_seconds": 7200, "execs": 10, "crashes": 0, "corpus_files": 4},
@@ -81,6 +86,26 @@ def test_render_has_item_table_capacity_row_source_cells_and_pending_mutation(tm
     mutation = html[html.index('id="strength"'):]
     assert "pending" in mutation[:mutation.index("</section>")].lower()
     assert "1,908,779" in html or "ubuntu" in html  # the soak host row
+    assert "{{" not in html and "}}" not in html and "{%" not in html  # no template text leaks into the page
+    assert "load-sqlite-<wbr>-*-sweep*.json" not in html and "results/<wbr>load-sqlite-*-sweep*.json" in html
+
+
+def test_ci_ratio_reads_the_base_side_file(tmp_path):
+    ci = {r["db"]: r for r in evidence_page.load(_tree(tmp_path))["ci"]}
+    assert ci["sqlite"]["base_p95_ms"] == 190.0 and ci["sqlite"]["ratio"] == 0.79
+    assert ci["postgres"]["ratio"] == 0.88 and "ci-baseline-77867a1-postgres.json" in ci["postgres"]["source"]
+
+
+def test_item_6_follows_the_f6_row(tmp_path):
+    root = _tree(tmp_path)
+    item6 = evidence_page.load(root)["items"][5]
+    assert (item6["kind"], item6["verdict"]) == ("ok", "Fixed")
+    assert "39131286228" in item6["basis"] and "ci-runs.json" in item6["source"]
+    ledger = root / "docs" / "FLEET-EVIDENCE.md"
+    ledger.write_text(ledger.read_text().replace("| Medium | Fixed | Packaging |", "| Medium | Open | Packaging |"))
+    d = evidence_page.load(root)
+    assert (d["items"][5]["kind"], d["items"][5]["verdict"]) == ("bad", "Open")
+    assert "39131286228" not in d["items"][5]["basis"]
 
 
 def test_empty_tree_renders_pending_everywhere_without_crashing(tmp_path):
@@ -95,3 +120,7 @@ def test_the_committed_page_has_no_external_scripts():
     assert all(s.startswith(allowed) for s in srcs) and not srcs
     assert "ubuntu" in html and 'id="capacity"' in html
     assert "1,908,779" in html  # ubuntu agent state bytes from results/soak-real/ubuntu-samples.csv
+    d = evidence_page.load(REPO)
+    f6 = next(f for f in d["findings"] if f["id"] == "F6")
+    assert d["items"][5]["verdict"] == f6["state"].split(" (")[0]
+    assert (REPO / "docs/evidence/index.html").read_text() == html  # the committed page is a fresh regeneration

@@ -151,7 +151,7 @@ footer { color: var(--muted); font-size: .85rem; margin-top: 28px; }
     {% for db, c in d.capacity.items() %}
     <tr class="cap"><td>{{ db }}</td><td class="num">{{ c.lambda_max|g }}</td><td class="num">{{ c.band[0]|g }} to {{ c.band[1]|g }}</td>
       <td class="num">{{ c.hosts_daily_2h|n }}</td><td class="num">{{ c.hosts_daily_24h|n }}</td><td class="num">{{ c.rows|length }}</td>
-      <td class="src">{{ "benchmark/fleet/results/load-{{ db }}-*-sweep*.json"|wbr }}</td></tr>
+      <td class="src">{{ ("benchmark/fleet/results/load-" ~ db ~ "-*-sweep*.json")|wbr }}</td></tr>
     {% endfor %}
     </tbody>
   </table></div>
@@ -285,13 +285,13 @@ footer { color: var(--muted); font-size: .85rem; margin-top: 28px; }
 
 <section id="ci" aria-labelledby="ci-h">
   <h2 id="ci-h">CI load-ratio baseline</h2>
-  <p>Same-runner A/B on ubuntu-latest: base 77867a1 against the branch head, 1,670-finding bundles. The ratio is head p95 over base p95.</p>
+  <p>Same-runner A/B on ubuntu-latest: base 77867a1 against the branch head, 1,670-finding bundles{% if d.ci_runs.load_ratio_first_green %}, CI run {{ d.ci_runs.load_ratio_first_green.run }} at {{ d.ci_runs.load_ratio_first_green.commit }}{% endif %}. The ratio is head p95 over base p95.</p>
   {% if d.ci %}
   <div class="scroll" role="region" aria-label="CI baseline" tabindex="0"><table>
     <thead><tr><th>Backend</th><th class="num">Hosts</th><th class="num">Posts/s</th><th class="num">Base p95 ms</th><th class="num">Head p95 ms</th><th class="num">Ratio</th><th class="num">Achieved rps</th><th>Source</th></tr></thead>
     <tbody>{% for r in d.ci %}
     <tr><td>{{ r.db }}</td><td class="num">{{ r.hosts|n }}</td><td class="num">{{ r.offered_rps|g }}</td><td class="num">{{ r.base_p95_ms|n('{:,.0f}') }}</td>
-      <td class="num">{{ r.p95_ms|n('{:,.0f}') }}</td><td class="num">{{ '%.2f'|format(r.ratio) }}x</td><td class="num">{{ r.rps|g }}</td><td class="src">{{ r.source|wbr }}</td></tr>
+      <td class="num">{{ r.p95_ms|n('{:,.0f}') }}</td><td class="num">{{ r.ratio|n('{:.2f}x') }}</td><td class="num">{{ r.rps|g }}</td><td class="src">{{ r.source|wbr }}</td></tr>
     {% endfor %}</tbody>
   </table></div>
   {% else %}
