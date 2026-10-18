@@ -1,0 +1,48 @@
+{
+  "db": "sqlite",
+  "hosts": 60,
+  "spawn_rate": 50,
+  "duration_s": 120,
+  "interval_s": 60.0,
+  "findings_per_bundle": 1670,
+  "arrival": "staggered",
+  "requests": 120,
+  "p50_ms": 120.0,
+  "p95_ms": 190.0,
+  "p99_ms": 260.0,
+  "rps": 1.02,
+  "http_429": 0,
+  "http_503": 0,
+  "errors": 0,
+  "ingest_error_rate": 0.0,
+  "enroll_error_rate": 0.0,
+  "enroll_503": 0,
+  "stored_hosts": 60,
+  "stored_scans": 120,
+  "seed": 1,
+  "enroll_requests": 60,
+  "enroll_p95_ms": 67.0,
+  "failure_samples": [],
+  "pass_p95_lt_2s": true,
+  "commit": "77867a1d1bbd8b822fa445887aa0da25cffd1fec",
+  "src_hash": "d8a022136d3622c06654ab6b950f56144ef07033d7a15eb71f71d9f6f25f02c2",
+  "tree_dirty": false,
+  "dirty_files": [],
+  "box": {
+    "cpus": 4,
+    "cpu_model": "Intel(R) Xeon(R) 6973P-C",
+    "mem_gb": 16
+  },
+  "box_load_start": {
+    "loadavg_1m": 0.6,
+    "cpu_pressure_avg60_pct": 0.96
+  },
+  "box_load_end": {
+    "loadavg_1m": 0.2,
+    "cpu_pressure_avg60_pct": 0.11
+  },
+  "command": "python -m benchmark.fleet.run_load --db sqlite --hosts 60 --interval 60 --duration 120s --findings-per-bundle 1670 --tag ci-base",
+  "locust_command": "/home/runner/work/_temp/venv-base/bin/python -m locust -f /home/runner/work/pqc-scanner2/pqc-scanner2/baseline/benchmark/fleet/locustfile.py --headless -u 60 -r 50 -t 120s --stop-timeout 70 --csv /tmp/fleet-load-qi7pumib/run --only-summary --host http://127.0.0.1:41737",
+  "started_at": "2026-10-18T13:57:16.856582+00:00",
+  "note": "baseline side of the first green load-ratio run: harness and collector at 77867a1 on the same ubuntu-latest runner; run id 39133754655"
+}
