@@ -486,6 +486,22 @@ def test_bulk_ingest_across_the_batch_boundary(tmp_db_path):
     assert len(pairs) == 5000 and all(t == "f" + c[1:] for t, c in pairs)
 
 
+def test_bulk_ingest_round_trips_json_dates_and_deadlines(tmp_db_path):
+    """The Core INSERT binds evidence/remediation (JSON), created_at and a view deadline like the ORM did."""
+    from datetime import date, datetime
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    host = fleet.upsert_host(WEB01)
+    b = _doc_bundle(WEB01, 2, views=1)
+    b.findings[0]["remediation"] = {"steps": ["rotate", "re-issue"]}
+    b.findings[0]["views"][0]["deadline"] = "2030-12-31"
+    r = fleet.ingest_bundle(b, host.id)
+    f = {x.title: x for x in fleet.list_findings(r.scan_id)}
+    assert f["f0"].evidence == {"path": "/p/0"} and f["f0"].remediation == {"steps": ["rotate", "re-issue"]}
+    assert f["f0"].created_at == datetime(2026, 10, 17, 0, 0, 30)
+    deadlines = {v.finding_id: v.deadline for v in fleet.list_framework_views(r.scan_id)}
+    assert deadlines == {f["f0"].id: date(2030, 12, 31), f["f1"].id: None}
+
+
 def test_empty_bundle_and_drift_only_bundle(tmp_db_path):
     fleet = Repo(tmp_db_path); fleet.init_schema()
     host = fleet.upsert_host(WEB01)

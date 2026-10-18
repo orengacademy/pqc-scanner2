@@ -519,7 +519,7 @@ class Repo:
             } for d in drift]
             view_rows: list[dict] = []
             if rows:
-                s.execute(insert(FindingRow), rows)
+                s.execute(insert(FindingRow.metadata.tables["findings"]), rows)
                 ids = list(s.scalars(select(FindingRow.id).where(FindingRow.scan_id == scan.id)
                                      .order_by(FindingRow.id)))
                 if len(ids) != len(rows):
@@ -530,7 +530,7 @@ class Repo:
                     "deadline": date.fromisoformat(v["deadline"]) if v.get("deadline") else None,
                 } for fid, f in zip(ids, bundle.findings, strict=False) for v in f.get("views") or []]
                 if view_rows:
-                    s.execute(insert(FrameworkView), view_rows)
+                    s.execute(insert(FrameworkView.metadata.tables["framework_views"]), view_rows)
             n_v = len(view_rows)
             _apply_identity(h, bundle.host)
             s.commit()
