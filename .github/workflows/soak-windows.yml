@@ -1,0 +1,107 @@
+name: soak-windows
+# Real soak, Windows side (benchmark/fleet/soak-real.md): one `pqcscan agent --once` per runner image per night
+# against the soak collector. Identity is pinned (MachineGuid) and the state dir (agent.token, spool, agent.db)
+# carries over between runs through the Actions cache, so each image is one fleet host for the whole soak.
+# GitHub runs schedule and workflow_dispatch only from the default branch's copy of this file; the code under
+# test is the commit in the repository variable SOAK_REF, checked out below.
+# Secrets: SOAK_SERVER_URL, SOAK_ENROLL_TOKEN, SOAK_CA_PEM (from ~/.config/pqc-soak/env, see soak-real.md).
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  agent:
+    name: agent (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-latest]
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Require SOAK_REF
+        env:
+          SOAK_REF: ${{ vars.SOAK_REF }}
+        run: if (-not $env:SOAK_REF) { throw "repository variable SOAK_REF is not set (gh variable set SOAK_REF)" }
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ vars.SOAK_REF }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build deps
+        run: pip install -e ".[build]"
+
+      # Same as release.yml "Build (Windows)": the release spec, so the soak runs the binary users download.
+      - name: Build (release spec)
+        run: |
+          pyinstaller --clean --noconfirm `
+            --workpath build/pqcscan-work `
+            build/pyinstaller.spec
+          if (-not (Test-Path "dist/pqcscan.exe")) {
+            throw "build did not produce dist/pqcscan.exe"
+          }
+          & "dist/pqcscan.exe" --help | Out-Null
+
+      # pqcscan hashes MachineGuid into the host's machine id; a fresh runner VM has a new one every run.
+      - name: Pin machine identity
+        run: |
+          Set-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Cryptography -Name MachineGuid -Value '${{ matrix.os == 'windows-2022' && '6b1f0c2e-0000-4000-8000-000000002022' || '6b1f0c2e-0000-4000-8000-000000002025' }}'
+          Get-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Cryptography -Name MachineGuid | Select-Object MachineGuid
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}\pqc-state
+          key: soak-state-${{ matrix.os }}-${{ github.run_id }}
+          restore-keys: soak-state-${{ matrix.os }}-
+
+      - name: Write CA
+        env:
+          SOAK_CA_PEM: ${{ secrets.SOAK_CA_PEM }}
+        run: |
+          if (-not $env:SOAK_CA_PEM) { throw "secret SOAK_CA_PEM is not set" }
+          Set-Content -Path ca.pem -Value $env:SOAK_CA_PEM -Encoding ascii
+
+      - name: Jitter (up to 30 min)
+        run: Start-Sleep -Seconds (Get-Random -Maximum 1800)
+
+      - name: pqcscan agent --once
+        env:
+          SOAK_SERVER_URL: ${{ secrets.SOAK_SERVER_URL }}
+          SOAK_ENROLL_TOKEN: ${{ secrets.SOAK_ENROLL_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Continue'   # loguru writes to stderr; that is output, not a failure
+          dist\pqcscan.exe agent --once --server $env:SOAK_SERVER_URL --enroll-token $env:SOAK_ENROLL_TOKEN --ca-cert ca.pem --labels env=soak,os=windows,runner=${{ matrix.os }} --state-dir $env:RUNNER_TEMP\pqc-state 2>&1 | Tee-Object agent.log
+          $code = $LASTEXITCODE
+          # agent.log is uploaded as an artifact, which GitHub does not mask: keep the enroll token out of it.
+          (Get-Content agent.log) -replace [regex]::Escape($env:SOAK_ENROLL_TOKEN), '<enroll-token>' | Set-Content agent.log
+          exit $code
+
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: ${{ runner.temp }}\pqc-state
+          key: soak-state-${{ matrix.os }}-${{ github.run_id }}
+
+      - name: List state dir
+        if: always()
+        run: Get-ChildItem -Recurse -Force "$env:RUNNER_TEMP\pqc-state" | Format-Table -AutoSize FullName, Length, LastWriteTimeUtc | Out-String -Width 400 | Set-Content state-listing.txt
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: soak-${{ matrix.os }}-${{ github.run_id }}
+          path: |
+            agent.log
+            state-listing.txt
+          retention-days: 30
