@@ -15,10 +15,12 @@
   Each folder is created fresh and locked down at once: no inherited entries, SYSTEM and Administrators full
   control, and the task account (-RunAs) modify on state or read and execute on code. The script then verifies
   the folders and every file it writes with Get-Acl and fails if any other principal has access.
-  -RunAs accepts NT AUTHORITY\SYSTEM (default), a per-service virtual account (NT SERVICE\<name>, the service
-  must exist) or a group managed service account (DOMAIN\name$). Anything else is refused before anything is
-  written: LOCAL SERVICE, NETWORK SERVICE and other shared accounts because every service running as them could
-  read agent.env, a plain user because it needs a password this script does not take.
+  -RunAs accepts NT AUTHORITY\SYSTEM (default) or a group managed service account (DOMAIN\name$). Anything else
+  is refused before anything is written: LOCAL SERVICE, NETWORK SERVICE and other shared accounts because every
+  service running as them could read agent.env, a plain user because it needs a password this script does not
+  take, and NT SERVICE\ virtual accounts because this installer does not support them. If Task Scheduler then
+  rejects the account at registration (a gMSA this host cannot use, or a non-gMSA name ending in '$'), the
+  script removes both folders it created and fails with the registration error.
   It downloads the pinned release binary, verifies it against SHA256SUMS.txt, writes the enrollment token to
   agent.env, and registers a task that runs `pqcscan agent --once` daily at 02:00 plus up to 2 hours of
   random delay. The first run enrolls and stores agent\agent.token. Rotate the enroll token on the collector
@@ -37,7 +39,7 @@ param(
     [Parameter(Mandatory)][string]$EnrollToken,
     [string]$Labels = "",
     [string]$Version = "v0.10.2",
-    # SYSTEM, a virtual account such as 'NT SERVICE\pqcscan', or a gMSA such as 'CORP\svc-pqcscan$'; anything else is refused.
+    # SYSTEM or a gMSA such as 'CORP\svc-pqcscan$'; anything else is refused.
     # SYSTEM is the default because a full host inventory needs to read protected paths.
     [string]$RunAs = "NT AUTHORITY\SYSTEM",
     [string]$CaCert = "",
@@ -63,19 +65,19 @@ $admins = Get-AccountName "BUILTIN\Administrators"
 $runAsName = Get-AccountName $RunAs
 
 # Refuse, before anything is written, any account that is shared or that the task cannot be registered for.
-# SYSTEM (S-1-5-18) and a per-service virtual account (S-1-5-80-<5 parts>, never S-1-5-80-0 "ALL SERVICES") log on
-# as ServiceAccount; a gMSA logs on as Password with no password. LOCAL SERVICE, NETWORK SERVICE and the like are
-# shared by many services, any of which could then read the bearer token in agent.env; a plain user needs a
-# password this script does not take.
-# ponytail: a trailing '$' is taken to mean gMSA; a computer account (or a user named so) also ends in '$' and would still fail at
-# registration, after the writes. Check the object class with the AD module if that ever matters.
+# SYSTEM (S-1-5-18, by SID so localized names match) logs on as ServiceAccount; a gMSA logs on as Password with no
+# password. LOCAL SERVICE, NETWORK SERVICE and the like are shared by many services, any of which could then read
+# the bearer token in agent.env; a plain user needs a password this script does not take. NT SERVICE\ virtual
+# accounts are unsupported by this installer: Register-ScheduledTask answered 0x80070534 for one on both CI runners.
+# ponytail: a trailing '$' is taken to mean gMSA; a computer account (or a user named so) passes too and fails at
+# registration, which the rollback below undoes. Check the object class with the AD module if that ever matters.
 $runAsSid = (New-Object System.Security.Principal.NTAccount($runAsName)).Translate([System.Security.Principal.SecurityIdentifier]).Value
 $isGmsa = $runAsName.EndsWith('$')
-if ($runAsSid -ne "S-1-5-18" -and $runAsSid -notmatch '^S-1-5-80(-\d+){5}$' -and -not $isGmsa) {
-    throw ("-RunAs $runAsName is not supported: use NT AUTHORITY\SYSTEM (the default), a per-service virtual " +
-        'account (NT SERVICE\<name>) or a group managed service account (DOMAIN\name$). LOCAL SERVICE, NETWORK ' +
-        "SERVICE and other shared accounts are refused because every service running as them could read the token " +
-        "in agent.env; a plain user needs a password this script does not take. Nothing was written.")
+if ($runAsSid -ne "S-1-5-18" -and -not $isGmsa) {
+    throw ("-RunAs $runAsName is not supported: use NT AUTHORITY\SYSTEM (the default) or a group managed service " +
+        'account (DOMAIN\name$). LOCAL SERVICE, NETWORK SERVICE and other shared accounts are refused because every ' +
+        "service running as them could read the token in agent.env; a plain user needs a password this script does " +
+        "not take; NT SERVICE\ virtual accounts are unsupported by this installer. Nothing was written.")
 }
 
 # Fail closed: never reuse or repair a folder somebody else may have prepared. A fresh folder is created
@@ -177,7 +179,22 @@ $settings  = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimi
     -MultipleInstances IgnoreNew
 $principal = if ($isGmsa) { New-ScheduledTaskPrincipal -UserId $runAsName -LogonType Password -RunLevel Highest }
              else { New-ScheduledTaskPrincipal -UserId $runAsName -LogonType ServiceAccount -RunLevel Highest }
-Register-ScheduledTask -TaskName "pqcscan-agent" -Action $action -Trigger $trigger -Settings $settings `
-    -Principal $principal -Force | Out-Null
-Write-Host "Registered task pqcscan-agent (daily 02:00 + up to 2h random delay) as $RunAs. Run it now with:"
+try {
+    Register-ScheduledTask -TaskName "pqcscan-agent" -Action $action -Trigger $trigger -Settings $settings `
+        -Principal $principal -Force | Out-Null
+} catch {
+    # Task Scheduler rejected the account after everything was written. Both folders were created fresh by this
+    # run (the pre-check refused existing ones), so removing them takes back only what this run wrote. A reparse
+    # point planted since is left alone: removing it recursively could follow it.
+    $err = $_
+    Write-Warning "task registration failed, so this run removes what it wrote: $Bin and $Data"
+    foreach ($p in @($Bin, $Data)) {
+        $item = Get-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue
+        if ($item -and -not ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            Remove-Item -LiteralPath $p -Recurse -Force -ErrorAction Continue
+        }
+    }
+    throw $err
+}
+Write-Host "Registered task pqcscan-agent (daily 02:00 + up to 2h random delay) as $runAsName. Run it now with:"
 Write-Host "  Start-ScheduledTask -TaskName pqcscan-agent"
