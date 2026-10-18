@@ -17,7 +17,7 @@
   --border-soft:  rgb(39 39 42 / 0.80);
   --text:         rgb(244 244 245);     /* zinc-100 */
   --text-muted:   rgb(161 161 170);     /* zinc-400 */
-  --text-faint:   rgb(113 113 122);     /* zinc-500 */
+  --text-faint:   rgb(130 130 139);     /* zinc-500 lifted: 5.2:1 on the page, 4.9:1 on cards (zinc-500 measured 4.11 / 3.86) */
   color-scheme: dark;
 
   /* Brand accent: amber (warm, government/audit feel). */
@@ -443,6 +443,8 @@ html { font-family: var(--font-sans); }
 .nav-link:hover { color: var(--text); background: var(--surface-2); }
 .nav-link.is-active { color: var(--accent); background: var(--surface-2); }
 .nav-underline { background: var(--accent); }
+/* Dark theme: the zinc-500 utility carries small labels and table text; lift it like --text-faint. */
+:root:not([data-theme="light"]) .text-zinc-500 { color: rgb(130 130 139); }
 .nav-divider   { background: var(--border); }
 /* Narrow screens: the nav scrolls inside the header instead of widening the page (the cut-off item is the cue). */
 .app-header > div > a { flex-shrink: 0; margin-inline-end: 12px; }
