@@ -444,6 +444,10 @@ html { font-family: var(--font-sans); }
 .nav-link.is-active { color: var(--accent); background: var(--surface-2); }
 .nav-underline { background: var(--accent); }
 .nav-divider   { background: var(--border); }
+/* Narrow screens: the nav scrolls inside the header instead of widening the page (the cut-off item is the cue). */
+.app-header > div > a { flex-shrink: 0; margin-inline-end: 12px; }
+.app-header nav { min-width: 0; overflow-x: auto; overflow-y: hidden; padding-bottom: 1px; }
+.app-header nav > * { flex-shrink: 0; }
 
 .locale-btn { color: var(--text-faint); }
 .locale-btn:hover { color: var(--text); }
