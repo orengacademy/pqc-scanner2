@@ -1,0 +1,185 @@
+{
+  "measured": "2026-10-18, Chrome DevTools MCP, 1440x900 desktop, dark theme, loopback daemon on the make_fleet_db DB",
+  "note": "Workstation shared and loaded (load average 17-25). Timings are relative, not absolute. Median of three loads. lighthouse_audit (Chrome DevTools MCP) reports accessibility, best-practices and SEO only; performance comes from performance_start_trace (trace_lcp_ms) and Navigation Timing (the medians)",
+  "db": {
+    "hosts": 500,
+    "scans_per_host": 2,
+    "findings_per_scan": 1670,
+    "build_seconds": 310.7,
+    "build_load_average": "24.5, 22.0, 14.6",
+    "db_bytes": 1078165504
+  },
+  "pages": [
+    {
+      "page": "/fleet",
+      "hosts": 500,
+      "ttfb_ms": 2201,
+      "dom_content_loaded_ms": 2743,
+      "load_ms": 2759,
+      "transfer_bytes": 532585,
+      "runs": [
+        {
+          "ttfb_ms": 3399,
+          "dom_content_loaded_ms": 3804,
+          "load_ms": 3964
+        },
+        {
+          "ttfb_ms": 2042,
+          "dom_content_loaded_ms": 2421,
+          "load_ms": 2579
+        },
+        {
+          "ttfb_ms": 2201,
+          "dom_content_loaded_ms": 2743,
+          "load_ms": 2759
+        }
+      ],
+      "trace_lcp_ms": [
+        3774,
+        2392
+      ],
+      "curl_total_s": [
+        2.661,
+        2.285,
+        2.213
+      ],
+      "curl_total_s_median": 2.285,
+      "load_average": "19.9-21.1",
+      "lighthouse": {
+        "desktop_dark_snapshot": {
+          "performance": null,
+          "accessibility": 95,
+          "best-practices": 100,
+          "seo": 75
+        },
+        "mobile_light_snapshot": {
+          "performance": null,
+          "accessibility": 95,
+          "best-practices": 100,
+          "seo": 75
+        }
+      }
+    },
+    {
+      "page": "/fleet?label=env=prod",
+      "hosts": 500,
+      "ttfb_ms": 2147,
+      "dom_content_loaded_ms": 2310,
+      "load_ms": 2317,
+      "transfer_bytes": 182861,
+      "runs": [
+        {
+          "ttfb_ms": 1874,
+          "dom_content_loaded_ms": 1988,
+          "load_ms": 2007
+        },
+        {
+          "ttfb_ms": 2147,
+          "dom_content_loaded_ms": 2310,
+          "load_ms": 2317
+        },
+        {
+          "ttfb_ms": 4336,
+          "dom_content_loaded_ms": 4781,
+          "load_ms": 4786
+        }
+      ],
+      "trace_lcp_ms": [
+        4915
+      ],
+      "curl_total_s": [
+        1.648,
+        2.024,
+        1.794
+      ],
+      "curl_total_s_median": 1.794,
+      "load_average": "21.1",
+      "lighthouse": {
+        "desktop_dark_navigation": {
+          "performance": null,
+          "accessibility": 95,
+          "best-practices": 100,
+          "seo": 90
+        }
+      }
+    },
+    {
+      "page": "/fleet/1",
+      "hosts": 500,
+      "ttfb_ms": 26,
+      "dom_content_loaded_ms": 124,
+      "load_ms": 124,
+      "transfer_bytes": 8495,
+      "runs": [
+        {
+          "ttfb_ms": 25,
+          "dom_content_loaded_ms": 113,
+          "load_ms": 124
+        },
+        {
+          "ttfb_ms": 40,
+          "dom_content_loaded_ms": 124,
+          "load_ms": 124
+        },
+        {
+          "ttfb_ms": 26,
+          "dom_content_loaded_ms": 141,
+          "load_ms": 151
+        }
+      ],
+      "trace_lcp_ms": [
+        256
+      ],
+      "curl_total_s": [
+        0.042,
+        0.022,
+        0.01
+      ],
+      "curl_total_s_median": 0.022,
+      "load_average": "21.1",
+      "lighthouse": {
+        "desktop_dark_navigation": {
+          "performance": null,
+          "accessibility": 95,
+          "best-practices": 100,
+          "seo": 90
+        }
+      }
+    }
+  ],
+  "exports": [
+    {
+      "endpoint": "/api/scans/fleet/export/json",
+      "status": 400,
+      "body": "{\"detail\":\"unknown format: json\"}",
+      "curl_total_s": [
+        0.0074,
+        0.0024,
+        0.0035
+      ],
+      "note": "no json export format exists (cbom, sarif, pdf-tech, pdf-exec, xlsx-bukukerja, xlsx-generic); /api/fleet is the JSON fleet surface"
+    },
+    {
+      "endpoint": "/api/fleet",
+      "status": 200,
+      "curl_total_s": [
+        2.304,
+        2.358,
+        2.641
+      ],
+      "curl_total_s_median": 2.358,
+      "bytes": 176841,
+      "load_average": "25.3, 22.7, 19.3"
+    },
+    {
+      "endpoint": "/api/scans/fleet/export/cbom",
+      "status": 200,
+      "curl_ttfb_s": 1005.211,
+      "curl_total_s": 1005.598,
+      "bytes": 342909425,
+      "runs": 1,
+      "load_average_at_start": "17.3, 20.6, 17.1",
+      "note": "one run: each takes about 17 minutes and holds the daemon's render slot; the second run was cancelled by restarting the daemon"
+    }
+  ]
+}
