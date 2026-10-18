@@ -23,6 +23,9 @@ def _ratio(b, h) -> str:
 
 
 def verdict(base: Path, head: Path, *, max_ratio: float, floor_ms: float) -> int:
+    for p in (base, head):
+        if not Path(p).is_file():
+            raise SystemExit(f"ratio: no result file at {str(p)!r}")
     b, h = (json.loads(Path(p).read_text()) for p in (base, head))
     limit = max(max_ratio * b["p95_ms"], floor_ms)
     print(f"{'':20}{'base':>12}{'head':>12}{'ratio':>9}")

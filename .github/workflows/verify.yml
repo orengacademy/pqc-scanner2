@@ -125,27 +125,30 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
-      BASE_REF: 77867a1
+      BASE_REF: 77867a1d1bbd8b822fa445887aa0da25cffd1fec
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.BASE_REF }}
           path: baseline
+      - name: Keep baseline/ out of the HEAD run's dirty-file list
+        run: echo baseline/ >> .git/info/exclude
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m venv .venv-head && .venv-head/bin/pip install -e ".[dev,verify]"
-      - run: python -m venv .venv-base && .venv-base/bin/pip install -e "./baseline[dev,verify]"
+      - run: python -m venv "${{ runner.temp }}/venv-head" && "${{ runner.temp }}/venv-head/bin/pip" install -e ".[dev,verify]"
+      - run: python -m venv "${{ runner.temp }}/venv-base" && "${{ runner.temp }}/venv-base/bin/pip" install -e "./baseline[dev,verify]"
       - name: Run both on both backends
         run: |
           set -e
           for db in sqlite postgres; do
-            (cd baseline && ../.venv-base/bin/python -m benchmark.fleet.run_load --db $db --hosts 120 --interval 60 --duration 90s --findings-per-bundle 1670 --tag ci-base | tail -1 >/dev/null)
-            .venv-head/bin/python -m benchmark.fleet.run_load --db $db --hosts 120 --interval 60 --duration 90s --findings-per-bundle 1670 --tag ci-head | tail -1 >/dev/null
+            (cd baseline && ${{ runner.temp }}/venv-base/bin/python -m benchmark.fleet.run_load --db $db --hosts 120 --interval 60 --duration 90s --findings-per-bundle 1670 --tag ci-base | tail -1 >/dev/null)
+            ${{ runner.temp }}/venv-head/bin/python -m benchmark.fleet.run_load --db $db --hosts 120 --interval 60 --duration 90s --findings-per-bundle 1670 --tag ci-head | tail -1 >/dev/null
             base=$(ls -t baseline/benchmark/fleet/results/load-$db-*-ci-base*.json | head -1)
             head=$(ls -t benchmark/fleet/results/load-$db-*-ci-head*.json | head -1)
-            .venv-head/bin/python -m benchmark.fleet.ratio "$base" "$head" --max-ratio 1.5 --floor-ms 1000
+            [ -n "$base" ] && [ -n "$head" ] || { echo "missing result for $db: base=$base head=$head"; exit 1; }
+            ${{ runner.temp }}/venv-head/bin/python -m benchmark.fleet.ratio "$base" "$head" --max-ratio 1.5 --floor-ms 1000
           done
       - uses: actions/upload-artifact@v4
         if: always()
