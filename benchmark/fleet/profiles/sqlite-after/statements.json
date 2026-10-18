@@ -1,78 +1,78 @@
 {
   "source": "sqlite3 trace callback",
-  "total_statements": 16838,
+  "total_statements": 14418,
   "top": [
     {
-      "sql": "INSERT INTO framework_views (finding_id, framework, clause, verdict, deadline)",
-      "count": 3689
-    },
-    {
       "sql": "SELECT hosts.id, hosts.machine_id, hosts.hostname, hosts.os, hosts.labels, hosts.agent_version, hosts.first_seen, hosts.",
-      "count": 3609
+      "count": 3489
     },
     {
-      "sql": "INSERT INTO findings (scan_id, probe_id, algorithm, classification, severity, title, evidence, remediation, created_at)",
-      "count": 1054
+      "sql": "INSERT INTO framework_views (finding_id, framework, clause, verdict, deadline)",
+      "count": 2940
     },
     {
       "sql": "BEGIN",
-      "count": 1027
+      "count": 920
     },
     {
       "sql": "SELECT scans.id, scans.started_at, scans.finished_at, scans.host_fingerprint, scans.mode, scans.status, scans.label, sca",
-      "count": 1022
+      "count": 918
     },
     {
       "sql": "COMMIT",
-      "count": 1021
+      "count": 917
     },
     {
-      "sql": "SELECT scans.id FROM scans WHERE scans.scan_uuid = ?",
-      "count": 527
-    },
-    {
-      "sql": "SELECT scans.id FROM scans WHERE scans.host_id = ? AND scans.status = ? ORDER BY scans.id DESC LIMIT ? OFFSET ?",
-      "count": 527
-    },
-    {
-      "sql": "SELECT scans.id, scans.host_id FROM scans WHERE scans.scan_uuid = ?",
-      "count": 527
-    },
-    {
-      "sql": "INSERT INTO scans (started_at, finished_at, host_fingerprint, mode, status, label, probe_versions, tool_versions, host_i",
-      "count": 527
-    },
-    {
-      "sql": "SELECT findings.id, findings.probe_id, findings.algorithm, findings.title FROM findings WHERE findings.scan_id = ? ORDER",
-      "count": 527
-    },
-    {
-      "sql": "UPDATE hosts SET last_seen=? WHERE hosts.id = ?",
-      "count": 527
-    },
-    {
-      "sql": "SELECT max(scans.id) AS max_? FROM scans WHERE scans.host_id = ? AND scans.status = ?",
-      "count": 527
-    },
-    {
-      "sql": "SELECT scans.id FROM scans WHERE scans.host_id = ? AND (scans.id NOT IN (SELECT baselines.scan_id FROM baselines)) ORDER",
-      "count": 527
-    },
-    {
-      "sql": "SELECT scans.id, scans.tool_versions FROM scans WHERE scans.label = ? AND scans.started_at < ?",
-      "count": 527
+      "sql": "INSERT INTO findings (scan_id, probe_id, algorithm, classification, severity, title, evidence, remediation, created_at)",
+      "count": 840
     },
     {
       "sql": "INSERT INTO hosts (machine_id, hostname, os, labels, agent_version, first_seen, last_seen, token_hash, revoked)",
       "count": 500
     },
     {
+      "sql": "SELECT scans.id FROM scans WHERE scans.scan_uuid = ?",
+      "count": 420
+    },
+    {
+      "sql": "SELECT scans.id FROM scans WHERE scans.host_id = ? AND scans.status = ? ORDER BY scans.id DESC LIMIT ? OFFSET ?",
+      "count": 420
+    },
+    {
+      "sql": "SELECT scans.id, scans.host_id FROM scans WHERE scans.scan_uuid = ?",
+      "count": 420
+    },
+    {
+      "sql": "INSERT INTO scans (started_at, finished_at, host_fingerprint, mode, status, label, probe_versions, tool_versions, host_i",
+      "count": 420
+    },
+    {
+      "sql": "SELECT findings.id, findings.probe_id, findings.algorithm, findings.title FROM findings WHERE findings.scan_id = ? ORDER",
+      "count": 420
+    },
+    {
+      "sql": "UPDATE hosts SET last_seen=? WHERE hosts.id = ?",
+      "count": 420
+    },
+    {
+      "sql": "SELECT max(scans.id) AS max_? FROM scans WHERE scans.host_id = ? AND scans.status = ?",
+      "count": 420
+    },
+    {
+      "sql": "SELECT scans.id FROM scans WHERE scans.host_id = ? AND (scans.id NOT IN (SELECT baselines.scan_id FROM baselines)) ORDER",
+      "count": 420
+    },
+    {
+      "sql": "SELECT scans.id, scans.tool_versions FROM scans WHERE scans.label = ? AND scans.started_at < ?",
+      "count": 420
+    },
+    {
       "sql": "SELECT findings.id, findings.scan_id, findings.component_id, findings.probe_id, findings.algorithm, findings.classificat",
-      "count": 166
+      "count": 110
     },
     {
       "sql": "ROLLBACK",
-      "count": 6
+      "count": 3
     },
     {
       "sql": "SELECT findings.scan_id, findings.classification, findings.algorithm, findings.probe_id, findings.severity, count(*) AS ",

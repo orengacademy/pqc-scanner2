@@ -1,180 +1,180 @@
 {
   "source": "pg_stat_statements",
-  "total_statements": 1425735,
+  "total_statements": 1727603,
   "top": [
     {
-      "sql": "INSERT INTO framework_views (finding_id, framework, clause, verdict, deadline) VALUES ($1::INTEGER, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::DATE), ($6::INTEGER, $7::VARCHAR, $8::VARCHAR, $9::VARCHA",
-      "count": 937,
-      "total_exec_ms": 57507.4,
-      "mean_exec_ms": 61.374,
-      "rows": 937000
+      "sql": "INSERT INTO framework_views (finding_id, framework, clause, verdict, deadline) VALUES ($1::INTEGER, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::DATE)",
+      "count": 554499,
+      "total_exec_ms": 69742.1,
+      "mean_exec_ms": 0.126,
+      "rows": 554499
     },
     {
       "sql": "SELECT $2 FROM ONLY \"public\".\"findings\" x WHERE \"id\" OPERATOR(pg_catalog.=) $1 FOR KEY SHARE OF x",
-      "count": 1116896,
-      "total_exec_ms": 23735.5,
-      "mean_exec_ms": 0.021,
-      "rows": 1116896
+      "count": 679022,
+      "total_exec_ms": 25474.8,
+      "mean_exec_ms": 0.038,
+      "rows": 679022
     },
     {
       "sql": "INSERT INTO findings (scan_id, probe_id, algorithm, classification, severity, title, evidence, remediation, created_at) VALUES ($1::INTEGER, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VAR",
-      "count": 176,
-      "total_exec_ms": 11083.1,
-      "mean_exec_ms": 62.972,
-      "rows": 176000
+      "count": 178690,
+      "total_exec_ms": 23539.2,
+      "mean_exec_ms": 0.132,
+      "rows": 178690
     },
     {
-      "sql": "INSERT INTO findings (scan_id, probe_id, algorithm, classification, severity, title, evidence, remediation, created_at) VALUES ($1::INTEGER, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VAR",
-      "count": 176,
-      "total_exec_ms": 7750.1,
-      "mean_exec_ms": 44.035,
-      "rows": 117920
-    },
-    {
-      "sql": "INSERT INTO framework_views (finding_id, framework, clause, verdict, deadline) VALUES ($1::INTEGER, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::DATE), ($6::INTEGER, $7::VARCHAR, $8::VARCHAR, $9::VARCHA",
-      "count": 117,
-      "total_exec_ms": 7228.9,
-      "mean_exec_ms": 61.785,
-      "rows": 117000
+      "sql": "INSERT INTO framework_views (finding_id, framework, clause, verdict, deadline) VALUES ($1::INTEGER, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::DATE)",
+      "count": 124523,
+      "total_exec_ms": 14912.8,
+      "mean_exec_ms": 0.12,
+      "rows": 124523
     },
     {
       "sql": "SELECT $2 FROM ONLY \"public\".\"scans\" x WHERE \"id\" OPERATOR(pg_catalog.=) $1 FOR KEY SHARE OF x",
-      "count": 293920,
-      "total_exec_ms": 5790.9,
-      "mean_exec_ms": 0.02,
-      "rows": 293920
-    },
-    {
-      "sql": "INSERT INTO framework_views (finding_id, framework, clause, verdict, deadline) VALUES ($1::INTEGER, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::DATE), ($6::INTEGER, $7::VARCHAR, $8::VARCHAR, $9::VARCHA",
-      "count": 157,
-      "total_exec_ms": 3412.2,
-      "mean_exec_ms": 21.734,
-      "rows": 54322
+      "count": 178690,
+      "total_exec_ms": 6118.2,
+      "mean_exec_ms": 0.034,
+      "rows": 178690
     },
     {
       "sql": "SELECT findings.id, findings.probe_id, findings.algorithm, findings.title \nFROM findings \nWHERE findings.scan_id = $1::INTEGER ORDER BY findings.id",
-      "count": 176,
-      "total_exec_ms": 599.0,
-      "mean_exec_ms": 3.403,
-      "rows": 293920
-    },
-    {
-      "sql": "INSERT INTO framework_views (finding_id, framework, clause, verdict, deadline) VALUES ($1::INTEGER, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::DATE), ($6::INTEGER, $7::VARCHAR, $8::VARCHAR, $9::VARCHA",
-      "count": 19,
-      "total_exec_ms": 409.1,
-      "mean_exec_ms": 21.53,
-      "rows": 6574
-    },
-    {
-      "sql": "SELECT findings.id, findings.scan_id, findings.component_id, findings.probe_id, findings.algorithm, findings.classification, findings.severity, findings.title, findings.evidence, findings.remediation,",
-      "count": 43,
-      "total_exec_ms": 284.5,
-      "mean_exec_ms": 6.616,
-      "rows": 71810
+      "count": 107,
+      "total_exec_ms": 417.1,
+      "mean_exec_ms": 3.898,
+      "rows": 178690
     },
     {
       "sql": "SELECT findings.scan_id, findings.classification, findings.algorithm, findings.probe_id, findings.severity, count(*) AS n \nFROM findings \nWHERE findings.scan_id IN (SELECT max(scans.id) AS max_1 \nFROM",
       "count": 1,
-      "total_exec_ms": 151.2,
-      "mean_exec_ms": 151.206,
-      "rows": 399
+      "total_exec_ms": 97.8,
+      "mean_exec_ms": 97.805,
+      "rows": 231
     },
     {
       "sql": "SELECT hosts.id, hosts.machine_id, hosts.hostname, hosts.os, hosts.labels, hosts.agent_version, hosts.first_seen, hosts.last_seen, hosts.token_hash, hosts.revoked \nFROM hosts \nWHERE hosts.id = $1::INT",
-      "count": 1176,
-      "total_exec_ms": 104.4,
-      "mean_exec_ms": 0.089,
-      "rows": 1176
-    },
-    {
-      "sql": "INSERT INTO scans (started_at, finished_at, host_fingerprint, mode, status, label, probe_versions, tool_versions, host_id, scan_uuid) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::TIMESTAMP WITHOUT TIM",
-      "count": 176,
-      "total_exec_ms": 74.9,
-      "mean_exec_ms": 0.426,
-      "rows": 176
+      "count": 1107,
+      "total_exec_ms": 96.1,
+      "mean_exec_ms": 0.087,
+      "rows": 1107
     },
     {
       "sql": "SELECT hosts.id, hosts.machine_id, hosts.hostname, hosts.os, hosts.labels, hosts.agent_version, hosts.first_seen, hosts.last_seen, hosts.token_hash, hosts.revoked \nFROM hosts \nWHERE hosts.machine_id =",
       "count": 1000,
-      "total_exec_ms": 71.0,
-      "mean_exec_ms": 0.071,
+      "total_exec_ms": 62.8,
+      "mean_exec_ms": 0.063,
       "rows": 0
+    },
+    {
+      "sql": "INSERT INTO scans (started_at, finished_at, host_fingerprint, mode, status, label, probe_versions, tool_versions, host_id, scan_uuid) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::TIMESTAMP WITHOUT TIM",
+      "count": 107,
+      "total_exec_ms": 54.2,
+      "mean_exec_ms": 0.506,
+      "rows": 107
     },
     {
       "sql": "INSERT INTO hosts (machine_id, hostname, os, labels, agent_version, first_seen, last_seen, token_hash, revoked) VALUES ($1::VARCHAR, $2::VARCHAR, $3::VARCHAR, $4::JSON, $5::VARCHAR, $6::TIMESTAMP WITH",
       "count": 500,
-      "total_exec_ms": 62.9,
-      "mean_exec_ms": 0.126,
+      "total_exec_ms": 50.4,
+      "mean_exec_ms": 0.101,
       "rows": 500
     },
     {
-      "sql": "INSERT INTO framework_views (finding_id, framework, clause, verdict, deadline) VALUES ($1::INTEGER, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::DATE), ($6::INTEGER, $7::VARCHAR, $8::VARCHAR, $9::VARCHA",
-      "count": 1,
-      "total_exec_ms": 60.8,
-      "mean_exec_ms": 60.825,
-      "rows": 1000
+      "sql": "SELECT findings.id, findings.scan_id, findings.component_id, findings.probe_id, findings.algorithm, findings.classification, findings.severity, findings.title, findings.evidence, findings.remediation,",
+      "count": 9,
+      "total_exec_ms": 47.1,
+      "mean_exec_ms": 5.228,
+      "rows": 15030
     },
     {
-      "sql": "INSERT INTO framework_views (finding_id, framework, clause, verdict, deadline) VALUES ($1::INTEGER, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::DATE), ($6::INTEGER, $7::VARCHAR, $8::VARCHAR, $9::VARCHA",
-      "count": 1,
-      "total_exec_ms": 58.7,
-      "mean_exec_ms": 58.725,
-      "rows": 1000
+      "sql": "SELECT hosts.id, hosts.machine_id, hosts.hostname, hosts.os, hosts.labels, hosts.agent_version, hosts.first_seen, hosts.last_seen, hosts.token_hash, hosts.revoked \nFROM hosts \nWHERE hosts.token_hash =",
+      "count": 587,
+      "total_exec_ms": 46.6,
+      "mean_exec_ms": 0.079,
+      "rows": 587
     },
     {
       "sql": "SELECT scans.id, scans.started_at, scans.finished_at, scans.host_fingerprint, scans.mode, scans.status, scans.label, scans.probe_versions, scans.tool_versions, scans.host_id, scans.scan_uuid \nFROM sca",
       "count": 500,
-      "total_exec_ms": 46.3,
-      "mean_exec_ms": 0.093,
-      "rows": 176
-    },
-    {
-      "sql": "SELECT hosts.id, hosts.machine_id, hosts.hostname, hosts.os, hosts.labels, hosts.agent_version, hosts.first_seen, hosts.last_seen, hosts.token_hash, hosts.revoked \nFROM hosts \nWHERE hosts.token_hash =",
-      "count": 455,
-      "total_exec_ms": 41.1,
-      "mean_exec_ms": 0.09,
-      "rows": 455
+      "total_exec_ms": 43.6,
+      "mean_exec_ms": 0.087,
+      "rows": 89
     },
     {
       "sql": "CREATE TABLE hosts (\n\tid SERIAL NOT NULL, \n\tmachine_id VARCHAR(128) NOT NULL, \n\thostname VARCHAR(255) NOT NULL, \n\tos VARCHAR(32) NOT NULL, \n\tlabels JSON NOT NULL, \n\tagent_version VARCHAR(32) NOT NULL,",
       "count": 1,
-      "total_exec_ms": 36.8,
-      "mean_exec_ms": 36.805,
-      "rows": 0
-    },
-    {
-      "sql": "CREATE TABLE baselines (\n\tid SERIAL NOT NULL, \n\tscan_id INTEGER NOT NULL, \n\tlabel VARCHAR(128) NOT NULL, \n\tcreated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tnotes TEXT, \n\tPRIMARY KEY (id), \n\tFOREIGN ",
-      "count": 1,
-      "total_exec_ms": 25.6,
-      "mean_exec_ms": 25.616,
+      "total_exec_ms": 36.4,
+      "mean_exec_ms": 36.37,
       "rows": 0
     },
     {
       "sql": "CREATE TABLE graph_edges (\n\tid SERIAL NOT NULL, \n\tscan_id INTEGER NOT NULL, \n\tsrc_id INTEGER NOT NULL, \n\tdst_id INTEGER NOT NULL, \n\tedge_type VARCHAR(32) NOT NULL, \n\tattrs JSON NOT NULL, \n\tPRIMARY KEY",
       "count": 1,
-      "total_exec_ms": 23.6,
-      "mean_exec_ms": 23.556,
+      "total_exec_ms": 27.7,
+      "mean_exec_ms": 27.651,
       "rows": 0
     },
     {
       "sql": "CREATE TABLE components (\n\tid SERIAL NOT NULL, \n\tscan_id INTEGER NOT NULL, \n\tpurl VARCHAR(512) NOT NULL, \n\ttype VARCHAR(32) NOT NULL, \n\tname VARCHAR(256) NOT NULL, \n\tversion VARCHAR(128), \n\tlocation T",
       "count": 1,
-      "total_exec_ms": 22.8,
-      "mean_exec_ms": 22.808,
+      "total_exec_ms": 20.7,
+      "mean_exec_ms": 20.73,
       "rows": 0
     },
     {
-      "sql": "SELECT scans.id \nFROM scans \nWHERE scans.host_id = $1::INTEGER AND (scans.id NOT IN (SELECT baselines.scan_id \nFROM baselines)) ORDER BY scans.id DESC\n LIMIT $3 OFFSET $2::INTEGER",
-      "count": 176,
-      "total_exec_ms": 21.8,
-      "mean_exec_ms": 0.124,
+      "sql": "CREATE TABLE findings (\n\tid SERIAL NOT NULL, \n\tscan_id INTEGER NOT NULL, \n\tcomponent_id INTEGER, \n\tprobe_id VARCHAR(64) NOT NULL, \n\talgorithm VARCHAR(64) NOT NULL, \n\tclassification VARCHAR(16) NOT NUL",
+      "count": 1,
+      "total_exec_ms": 17.8,
+      "mean_exec_ms": 17.845,
       "rows": 0
     },
     {
       "sql": "CREATE TABLE scans (\n\tid SERIAL NOT NULL, \n\tstarted_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tfinished_at TIMESTAMP WITHOUT TIME ZONE, \n\thost_fingerprint VARCHAR(128), \n\tmode VARCHAR(8) NOT NULL, \n\ts",
       "count": 1,
-      "total_exec_ms": 21.2,
-      "mean_exec_ms": 21.237,
+      "total_exec_ms": 15.8,
+      "mean_exec_ms": 15.765,
+      "rows": 0
+    },
+    {
+      "sql": "CREATE TABLE baselines (\n\tid SERIAL NOT NULL, \n\tscan_id INTEGER NOT NULL, \n\tlabel VARCHAR(128) NOT NULL, \n\tcreated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tnotes TEXT, \n\tPRIMARY KEY (id), \n\tFOREIGN ",
+      "count": 1,
+      "total_exec_ms": 14.4,
+      "mean_exec_ms": 14.429,
+      "rows": 0
+    },
+    {
+      "sql": "SELECT scans.id \nFROM scans \nWHERE scans.host_id = $1::INTEGER AND scans.status = $2::VARCHAR ORDER BY scans.id DESC \n LIMIT $3::INTEGER",
+      "count": 107,
+      "total_exec_ms": 12.8,
+      "mean_exec_ms": 0.119,
+      "rows": 9
+    },
+    {
+      "sql": "CREATE UNIQUE INDEX IF NOT EXISTS ix_scans_scan_uuid ON scans (scan_uuid)",
+      "count": 1,
+      "total_exec_ms": 11.6,
+      "mean_exec_ms": 11.604,
+      "rows": 0
+    },
+    {
+      "sql": "SELECT scans.id \nFROM scans \nWHERE scans.host_id = $1::INTEGER AND (scans.id NOT IN (SELECT baselines.scan_id \nFROM baselines)) ORDER BY scans.id DESC\n LIMIT $3 OFFSET $2::INTEGER",
+      "count": 107,
+      "total_exec_ms": 11.4,
+      "mean_exec_ms": 0.106,
+      "rows": 0
+    },
+    {
+      "sql": "UPDATE hosts SET last_seen=$1::TIMESTAMP WITHOUT TIME ZONE WHERE hosts.id = $2::INTEGER",
+      "count": 107,
+      "total_exec_ms": 10.8,
+      "mean_exec_ms": 0.101,
+      "rows": 107
+    },
+    {
+      "sql": "CREATE INDEX ix_framework_views_framework ON framework_views (framework)",
+      "count": 1,
+      "total_exec_ms": 10.5,
+      "mean_exec_ms": 10.452,
       "rows": 0
     }
   ]
