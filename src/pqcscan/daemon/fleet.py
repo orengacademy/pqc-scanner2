@@ -36,11 +36,13 @@ INGEST_MIN_INTERVAL_S = 60.0   # one ingest token refilled per interval, per hos
 INGEST_BURST = 10               # tokens a host can spend at once (spool replay after an outage)
 INGEST_PARALLELISM = 2          # bundles parsed/stored at once, across all hosts, on SQLite (one writer)
 INGEST_PARALLELISM_PG = 4       # on Postgres: server exec is about 0.9 s per ingest (per-row FK and index work), so
-                                # throughput is slot-bound. A starting value: change it only on a measured load sweep.
+                                # throughput is slot-bound. A starting value: the 2/4/8 sweep on the load box changes it
+                                # only with that evidence (benchmark/fleet/run_load.py --ingest-parallelism).
 INGEST_QUEUE_MAX = 32   # bundles waiting for or holding a parse slot, all hosts. Longest wait ≈ QUEUE_MAX x service
                         # time / slots; at 2 s per large bundle and SQLite's 2 slots (the worst case) that is 32 s,
                         # under the agent's 60 s timeout, so a queued request is served, never abandoned. Past the
                         # bound the collector answers 503 + Retry-After and the agent spools (FLEET.md, Ingest limits).
+INGEST_READ_MAX = 64    # ingest bodies being read at once, all hosts: 64 x 8 MiB = 512 MiB worst case in flight
 MAX_ENROLL_BYTES = 64 * 1024
 _TERMINAL_STATUSES = ("done", "failed", "interrupted")
 
@@ -106,6 +108,7 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_h
         ingest_parallelism = INGEST_PARALLELISM_PG if repo.engine.dialect.name == "postgresql" else INGEST_PARALLELISM
     parse_slots = asyncio.Semaphore(ingest_parallelism)
     queued = 0      # ingest requests with their body read, waiting for or holding a parse slot
+    reading = 0     # ingest requests reading their body
 
     async def _agent_host(request: Request):
         auth = request.headers.get("authorization", "")
@@ -168,7 +171,7 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_h
 
     @router.post("/api/ingest")
     async def ingest(request: Request) -> dict:
-        nonlocal queued
+        nonlocal queued, reading
         host = await _agent_host(request)
         if not limiter.take(host.id):     # before reading or parsing anything
             raise HTTPException(429, f"ingest rate limit: {INGEST_BURST} bundles, then one per "
@@ -177,7 +180,13 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_h
         # 50 MiB through the parser endlessly, and the burst already absorbs a rare retry after a lost response.
         if queued >= INGEST_QUEUE_MAX:    # early and cheap: nothing reserved, the body not read
             raise _queue_full()
-        data = await _read_capped(request, MAX_GZIP_BYTES)
+        if reading >= INGEST_READ_MAX:    # bounds the capped bodies held in memory at once
+            raise HTTPException(503, "collector busy: too many uploads in flight", headers={"Retry-After": "60"})
+        reading += 1
+        try:
+            data = await _read_capped(request, MAX_GZIP_BYTES)
+        finally:
+            reading -= 1
         # A place is taken only once the whole capped body is in, so a slow upload holds none. No await between the
         # re-check and the increment, and one event loop, so the count needs no lock.
         if queued >= INGEST_QUEUE_MAX:

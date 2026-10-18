@@ -581,3 +581,40 @@ def test_ingest_parallelism_defaults_by_dialect(tmp_db_path, fast_registry, tmp_
 
     codes = [r.status_code for r in asyncio.run(run())]
     assert codes == [200] * len(bodies) and inside[1] == want, (codes, inside)
+
+
+def test_uploads_in_flight_are_bounded(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    """Past INGEST_READ_MAX bodies being read at once, the next ingest is shed before its body is read."""
+    import asyncio
+
+    import httpx
+
+    monkeypatch.setattr(fleet, "INGEST_READ_MAX", 1)
+    real = fleet._read_capped
+    reading, release = asyncio.Event(), asyncio.Event()
+
+    async def trickle(request, cap):
+        if request.url.path == "/api/ingest" and not reading.is_set():
+            reading.set()
+            await release.wait()             # this upload is still streaming its body
+        return await real(request, cap)
+    monkeypatch.setattr(fleet, "_read_capped", trickle)
+    app = create_app(db_path=tmp_db_path, registry=fast_registry, enroll_token="ENROLL")
+    bodies = [_bundle(tmp_path) for _ in range(3)]
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1") as ac:
+            tok = (await ac.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": HOST})).json()
+            hdr = _hdr(tok["agent_token"])
+            slow = asyncio.create_task(ac.post("/api/ingest", content=bodies[0], headers=hdr))
+            await reading.wait()
+            shed = await ac.post("/api/ingest", content=bodies[1], headers=hdr)
+            release.set()
+            first = await slow
+            after = await ac.post("/api/ingest", content=bodies[2], headers=hdr)     # the read place was given back
+            return shed, first, after
+
+    shed, first, after = asyncio.run(run())
+    assert shed.status_code == 503 and shed.headers["retry-after"] == "60"
+    assert shed.json()["detail"] == "collector busy: too many uploads in flight"
+    assert (first.status_code, after.status_code) == (200, 200), (first.text, after.text)
