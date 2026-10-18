@@ -38,6 +38,8 @@ dev = [
   "pytest-cov>=4.1",
   "ruff>=0.4",
   "mypy>=1.10",
+  # tests/packaging/test_wheel_builds.py builds the wheel non-editably, as pip install . and git+… installs do.
+  "hatchling>=1.21",
 ]
 # Evidence campaign (docs/superpowers/specs/2026-10-17-fleet-evidence-spec.md): fuzzing, load tests, Postgres runs.
 verify = [
@@ -76,12 +78,10 @@ pqcscan = "pqcscan.cli.main:cli"
 path = "src/pqcscan/__init__.py"
 
 [tool.hatch.build.targets.wheel]
+# Everything under src/pqcscan ships, data files included (UI templates and static, renderer templates, semgrep
+# rules). No force-include: re-adding a directory already under the package puts each file in twice and hatchling
+# refuses to build (tests/packaging/test_wheel_builds.py).
 packages = ["src/pqcscan"]
-
-[tool.hatch.build.targets.wheel.force-include]
-"src/pqcscan/ui/templates"        = "pqcscan/ui/templates"
-"src/pqcscan/ui/static"           = "pqcscan/ui/static"
-"src/pqcscan/renderers/templates" = "pqcscan/renderers/templates"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
