@@ -149,7 +149,10 @@ jobs:
           set -e
           for db in sqlite postgres; do
             (cd baseline && ${{ runner.temp }}/venv-base/bin/python -m benchmark.fleet.run_load --db $db --hosts 60 --interval 60 --duration 120s --findings-per-bundle 1670 --tag ci-base | tail -1 >/dev/null)
-            ${{ runner.temp }}/venv-head/bin/python -m benchmark.fleet.run_load --db $db --hosts 60 --interval 60 --duration 120s --findings-per-bundle 1670 --tag ci-head | tail -1 >/dev/null
+            # diagnostic: isolates the Postgres slot count (the baseline harness ran with 2); revert or make the
+            # default after run N. SQLite keeps its own default.
+            par=""; [ "$db" = postgres ] && par="--ingest-parallelism 2"
+            ${{ runner.temp }}/venv-head/bin/python -m benchmark.fleet.run_load --db $db --hosts 60 --interval 60 --duration 120s --findings-per-bundle 1670 $par --tag ci-head | tail -1 >/dev/null
             base=$(ls -t baseline/benchmark/fleet/results/load-$db-*-ci-base*.json | head -1)
             head=$(ls -t benchmark/fleet/results/load-$db-*-ci-head*.json | head -1)
             [ -n "$base" ] && [ -n "$head" ] || { echo "missing result for $db: base=$base head=$head"; exit 1; }
