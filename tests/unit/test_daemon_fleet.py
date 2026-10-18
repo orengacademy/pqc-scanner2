@@ -618,3 +618,48 @@ def test_uploads_in_flight_are_bounded(tmp_db_path, fast_registry, tmp_path, mon
     assert shed.status_code == 503 and shed.headers["retry-after"] == "60"
     assert shed.json()["detail"] == "collector busy: too many uploads in flight"
     assert (first.status_code, after.status_code) == (200, 200), (first.text, after.text)
+
+
+def test_queue_is_rechecked_after_the_body_read(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    """The queue fills while a body streams in: when that body arrives the request is shed, it does not queue."""
+    import asyncio
+    import threading
+
+    import httpx
+
+    monkeypatch.setattr(fleet, "INGEST_QUEUE_MAX", 1)
+    real_read, real_load = fleet._read_capped, fleet.load_bundle
+    reading, release = asyncio.Event(), asyncio.Event()
+    in_load, gate = threading.Event(), threading.Event()
+
+    async def held_read(request, cap):
+        if request.url.path == "/api/ingest" and not reading.is_set():
+            reading.set()
+            await release.wait()             # request A: its body is still streaming
+        return await real_read(request, cap)
+
+    def held_load(data):
+        in_load.set()
+        gate.wait(10)                        # request B holds the only queue place
+        return real_load(data)
+    monkeypatch.setattr(fleet, "_read_capped", held_read)
+    monkeypatch.setattr(fleet, "load_bundle", held_load)
+    app = create_app(db_path=tmp_db_path, registry=fast_registry, enroll_token="ENROLL", ingest_parallelism=1)
+    bodies = [_bundle(tmp_path) for _ in range(2)]
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1") as ac:
+            tok = (await ac.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": HOST})).json()
+            hdr = _hdr(tok["agent_token"])
+            a = asyncio.create_task(ac.post("/api/ingest", content=bodies[0], headers=hdr))
+            await reading.wait()
+            b = asyncio.create_task(ac.post("/api/ingest", content=bodies[1], headers=hdr))
+            await asyncio.to_thread(in_load.wait, 10)
+            release.set()
+            done, _ = await asyncio.wait({a}, timeout=5)     # without the re-check A would queue behind B
+            gate.set()
+            return (a in done), await a, await b
+
+    a_done, a, b = asyncio.run(run())
+    assert a_done and a.status_code == 503 and a.headers["retry-after"] == "60", a.text
+    assert "ingest queue full" in a.json()["detail"] and b.status_code == 200, b.text
