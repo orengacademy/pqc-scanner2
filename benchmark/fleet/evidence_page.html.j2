@@ -185,10 +185,10 @@ footer { color: var(--muted); font-size: .85rem; margin-top: 28px; }
   <h3>Postgres ingest parallelism</h3>
   {% if d.results['-par'] %}
   <div class="scroll" role="region" aria-label="Postgres parallelism runs" tabindex="0"><table>
-    <thead><tr><th class="num">Rate</th><th class="num">Slots</th><th class="num">Seed</th><th class="num">p95 ms</th><th class="num">Achieved rps</th><th class="num">Little ratio</th><th>Result</th><th>Source</th></tr></thead>
+    <thead><tr><th>Backend</th><th class="num">Slots</th><th class="num">Rate</th><th class="num">Seed</th><th class="num">p95 ms</th><th class="num">Achieved rps</th><th class="num">Little ratio</th><th class="num">503</th><th>Result</th><th>Source</th></tr></thead>
     <tbody>{% for r in d.results['-par']|sort(attribute='_file') %}
-    <tr><td class="num">{{ r.offered_rps|g }}</td><td class="num">{{ r.ingest_parallelism|n }}</td><td class="num">{{ r.seed }}</td><td class="num">{{ r.p95_ms|n('{:,.0f}') }}</td>
-      <td class="num">{{ r.rps|g }}</td><td class="num">{{ r.littles_ratio|g }}</td><td>{{ verdict(r) }}</td><td class="src">{{ r._src|wbr }}</td></tr>
+    <tr><td>{{ r.db }}</td><td class="num">{{ r.ingest_parallelism|n }}</td><td class="num">{{ r.offered_rps|g }}</td><td class="num">{{ r.seed }}</td><td class="num">{{ r.p95_ms|n('{:,.0f}') }}</td>
+      <td class="num">{{ r.rps|g }}</td><td class="num">{{ r.littles_ratio|g }}</td><td class="num">{{ r.http_503|n }}</td><td>{{ verdict(r) }}</td><td class="src">{{ r._src|wbr }}</td></tr>
     {% endfor %}</tbody>
   </table></div>
   {% else %}

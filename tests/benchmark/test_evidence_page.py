@@ -35,7 +35,7 @@ def _tree(tmp_path: Path) -> Path:
     for i, (rate, p95) in enumerate([(1, 300), (2, 900), (4, 2600)]):
         for seed in (1, 2):
             (res / f"load-sqlite-20261019-{i}-s{seed}-sweep.json").write_text(json.dumps(_sweep("sqlite", rate, seed, p95)))
-    par = {**_sweep("postgres", 4, 1, 2500), "ingest_parallelism": 3}
+    par = {**_sweep("postgres", 4, 1, 2500), "ingest_parallelism": 3, "http_503": 417}
     (res / "load-postgres-20261019-par-3.json").write_text(json.dumps(par))
     (res / "load-postgres-20261019-parade.json").write_text(json.dumps({**par, "ingest_parallelism": 9}))  # not -par
     (res / "soak-real-20261018.json").write_text(json.dumps({
@@ -93,6 +93,7 @@ def test_render_has_item_table_capacity_row_source_cells_and_pending_mutation(tm
     assert "benchmark/<wbr>fleet/<wbr>results/<wbr>load-sqlite-20261019-0-s1-sweep.json" in html  # full repo path
     par = html[html.index("Postgres ingest parallelism"):html.index("Postgres insert strategy")]
     assert "load-postgres-20261019-par-3.json" in par and "parade" not in html
+    assert "<td>postgres</td>" in par and ">417<" in par  # backend and 503 columns
     assert "load-sqlite-<wbr>-*-sweep*.json" not in html and "results/<wbr>load-sqlite-*-sweep*.json" in html
 
 
