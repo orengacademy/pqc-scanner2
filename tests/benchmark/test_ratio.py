@@ -44,3 +44,15 @@ def test_missing_or_non_file_path_fails_clearly(tmp_path):
         assert "no result file" in str(e.value)
         with pytest.raises(SystemExit):
             ratio.main([str(ok), str(bad)])
+
+
+def test_saturated_baseline_is_inconclusive_not_a_pass(tmp_path, capsys):
+    head = _w(tmp_path / "h.json", 100)  # would pass any ratio
+    slow = _w(tmp_path / "b1.json", 5001)
+    assert ratio.verdict(slow, head, max_ratio=1.5, floor_ms=1000) == 1
+    assert "baseline saturated on this runner; ratio inconclusive" in capsys.readouterr().out
+    lost = _w(tmp_path / "b2.json", 400, hosts=60, interval_s=60.0)  # rps 2.0 offered 1.0: fine
+    assert ratio.verdict(lost, head, max_ratio=1.5, floor_ms=1000) == 0
+    lost = _w(tmp_path / "b3.json", 400, hosts=60, interval_s=60.0, rps=0.89)  # below 0.9 x 1.0
+    assert ratio.verdict(lost, head, max_ratio=1.5, floor_ms=1000) == 1
+    assert "inconclusive" in capsys.readouterr().out
