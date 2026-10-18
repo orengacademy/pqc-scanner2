@@ -6,15 +6,15 @@
   "interval_s": 100.0,
   "findings_per_bundle": 1670,
   "arrival": "staggered",
-  "requests": 238,
-  "p50_ms": 44000.0,
-  "p95_ms": 50000.0,
-  "p99_ms": 52000.0,
-  "rps": 0.71,
+  "requests": 296,
+  "p50_ms": 1700.0,
+  "p95_ms": 4100.0,
+  "p99_ms": 4500.0,
+  "rps": 0.99,
   "offered_rps": 1.0,
-  "mean_ms": 33628.563017016815,
-  "littles_expected_rps": 0.7483,
-  "littles_ratio": 0.946,
+  "mean_ms": 1943.1330050202066,
+  "littles_expected_rps": 0.9809,
+  "littles_ratio": 1.008,
   "measurement_defect": false,
   "measurement_defect_reason": "",
   "hosts_daily_2h_equiv": 7200,
@@ -23,22 +23,22 @@
   "requests_csv": "load-postgres-20261018-100h-r1-sweep-2-requests.csv.gz",
   "history_csv": "load-postgres-20261018-100h-r1-sweep-2-history.csv.gz",
   "http_429": 0,
-  "http_503": 15,
+  "http_503": 0,
   "errors": 0,
   "ingest_error_rate": 0.0,
   "enroll_error_rate": 0.0,
   "enroll_503": 0,
   "stored_hosts": 100,
-  "stored_scans": 224,
+  "stored_scans": 298,
   "seed": 2,
-  "ingest_parallelism": 4,
+  "ingest_parallelism": 2,
   "insert_mode": "executemany",
   "enroll_requests": 100,
-  "enroll_p95_ms": 300.0,
+  "enroll_p95_ms": 140.0,
   "failure_samples": [],
   "pass_p95_lt_2s": false,
-  "commit": "2a258070f6d5a3849c18dacca9cb2284ea39db8c",
-  "src_hash": "30ec155c9173fea1c93ef1ba80027bee981b1a422a90164671e4c8557a1cbc43",
+  "commit": "04c2650dde10cac08328343a265f3a3bd782c582",
+  "src_hash": "3aab6c222f9b7b598b030451293023e14810a40fe029e9472ec69ed1d2c90525",
   "tree_dirty": false,
   "dirty_files": [],
   "box": {
@@ -47,14 +47,14 @@
     "mem_gb": 16
   },
   "box_load_start": {
-    "loadavg_1m": 3.1,
-    "cpu_pressure_avg60_pct": 5.63
+    "loadavg_1m": 1.3,
+    "cpu_pressure_avg60_pct": 0.5
   },
   "box_load_end": {
-    "loadavg_1m": 3.5,
-    "cpu_pressure_avg60_pct": 5.83
+    "loadavg_1m": 3.0,
+    "cpu_pressure_avg60_pct": 1.59
   },
   "command": "python -m benchmark.fleet.run_load --db postgres --hosts 100 --rate 1 --duration 300s --seed 2 --tag sweep",
-  "locust_command": "/root/pqc-scanner2/.venv/bin/python -m locust -f /root/pqc-scanner2/benchmark/fleet/locustfile.py --headless -u 100 -r 50 -t 300s --stop-timeout 70 --csv /tmp/fleet-load-ry9e72vi/run --csv-full-history --only-summary --host http://127.0.0.1:56319",
-  "started_at": "2026-10-18T15:14:59.744451+00:00"
+  "locust_command": "/root/pqc-scanner2/.venv/bin/python -m locust -f /root/pqc-scanner2/benchmark/fleet/locustfile.py --headless -u 100 -r 50 -t 300s --stop-timeout 70 --csv /tmp/fleet-load-fhd9pk5z/run --csv-full-history --only-summary --host http://127.0.0.1:55227",
+  "started_at": "2026-10-18T18:19:30.783686+00:00"
 }
