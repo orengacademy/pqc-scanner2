@@ -34,7 +34,7 @@ The suites (see `suite.sh`):
 | `sweep` | 500 hosts, rates 0.5 1 2 4 6 8 12 posts/s, seeds 1 and 2, 300 s each; then a 180 s herd |
 | `ratio-baseline` | 120 hosts, 60 s interval, 90 s, 1,670 findings per bundle (the CI job's shape) |
 
-`up` succeeds only when setup finished and the box is at the commit you asked for; if setup fails it exits 1 and the droplet is left running (and billing) for you to inspect, then `down`. The box accepts any host key (its IP is recycled between droplets).
+`up` succeeds only when setup finished and the box is at the commit you asked for; if setup fails it exits 1 and the droplet is left running (and billing) for you to inspect, then `down`. Its host key is pinned per droplet in `benchmark/fleet/cloud/.loadbox_known_hosts` (gitignored): `up` starts a fresh file, `down` deletes it, because DigitalOcean recycles IPs.
 
 Exit 1 from `run_load` means a FAIL row (p95 over 2 s) or request errors; the suite goes on. Any other non-zero exit is counted as a crash, printed as `CRASH exit N`, and the suite ends with a non-zero exit and a crash count. The log is `/root/suite.log` on the box; `pull` saves it as `benchmark/fleet/cloud/last-suite.log` (gitignored), so read it before `down`.
 
