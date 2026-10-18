@@ -13,6 +13,18 @@ bash benchmark/fleet/mutation/run.sh            # hours; MUTMUT_CHILDREN=4 by de
 `mutants/src` first on `sys.path` and removes the real `src`; it also rewrites files under `mutants/` as it goes.
 `run.sh` deletes `mutants/` first, so it always starts from scratch.
 
+`run.sh` does two things so that a long run does not die late:
+
+- **Raises the open-file limit** to the hard limit, capped at 65536, and refuses to start if that did not take effect.
+  mutmut 3 re-runs pytest in long-lived processes and the fleet tests leak descriptors (SQLite engines, temp dirs).
+  With the usual soft limit of 1024 a droplet run got through the stats pass and then failed with `OSError: [Errno 24]
+  Too many open files` while generating mutants, leaving every mutant "not checked".
+- **Runs mutants in forked children** with `--max-children 4` (`MUTMUT_CHILDREN` to change it), so descriptors leaked by
+  one mutant's test run die with its child.
+
+If `mutmut run` fails, `run.sh` prints the last 20 lines of `run.log` and exits 1. It also exits 1 after writing
+`score.json` if any mutant is still "not checked", so a failed run never looks like a slow one.
+
 ## Output
 
 | File | Content |
