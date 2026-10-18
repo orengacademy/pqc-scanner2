@@ -40,7 +40,12 @@ dev = [
   "mypy>=1.10",
 ]
 # Evidence campaign (docs/superpowers/specs/2026-10-17-fleet-evidence-spec.md): fuzzing, load tests, Postgres runs.
-verify = ["hypothesis>=6.100", "locust>=2.29", "psycopg[binary]>=3.1"]
+verify = [
+  "hypothesis>=6.100", "locust>=2.29", "psycopg[binary]>=3.1",
+  "mutmut>=3.2", "coverage>=7",
+  # libFuzzer bindings: Linux wheels only (CPython 3.11); the fuzz harnesses skip elsewhere.
+  "atheris>=2.3; sys_platform == 'linux'",
+]
 # Fleet collector on PostgreSQL (--db postgresql://…); SQLite is the default.
 fleet-pg = ["psycopg[binary]>=3.1"]
 # Plan I.7.a — OQS active validation extras. Default install stays passive.
@@ -131,3 +136,14 @@ check_untyped_defs = true
 # silences both deterministically.
 module = ["yaml", "openpyxl", "openpyxl.styles", "weasyprint", "oqs"]
 ignore_missing_imports = true
+
+# mutmut 3.8 (`verify` extra). Run through benchmark/fleet/mutation/run.sh. mutmut copies `source_paths` to ./mutants/
+# and runs pytest there with ./mutants/src first on sys.path, so the whole package must be copied (`paths_to_mutate`,
+# the 2.x/3.0 key, would copy only the two files and break `import pqcscan`). `only_mutate` limits the mutants to the
+# two fleet modules. `tests_dir` is deprecated in favour of the test-selection argument. The default pytest addopts
+# (`-m 'not fuzz'`) stay in force: tests/unit has no fuzz-marked tests.
+[tool.mutmut]
+source_paths = ["src"]
+only_mutate = ["src/pqcscan/daemon/fleet.py", "src/pqcscan/store/bundle.py"]
+do_not_mutate = []
+pytest_add_cli_args_test_selection = ["tests/unit"]

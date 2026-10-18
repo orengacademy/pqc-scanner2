@@ -40,3 +40,8 @@ ruvector.db
 .claude-flow/
 agentdb.rvf
 agentdb.rvf.lock
+
+# Fleet verification: mutmut working copy and live fuzz state
+mutants/
+benchmark/fleet/fuzz/work/
+benchmark/fleet/fuzz/seeds/
