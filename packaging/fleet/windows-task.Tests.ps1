@@ -274,16 +274,41 @@ Describe "windows-task.ps1 refuses a pre-planted junction" {
     }
 }
 
-Describe "windows-task.ps1 with a dedicated task account" {
-    # The installer gives a non-SYSTEM -RunAs account Modify on state and ReadAndExecute on code. Registering a
-    # password-logon task needs a password the installer does not take, so the run may fail at that last step;
-    # the folders and files are already on disk by then, which is what these tests inspect.
+Describe "windows-task.ps1 with a plain local user as -RunAs" {
+    # A plain user would need a password the installer does not take, so it must refuse before writing anything.
     BeforeAll {
         Remove-Install
-        $script:SvcName = "pqcsvc" + (Get-Random -Maximum 99999)
+        $script:UserName = "pqcusr" + (Get-Random -Maximum 99999)
         $pw = ConvertTo-SecureString ("Pq1!" + [guid]::NewGuid().ToString("N")) -AsPlainText -Force
-        New-LocalUser -Name $SvcName -Password $pw -PasswordNeverExpires | Out-Null
-        $script:Svc = "$env:COMPUTERNAME\$SvcName"
+        New-LocalUser -Name $UserName -Password $pw -PasswordNeverExpires | Out-Null
+        $script:User = "$env:COMPUTERNAME\$UserName"
+        $script:Run = Invoke-Installer -Extra @("-RunAs", $User)
+        Write-Host "installer (-RunAs $User) exit $($Run.ExitCode): $($Run.Output.Trim())"
+    }
+    AfterAll {
+        Remove-Install
+        Remove-LocalUser -Name $UserName -ErrorAction SilentlyContinue
+    }
+
+    It "refuses with a message naming the supported accounts" {
+        $Run.ExitCode | Should -Not -Be 0 -Because $Run.Output
+        $Run.Output | Should -Match "is not supported"
+        $Run.Output | Should -Match "LOCAL SERVICE"
+    }
+
+    It "writes nothing and registers no task" {
+        Test-Path -LiteralPath $Bin | Should -BeFalse -Because $Run.Output
+        Test-Path -LiteralPath $Data | Should -BeFalse -Because $Run.Output
+        Get-ScheduledTask -TaskName "pqcscan-agent" -ErrorAction SilentlyContinue | Should -BeNullOrEmpty
+    }
+}
+
+Describe "windows-task.ps1 with LOCAL SERVICE as -RunAs" {
+    # A built-in service account logs on as ServiceAccount, needs no password, and gets the narrower grants:
+    # Modify on state, ReadAndExecute on code. (A gMSA takes the Password logon path; no runner has a domain.)
+    BeforeAll {
+        Remove-Install
+        $script:Svc = "NT AUTHORITY\LOCAL SERVICE"
         $script:Run = Invoke-Installer -Extra @("-RunAs", $Svc)
         Write-Host "installer (-RunAs $Svc) exit $($Run.ExitCode): $($Run.Output.Trim())"
         $f = [int][Security.AccessControl.FileSystemRights]::FullControl
@@ -294,17 +319,15 @@ Describe "windows-task.ps1 with a dedicated task account" {
         $script:State = @{ "NT AUTHORITY\SYSTEM" = $f; "BUILTIN\Administrators" = $f; $Svc = $m }
         $script:Code  = @{ "NT AUTHORITY\SYSTEM" = $f; "BUILTIN\Administrators" = $f; $Svc = $x }
     }
-    AfterAll {
-        Remove-Install
-        Remove-LocalUser -Name $SvcName -ErrorAction SilentlyContinue
-    }
+    AfterAll { Remove-Install }
 
-    It "fails to register the task, which is a known installer gap" {
-        # No password reaches Register-ScheduledTask for a password-logon account. This assertion documents that
-        # and breaks the day the installer takes a credential, so the finding gets revisited.
-        $Run.ExitCode | Should -Not -Be 0
-        $Run.Output | Should -Match "user name or password is incorrect"
-        Get-ScheduledTask -TaskName "pqcscan-agent" -ErrorAction SilentlyContinue | Should -BeNullOrEmpty
+    It "installs and registers the task as LOCAL SERVICE" {
+        $Run.ExitCode | Should -Be 0 -Because $Run.Output
+        $Run.Output | Should -Match "Registered task pqcscan-agent"
+        $t = Get-ScheduledTask -TaskName "pqcscan-agent" -ErrorAction SilentlyContinue
+        $t | Should -Not -BeNullOrEmpty -Because $Run.Output
+        $t.Principal.UserId | Should -Match "LOCAL SERVICE"
+        "$($t.Principal.LogonType)" | Should -Be "ServiceAccount"
     }
 
     It "gives the task account Modify on the state folders and agent.env" {

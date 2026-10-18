@@ -15,6 +15,9 @@
   Each folder is created fresh and locked down at once: no inherited entries, SYSTEM and Administrators full
   control, and the task account (-RunAs) modify on state or read and execute on code. The script then verifies
   the folders and every file it writes with Get-Acl and fails if any other principal has access.
+  -RunAs accepts NT AUTHORITY\SYSTEM (default), NT AUTHORITY\LOCAL SERVICE, NT AUTHORITY\NETWORK SERVICE or a
+  group managed service account (DOMAIN\name$). Any other account, a plain user included, needs a password this
+  script does not take, so it is refused before anything is written.
   It downloads the pinned release binary, verifies it against SHA256SUMS.txt, writes the enrollment token to
   agent.env, and registers a task that runs `pqcscan agent --once` daily at 02:00 plus up to 2 hours of
   random delay. The first run enrolls and stores agent\agent.token. Rotate the enroll token on the collector
@@ -33,7 +36,7 @@ param(
     [Parameter(Mandatory)][string]$EnrollToken,
     [string]$Labels = "",
     [string]$Version = "v0.10.2",
-    # A dedicated service account (for example a gMSA such as 'CORP\svc-pqcscan$') is preferred over SYSTEM.
+    # SYSTEM, LOCAL SERVICE, NETWORK SERVICE or a gMSA such as 'CORP\svc-pqcscan$'; anything else is refused.
     # SYSTEM is the default because a full host inventory needs to read protected paths.
     [string]$RunAs = "NT AUTHORITY\SYSTEM",
     [string]$CaCert = "",
@@ -57,6 +60,21 @@ function Get-AccountName([string]$Name) {
 $system = Get-AccountName "NT AUTHORITY\SYSTEM"
 $admins = Get-AccountName "BUILTIN\Administrators"
 $runAsName = Get-AccountName $RunAs
+
+# Refuse an account the task cannot be registered for before anything is written. SYSTEM, LOCAL SERVICE and
+# NETWORK SERVICE (by SID, so localized names match) log on as ServiceAccount; a gMSA logs on as Password with
+# no password. Any other account needs a password this script does not take.
+# ponytail: a trailing '$' is taken to mean gMSA; a computer account also ends in '$' and would still fail at
+# registration, after the writes. Check the object class with the AD module if that ever matters.
+$serviceAccounts = foreach ($sid in @("S-1-5-18", "S-1-5-19", "S-1-5-20")) {
+    (New-Object System.Security.Principal.SecurityIdentifier($sid)).Translate([System.Security.Principal.NTAccount]).Value
+}
+$isGmsa = $runAsName.EndsWith('$')
+if ($serviceAccounts -notcontains $runAsName -and -not $isGmsa) {
+    throw ("-RunAs $runAsName is not supported: use NT AUTHORITY\SYSTEM (the default), NT AUTHORITY\LOCAL SERVICE, " +
+        'NT AUTHORITY\NETWORK SERVICE or a group managed service account (DOMAIN\name$). A plain user account ' +
+        "needs a password this script does not take. Nothing was written.")
+}
 
 # Fail closed: never reuse or repair a folder somebody else may have prepared. A fresh folder is created
 # atomically with its protected ACL (no window where it exists with default permissions), and the token is
@@ -155,8 +173,8 @@ $action    = New-ScheduledTaskAction -Execute "powershell.exe" `
 $trigger   = New-ScheduledTaskTrigger -Daily -At 02:00 -RandomDelay (New-TimeSpan -Hours 2)
 $settings  = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 2) `
     -MultipleInstances IgnoreNew
-$principal = if ($runAsName -eq $system) { New-ScheduledTaskPrincipal -UserId $system -LogonType ServiceAccount -RunLevel Highest }
-             else { New-ScheduledTaskPrincipal -UserId $RunAs -LogonType Password -RunLevel Highest }
+$principal = if ($isGmsa) { New-ScheduledTaskPrincipal -UserId $runAsName -LogonType Password -RunLevel Highest }
+             else { New-ScheduledTaskPrincipal -UserId $runAsName -LogonType ServiceAccount -RunLevel Highest }
 Register-ScheduledTask -TaskName "pqcscan-agent" -Action $action -Trigger $trigger -Settings $settings `
     -Principal $principal -Force | Out-Null
 Write-Host "Registered task pqcscan-agent (daily 02:00 + up to 2h random delay) as $RunAs. Run it now with:"
