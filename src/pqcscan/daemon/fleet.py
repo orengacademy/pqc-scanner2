@@ -35,11 +35,15 @@ FLEET_BEARER_PATHS = ("/api/ingest", "/api/agents/enroll")
 INGEST_MIN_INTERVAL_S = 60.0   # one ingest token refilled per interval, per host
 INGEST_BURST = 10               # tokens a host can spend at once (spool replay after an outage)
 INGEST_PARALLELISM = 2          # bundles parsed/stored at once, across all hosts, on SQLite (one writer)
-INGEST_PARALLELISM_PG = 4       # on Postgres: server exec is about 0.9 s per ingest (per-row FK and index work), so
-                                # throughput is slot-bound. A starting value: the 2/4/8 sweep on the load box changes it
-                                # only with that evidence (benchmark/fleet/run_load.py --ingest-parallelism).
+# Postgres slots. 4 was measured slower: concurrent 1,670-row ingests contend on the server's per-row FK and index
+# work, and throughput is server-bound at about 3.3 posts/s on the 8-vCPU load box, so extra slots only lengthen the
+# tail. Box at 4 posts/s: p95 29 s with 2 slots vs 48 s with 4 (benchmark/fleet/results/
+# load-postgres-20261018-r4-pginsert-3.json and -4.json). CI same-runner A/B (runs 39127318186, 39130841180,
+# 39131286228): p95 1.5-2.2x the 2-slot baseline with 4; with --ingest-parallelism 2 at 431cc50, 0.97x.
+# Kept apart from INGEST_PARALLELISM so a sweep (run_load --ingest-parallelism) can move it.
+INGEST_PARALLELISM_PG = 2
 INGEST_QUEUE_MAX = 32   # bundles waiting for or holding a parse slot, all hosts. Longest wait ≈ QUEUE_MAX x service
-                        # time / slots; at 2 s per large bundle and SQLite's 2 slots (the worst case) that is 32 s,
+                        # time / slots; at 2 s per large bundle and 2 slots that is 32 s,
                         # under the agent's 60 s timeout, so a queued request is served, never abandoned. Past the
                         # bound the collector answers 503 + Retry-After and the agent spools (FLEET.md, Ingest limits).
 INGEST_READ_MAX = 64    # ingest bodies being read at once, all hosts: 64 x 8 MiB = 512 MiB worst case in flight

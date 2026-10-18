@@ -305,7 +305,7 @@ def main() -> int:
     ap.add_argument("--profile", type=Path, default=None, metavar="DIR",
                     help="record py-spy, asyncio slow callbacks and statements per ingest into DIR")
     ap.add_argument("--ingest-parallelism", type=_at_least_one, default=None, metavar="N",
-                    help="bundles the collector parses/stores at once (default: 2 on SQLite, 4 on Postgres)")
+                    help="bundles the collector parses/stores at once (default: 2 on SQLite and Postgres)")
     ap.add_argument("--insert-mode", choices=("pages", "executemany"), default=None,
                     help="bulk-insert strategy (default: the product's, pages)")
     ap.add_argument("--no-record", action="store_true", help="write no result file and no LOAD.md row (dry runs)")

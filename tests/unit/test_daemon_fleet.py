@@ -544,7 +544,7 @@ def test_slow_body_upload_holds_no_queue_place(tmp_db_path, fast_registry, tmp_p
 
 @pytest.mark.parametrize("given", [None, 3])
 def test_ingest_parallelism_defaults_by_dialect(tmp_db_path, fast_registry, tmp_path, monkeypatch, given):
-    """SQLite has one writer: two bundles at a time. Postgres runs each ingest in its own backend: four."""
+    """Two bundles at a time on both (SQLite has one writer; on Postgres four measured slower), or as given."""
     import asyncio
     import threading
 
@@ -747,7 +747,10 @@ def test_ingest_parallelism_below_one_is_refused(tmp_db_path, fast_registry, giv
         create_app(db_path=tmp_db_path, registry=fast_registry, ingest_parallelism=given)
 
 
-def test_resolved_ingest_parallelism_is_on_app_state(tmp_db_path, fast_registry):
-    want = fleet.INGEST_PARALLELISM_PG if str(tmp_db_path).startswith("postgresql") else fleet.INGEST_PARALLELISM
+def test_resolved_ingest_parallelism_is_on_app_state(tmp_db_path, fast_registry, monkeypatch):
+    assert fleet.INGEST_PARALLELISM == fleet.INGEST_PARALLELISM_PG == 2
+    monkeypatch.setattr(fleet, "INGEST_PARALLELISM", 1)          # apart, so the per-dialect choice is visible
+    monkeypatch.setattr(fleet, "INGEST_PARALLELISM_PG", 5)
+    want = 5 if str(tmp_db_path).startswith("postgresql") else 1
     assert create_app(db_path=tmp_db_path, registry=fast_registry).state.ingest_parallelism == want
     assert create_app(db_path=tmp_db_path, registry=fast_registry, ingest_parallelism=3).state.ingest_parallelism == 3

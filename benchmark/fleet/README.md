@@ -40,7 +40,7 @@ literal reading of "500 hosts posting concurrently". Both are reported.
 - **Ingest percentiles** come from locust's `ingest` row only, not the enrolment calls. Requests time out after 60 s,
   the real agent's HTTP timeout; a timeout is an error. After the run locust waits up to 70 s for in-flight requests
   so a backlog is counted instead of discarded.
-- **Queueing.** The collector parses and stores at most 2 bundles at once on SQLite and 4 on Postgres
+- **Queueing.** The collector parses and stores at most 2 bundles at once on SQLite and on Postgres
   (`INGEST_PARALLELISM`, `INGEST_PARALLELISM_PG`; `--ingest-parallelism N` overrides it and is recorded in the JSON) and
   holds that slot across both steps, so at overload the p50 and p95 are mostly queue wait, not service time. At most
   `INGEST_QUEUE_MAX=32` bundles wait for or hold a slot; past that the collector answers 503 with `Retry-After: 60`.
