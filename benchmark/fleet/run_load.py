@@ -127,9 +127,9 @@ def _src_hash(dirs: tuple[str, ...] = SRC_DIRS) -> str:
 
 
 def _dirty_files() -> list[str]:
-    """Paths `git status` reports, untracked included, minus this harness's own outputs (results/ and LOAD.md).
-    Other work in a shared checkout shows up here."""
-    own = ("benchmark/fleet/results/", "benchmark/fleet/LOAD.md")
+    """Paths `git status` reports, untracked included, minus this harness's own outputs (results/, profiles/ and
+    LOAD.md). Other work in a shared checkout shows up here."""
+    own = ("benchmark/fleet/results/", "benchmark/fleet/profiles/", "benchmark/fleet/LOAD.md")
     return [ln[3:] for ln in _git("status", "--porcelain", "--untracked-files=all", strip=False).splitlines()
             if not ln[3:].startswith(own)]
 
