@@ -502,6 +502,21 @@ def test_bulk_ingest_round_trips_json_dates_and_deadlines(tmp_db_path):
     assert deadlines == {f["f0"].id: date(2030, 12, 31), f["f1"].id: None}
 
 
+def test_bulk_ingest_refuses_ids_out_of_row_order(tmp_db_path):
+    """ids are matched to rows by position; if the stored rows do not line up the ingest fails and stores nothing."""
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    host = fleet.upsert_host(WEB01)
+
+    @event.listens_for(fleet.engine, "after_cursor_execute")
+    def _swap(conn, cursor, statement, parameters, context, executemany):
+        if statement.startswith("INSERT INTO findings"):     # as if the store handed out ids in another order
+            cursor.execute("UPDATE findings SET title = 'moved' WHERE id = (SELECT min(id) FROM findings)")
+    with pytest.raises(RuntimeError, match="out of row order"):
+        fleet.ingest_bundle(_doc_bundle(WEB01, 3, views=1), host.id)
+    event.remove(fleet.engine, "after_cursor_execute", _swap)
+    assert fleet.list_scans() == []          # one transaction: the scan row and its findings rolled back together
+
+
 def test_empty_bundle_and_drift_only_bundle(tmp_db_path):
     fleet = Repo(tmp_db_path); fleet.init_schema()
     host = fleet.upsert_host(WEB01)

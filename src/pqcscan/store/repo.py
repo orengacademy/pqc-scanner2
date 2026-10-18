@@ -501,9 +501,9 @@ class Repo:
             s.flush()
             # One executemany for the findings, one query for their ids, one executemany for the views: no flush per
             # finding, and no INSERT ... RETURNING (SQLite before 3.35 lacks it). The scan row is new in this
-            # transaction, so its findings are exactly ours, and rows of one executemany get ascending ids in
-            # parameter order: it is sent as multi-row VALUES pages in that order (see __init__), and one session
-            # draws its sequence/rowid values in VALUES order.
+            # transaction, so its findings are exactly ours. Their ids ascend in parameter order: the executemany goes
+            # as multi-row VALUES pages in that order (see __init__), and SQLite and Postgres were observed to assign
+            # ids in VALUES order. Not a documented guarantee, so it is checked below, row by row.
             rows = [{
                 "scan_id": scan.id, "probe_id": str(f["probe_id"]), "algorithm": str(f.get("algorithm", "N/A")),
                 "classification": str(f.get("classification", "info")), "severity": str(f.get("severity", "info")),
@@ -520,10 +520,15 @@ class Repo:
             view_rows: list[dict] = []
             if rows:
                 s.execute(insert(FindingRow.metadata.tables["findings"]), rows)
-                ids = list(s.scalars(select(FindingRow.id).where(FindingRow.scan_id == scan.id)
-                                     .order_by(FindingRow.id)))
-                if len(ids) != len(rows):
-                    raise RuntimeError(f"stored {len(ids)} findings for {len(rows)} rows")
+                stored = s.execute(select(FindingRow.id, FindingRow.probe_id, FindingRow.algorithm, FindingRow.title)
+                                   .where(FindingRow.scan_id == scan.id).order_by(FindingRow.id)).all()
+                if len(stored) != len(rows):
+                    raise RuntimeError(f"stored {len(stored)} findings for {len(rows)} rows")
+                if any((st.probe_id, st.algorithm, st.title) != (r["probe_id"], r["algorithm"], r["title"])
+                       for st, r in zip(stored, rows, strict=True)):
+                    raise RuntimeError("stored findings came back out of row order; views would attach to the wrong "
+                                       "finding")
+                ids = [st.id for st in stored]
                 view_rows = [{
                     "finding_id": fid, "framework": str(v["framework"]), "clause": str(v["clause"]),
                     "verdict": str(v["verdict"]),
