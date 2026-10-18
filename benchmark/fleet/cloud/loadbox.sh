@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # DigitalOcean load box for benchmark/fleet: create, run a suite, pull results, destroy.
 #   loadbox.sh up            # create pqc-loadbox, wait for cloud-init (5-8 min), print IP
-#   loadbox.sh run before    # before|after|sweep|ratio-baseline: start suite.sh on the box (log: /root/suite.log)
+#   loadbox.sh run before    # any suite.sh mode (before|after|sweep|...): start it on the box (log: /root/suite.log)
 #   loadbox.sh wait          # block until the suite finished; fails if it died or the box is unreachable
 #   loadbox.sh pull          # rsync results/, profiles/, LOAD.md and the suite log into this checkout
 #   loadbox.sh down          # destroy the droplet (it bills until you do)
@@ -48,7 +48,10 @@ case "${1:-}" in
     echo "cloud-init did not finish in 15 min (last ssh error: $err); $still_billing" >&2; exit 1;;
   run)
     mode=${2:-}
-    case $mode in before|after|sweep|ratio-baseline) ;; *) echo "usage: loadbox.sh run before|after|sweep|ratio-baseline" >&2; exit 2;; esac
+    # The modes are suite.sh's own: read from its argument check, so a mode added there needs no edit here.
+    modes=$(sed -n 's/^case "${1:-}" in \([a-z|-]*\)) ;;.*/\1/p' "$HERE/suite.sh")
+    [ -n "$modes" ] || { echo "cannot read the mode list from suite.sh's first case line" >&2; exit 2; }
+    [[ -n $mode && "|$modes|" == *"|$mode|"* ]] || { echo "usage: loadbox.sh run $modes" >&2; exit 2; }
     box "set -e; cd /root/pqc-scanner2
       if [ -f /root/suite.pid ] && kill -0 \$(cat /root/suite.pid) 2>/dev/null; then echo 'a suite is already running' >&2; exit 3; fi
       rm -f /root/SUITE_DONE

@@ -40,3 +40,10 @@ def test_collector_cloud_init_loads_after_ref_substitution():
     assert {"python3.12-venv", "git", "sqlite3", "ufw"} <= set(doc["packages"])
     script = doc["runcmd"][0][2]
     assert "--keep-scans-per-host 12" in script and "subjectAltName=IP:" in script and "/root/READY" in script
+
+
+def test_loadbox_run_takes_its_modes_from_suite():
+    # Mode validation happens before any doctl or ssh call, so a bad mode is safe to try here.
+    r = subprocess.run(["bash", str(CLOUD / "loadbox.sh"), "run", "no-such-mode"], capture_output=True, text=True)
+    assert r.returncode == 2
+    assert "before|after|sweep|ratio-baseline|pg-insert" in r.stderr
