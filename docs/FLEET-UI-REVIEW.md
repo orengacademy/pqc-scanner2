@@ -5,7 +5,8 @@ Branch `verify/fleet-capacity`, 2026-10-18, measured against `a716747` plus the 
 the design and accessibility findings from five review skills, and which defects were fixed. The hard rule was no new features, so only defects
 were fixed, each in its own commit; polish stays open with the skill's suggestion.
 
-**Verdict.** The pages work at 500 hosts, and 9 defects were fixed (6 high). Two slow paths stay open. `/fleet` takes about 2.2 s to first byte
+**Verdict.** The pages work at 500 hosts, and 14 defects were fixed (8 high), five of them in a second round that caught regressions
+from the first. Two slow paths stay open. `/fleet` takes about 2.2 s to first byte
 and sends 532 KB of uncompressed HTML. The fleet CBOM export takes about 17 minutes and produces 343 MB.
 
 ## Setup
@@ -14,7 +15,8 @@ and sends 532 KB of uncompressed HTML. The fleet CBOM export takes about 17 minu
   through the daemon's own `Repo` (the load-test template from `benchmark/fleet/_bundles.py`). Hosts are `soak-0000` to `soak-0499`, labelled
   `env` (prod, dr, dev) and `site` (dc0 to dc4). The last bundle of every 10th host renames one finding, so 50 hosts show `drift 2`. The rename
   changes the title and the evidence path, because drift keys on the path when a finding has one; a title change alone gives zero drift. The DB is
-  1.08 GB. One host (`soak-0002`) was backdated 5 days by hand in the scratch DB to show the stale marker.
+  1.08 GB. One host (`soak-0002`) was backdated 5 days by hand in the scratch DB to show the stale marker. In the second round one scanless
+  host (`aaa-noscan`) was enrolled there to show the readiness placeholder, so the after-fix Lighthouse runs saw 501 hosts.
 - **Build time.** 310.7 s for 500 hosts, against the brief's 3-minute target, at load average 24.5. Ingest costs about 0.33 s per 1,670-finding
   bundle on this box (profiled: `Repo.ingest_bundle` plus the template build); the target needs an idle machine or a bypass of the product's
   ingest path, which would defeat the point.
@@ -50,12 +52,14 @@ started. While it ran, the daemon process held the GIL in one thread, so no page
 
 Lighthouse (`lighthouse_audit` covers accessibility, best practices and SEO; performance comes from the trace):
 
-| Page | Before (a11y / BP / SEO) | After (a11y / BP / SEO) |
+| Page | Before (a11y / BP / SEO) | After all fixes (a11y / BP / SEO) |
 |---|---|---|
-| `/fleet`, light, mobile snapshot | 95 / 100 / 75 | 100 / 100 / 75 (desktop, light) |
-| `/fleet`, dark, desktop snapshot | 95 / 100 / 75 | 100 / 100 / 75 |
-| `/fleet?label=env=prod`, dark, navigation | 95 / 100 / 90 | not rerun |
-| `/fleet/1`, dark | 95 / 100 / 90 (navigation) | 100 / 100 / 75 (snapshot) |
+| `/fleet`, light, mobile snapshot | 95 / 100 / 75 | 100 / 100 / 75 |
+| `/fleet`, dark, desktop | 95 / 100 / 75 (snapshot) | 100 / 100 / 90 (navigation) |
+| `/fleet?label=env=prod`, dark, navigation | 95 / 100 / 90 | 100 / 100 / 90 |
+| `/fleet/1`, dark, navigation | 95 / 100 / 90 | 100 / 100 / 90 |
+
+The after column was re-audited on 2026-10-19 at `23674f1`; both columns are in `timings.json`.
 
 The remaining failure is `meta-description`, which does not apply to a local admin tool. Snapshot mode scores SEO lower than navigation mode
 on the same page.
@@ -95,9 +99,14 @@ are in `benchmark/fleet/ui/`.
 | U10 | `/fleet` | Whole page | 2.2 s to first byte, 532 KB uncompressed HTML, 6,116 DOM nodes at 500 hosts; the label filter runs after the full summary | `timings.json`; trace DocumentLatency, DOMSize | Defect H (slow) | Chrome trace, ui-ux-pro-max | Open |
 | U11 | Fleet CBOM export | `/api/scans/fleet/export/cbom` | 1,005.6 s and 343 MB at 500 hosts; holds the render slot throughout | `timings.json` (curl) | Defect H (slow) | curl (F13) | Open |
 | U12 | Fleet JSON export | `/api/scans/fleet/export/json` | Does not exist (400). The brief and F13 name it; `/api/fleet` is the JSON fleet surface | `timings.json` | Note (docs) | curl | Open |
-| U13 | All pages | Body start | No skip link: 12 header controls before the content on every page. The `<main>` landmark and `<h1>` still let screen readers jump, so WCAG 2.4.1 is met | Snapshot of `/fleet/1` | Defect M (inaccessible) | better-accessibility | Open |
+| U13 | All pages | Body start | No skip link: keyboard users tab through 12 header controls before the content on every page. Not a defect: the `<main>` landmark and `<h1>` let screen-reader users jump, which meets WCAG 2.4.1 | Snapshot of `/fleet/1` | Polish | better-accessibility | Open |
 | U14 | All pages | `<title>` | Every page is titled `pqcscan`; tabs and history entries are indistinguishable | Snapshot root `RootWebArea "pqcscan"` | Defect M (inaccessible) | better-accessibility | Open |
 | U15 | Scan pages, light theme | `.sev-pill` crit/high/low/info | Same root cause as U3 (no light remap); only the `med` pill used on fleet pages was remapped | `app.css` | Defect M (unreadable), outside the fleet scope | better-colors | Open |
+| U16 | Dashboard, scan detail, light theme | `.btn-primary` | Regression from `6ca63b2`: the darker `--accent` is the button background under zinc-900 text, 3.53:1 at rest and 2.50:1 on hover (were 5.56 / 3.53). White text gives 5.02 / 7.09 | `before-btn-primary-light.png` → `after-btn-primary-light.png`, `after-btn-primary-scan-light.png` | Defect H (unreadable) | Task review | `128bb14` |
+| U17 | `/fleet?label=` at 390 px | Show all hosts link | Regression from `79fa9d2`/`29e3040` with `ed6dd85`: the empty-state cell spanned a nowrap table 727 to 1,029 px wide, so the link sat at x 329 to 447 past the card edge at 366 | `before-recovery-link-mobile.png` → `after-recovery-link-malformed-mobile.png`, `after-recovery-link-nomatch-mobile.png` | Defect H (unreachable) | Task review | `41ffedb` |
+| U18 | Dashboard, scan diff, framework detail, risk assessment, dark | Muted links and close buttons | Regression from `9fd4f9f`: the theme-guarded zinc-500 rule, specificity (0,3,0), beat `hover:text-zinc-*` (0,2,0) on six elements, so they no longer lightened on hover | Hover on `/frameworks/qramm`: rgb(212,212,216) after | Defect M (broken hover state) | Task review | `8754a56` |
+| U19 | `/fleet?label=env` | Host count | The malformed-filter page still said "0 Host" for a filter that never ran | `after-recovery-link-malformed-mobile.png` → `after-malformed-no-count-mobile.png` | Defect M (misleading) | Task review | `a9790b6` |
+| U20 | `/fleet` | Readiness placeholder | The dash for a host with no scan was zinc-600: 2.57:1 dark, 3.34:1 light. Now 4.91 / 4.83 | `before-readiness-dash-dark.png` → `after-readiness-dash-dark.png` | Defect M (unreadable) | Task review | `23674f1` |
 | P1 | `/fleet` | Host count | "500 Host": count glued to the singular column label | `final-fleet-500-desktop.png` | Polish | better-writing | Open |
 | P2 | `/fleet/1` | Host details | `machine id:`, `os:`, `agent:` hard-coded English and lower case beside translated `Labels:` | `fleet-host.png` | Polish | better-writing | Open |
 | P3 | `/fleet?label=` | Filtered count | "167 Host" gives no "of 500" and no way to clear the filter while matches exist | `fleet-filter.png` | Polish | better-writing, impeccable (heuristic 3) | Open |
@@ -109,12 +118,14 @@ are in `benchmark/fleet/ui/`.
 | P9 | Fleet pages | Null placeholders | Em dash for missing readiness, labels, agent | `fleet.html`, `fleet_host.html` | Polish | taste-skill | Open |
 | P10 | `/fleet`, `/fleet/1` | Scan links | "#2 →" and repeated "View →" do not name their destination out of context | Snapshot of `/fleet/1` | Polish | better-writing | Open |
 | P11 | All pages | Theme toggle | Colour transitions on chrome run during the theme swap and smear it | `base.html` `transition-colors` | Polish | better-ui | Open |
+| P12 | All pages at 390 px | Theme toggle, EN/MS | Since `fd59b85` the nav scrolls; the toggle (x 741) and locale buttons (x 766, 801) are off-screen until the nav is scrolled. The cut-off nav item is the only cue | `after-nav-mobile.png`, `final-fleet-500-mobile.png` | Polish | Task review | Open |
 
 Not findings: Lighthouse `meta-description` (a local admin tool has no search listing), impeccable `cramped-padding` on the card (false
 positive), and readiness 0 with critical 0 on every host. The last is the harness template, whose weak findings are all severity high, not the UI.
 
-Counts: 14 defects (8 high, 6 medium), 1 docs note and 11 polish items. 9 defects are fixed (6 high, 3 medium) and 5 are open (2 high,
-3 medium). The note and all polish items are open.
+Counts: 18 defects (10 high, 8 medium), 1 docs note and 13 polish items. 14 defects are fixed (8 high, 6 medium) and 4 are open (2 high,
+2 medium). The note and all polish items are open. U13 moved from defect to polish in the second round, and U16 to U20 came from the task
+review of the first round: three of them were regressions introduced by first-round fixes.
 
 ## Open items with proposed fixes
 
@@ -124,8 +135,8 @@ Counts: 14 defects (8 high, 6 medium), 1 docs note and 11 polish items. 9 defect
   with `INSERT ... SELECT` for findings and views, then stream the CBOM rather than building a 343 MB string. That is store and renderer work
   past the 40-line limit, so it stays open.
 - **U12.** Correct the brief and F13 to name `/api/fleet` or a real export format.
-- **U13, U14.** In `base.html`, make a skip link the first focusable element and add `{% block title %}` per page. Neither is a fleet template,
-  and both change every page, so they stay open.
+- **U14, and polish U13.** In `base.html`, add `{% block title %}` per page and make a skip link the first focusable element. Neither is a
+  fleet template, and both change every page, so they stay open.
 - **U15.** Give the remaining `.sev-pill` colours light remaps, using the pattern from `6ca63b2`.
 
 ## Reproduce

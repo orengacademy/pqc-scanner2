@@ -58,6 +58,20 @@
           "best-practices": 100,
           "seo": 75
         }
+      },
+      "lighthouse_after_fixes": {
+        "desktop_dark_navigation": {
+          "performance": null,
+          "accessibility": 100,
+          "best-practices": 100,
+          "seo": 90
+        },
+        "mobile_light_snapshot": {
+          "performance": null,
+          "accessibility": 100,
+          "best-practices": 100,
+          "seo": 75
+        }
       }
     },
     {
@@ -98,6 +112,14 @@
         "desktop_dark_navigation": {
           "performance": null,
           "accessibility": 95,
+          "best-practices": 100,
+          "seo": 90
+        }
+      },
+      "lighthouse_after_fixes": {
+        "desktop_dark_navigation": {
+          "performance": null,
+          "accessibility": 100,
           "best-practices": 100,
           "seo": 90
         }
@@ -144,6 +166,14 @@
           "best-practices": 100,
           "seo": 90
         }
+      },
+      "lighthouse_after_fixes": {
+        "desktop_dark_navigation": {
+          "performance": null,
+          "accessibility": 100,
+          "best-practices": 100,
+          "seo": 90
+        }
       }
     }
   ],
@@ -181,5 +211,6 @@
       "load_average_at_start": "17.3, 20.6, 17.1",
       "note": "one run: each takes about 17 minutes and holds the daemon's render slot; the second run was cancelled by restarting the daemon"
     }
-  ]
+  ],
+  "lighthouse_after_note": "Re-audited 2026-10-19 after the fix(ui) commits through 23674f1; only failing audit on each page is meta-description. The scratch DB then held 501 hosts (one scanless host added to show the readiness dash)."
 }
