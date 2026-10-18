@@ -160,12 +160,16 @@ def _profile_hooks(stack: ExitStack, app, profile_dir: Path) -> None:
 @contextmanager
 def collector(db: str, workdir: Path, enroll_token: str = ENROLL_TOKEN,
               profile_dir: Path | None = None, ingest_parallelism: int | None = None,
-              info: dict | None = None) -> Iterator[str]:
+              insert_mode: str | None = None, info: dict | None = None) -> Iterator[str]:
     """Yield the base URL of a running collector; `db` is "sqlite" or "postgres". `profile_dir` turns on the
     profile hooks (asyncio slow callbacks, statement counts, Postgres auto_explain log). `ingest_parallelism` goes to
-    `create_app` (None: its per-dialect default); `info`, when given, receives the resolved `ingest_parallelism`."""
+    `create_app` (None: its per-dialect default). `insert_mode` picks the bulk-insert strategy: "pages" (multi-row
+    INSERT ... VALUES, the product default) or "executemany" (one parameter set per row); None leaves the product
+    default. `info`, when given, receives the resolved `ingest_parallelism` and `insert_mode`."""
     if db not in ("sqlite", "postgres"):
         raise ValueError(f"db must be sqlite or postgres, not {db!r}")
+    if insert_mode not in (None, "pages", "executemany"):
+        raise ValueError(f"insert_mode must be pages or executemany, not {insert_mode!r}")
     logger.disable("pqcscan")   # one info line per enrolment would drown the run output
     with ExitStack() as stack:
         stack.callback(logger.enable, "pqcscan")     # callbacks run last-in first-out: this is the final step
@@ -178,8 +182,12 @@ def collector(db: str, workdir: Path, enroll_token: str = ENROLL_TOKEN,
                 stack.callback(_pg_statements, target, profile_dir / "statements.json")
         app = create_app(db_path=target, registry=Registry(), enroll_token=enroll_token,
                          ingest_parallelism=ingest_parallelism)
+        dialect = app.state.repo.engine.dialect
+        if insert_mode is not None:
+            dialect.use_insertmanyvalues_wo_returning = insert_mode == "pages"
         if info is not None:
             info["ingest_parallelism"] = app.state.ingest_parallelism
+            info["insert_mode"] = "pages" if dialect.use_insertmanyvalues_wo_returning else "executemany"
         if profile_dir:                              # registered before the server: dumps run after it stops
             _profile_hooks(stack, app, profile_dir)
         port = free_port()

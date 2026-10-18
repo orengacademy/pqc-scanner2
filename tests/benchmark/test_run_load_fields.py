@@ -63,4 +63,26 @@ def test_collector_reports_the_resolved_ingest_parallelism(tmp_path):
         work.mkdir()
         with _collector.collector("sqlite", work, ingest_parallelism=given, info=info):
             pass
-        assert info == {"ingest_parallelism": want}
+        assert info["ingest_parallelism"] == want
+
+
+def test_collector_insert_mode_sets_the_dialect_flag(tmp_path, monkeypatch):
+    from benchmark.fleet import _collector
+    seen = {}
+    real = _collector.create_app
+
+    def spy(**kw):
+        app = real(**kw)
+        seen["dialect"] = app.state.repo.engine.dialect
+        return app
+
+    monkeypatch.setattr(_collector, "create_app", spy)
+    for given, flag in (("executemany", False), ("pages", True), (None, True)):      # None: the product default
+        info: dict = {}
+        work = tmp_path / str(given)
+        work.mkdir()
+        with _collector.collector("sqlite", work, insert_mode=given, info=info):
+            assert seen["dialect"].use_insertmanyvalues_wo_returning is flag
+        assert info["insert_mode"] == ("pages" if flag else "executemany")
+    with pytest.raises(ValueError, match="insert_mode"):
+        _collector.collector("sqlite", tmp_path, insert_mode="bulk").__enter__()

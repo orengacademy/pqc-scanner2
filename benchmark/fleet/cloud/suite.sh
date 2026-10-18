@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Runs ON the load box. Usage: suite.sh before|after|sweep|ratio-baseline
+# Runs ON the load box. Usage: suite.sh before|after|sweep|ratio-baseline|pg-insert
 # run_load exit 1 means a FAIL row or request errors: the suite goes on. Any other non-zero exit is a
 # crash (traceback 1 is indistinguishable from exit 1 here; argparse 2, OOM 137, ...): counted and
 # reported, and the suite goes on. /root/SUITE_DONE is always touched at the end.
 set -euo pipefail
-case "${1:-}" in before|after|sweep|ratio-baseline) ;; *) sed -n 2,2p "$0"; exit 2;; esac
+case "${1:-}" in before|after|sweep|ratio-baseline|pg-insert) ;; *) sed -n 2,2p "$0"; exit 2;; esac
 cd /root/pqc-scanner2
 PY=.venv/bin/python
 rm -f /root/SUITE_DONE
@@ -40,6 +40,13 @@ case "$1" in
     for rate in 4 6; do
       for slots in 2 4 8; do
         run --db postgres --hosts 500 --rate "$rate" --duration 300s --seed 1 --ingest-parallelism "$slots" --tag par
+      done
+    done;;
+  pg-insert)  # Postgres: multi-row INSERT pages against one parameter set per row, at the saturating rate
+    for mode in pages executemany; do
+      for slots in 2 4; do
+        run --db postgres --hosts 500 --rate 4 --duration 300s --seed 1 --insert-mode "$mode" \
+          --ingest-parallelism "$slots" --tag pginsert
       done
     done;;
   ratio-baseline)  # the CI job's shape

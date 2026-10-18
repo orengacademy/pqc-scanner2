@@ -35,7 +35,7 @@ P95_LIMIT_MS = 2000
 DEFAULT_FINDINGS = 1670          # a real scan stores about this many (FLEET-EVIDENCE F19)
 JITTER_WINDOW_S = 7200           # FLEET.md: daily timer, 2 h random delay
 LITTLE_BAND = (0.9, 1.1)
-ROW_COLUMNS = 22                 # cells in a LOAD.md row; the header written by _load_md_head has the same count
+ROW_COLUMNS = 23                 # cells in a LOAD.md row; the header written by _load_md_head has the same count
 SRC_DIRS = ("src/pqcscan/daemon", "src/pqcscan/store")      # the collector code a result depends on
 
 
@@ -88,12 +88,14 @@ def _load_md_head() -> str:
         "is 8.3 posts/s, about 60,000 daily hosts. `Little ratio` is the achieved rate over the Little's law "
         "expectation hosts / (interval + mean response); outside 0.9 to 1.1 the run lost requests and is a "
         "measurement defect, not a capacity result (None: run shorter than two intervals, not evaluated). "
-        "`parse slots` is how many bundles the collector parsed and stored at once. Rows from "
+        "`parse slots` is how many bundles the collector parsed and stored at once; `insert` is the bulk-insert "
+        "strategy (`pages`: multi-row INSERT ... VALUES, the default; `executemany`: one parameter set per row; "
+        "`-`: row predates the knob). Rows from "
         "PR #92 (19-column format, 300-finding bundles) are in [LOAD-pr92.md](LOAD-pr92.md). The box was shared "
         "with unrelated work, so the load average "
         "column matters when reading a row. Postgres rows ran against a local `postgres:16-alpine` container.\n\n"
-        "| date (UTC) | db | arrival | hosts | spawn/s | duration | findings/bundle | parse slots | ingest reqs "
-        "| p50 ms | p95 ms "
+        "| date (UTC) | db | arrival | hosts | spawn/s | duration | findings/bundle | parse slots | insert "
+        "| ingest reqs | p50 ms | p95 ms "
         "| p99 ms | rps | offered rps | Little ratio | 429 | 503 | errors | p95 < 2 s "
         "| box load (1 min avg, start / end) | commit | command |\n"
         "|" + "---|" * ROW_COLUMNS + "\n")
@@ -153,12 +155,14 @@ def _stats(path: Path) -> dict[str, dict[str, str]]:
 def run(*, db: str, hosts: int, spawn_rate: int, duration_s: int, findings: int = DEFAULT_FINDINGS,
         interval_s: float | None = None, rate: float | None = None, stagger: bool = True, seed: int = 1,
         tag: str = "", results_dir: Path | None = None, record: bool = True, command: str = "",
-        profile_dir: Path | None = None, md_path: Path | None = None, ingest_parallelism: int | None = None) -> dict:
+        profile_dir: Path | None = None, md_path: Path | None = None, ingest_parallelism: int | None = None,
+        insert_mode: str | None = None) -> dict:
     """One load run; returns the result dict (also written to `results_dir` and LOAD.md when `record`).
     `rate` (total posts/s offered by all hosts) sets the interval; else `interval_s`, default 60 s.
     `profile_dir` records a py-spy profile, slow callbacks and statement counts there and writes its summary.
     `md_path` overrides the LOAD.md the row is appended to. `ingest_parallelism` overrides the collector's per-dialect
-    default; the result records the value the collector resolved."""
+    default; `insert_mode` ("pages" or "executemany") the bulk-insert strategy. The result records the values the
+    collector resolved."""
     interval_s = interval_for(hosts=hosts, rate=rate) if rate is not None else interval_s or 60.0
     if record:                                    # fail before a long run, not after it
         _check_md_columns(md_path or HERE / "LOAD.md", ROW_COLUMNS)
@@ -176,7 +180,7 @@ def run(*, db: str, hosts: int, spawn_rate: int, duration_s: int, findings: int 
                       "--csv", str(prefix), "--csv-full-history", "--only-summary"]
         info: dict = {}
         with _collector.collector(db, work, profile_dir=profile_dir, ingest_parallelism=ingest_parallelism,
-                                  info=info) as url:
+                                  insert_mode=insert_mode, info=info) as url:
             env = {**os.environ, "LOAD_TEMPLATE": str(template), "LOAD_ENROLL_TOKEN": _collector.ENROLL_TOKEN,
                    "LOAD_INTERVAL_S": str(interval_s), "LOAD_COUNTERS": str(counters), "LOAD_PREFIX": "m-load-",
                    "LOAD_STAGGER": "1" if stagger else "0", "LOAD_SEED": str(seed),
@@ -220,7 +224,7 @@ def run(*, db: str, hosts: int, spawn_rate: int, duration_s: int, findings: int 
         "ingest_error_rate": error_rate(ing), "enroll_error_rate": error_rate(enr),
         "enroll_503": seen.get("enroll_503", 0),
         "stored_hosts": stored_hosts, "stored_scans": stored_scans, "seed": seed,
-        "ingest_parallelism": info["ingest_parallelism"],
+        "ingest_parallelism": info["ingest_parallelism"], "insert_mode": info["insert_mode"],
         "enroll_requests": int(enr.get("Request Count", 0) or 0), "enroll_p95_ms": float(enr.get("95%", 0) or 0),
         "failure_samples": [f"{f['Name']}: {f['Error']} x{f['Occurrences']}" for f in failures[:10]],
         "pass_p95_lt_2s": p95 < P95_LIMIT_MS and bool(ing),
@@ -270,7 +274,7 @@ def _append_row(r: dict, started: datetime, md: Path | None = None) -> None:
         md.write_text(_load_md_head())
     commit = r["commit"][:9] + ("+dirty tree" if r["tree_dirty"] else "")
     cells = [f"{started:%Y-%m-%d %H:%M}", r["db"], r["arrival"], r["hosts"], r["spawn_rate"], f"{r['duration_s']} s",
-             r["findings_per_bundle"], r["ingest_parallelism"], r["requests"], f"{r['p50_ms']:.0f}",
+             r["findings_per_bundle"], r["ingest_parallelism"], r["insert_mode"], r["requests"], f"{r['p50_ms']:.0f}",
              f"{r['p95_ms']:.0f}", f"{r['p99_ms']:.0f}",
              r["rps"], r["offered_rps"], r["littles_ratio"], r["http_429"], r["http_503"], r["errors"],
              "PASS" if r["pass_p95_lt_2s"] else "FAIL",
@@ -302,6 +306,8 @@ def main() -> int:
                     help="record py-spy, asyncio slow callbacks and statements per ingest into DIR")
     ap.add_argument("--ingest-parallelism", type=_at_least_one, default=None, metavar="N",
                     help="bundles the collector parses/stores at once (default: 2 on SQLite, 4 on Postgres)")
+    ap.add_argument("--insert-mode", choices=("pages", "executemany"), default=None,
+                    help="bulk-insert strategy (default: the product's, pages)")
     ap.add_argument("--no-record", action="store_true", help="write no result file and no LOAD.md row (dry runs)")
     g = ap.add_mutually_exclusive_group()
     g.add_argument("--interval", type=float, default=None, help="seconds between bundles from one host (default 60)")
@@ -311,7 +317,7 @@ def main() -> int:
     r = run(db=args.db, hosts=args.hosts, spawn_rate=args.spawn_rate, duration_s=parse_duration(args.duration),
             findings=args.findings_per_bundle, interval_s=args.interval, rate=args.rate, stagger=not args.herd,
             seed=args.seed, tag=args.tag, command=cmd, record=not args.no_record, profile_dir=args.profile,
-            ingest_parallelism=args.ingest_parallelism)
+            ingest_parallelism=args.ingest_parallelism, insert_mode=args.insert_mode)
     print(json.dumps({k: v for k, v in r.items() if k not in ("command", "locust_command")}, indent=2))
     return 0 if r["pass_p95_lt_2s"] and not r["errors"] else 1
 
