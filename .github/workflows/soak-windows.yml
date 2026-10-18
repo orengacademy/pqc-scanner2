@@ -119,11 +119,18 @@ jobs:
           SOAK_SERVER_URL: ${{ secrets.SOAK_SERVER_URL }}
           SOAK_ENROLL_TOKEN: ${{ secrets.SOAK_ENROLL_TOKEN }}
         run: |
+          # agent.log is a public artifact and the job log is public: neither may carry the collector's URL or IP.
+          # GitHub masks only the whole secret string, so the bare host is masked here as well.
+          $server = $env:SOAK_SERVER_URL.TrimEnd('/'); $serverHost = ([uri]$server).Host
+          if (-not $serverHost) { throw "SOAK_SERVER_URL has no host part" }
+          Write-Output "::add-mask::$serverHost"
           $ErrorActionPreference = 'Continue'   # loguru writes to stderr; that is output, not a failure
           dist\pqcscan.exe agent --once --server $env:SOAK_SERVER_URL --enroll-token $env:SOAK_ENROLL_TOKEN --ca-cert ca.pem --labels env=soak,os=windows,runner=${{ matrix.os }} --state-dir $env:RUNNER_TEMP\pqc-state 2>&1 | Tee-Object agent.log
           $code = $LASTEXITCODE
-          # agent.log is uploaded as an artifact, which GitHub does not mask: keep the enroll token out of it.
-          (Get-Content agent.log) -replace [regex]::Escape($env:SOAK_ENROLL_TOKEN), '<enroll-token>' | Set-Content agent.log
+          # Artifacts are not masked: scrub the enroll token, the SOAK_SERVER_URL and its bare host before upload.
+          (Get-Content agent.log) -replace [regex]::Escape($env:SOAK_ENROLL_TOKEN), '<enroll-token>' `
+            -replace [regex]::Escape($server), '<server>' -replace [regex]::Escape($serverHost), '<server>' |
+            Set-Content agent.log
           exit $code
 
       # Runs after a failed agent too: the token and the spool must survive to the next night.
