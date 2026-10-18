@@ -115,3 +115,42 @@ jobs:
         run: python benchmark/run_benchmark.py --by-family --accept-fp-file benchmark/corpus/accepted_fp.txt --min-precision 1.0 --min-recall 0.95
       - name: Accuracy gate
         run: pytest -q -ra tests/benchmark/test_accuracy.py
+
+  load-ratio:
+    # Same-runner A/B: the load harness at 120 hosts, 60 s interval (2 posts/s), 1,670-finding bundles, 90 s, on
+    # SQLite and Postgres, once from the baseline commit (PR #92 head, checked out into baseline/) and once from HEAD.
+    # Fails when HEAD p95 exceeds both 1.5 x baseline and 1 s. Postgres runs in a container the harness starts itself
+    # (docker is on ubuntu-latest). The baseline harness has no --rate, so both sides use --interval 60. run_load exits
+    # 1 when p95 >= 2 s; the pipe to tail swallows that on purpose, because ratio.py is the gate.
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      BASE_REF: 77867a1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BASE_REF }}
+          path: baseline
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m venv .venv-head && .venv-head/bin/pip install -e ".[dev,verify]"
+      - run: python -m venv .venv-base && .venv-base/bin/pip install -e "./baseline[dev,verify]"
+      - name: Run both on both backends
+        run: |
+          set -e
+          for db in sqlite postgres; do
+            (cd baseline && ../.venv-base/bin/python -m benchmark.fleet.run_load --db $db --hosts 120 --interval 60 --duration 90s --findings-per-bundle 1670 --tag ci-base | tail -1 >/dev/null)
+            .venv-head/bin/python -m benchmark.fleet.run_load --db $db --hosts 120 --interval 60 --duration 90s --findings-per-bundle 1670 --tag ci-head | tail -1 >/dev/null
+            base=$(ls -t baseline/benchmark/fleet/results/load-$db-*-ci-base*.json | head -1)
+            head=$(ls -t benchmark/fleet/results/load-$db-*-ci-head*.json | head -1)
+            .venv-head/bin/python -m benchmark.fleet.ratio "$base" "$head" --max-ratio 1.5 --floor-ms 1000
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-ratio-results
+          path: |
+            benchmark/fleet/results/*ci-*.json
+            baseline/benchmark/fleet/results/*ci-*.json
