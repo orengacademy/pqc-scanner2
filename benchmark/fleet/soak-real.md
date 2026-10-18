@@ -15,7 +15,7 @@ labelled "simulated".
 |---|---|---|---|---|
 | `pqc-soak-collector` | `ubuntu-24-04-x64` | `s-2vcpu-4gb` | `pqcscan-collector.service` (systemd, `Restart=on-failure`) | n/a. Serves `https://<public ip>:8765` with a private CA cert for that IP. |
 | `pqc-soak-ubuntu` | `ubuntu-24-04-x64` (Python 3.12) | `s-1vcpu-1gb` | shipped `pqcscan-agent.timer`: daily at 00:00 UTC plus up to 2 h random delay | `/etc/machine-id`, stable for the droplet's life |
-| `pqc-soak-debian` | `debian-12-x64` (Python 3.11) | `s-1vcpu-1gb` | same timer | `/etc/machine-id` |
+| `pqc-soak-debian` | `debian-13-x64` (Python 3.13: allowed by `requires-python = ">=3.11"`, but CI tests only 3.11 and 3.12) | `s-1vcpu-1gb` | same timer | `/etc/machine-id` |
 | `pqc-soak-rocky` | `rockylinux-9-x64` (Python 3.12 from `dnf`) | `s-1vcpu-1gb` | same timer | `/etc/machine-id` |
 | Windows Server 2022 | runner label `windows-2022` | GitHub-hosted | workflow cron 02:00 UTC, then up to 30 min jitter in the job | `MachineGuid` set to `6b1f0c2e-0000-4000-8000-000000002022` before every run. The state dir comes back from the Actions cache. |
 | Windows Server 2025 | runner label `windows-latest` (Windows Server 2025 today; GitHub moves this label) | GitHub-hosted | same workflow | `MachineGuid` set to `6b1f0c2e-0000-4000-8000-000000002025`, state dir from the cache |

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Real soak agent setup, run as root on a fresh Ubuntu 24.04 / Debian 12 / Rocky 9 droplet by `soak.sh up` (or
+# Real soak agent setup, run as root on a fresh Ubuntu 24.04 / Debian 13 / Rocky 9 droplet by `soak.sh up` (or
 # `soak.sh agent-init <name>`) over ssh, not cloud-init: Rocky's cloud-init package set differs.
 #   bash /root/soak/benchmark/fleet/cloud/soak-agent-init.sh <server url> <commit>   # enroll token on stdin
 # soak.sh unpacks `git archive <commit>` of this script, sampler.sh and packaging/fleet/pqcscan-agent.{service,timer}

@@ -12,8 +12,8 @@
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd); REPO=$(cd "$HERE/../../.." && pwd)
 REGION=${DO_REGION:-sgp1}; KEY=${DO_SSH_KEY:-pqc-campaign}; PY=${PYTHON:-$REPO/.venv/bin/python}
-COLLECTOR=pqc-soak-collector
-declare -A IMAGE=([pqc-soak-ubuntu]=ubuntu-24-04-x64 [pqc-soak-debian]=debian-12-x64 [pqc-soak-rocky]=rockylinux-9-x64)
+COLLECTOR=pqc-soak-collector; COLLECTOR_IMAGE=ubuntu-24-04-x64
+declare -A IMAGE=([pqc-soak-ubuntu]=ubuntu-24-04-x64 [pqc-soak-debian]=debian-13-x64 [pqc-soak-rocky]=rockylinux-9-x64)
 AGENTS=(pqc-soak-ubuntu pqc-soak-debian pqc-soak-rocky)
 CONF=${XDG_CONFIG_HOME:-$HOME/.config}/pqc-soak; ENV_FILE=$CONF/env
 RESULTS=$REPO/benchmark/fleet/results
@@ -66,6 +66,13 @@ case "${1:-}" in
   up)
     existing=$(soak_droplets)
     [ -z "$existing" ] || { echo "soak droplets already exist: $(echo "$existing" | xargs); run 'soak.sh down' first" >&2; exit 2; }
+    # DigitalOcean retires distribution slugs (debian-12-x64 went): check all four before anything is created and bills.
+    slugs=$(doctl compute image list-distribution --format Slug --no-header </dev/null) \
+      || { echo "doctl compute image list-distribution failed; cannot check the image slugs" >&2; exit 2; }
+    for img in "$COLLECTOR_IMAGE" "${IMAGE[@]}"; do
+      grep -qx -e "$img" <<< "$slugs" \
+        || { echo "image $img is not offered by DigitalOcean (doctl compute image list-distribution); nothing created" >&2; exit 2; }
+    done
     REF=$(git -C "$REPO" rev-parse "${PQC_REF:-HEAD}^{commit}")
     [ -n "$(git -C "$REPO" branch -r --contains "$REF")" ] \
       || { echo "$REF is on no remote-tracking branch; push it first (the droplets fetch it from GitHub)" >&2; exit 2; }
@@ -75,7 +82,7 @@ case "${1:-}" in
     set -E
     trap 'echo "soak.sh up failed at line $LINENO: $BASH_COMMAND; $still_billing" >&2' ERR
     rm -rf "$KNOWN"; mkdir -p "$KNOWN"
-    doctl compute droplet create "$COLLECTOR" --region "$REGION" --size s-2vcpu-4gb --image ubuntu-24-04-x64 \
+    doctl compute droplet create "$COLLECTOR" --region "$REGION" --size s-2vcpu-4gb --image "$COLLECTOR_IMAGE" \
       --ssh-keys "$keyid" --user-data "$(sed "s|@PQC_REF@|$REF|" "$HERE/soak-collector-init.yaml")" \
       --tag-name pqc-campaign --wait >/dev/null
     for n in "${AGENTS[@]}"; do

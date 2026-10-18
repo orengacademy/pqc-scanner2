@@ -58,3 +58,21 @@ def test_soak_down_fails_when_doctl_cannot_list(tmp_path):
     r = subprocess.run(["bash", str(CLOUD / "soak.sh"), "down"], capture_output=True, text=True, env=env)
     assert r.returncode != 0
     assert "droplet list failed" in r.stderr and "droplets gone" not in r.stdout
+
+
+def test_soak_up_refuses_a_retired_image_before_creating_anything(tmp_path):
+    # The fake doctl lists no droplets and offers no debian-13-x64; it logs every call so a create would show.
+    log = tmp_path / "calls"
+    fake = tmp_path / "doctl"
+    fake.write_text(f"""#!/bin/sh
+echo "$*" >> {log}
+case "$*" in
+  "compute image list-distribution"*) printf 'ubuntu-24-04-x64\\nrockylinux-9-x64\\ndebian-12-x64\\n';;
+esac
+""")
+    fake.chmod(0o755)
+    env = {"PATH": f"{tmp_path}:/usr/bin:/bin", "HOME": str(tmp_path)}
+    r = subprocess.run(["bash", str(CLOUD / "soak.sh"), "up"], capture_output=True, text=True, env=env)
+    assert r.returncode == 2
+    assert "image debian-13-x64 is not offered" in r.stderr
+    assert "create" not in log.read_text()
