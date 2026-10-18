@@ -6,18 +6,21 @@ A throwaway droplet that runs `benchmark/fleet` away from the shared workstation
 
 - `doctl` installed and logged in: `doctl auth init`.
 - An SSH key imported into DigitalOcean under a name (default `pqc-campaign`):
-  `doctl compute ssh-key import pqc-campaign --public-key-file ~/.ssh/pqc_campaign_ed25519.pub`
+  ```bash
+  ssh-keygen -t ed25519 -N '' -f ~/.ssh/pqc_campaign_ed25519 -C pqc-campaign
+  doctl compute ssh-key import pqc-campaign --public-key-file ~/.ssh/pqc_campaign_ed25519.pub
+  ```
 - `rsync` and `ssh` locally. Docker is not needed locally; the box installs it.
-- The commit you want to measure is pushed to `origin`. The box clones the public repo and checks out `PQC_REF` (default: your local `HEAD`).
+- The commit you want to measure is pushed to GitHub. The box clones `https://github.com/orengacademy/pqc-scanner2` (not your local `origin` remote) and checks out `PQC_REF` (default: your local `HEAD`, resolved to a full sha). If the commit is not there, setup fails and `up` says so.
 
 ## Commands
 
 ```bash
 export PQC_SSH_KEY=~/.ssh/pqc_campaign_ed25519   # private key, passed as ssh -i; omit to use ssh defaults
-bash benchmark/fleet/cloud/loadbox.sh up            # create pqc-loadbox, wait for cloud-init, print the IP
+bash benchmark/fleet/cloud/loadbox.sh up            # create pqc-loadbox, wait for setup (about 5-8 min), print the IP; refuses if it already exists
 bash benchmark/fleet/cloud/loadbox.sh run before    # before | after | sweep | ratio-baseline
-bash benchmark/fleet/cloud/loadbox.sh wait          # block until /root/SUITE_DONE exists
-bash benchmark/fleet/cloud/loadbox.sh pull          # rsync results/, profiles/, LOAD.md back here
+bash benchmark/fleet/cloud/loadbox.sh wait          # block until the suite finishes; fails if it died or the box is unreachable
+bash benchmark/fleet/cloud/loadbox.sh pull          # rsync results/, profiles/, LOAD.md and the suite log back here
 bash benchmark/fleet/cloud/loadbox.sh down          # destroy the droplet
 ```
 
@@ -31,7 +34,11 @@ The suites (see `suite.sh`):
 | `sweep` | 500 hosts, rates 0.5 1 2 4 6 8 12 posts/s, seeds 1 and 2, 300 s each; then a 180 s herd |
 | `ratio-baseline` | 120 hosts, 60 s interval, 90 s, 1,670 findings per bundle (the CI job's shape) |
 
-A FAIL row (p95 over 2 s) does not stop a suite. The log is `/root/suite.log` on the box.
+`up` succeeds only when setup finished and the box is at the commit you asked for; if setup fails it exits 1 and the droplet is left running (and billing) for you to inspect, then `down`. The box accepts any host key (its IP is recycled between droplets).
+
+Exit 1 from `run_load` means a FAIL row (p95 over 2 s) or request errors; the suite goes on. Any other non-zero exit is counted as a crash, printed as `CRASH exit N`, and the suite ends with a non-zero exit and a crash count. The log is `/root/suite.log` on the box; `pull` saves it as `benchmark/fleet/cloud/last-suite.log` (gitignored), so read it before `down`.
+
+The box is pinned to the `PQC_REF` it was created with. The `after` suite needs `down`, then `up` with `PQC_REF` set to the new commit. A different droplet may have different CPUs, which the `box` field of each result records.
 
 ## What `pull` overwrites
 

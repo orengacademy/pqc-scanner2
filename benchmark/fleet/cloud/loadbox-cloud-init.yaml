@@ -6,9 +6,16 @@ packages:
   - python3.12-venv
   - rsync
 runcmd:
-  - git clone https://github.com/orengacademy/pqc-scanner2 /root/pqc-scanner2
-  - git -C /root/pqc-scanner2 checkout @PQC_REF@
-  - python3 -m venv /root/pqc-scanner2/.venv
-  - /root/pqc-scanner2/.venv/bin/pip install -e "/root/pqc-scanner2[dev,verify]" py-spy
-  - docker pull postgres:16-alpine
-  - touch /root/READY
+  # One bash script (runcmd's default /bin/sh is dash, which has no pipefail). Any failing step stops it
+  # and writes /root/FAILED; only a complete setup writes /root/READY, holding the checked-out sha.
+  - - bash
+    - -c
+    - |
+      set -euo pipefail
+      trap 'echo "setup failed at line $LINENO: $BASH_COMMAND" > /root/FAILED' ERR
+      git clone https://github.com/orengacademy/pqc-scanner2 /root/pqc-scanner2
+      git -C /root/pqc-scanner2 checkout @PQC_REF@
+      python3 -m venv /root/pqc-scanner2/.venv
+      /root/pqc-scanner2/.venv/bin/pip install -e "/root/pqc-scanner2[dev,verify]" py-spy
+      docker pull postgres:16-alpine
+      git -C /root/pqc-scanner2 rev-parse HEAD > /root/READY
