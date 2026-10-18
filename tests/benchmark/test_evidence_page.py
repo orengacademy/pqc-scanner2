@@ -35,6 +35,9 @@ def _tree(tmp_path: Path) -> Path:
     for i, (rate, p95) in enumerate([(1, 300), (2, 900), (4, 2600)]):
         for seed in (1, 2):
             (res / f"load-sqlite-20261019-{i}-s{seed}-sweep.json").write_text(json.dumps(_sweep("sqlite", rate, seed, p95)))
+    par = {**_sweep("postgres", 4, 1, 2500), "ingest_parallelism": 3}
+    (res / "load-postgres-20261019-par-3.json").write_text(json.dumps(par))
+    (res / "load-postgres-20261019-parade.json").write_text(json.dumps({**par, "ingest_parallelism": 9}))  # not -par
     (res / "soak-real-20261018.json").write_text(json.dumps({
         "started_at": "2026-10-18T13:43:46+00:00",
         "cycles": [{"hosts_enrolled": 3, "scans_total": 3, "drift_rows_total": 0,
@@ -87,6 +90,9 @@ def test_render_has_item_table_capacity_row_source_cells_and_pending_mutation(tm
     assert "pending" in mutation[:mutation.index("</section>")].lower()
     assert "1,908,779" in html or "ubuntu" in html  # the soak host row
     assert "{{" not in html and "}}" not in html and "{%" not in html  # no template text leaks into the page
+    assert "benchmark/<wbr>fleet/<wbr>results/<wbr>load-sqlite-20261019-0-s1-sweep.json" in html  # full repo path
+    par = html[html.index("Postgres ingest parallelism"):html.index("Postgres insert strategy")]
+    assert "load-postgres-20261019-par-3.json" in par and "parade" not in html
     assert "load-sqlite-<wbr>-*-sweep*.json" not in html and "results/<wbr>load-sqlite-*-sweep*.json" in html
 
 
@@ -111,6 +117,9 @@ def test_item_6_follows_the_f6_row(tmp_path):
 def test_empty_tree_renders_pending_everywhere_without_crashing(tmp_path):
     html = evidence_page.render(evidence_page.load(tmp_path))
     assert "<title>" in html and html.lower().count("pending") >= 4
+    cap = html[html.index('id="capacity"'):]
+    cap = cap[:cap.index("</section>")]
+    assert 'class="cap"' not in cap and "Pending. No <code>-sweep</code> result files exist yet" in cap
 
 
 def test_the_committed_page_has_no_external_scripts():
@@ -118,6 +127,7 @@ def test_the_committed_page_has_no_external_scripts():
     allowed = ("https://cdnjs.cloudflare.com/", "https://cdn.jsdelivr.net/npm/", "https://unpkg.com/")
     srcs = re.findall(r'<script[^>]*\ssrc="([^"]+)"', html)
     assert all(s.startswith(allowed) for s in srcs) and not srcs
+    assert "<script" not in html.lower()  # no inline script either
     assert "ubuntu" in html and 'id="capacity"' in html
     assert "1,908,779" in html  # ubuntu agent state bytes from results/soak-real/ubuntu-samples.csv
     d = evidence_page.load(REPO)

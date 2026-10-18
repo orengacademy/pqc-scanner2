@@ -161,7 +161,7 @@ footer { color: var(--muted); font-size: .85rem; margin-top: 28px; }
     <tbody>
     {% for db, c in d.capacity.items() %}{% for r in c.rows %}
     <tr><td>{{ db }}</td><td class="num">{{ r.offered_rps|g }}</td><td class="num">{{ r.seed }}</td><td class="num">{{ r.p95_ms|n('{:,.0f}') }}</td>
-      <td class="num">{{ r.rps|g }}</td><td class="num">{{ r.littles_ratio|g }}</td><td>{{ verdict(r) }}</td><td class="src">{{ r._file|wbr }}</td></tr>
+      <td class="num">{{ r.rps|g }}</td><td class="num">{{ r.littles_ratio|g }}</td><td>{{ verdict(r) }}</td><td class="src">{{ r._src|wbr }}</td></tr>
     {% endfor %}{% endfor %}
     </tbody>
   </table></div>
@@ -175,11 +175,24 @@ footer { color: var(--muted); font-size: .85rem; margin-top: 28px; }
     <thead><tr><th>Backend</th><th class="num">Requests</th><th class="num">503</th><th class="num">Errors</th><th class="num">p95 ms</th><th>Result</th><th>Source</th></tr></thead>
     <tbody>{% for r in d.results['-herd'] %}
     <tr><td>{{ r.db }}</td><td class="num">{{ r.requests|n }}</td><td class="num">{{ r.http_503|n }}</td><td class="num">{{ r.errors|n }}</td>
-      <td class="num">{{ r.p95_ms|n('{:,.0f}') }}</td><td>{{ verdict(r) }}</td><td class="src">{{ r._file|wbr }}</td></tr>
+      <td class="num">{{ r.p95_ms|n('{:,.0f}') }}</td><td>{{ verdict(r) }}</td><td class="src">{{ r._src|wbr }}</td></tr>
     {% endfor %}</tbody>
   </table></div>
   {% else %}
   <p class="empty">Pending. No schema-2 herd result exists yet.</p>
+  {% endif %}
+
+  <h3>Postgres ingest parallelism</h3>
+  {% if d.results['-par'] %}
+  <div class="scroll" role="region" aria-label="Postgres parallelism runs" tabindex="0"><table>
+    <thead><tr><th class="num">Rate</th><th class="num">Slots</th><th class="num">Seed</th><th class="num">p95 ms</th><th class="num">Achieved rps</th><th class="num">Little ratio</th><th>Result</th><th>Source</th></tr></thead>
+    <tbody>{% for r in d.results['-par']|sort(attribute='_file') %}
+    <tr><td class="num">{{ r.offered_rps|g }}</td><td class="num">{{ r.ingest_parallelism|n }}</td><td class="num">{{ r.seed }}</td><td class="num">{{ r.p95_ms|n('{:,.0f}') }}</td>
+      <td class="num">{{ r.rps|g }}</td><td class="num">{{ r.littles_ratio|g }}</td><td>{{ verdict(r) }}</td><td class="src">{{ r._src|wbr }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}
+  <p class="empty">Pending. No parallelism results exist yet.</p>
   {% endif %}
 
   <h3>Postgres insert strategy, 500 hosts at 4 posts/s</h3>
@@ -188,7 +201,7 @@ footer { color: var(--muted); font-size: .85rem; margin-top: 28px; }
     <thead><tr><th>Insert</th><th class="num">Slots</th><th class="num">p95 ms</th><th class="num">Achieved rps</th><th class="num">Stored scans</th><th class="num">503</th><th>Result</th><th>Source</th></tr></thead>
     <tbody>{% for r in d.results['-pginsert']|sort(attribute='_file') %}
     <tr><td>{{ r.insert_mode or '-' }}</td><td class="num">{{ r.ingest_parallelism|n }}</td><td class="num">{{ r.p95_ms|n('{:,.0f}') }}</td>
-      <td class="num">{{ r.rps|g }}</td><td class="num">{{ r.stored_scans|n }}</td><td class="num">{{ r.http_503|n }}</td><td>{{ verdict(r) }}</td><td class="src">{{ r._file|wbr }}</td></tr>
+      <td class="num">{{ r.rps|g }}</td><td class="num">{{ r.stored_scans|n }}</td><td class="num">{{ r.http_503|n }}</td><td>{{ verdict(r) }}</td><td class="src">{{ r._src|wbr }}</td></tr>
     {% endfor %}</tbody>
   </table></div>
   {% else %}

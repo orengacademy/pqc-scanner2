@@ -38,9 +38,9 @@ def _results(root: Path) -> dict[str, list[dict]]:
         if not isinstance(r, dict) or r.get("schema_version", 0) < 2:
             continue
         for tag, rows in found.items():
-            if tag in f.name:
+            if tag[1:] in f.stem.split("-"):  # a whole name segment: -par must not match a longer word
                 key = (r["db"], r.get("offered_rps"), r["seed"], r.get("ingest_parallelism"), r.get("insert_mode"))
-                rows[key] = {**r, "_file": f.name}
+                rows[key] = {**r, "_file": f.name, "_src": f"{RES}/{f.name}"}
     return {t: list(rows.values()) for t, rows in found.items()}
 
 
@@ -204,7 +204,7 @@ def _items(d: dict) -> list[dict]:
         i3 = ("ok" if clean else "bad", "Holds" if clean else "Fails",
               queue + (" The herd run's failures are all 503s." if clean
                        else " The herd run has failures that are not 503s."),
-              ", ".join(f"{RES}/{r['_file']}" for r in herd))
+              ", ".join(r["_src"] for r in herd))
     else:
         i3 = ("wait", "Partial", queue + " Herd result pending.", "commits aaa9c0c, 6e7d8a4; daemon/fleet.py")
     linux = [h["host"] for h in soak["hosts"] if h["role"] == "agent"]
