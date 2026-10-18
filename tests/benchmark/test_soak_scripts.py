@@ -19,6 +19,11 @@ def test_windows_soak_workflow_loads_and_pins_identity():
     assert wf[True]["schedule"] == [{"cron": "0 2 * * *"}]        # PyYAML parses `on` as True
     steps = "\n".join(str(s) for s in wf["jobs"]["agent"]["steps"])
     assert "MachineGuid" in steps and "actions/cache/restore" in steps and "--once" in steps
+    # The cache holds agent.token: only the encrypted tarball may go in or come out.
+    assert "SOAK_STATE_KEY" in steps
+    cache = {s["uses"].split("@")[0]: s["with"]["path"] for s in wf["jobs"]["agent"]["steps"]
+             if s.get("uses", "").startswith("actions/cache/")}
+    assert cache["actions/cache/save"].endswith(".enc") and cache["actions/cache/restore"].endswith(".enc")
 
 
 def test_sampler_header_matches_collect_parser():

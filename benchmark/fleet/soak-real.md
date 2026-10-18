@@ -22,7 +22,10 @@ labelled "simulated".
 
 GitHub-hosted runners do not offer Windows 11. Each runner job is a fresh VM. The workflow makes it the same fleet host every
 night in three steps. It pins the registry value pqcscan hashes into the machine id (`src/pqcscan/util/hostid.py`). It restores
-`agent.token`, the spool and `agent.db` from the cache. It saves them again after the run, even a failed one.
+`agent.token`, the spool and `agent.db` from the cache. It saves them again after the run, even a failed one. The cache only
+ever holds an AES-256 encrypted tarball of the state dir. Any workflow in this public repo can restore the repo's caches,
+and the key is the repository secret `SOAK_STATE_KEY`. The job never re-enrols to work around a missing or bad cache. A
+tarball that does not decrypt fails the job.
 
 The Linux agents run the shipped `packaging/fleet/pqcscan-agent.service` and `.timer` unchanged. One drop-in,
 `pqcscan-agent.service.d/ca.conf`, repeats the shipped `ExecStart` with `--ca-cert /etc/pqcscan/ca.pem` appended, as the unit's
@@ -73,6 +76,8 @@ PQC_REF=$(git rev-parse HEAD) bash benchmark/fleet/cloud/soak.sh up
   printf %s "$SOAK_SERVER_URL"   | gh secret set SOAK_SERVER_URL
   printf %s "$SOAK_ENROLL_TOKEN" | gh secret set SOAK_ENROLL_TOKEN
   gh secret set SOAK_CA_PEM < "$SOAK_CA_PEM_PATH"
+  (umask 077; openssl rand -hex 32 > ~/.config/pqc-soak/state-key)   # encrypts the cached Windows state dir
+  gh secret set SOAK_STATE_KEY < ~/.config/pqc-soak/state-key
   gh variable set SOAK_REF --body "$SOAK_REF" )
 gh workflow run soak-windows.yml
 
@@ -145,9 +150,10 @@ These are DigitalOcean list prices when this was written. Droplets bill until de
 bash benchmark/fleet/cloud/soak.sh down                 # destroys the four droplets and the pinned host keys
 gh workflow disable soak-windows.yml                    # otherwise it runs nightly against a dead collector
 gh secret delete SOAK_SERVER_URL; gh secret delete SOAK_ENROLL_TOKEN; gh secret delete SOAK_CA_PEM
+gh secret delete SOAK_STATE_KEY
 gh variable delete SOAK_REF
-gh cache list --key soak-state- --json id --jq '.[].id' | xargs -r -n1 gh cache delete   # the Windows agent tokens
-rm -rf ~/.config/pqc-soak                               # tokens, CA, DB copies, journals
+gh cache list --key soak-state- --json id --jq '.[].id' | xargs -r -n1 gh cache delete   # encrypted Windows state
+rm -rf ~/.config/pqc-soak                               # tokens, state key, CA, DB copies, journals
 ```
 
 ## What this does not test
@@ -160,7 +166,6 @@ rm -rf ~/.config/pqc-soak                               # tokens, CA, DB copies,
   `%ProgramData%` ACLs, no PowerShell 5.1 and no sleep or wake behaviour. The runners run the release-spec binary with the
   same `agent --once` flags.
 - **Postgres, 30 hosts, injected faults.** One SQLite collector, five hosts, a healthy week.
-- **Secrecy of the Windows agent tokens.** The Actions cache on the default branch can be restored by a workflow in a
-  pull request, including one from a fork. Someone who opens a pull request could read the two Windows hosts' agent tokens
-  and post as those hosts until teardown. The enroll token is a secret and is not exposed that way. Unexpected ingest
-  counts for a Windows host would show it.
+- **Losing the state key.** If `SOAK_STATE_KEY` is reset or lost, the cached state cannot be decrypted and the Windows
+  jobs fail. The fix is to delete the `soak-state-*` caches, which makes both hosts re-enrol once. That is a token refresh
+  to record against the prediction. Keep `~/.config/pqc-soak/state-key` until teardown.

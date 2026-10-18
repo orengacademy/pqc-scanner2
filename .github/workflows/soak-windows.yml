@@ -1,10 +1,11 @@
 name: soak-windows
 # Real soak, Windows side (benchmark/fleet/soak-real.md): one `pqcscan agent --once` per runner image per night
 # against the soak collector. Identity is pinned (MachineGuid) and the state dir (agent.token, spool, agent.db)
-# carries over between runs through the Actions cache, so each image is one fleet host for the whole soak.
+# carries over between runs through the Actions cache, encrypted, so each image is one fleet host for the whole soak.
 # GitHub runs schedule and workflow_dispatch only from the default branch's copy of this file; the code under
 # test is the commit in the repository variable SOAK_REF, checked out below.
-# Secrets: SOAK_SERVER_URL, SOAK_ENROLL_TOKEN, SOAK_CA_PEM (from ~/.config/pqc-soak/env, see soak-real.md).
+# Secrets: SOAK_SERVER_URL, SOAK_ENROLL_TOKEN, SOAK_CA_PEM (from ~/.config/pqc-soak/env), SOAK_STATE_KEY (the key
+# the cached state dir is encrypted with); see soak-real.md.
 on:
   schedule:
     - cron: "0 2 * * *"
@@ -59,11 +60,40 @@ jobs:
           Set-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Cryptography -Name MachineGuid -Value '${{ matrix.os == 'windows-2022' && '6b1f0c2e-0000-4000-8000-000000002022' || '6b1f0c2e-0000-4000-8000-000000002025' }}'
           Get-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Cryptography -Name MachineGuid | Select-Object MachineGuid
 
+      # The state dir holds agent.token, the spool and the scan DB. Any workflow in this public repo can restore
+      # this repo's caches, so only an AES-256 encrypted tarball of it goes into the cache (key: secret SOAK_STATE_KEY).
+      # tar is Windows' bundled bsdtar (takes C:\ paths); openssl is Git for Windows'.
+      - name: Check tar, openssl and SOAK_STATE_KEY
+        env:
+          SOAK_STATE_KEY: ${{ secrets.SOAK_STATE_KEY }}
+        run: |
+          $tar = "$env:SystemRoot\System32\tar.exe"
+          $openssl = "C:\Program Files\Git\usr\bin\openssl.exe"
+          foreach ($t in $tar, $openssl) { if (-not (Test-Path $t)) { throw "missing $t on this runner image" } }
+          if (-not $env:SOAK_STATE_KEY) { throw "secret SOAK_STATE_KEY is not set (openssl rand -hex 32)" }
+          & $openssl version
+          "SOAK_TAR=$tar" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "SOAK_OPENSSL=$openssl" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
       - uses: actions/cache/restore@v4
         with:
-          path: ${{ runner.temp }}\pqc-state
+          path: ${{ runner.temp }}\pqc-state.tar.gz.enc
           key: soak-state-${{ matrix.os }}-${{ github.run_id }}
           restore-keys: soak-state-${{ matrix.os }}-
+
+      # Nothing restored (first night): the agent enrolls. Restored but undecryptable: fail, never re-enroll quietly.
+      - name: Decrypt state dir
+        env:
+          SOAK_STATE_KEY: ${{ secrets.SOAK_STATE_KEY }}
+        run: |
+          $enc = "$env:RUNNER_TEMP\pqc-state.tar.gz.enc"; $tgz = "$env:RUNNER_TEMP\pqc-state.tar.gz"
+          if (-not (Test-Path $enc)) { "no cached state: this run enrolls"; exit 0 }
+          & $env:SOAK_OPENSSL enc -d -aes-256-cbc -pbkdf2 -salt -pass env:SOAK_STATE_KEY -in $enc -out $tgz
+          if ($LASTEXITCODE) { throw "decrypting the cached state failed (wrong SOAK_STATE_KEY?)" }
+          New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\pqc-state" | Out-Null
+          & $env:SOAK_TAR -xzf $tgz -C "$env:RUNNER_TEMP\pqc-state"
+          if ($LASTEXITCODE) { throw "unpacking the cached state failed" }
+          Remove-Item $tgz
 
       - name: Write CA
         env:
@@ -87,10 +117,26 @@ jobs:
           (Get-Content agent.log) -replace [regex]::Escape($env:SOAK_ENROLL_TOKEN), '<enroll-token>' | Set-Content agent.log
           exit $code
 
-      - uses: actions/cache/save@v4
+      # Runs after a failed agent too: the token and the spool must survive to the next night.
+      - name: Encrypt state dir
+        id: encrypt
         if: always()
+        env:
+          SOAK_STATE_KEY: ${{ secrets.SOAK_STATE_KEY }}
+        run: |
+          $state = "$env:RUNNER_TEMP\pqc-state"
+          $enc = "$env:RUNNER_TEMP\pqc-state.tar.gz.enc"; $tgz = "$env:RUNNER_TEMP\pqc-state.tar.gz"
+          if (-not (Test-Path $state)) { throw "no state dir to save: the agent did not run" }
+          & $env:SOAK_TAR -czf $tgz -C $state .
+          if ($LASTEXITCODE) { throw "packing the state dir failed" }
+          & $env:SOAK_OPENSSL enc -aes-256-cbc -pbkdf2 -salt -pass env:SOAK_STATE_KEY -in $tgz -out $enc
+          if ($LASTEXITCODE) { throw "encrypting the state dir failed" }
+          Remove-Item $tgz
+
+      - uses: actions/cache/save@v4
+        if: always() && steps.encrypt.outcome == 'success'
         with:
-          path: ${{ runner.temp }}\pqc-state
+          path: ${{ runner.temp }}\pqc-state.tar.gz.enc
           key: soak-state-${{ matrix.os }}-${{ github.run_id }}
 
       - name: List state dir
