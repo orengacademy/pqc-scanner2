@@ -149,7 +149,7 @@ footer { color: var(--muted); font-size: .85rem; margin-top: 28px; }
     <thead><tr><th>Backend</th><th class="num">λ_max posts/s</th><th class="num">Band</th><th class="num">Hosts/day, 2 h</th><th class="num">Hosts/day, 24 h</th><th class="num">Runs</th><th>Source</th></tr></thead>
     <tbody>
     {% for db, c in d.capacity.items() %}
-    <tr class="cap"><td>{{ db }}</td><td class="num">{{ c.lambda_max|g }}</td><td class="num">{{ c.band[0]|g }} to {{ c.band[1]|g }}</td>
+    <tr class="cap"><td>{{ db }}</td>{% if c.lambda_max is none %}<td class="num">none passed</td><td class="num">lowest failure {{ c.band[1]|g }}</td>{% else %}<td class="num">{{ c.lambda_max|g }}</td><td class="num">{{ c.band[0]|g }} to {{ c.band[1]|g }}</td>{% endif %}
       <td class="num">{{ c.hosts_daily_2h|n }}</td><td class="num">{{ c.hosts_daily_24h|n }}</td><td class="num">{{ c.rows|length }}</td>
       <td class="src">{{ ("benchmark/fleet/results/load-" ~ db ~ "-*-sweep*.json")|wbr }}</td></tr>
     {% endfor %}
@@ -165,6 +165,10 @@ footer { color: var(--muted); font-size: .85rem; margin-top: 28px; }
     {% endfor %}{% endfor %}
     </tbody>
   </table></div>
+  {% set sup = d.capacity.values()|map(attribute='superseded')|map('length')|sum %}
+  {% if sup %}
+  <p>{{ sup }} more sweep runs, at the old 4-slot Postgres default, are not counted. They are listed in CAPACITY.md under superseded runs.</p>
+  {% endif %}
   {% else %}
   <p class="empty">Pending. No <code>-sweep</code> result files exist yet, so no backend has a capacity number.</p>
   {% endif %}

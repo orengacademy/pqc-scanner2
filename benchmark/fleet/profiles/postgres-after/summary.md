@@ -10,6 +10,8 @@ Commit `04c2650dd`, box {'cpus': 8, 'cpu_model': 'DO-Regular', 'mem_gb': 16}, wa
 | `_communicate_gen (psycopg/_pipeline_base.py:112)` | 26.8 | 26.8 |
 | `run (asyncio/runners.py:118)` | 3.2 | 5.3 |
 
+Before: `_communicate_gen (psycopg/_pipeline_base.py:112)` 28.1% (profiles/postgres-before)
+
 Harness instrumentation (statement counter, asyncio debug tracebacks), left out of the table: 12.7 % of samples.
 
 Statements per ingest: **16102.6** (total statements over the run divided by the 235 scans the collector reports stored; enrolments (500) and the post-run fleet reads are included; source: pg_stat_statements).

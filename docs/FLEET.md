@@ -168,15 +168,27 @@ as change. `pqcscan diff --parity` uses the same key to compare a primary with i
   and flushing continues. Nothing prunes that directory, so clear it by hand. A revoked host's
   ingest gets 401 and its re-enroll gets 403, so its bundles spool and replay after `agents unrevoke`.
   Replaying needs the enrollment token on the host again (`--enroll-token` / `PQCSCAN_ENROLL_TOKEN`) if it was removed after the first run.
-- **Ingest capacity.** TODO(task5): the measured λ_max per backend (posts per second at p95 < 2 s, 1,670-finding
-  bundles). History: the PR #92 rows ran on a shared box at 8.3 posts/s, 30 times FLEET.md's 2,000-host rate.
-  See `benchmark/fleet/LOAD.md` and [FLEET-EVIDENCE.md](FLEET-EVIDENCE.md).
+- **Ingest capacity.** Measured on an 8-vCPU DigitalOcean droplet (`benchmark/fleet/CAPACITY.md`, CPU model
+  `DO-Regular`, shared cores), with 1,670-finding bundles and p95 under 2 s, SQLite sustains λ_max = 1 post/s (band 1 to
+  2). Under the daily timer with a 2 h jitter that is about 7,200 hosts, or 86,400 if the posts are spread over 24 h.
+  Postgres met p95 < 2 s at no swept rate: at the lowest, 0.5 posts/s, p95 was 2.2 to 2.3 s, and the sweep did not go
+  lower. FLEET.md's 2,000 hosts offer 0.28 posts/s, inside the SQLite figure with margin. A herd of 500 hosts at once gets
+  1,186 `503`s on SQLite and 1,272 on Postgres, and 6 and 14 ingests that were never answered; p95 stays at 15 s and
+  27 s, below the agent's 60 s timeout. These figures are for this box class: the GitHub `ubuntu-latest` runner measured
+  p95 150 ms (SQLite) and 710 ms (Postgres) at 1 post/s, five to six times faster than this box at that rate. History:
+  the PR #92 rows ran at 8.3 posts/s, 30 times FLEET.md's 2,000-host rate. See `benchmark/fleet/LOAD.md` and
+  [FLEET-EVIDENCE.md](FLEET-EVIDENCE.md).
 - **Postgres is tested in CI and profiled.** The URL is accepted, `fleet-pg` installs the driver, and the CI job
   `postgres` (`.github/workflows/verify.yml`) runs 120 fleet tests against `postgres:16-alpine`. Under the load test
-  it was no faster than SQLite. Profiled in `benchmark/fleet/profiles/postgres-before`: `_communicate_gen`
-  (the psycopg pipeline: one server execution and one FK check per inserted row) was 28.1 %; after TODO(task5) it
-  is TODO(task5) %. SQLite stores findings as multi-row `INSERT ... VALUES` pages and Postgres keeps psycopg's pipelined
-  one-row-per-execution inserts: on the load box Postgres reached the same rate either way, bound by its per-row FK
-  checks, with lower latency pipelined (`benchmark/fleet/results/load-postgres-20261018-r4-pginsert*.json`). Four
-  ingest slots instead of two were measured slower on Postgres (p95 29 s against 48 s on the box, 1.5 to 2.2 times
-  in CI), so it parses two bundles at a time like SQLite.
+  it was no faster than SQLite, and on the 8-vCPU `DO-Regular` droplet it does not reach p95 < 2 s with 1,670-finding
+  bundles at any swept rate, while the CI runner does at 1 post/s (p95 710 ms). Profiled before and after
+  (`benchmark/fleet/profiles/postgres-before`, `postgres-after`): statements per ingest went from 16,996 to 16,103,
+  time inside psycopg's `wait` from 66.4 % to 68.8 % of sampled wall time, and `_communicate_gen` (the psycopg
+  pipeline: one server execution and one FK check per inserted row) from 28.1 % to 26.8 % self. SQLite stores findings
+  as multi-row `INSERT ... VALUES` pages and Postgres keeps psycopg's pipelined one-row-per-execution inserts: on the
+  load box Postgres reached the same rate either way, bound by its per-row FK checks, with lower latency pipelined
+  (`benchmark/fleet/results/load-postgres-20261018-r4-pginsert*.json`). Four ingest slots instead of two were measured
+  slower on Postgres (p95 29 s against 48 s at 4 posts/s on the box, 1.5 to 2.2 times in CI, and 7.5 to 8.8 s against
+  2.2 to 2.3 s at 0.5 posts/s), so it parses two bundles at a time like SQLite. The per-row cost is finding F23 in
+  `benchmark/fleet/CAPACITY.md`; bulk loading with `COPY` or batched inserts and deferred FK checks is the proposed
+  fix and is not done.

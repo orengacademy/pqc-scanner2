@@ -19,7 +19,6 @@ from benchmark.fleet import capacity as cap
 
 ROOT = Path(__file__).resolve().parents[2]
 RES = "benchmark/fleet/results"
-TAGS = ("-sweep", "-herd", "-par", "-pginsert")
 
 
 def _json(p: Path):
@@ -30,18 +29,8 @@ def _json(p: Path):
 
 
 def _results(root: Path) -> dict[str, list[dict]]:
-    """Schema-2 load results by tag, a re-run of the same point replacing the earlier one (as capacity.load does),
-    with the file name kept for the source cell."""
-    found: dict[str, dict[tuple, dict]] = {t: {} for t in TAGS}
-    for f in sorted((root / RES).glob("load-*.json")):
-        r = _json(f)
-        if not isinstance(r, dict) or r.get("schema_version", 0) < 2:
-            continue
-        for tag, rows in found.items():
-            if tag[1:] in f.stem.split("-"):  # a whole name segment: -par must not match a longer word
-                key = (r["db"], r.get("offered_rps"), r["seed"], r.get("ingest_parallelism"), r.get("insert_mode"))
-                rows[key] = {**r, "_file": f.name, "_src": f"{RES}/{f.name}"}
-    return {t: list(rows.values()) for t, rows in found.items()}
+    """Schema-2 load results by tag (capacity.load), each row carrying `_file` and `_src` for the source cell."""
+    return cap.load(root / RES)
 
 
 def _profiles(root: Path) -> dict:
@@ -189,8 +178,10 @@ def _items(d: dict) -> list[dict]:
     else:
         i1 = ("wait", "Pending", "Before and after profiles are not both present.", "benchmark/fleet/profiles/")
     if caps:
-        txt = "; ".join(f"{db} λ_max {_g(c['lambda_max'])} posts/s (band {_g(c['band'][0])} to {_g(c['band'][1])})"
-                        for db, c in caps.items())
+        txt = "; ".join(
+            f"{db} λ_max {_g(c['lambda_max'])} posts/s (band {_g(c['band'][0])} to {_g(c['band'][1])})"
+            if c["lambda_max"] is not None else f"{db}: no swept rate passed, lowest failure {_g(c['band'][1])} posts/s"
+            for db, c in caps.items())
         i2 = ("ok", "Measured", txt + ".", f"{RES}/load-*-sweep*.json")
     else:
         i2 = ("wait", "Pending",

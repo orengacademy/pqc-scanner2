@@ -40,5 +40,29 @@ def test_a_rate_with_one_seed_does_not_count_and_dbs_stay_apart():
 
 
 def test_no_results_renders_a_file_saying_so():
-    md = capacity.render([], [], [])
+    md = capacity.render({})
     assert "No sweep results" in md
+
+
+def test_rows_at_another_slot_count_are_superseded_not_counted():
+    ok = [{**row("postgres", 1, s, 300), "ingest_parallelism": 2} for s in (1, 2)]
+    old = [{**row("postgres", 2, s, 300), "ingest_parallelism": 4} for s in (1, 2)]
+    c = capacity.capacity(ok + old)["postgres"]
+    assert c["lambda_max"] == 1 and c["band"] == [1, None]
+    assert [r["offered_rps"] for r in c["rows"]] == [1, 1] and [r["offered_rps"] for r in c["superseded"]] == [2, 2]
+
+
+def test_load_matches_whole_name_segments_and_keeps_both_host_counts(tmp_path):
+    import json
+
+    def put(name, **kw):
+        (tmp_path / name).write_text(json.dumps({**row("sqlite", 2, 1, 300), "schema_version": 2, **kw}))
+    put("load-sqlite-20261018-250h-r2-sweep.json", hosts=250)
+    put("load-sqlite-20261018-r2-sweep.json", hosts=500)        # same rate, db and seed, other host count
+    put("load-sqlite-20261018-r4-par.json", ingest_parallelism=3)
+    put("load-sqlite-20261018-parade.json")                      # "par" is only part of this word
+    put("load-sqlite-20261017-sweep.json", schema_version=1)     # PR #92 format
+    res = capacity.load(tmp_path)
+    assert sorted(r["hosts"] for r in res["-sweep"]) == [250, 500]
+    assert [r["_file"] for r in res["-par"]] == ["load-sqlite-20261018-r4-par.json"]
+    assert res["-herd"] == [] and res["-pginsert"] == []
