@@ -1,0 +1,12 @@
+# pqcscan.daemon.fleet.x_build_fleet_router__mutmut_53: survived
+--- src/pqcscan/daemon/fleet.py
++++ src/pqcscan/daemon/fleet.py
+@@ -16,7 +16,7 @@
+         try:
+             host = await run_in_threadpool(repo.get_host_by_token_hash, hash_token(auth[7:].strip()))
+         except OperationalError as e:
+-            raise HTTPException(503, "store busy, retry later", headers={"Retry-After": "5"}) from e
++            raise HTTPException(503, "store busy, retry later", headers={"RETRY-AFTER": "5"}) from e
+         if host is None or host.revoked:
+             raise HTTPException(401, "unknown or revoked agent token")
+         return host

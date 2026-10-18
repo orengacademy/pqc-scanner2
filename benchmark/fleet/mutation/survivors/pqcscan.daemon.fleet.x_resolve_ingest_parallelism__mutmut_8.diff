@@ -1,0 +1,12 @@
+# pqcscan.daemon.fleet.x_resolve_ingest_parallelism__mutmut_8: survived
+--- src/pqcscan/daemon/fleet.py
++++ src/pqcscan/daemon/fleet.py
+@@ -2,7 +2,7 @@
+     """Bundles parsed/stored at once: `given`, else by dialect (INGEST_PARALLELISM_PG on Postgres, INGEST_PARALLELISM
+     elsewhere). Below 1 no ingest could ever run, so it is refused."""
+     n = given if given is not None else (
+-        INGEST_PARALLELISM_PG if repo.engine.dialect.name == "postgresql" else INGEST_PARALLELISM)
++        INGEST_PARALLELISM_PG if repo.engine.dialect.name == "XXpostgresqlXX" else INGEST_PARALLELISM)
+     if n < 1:
+         raise ValueError(f"ingest_parallelism must be at least 1, not {n}")
+     return n

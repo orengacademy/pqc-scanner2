@@ -1,0 +1,12 @@
+# pqcscan.daemon.fleet.x_build_fleet_router__mutmut_6: survived
+--- src/pqcscan/daemon/fleet.py
++++ src/pqcscan/daemon/fleet.py
+@@ -4,7 +4,7 @@
+     router = APIRouter()
+     limiter = _TokenBucket()
+     # Per router (one per app): an asyncio.Semaphore binds to the loop it first blocks on.
+-    parse_slots = asyncio.Semaphore(resolve_ingest_parallelism(repo, ingest_parallelism))
++    parse_slots = asyncio.Semaphore(resolve_ingest_parallelism(None, ingest_parallelism))
+     queued = 0      # ingest requests with their body read, waiting for or holding a parse slot
+     reading = 0     # ingest requests reading their body
+     reading_by_host: dict[int, int] = {}   # of those, per host id; a host with none has no entry

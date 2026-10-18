@@ -1,0 +1,12 @@
+# pqcscan.daemon.fleet.x_build_fleet_router__mutmut_21: survived
+--- src/pqcscan/daemon/fleet.py
++++ src/pqcscan/daemon/fleet.py
+@@ -10,7 +10,7 @@
+     reading_by_host: dict[int, int] = {}   # of those, per host id; a host with none has no entry
+ 
+     async def _agent_host(request: Request):
+-        auth = request.headers.get("authorization", "")
++        auth = request.headers.get("AUTHORIZATION", "")
+         if not auth.lower().startswith("bearer "):
+             raise HTTPException(401, "agent token required")
+         try:
