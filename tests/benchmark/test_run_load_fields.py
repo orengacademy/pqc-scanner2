@@ -1,6 +1,8 @@
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from benchmark.fleet import run_load
 
@@ -22,3 +24,20 @@ def test_littles_law_flags_lost_requests():
 
 def test_rate_derives_interval():
     assert run_load.interval_for(hosts=500, rate=2.0) == 250.0
+
+
+def test_littles_not_evaluated_for_run_shorter_than_two_intervals():
+    r = run_load.littles(hosts=5, interval_s=60.0, mean_ms=200.0, achieved_rps=0.5, duration_s=100)
+    assert r["measurement_defect"] is None
+    assert "shorter than two intervals" in r["measurement_defect_reason"]
+    assert run_load.littles(hosts=5, interval_s=60.0, mean_ms=200.0, achieved_rps=0.08, duration_s=120)[
+        "measurement_defect"] is False
+
+
+def test_append_row_refuses_a_header_with_a_different_column_count(tmp_path):
+    md = tmp_path / "LOAD.md"
+    md.write_text("| date (UTC) | db | rps |\n|---|---|---|\n")
+    with pytest.raises(RuntimeError, match="3-column header"):
+        run_load._check_md_columns(md, run_load.ROW_COLUMNS)
+    md.write_text(run_load._load_md_head())          # the header the harness writes matches the row it appends
+    run_load._check_md_columns(md, run_load.ROW_COLUMNS)
