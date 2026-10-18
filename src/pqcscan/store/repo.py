@@ -106,6 +106,10 @@ class Repo:
         if url.startswith("sqlite"):
             kwargs["connect_args"] = {"check_same_thread": False}
         self.engine = create_engine(url, **kwargs)
+        # An executemany INSERT goes as multi-row INSERT ... VALUES pages of up to 1,000 rows (SQLAlchemy's
+        # "insertmanyvalues", which psycopg2 uses by default), compiled once: sqlite3 steps an executemany row by row
+        # and psycopg 3 pipelines one Execute per row, a GIL handoff each. Pages stay under SQLite's parameter limit.
+        self.engine.dialect.use_insertmanyvalues_wo_returning = True
 
         if self.engine.dialect.name == "sqlite":
             # WAL lets the daemon's background-thread writer coexist with request
@@ -498,7 +502,8 @@ class Repo:
             # One executemany for the findings, one query for their ids, one executemany for the views: no flush per
             # finding, and no INSERT ... RETURNING (SQLite before 3.35 lacks it). The scan row is new in this
             # transaction, so its findings are exactly ours, and rows of one executemany get ascending ids in
-            # parameter order (one session draws its sequence/rowid values in execution order).
+            # parameter order: it is sent as multi-row VALUES pages in that order (see __init__), and one session
+            # draws its sequence/rowid values in VALUES order.
             rows = [{
                 "scan_id": scan.id, "probe_id": str(f["probe_id"]), "algorithm": str(f.get("algorithm", "N/A")),
                 "classification": str(f.get("classification", "info")), "severity": str(f.get("severity", "info")),

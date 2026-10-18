@@ -444,9 +444,10 @@ def _doc_bundle(host: HostIdentity, n: int, *, views: int = 1, uuid: str | None 
 
 
 def _no_returning(repo: Repo) -> None:
-    """What SQLite < 3.35 looks like to SQLAlchemy: no RETURNING and no batched insert-many."""
-    repo.engine.dialect.insert_returning = False
-    repo.engine.dialect.use_insertmanyvalues = False
+    """What SQLite < 3.35 looks like to SQLAlchemy (its dialect clears these three): no RETURNING. Multi-row
+    INSERT ... VALUES pages still apply, they need only SQLite 3.7.11."""
+    d = repo.engine.dialect
+    d.insert_returning = d.update_returning = d.delete_returning = False
 
 
 def test_bulk_ingest_works_without_returning(tmp_db_path):
@@ -464,11 +465,21 @@ def test_bulk_ingest_works_without_returning(tmp_db_path):
 
 
 def test_bulk_ingest_across_the_batch_boundary(tmp_db_path):
-    """2,500 findings is past SQLAlchemy's 1,000-row insert batch; views must still land on the right finding."""
+    """2,500 findings is past SQLAlchemy's 1,000-row insert batch; views must still land on the right finding.
+
+    Findings and views go as multi-row INSERT ... VALUES pages, never executemany: sqlite3 steps an executemany row
+    by row and psycopg 3 pipelines one Execute per row (benchmark/fleet/profiles/*-before)."""
     fleet = Repo(tmp_db_path); fleet.init_schema()
     host = fleet.upsert_host(WEB01)
+    rows_per_statement: list[int] = []
+
+    @event.listens_for(fleet.engine, "before_cursor_execute")
+    def _note(conn, cursor, statement, parameters, context, executemany):
+        if statement.startswith(("INSERT INTO findings", "INSERT INTO framework_views")):
+            rows_per_statement.append(statement.count("), (") + 1)
     r = fleet.ingest_bundle(_doc_bundle(WEB01, 2500, views=2), host.id)
     assert (r.stored_findings, r.stored_views) == (2500, 5000)
+    assert sum(rows_per_statement) == 7500 and len(rows_per_statement) <= 10, rows_per_statement
     with Session(fleet.engine) as s:
         pairs = s.execute(select(FindingRow.title, FrameworkView.clause).join(
             FrameworkView, FrameworkView.finding_id == FindingRow.id).where(FindingRow.scan_id == r.scan_id)).all()
