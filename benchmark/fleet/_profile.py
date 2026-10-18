@@ -17,6 +17,9 @@ from pathlib import Path
 
 PTRACE_HINT = ("py-spy attaches with ptrace, which kernel.yama.ptrace_scope >= 1 reserves for root: "
                "run the harness as root or allow passwordless `sudo -n`")
+# Harness overhead, not product cost: the SQLite statement counter (_collector._profile_hooks) and the source
+# tracebacks asyncio debug mode captures for every callback (the price of the slow-callback log).
+INSTRUMENTATION = ("_count (", "extract (traceback.py", "extract_stack (traceback.py")
 
 
 @contextmanager
@@ -34,27 +37,54 @@ def pyspy(pid: int, out_dir: Path, rate: int = 100) -> Iterator[None]:
     out = out_dir / "pyspy.collapsed.txt"
     p = subprocess.Popen([*prefix, exe, "record", "-p", str(pid), "--rate", str(rate), "--threads", "--format", "raw",
                           "-o", str(out)], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    body_ok = False
     try:
         yield
+        body_ok = True
     finally:
         p.send_signal(signal.SIGINT)                # py-spy flushes its output on interrupt; sudo relays the signal
-        _, err = p.communicate(timeout=60)
-        if p.returncode not in (0, -signal.SIGINT) or not out.exists():
+        try:
+            _, err = p.communicate(timeout=60)
+        except subprocess.TimeoutExpired:
+            p.kill()
+            _, err = p.communicate()
+            err = b"no exit within 60 s of SIGINT, killed; " + err
+        ok = p.returncode in (0, -signal.SIGINT) and out.exists() and out.stat().st_size > 0
+        if not ok and body_ok:                      # never mask an exception already in flight
             raise RuntimeError(f"py-spy failed ({p.returncode}): {err.decode()[-500:]}; {PTRACE_HINT}")
 
 
+def _stacks(raw_path: Path) -> Iterator[tuple[list[str], int]]:
+    """(frames, sample count) per line of py-spy's collapsed stacks (`frame;frame;... count`)."""
+    for line in raw_path.read_text().splitlines():
+        stack, _, count = line.rpartition(" ")
+        if stack and count.isdigit():
+            yield stack.split(";"), int(count)
+
+
+def _is_instrumentation(frames: list[str]) -> bool:
+    return any(f.startswith(INSTRUMENTATION) for f in frames)
+
+
+def instrumentation_pct(raw_path: Path) -> float:
+    """Share of samples spent in the harness's own instrumentation (INSTRUMENTATION)."""
+    samples = instr = 0
+    for frames, c in _stacks(raw_path):
+        samples += c
+        instr += c if _is_instrumentation(frames) else 0
+    return round(100 * instr / samples, 1) if samples else 0.0
+
+
 def top_frames(raw_path: Path, n: int = 10) -> list[dict]:
-    """Self and total share per frame from py-spy's collapsed stacks (`frame;frame;... count`)."""
+    """Self and total share per frame, as a share of all samples. Samples inside the harness's instrumentation
+    are left out of the ranking (see instrumentation_pct), so harness overhead never ranks as a product cost."""
     self_c: collections.Counter[str] = collections.Counter()
     total_c: collections.Counter[str] = collections.Counter()
     samples = 0
-    for line in raw_path.read_text().splitlines() if raw_path.exists() else []:
-        stack, _, count = line.rpartition(" ")
-        if not stack or not count.isdigit():
-            continue
-        c = int(count)
+    for frames, c in _stacks(raw_path):
         samples += c
-        frames = stack.split(";")
+        if _is_instrumentation(frames):
+            continue
         self_c[frames[-1]] += c
         for f in set(frames):
             total_c[f] += c
@@ -83,17 +113,20 @@ def summarise(profile_dir: Path, *, ingest_requests: int, enroll_requests: int, 
     sp = profile_dir / "statements.json"
     stmts = json.loads(sp.read_text()) if sp.exists() else {}
     total = stmts.get("total_statements", 0)
+    stored = run.get("stored_scans") or 0
     s = {
         "run": {k: run.get(k) for k in ("db", "hosts", "interval_s", "offered_rps", "rps", "p50_ms", "p95_ms",
-                                         "findings_per_bundle", "commit", "src_hash", "box")},
+                                         "findings_per_bundle", "stored_scans", "seed", "commit", "src_hash",
+                                         "tree_dirty", "box", "command")},
         "wall_s": wall_s, "ingest_requests": ingest_requests, "enroll_requests": enroll_requests,
         "top_frames": top_frames(profile_dir / "pyspy.collapsed.txt", 10),
+        "instrumentation_pct": instrumentation_pct(profile_dir / "pyspy.collapsed.txt"),
         "slow_callbacks": slow_callbacks(profile_dir / "asyncio-slow.log"),
         "statements_source": stmts.get("source"),
         "statements_total": total,
-        "statements_per_ingest": round(total / ingest_requests, 1) if ingest_requests else None,
-        "statements_note": "total statements over the run divided by ingest requests; enrolments are included "
-                           f"({enroll_requests} enrolls)",
+        "statements_per_ingest": round(total / stored, 1) if stored else None,
+        "statements_note": f"total statements over the run divided by the {stored} scans the collector reports "
+                           f"stored; enrolments ({enroll_requests}) and the post-run fleet reads are included",
         "statements_top": stmts.get("top", [])[:25],
     }
     (profile_dir / "summary.json").write_text(json.dumps(s, indent=2) + "\n")
@@ -105,6 +138,8 @@ def summarise(profile_dir: Path, *, ingest_requests: int, enroll_requests: int, 
           "## Top three costs (share of sampled wall time, self)", "",
           "| frame | self % | total % |", "|---|---|---|",
           *[f"| `{t['frame']}` | {t['self_pct']} | {t['total_pct']} |" for t in top3], "",
+          f"Harness instrumentation (statement counter, asyncio debug tracebacks), left out of the table: "
+          f"{s['instrumentation_pct']} % of samples.", "",
           f"Statements per ingest: **{s['statements_per_ingest']}** ({s['statements_note']}; "
           f"source: {s['statements_source']}).", "",
           f"Slow event-loop callbacks (>= 100 ms): {s['slow_callbacks']['count']}, "

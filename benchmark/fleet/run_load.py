@@ -19,6 +19,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from datetime import UTC, datetime
@@ -176,8 +177,10 @@ def run(*, db: str, hosts: int, spawn_rate: int, duration_s: int, findings: int 
                    "LOAD_STAGGER": "1" if stagger else "0", "LOAD_SEED": str(seed),
                    "LOAD_REQUESTS_CSV": str(requests_csv)}
             locust_cmd += ["--host", url]
+            t0 = time.monotonic()
             with _profile.pyspy(os.getpid(), profile_dir) if profile_dir else nullcontext():
                 p = subprocess.run(locust_cmd, env=env, capture_output=True, text=True)
+            wall_s = round(time.monotonic() - t0, 1)
             stored_hosts, stored_scans = _stored(url) if p.returncode in (0, 1) else (0, 0)
         if p.returncode not in (0, 1) or not (work / "run_stats.csv").exists():   # 1 = locust saw failures
             raise RuntimeError(f"locust failed ({p.returncode}):\n{p.stderr[-2000:]}")
@@ -222,7 +225,7 @@ def run(*, db: str, hosts: int, spawn_rate: int, duration_s: int, findings: int 
     }
     if profile_dir:
         _profile.summarise(profile_dir, ingest_requests=result["requests"], enroll_requests=result["enroll_requests"],
-                           wall_s=duration_s, run=result)
+                           wall_s=wall_s, run=result)
         pd = profile_dir.resolve()
         result["profile_dir"] = str(pd.relative_to(REPO)) if pd.is_relative_to(REPO) else str(pd)
     if record:

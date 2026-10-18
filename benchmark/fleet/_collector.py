@@ -28,7 +28,8 @@ ENROLL_TOKEN = "load-enroll-token"
 PG_IMAGE = "postgres:16-alpine"
 PG_PROFILE_FLAGS = ("-c", "shared_preload_libraries=pg_stat_statements", "-c", "pg_stat_statements.track=all",
                     "-c", "session_preload_libraries=auto_explain", "-c", "auto_explain.log_min_duration=0",
-                    "-c", "auto_explain.log_analyze=on", "-c", "auto_explain.log_buffers=on")
+                    "-c", "auto_explain.log_analyze=on", "-c", "auto_explain.log_buffers=on",
+                    "-c", "auto_explain.sample_rate=0.02", "-c", "auto_explain.log_parameter_max_length=0")
 PG_TOP_SQL = ("SELECT calls, total_exec_time, mean_exec_time, rows, left(query, 200) FROM pg_stat_statements "
               "WHERE query NOT ILIKE '%pg_stat_statements%' ORDER BY total_exec_time DESC LIMIT 25")
 PG_SUM_SQL = "SELECT sum(calls) FROM pg_stat_statements WHERE query NOT ILIKE '%pg_stat_statements%'"
@@ -75,9 +76,13 @@ def postgres_container(profile: bool = False) -> Iterator[str]:
         subprocess.run(["docker", "kill", cid], capture_output=True)
 
 
+_QUOTED = re.compile(r"'(?:[^']|'')*'?")      # closing quote optional: a key may end inside a literal
+_DIGITS = re.compile(r"\d+")
+
+
 def _norm(sql: str) -> str:
-    """Statement shape for counting: quoted strings and digit runs become ?, whitespace collapses, 120 chars."""
-    return " ".join(re.sub(r"\d+", "?", re.sub(r"'(?:[^']|'')*'", "?", sql)).split())[:120]
+    """Statement shape for counting: quoted strings and digit runs become ?, whitespace collapses, 120 chars kept."""
+    return " ".join(_DIGITS.sub("?", _QUOTED.sub("?", sql[:200])).split())[:120]
 
 
 def _write_statements(out: Path, source: str, total: int, top: list[dict]) -> None:
@@ -116,7 +121,7 @@ def _profile_hooks(stack: ExitStack, app, profile_dir: Path) -> None:
         loop.slow_callback_duration = 0.1
 
     app.router.add_event_handler("startup", _debug)
-    fh = logging.FileHandler(profile_dir / "asyncio-slow.log")
+    fh = logging.FileHandler(profile_dir / "asyncio-slow.log", mode="w")     # a reused dir holds one run
     fh.setLevel(logging.WARNING)
     aio = logging.getLogger("asyncio")
     aio.addHandler(fh)
@@ -128,9 +133,20 @@ def _profile_hooks(stack: ExitStack, app, profile_dir: Path) -> None:
     counts: collections.Counter[str] = collections.Counter()
     lock = threading.Lock()          # sync endpoints run in a thread pool: the callback fires from many threads
 
-    def _count(sql: str) -> None:
+    def _count(sql: str) -> None:     # its frames are reported apart as _profile.instrumentation_pct
+        # The callback gets every expanded statement (each executemany row, literals and all): keep it to a slice
+        # and a counter bump, and normalise once per distinct key at dump time. Cutting at VALUES gives every row
+        # of an insert one key; other statements keep 200 chars.
+        key = sql.partition(" VALUES ")[0][:200]
         with lock:
-            counts[_norm(sql)] += 1
+            counts[key] += 1
+
+    def _dump() -> None:
+        shapes: collections.Counter[str] = collections.Counter()
+        for raw, n in counts.items():
+            shapes[_norm(raw)] += n
+        _write_statements(profile_dir / "statements.json", "sqlite3 trace callback", sum(shapes.values()),
+                          [{"sql": q, "count": n} for q, n in shapes.most_common(25)])
 
     @event.listens_for(engine, "connect")
     def _trace(dbapi_conn, _rec) -> None:
@@ -138,9 +154,7 @@ def _profile_hooks(stack: ExitStack, app, profile_dir: Path) -> None:
             dbapi_conn.set_trace_callback(_count)
 
     engine.dispose()                 # connections pooled during create_app predate the listener: reopen them
-    stack.callback(lambda: _write_statements(profile_dir / "statements.json", "sqlite3 trace callback",
-                                             sum(counts.values()),
-                                             [{"sql": q, "count": n} for q, n in counts.most_common(25)]))
+    stack.callback(_dump)
 
 
 @contextmanager
