@@ -1,0 +1,14 @@
+#cloud-config
+package_update: true
+packages:
+  - docker.io
+  - git
+  - python3.12-venv
+  - rsync
+runcmd:
+  - git clone https://github.com/orengacademy/pqc-scanner2 /root/pqc-scanner2
+  - git -C /root/pqc-scanner2 checkout @PQC_REF@
+  - python3 -m venv /root/pqc-scanner2/.venv
+  - /root/pqc-scanner2/.venv/bin/pip install -e "/root/pqc-scanner2[dev,verify]" py-spy
+  - docker pull postgres:16-alpine
+  - touch /root/READY
