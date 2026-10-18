@@ -444,7 +444,7 @@ html { font-family: var(--font-sans); }
 .nav-link.is-active { color: var(--accent); background: var(--surface-2); }
 .nav-underline { background: var(--accent); }
 /* Dark theme: the zinc-500 utility carries small labels and table text; lift it like --text-faint. */
-:root:not([data-theme="light"]) .text-zinc-500 { color: rgb(130 130 139); }
+:where(:root:not([data-theme="light"])) .text-zinc-500 { color: rgb(130 130 139); }   /* :where keeps it at (0,1,0) so hover: utilities still win */
 /* Fleet tables scroll sideways on phones; keep hostnames, labels and timestamps on one line instead of breaking them. */
 .table-nowrap th, .table-nowrap td { white-space: nowrap; }
 .nav-divider   { background: var(--border); }
