@@ -24,9 +24,16 @@ def test_windows_soak_workflow_loads_and_pins_identity():
     cache = {s["uses"].split("@")[0]: s["with"]["path"] for s in wf["jobs"]["agent"]["steps"]
              if s.get("uses", "").startswith("actions/cache/")}
     assert cache["actions/cache/save"].endswith(".enc") and cache["actions/cache/restore"].endswith(".enc")
-    # agent.log is a public artifact: the agent step scrubs the enroll token and the collector URL and host from it.
-    agent = next(s for s in wf["jobs"]["agent"]["steps"] if "--once" in s.get("run", ""))
-    assert all(k in agent["run"] for k in ("SOAK_ENROLL_TOKEN", "SOAK_SERVER_URL", "'<server>'", "::add-mask::"))
+    # agent.log is a public artifact. The agent writes raw output outside it; a separate scrub step writes it, and
+    # the upload runs only when that step succeeded (fail closed).
+    by_name = {s.get("id") or s.get("name") or s["uses"]: s for s in wf["jobs"]["agent"]["steps"]}
+    agent = next(s for s in by_name.values() if "--once" in s.get("run", ""))
+    assert "agent-raw.log" in agent["run"] and "::add-mask::" in agent["run"] and "Tee-Object agent.log" not in agent["run"]
+    scrub = by_name["scrub"]
+    assert scrub["if"] == "always()"
+    assert all(k in scrub["run"] for k in ("SOAK_ENROLL_TOKEN", "SOAK_SERVER_URL", "'<server>'", "agent-raw.log"))
+    upload = by_name["actions/upload-artifact@v4"]
+    assert "steps.scrub.outcome == 'success'" in upload["if"]
 
 
 def test_sampler_header_matches_collect_parser():

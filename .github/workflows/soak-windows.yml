@@ -119,19 +119,31 @@ jobs:
           SOAK_SERVER_URL: ${{ secrets.SOAK_SERVER_URL }}
           SOAK_ENROLL_TOKEN: ${{ secrets.SOAK_ENROLL_TOKEN }}
         run: |
-          # agent.log is a public artifact and the job log is public: neither may carry the collector's URL or IP.
-          # GitHub masks only the whole secret string, so the bare host is masked here as well.
-          $server = $env:SOAK_SERVER_URL.TrimEnd('/'); $serverHost = ([uri]$server).Host
+          # The job log is public. GitHub masks only the whole secret string, so the bare host is masked as well.
+          $serverHost = ([uri]$env:SOAK_SERVER_URL.TrimEnd('/')).Host
           if (-not $serverHost) { throw "SOAK_SERVER_URL has no host part" }
           Write-Output "::add-mask::$serverHost"
           $ErrorActionPreference = 'Continue'   # loguru writes to stderr; that is output, not a failure
-          dist\pqcscan.exe agent --once --server $env:SOAK_SERVER_URL --enroll-token $env:SOAK_ENROLL_TOKEN --ca-cert ca.pem --labels env=soak,os=windows,runner=${{ matrix.os }} --state-dir $env:RUNNER_TEMP\pqc-state 2>&1 | Tee-Object agent.log
-          $code = $LASTEXITCODE
-          # Artifacts are not masked: scrub the enroll token, the SOAK_SERVER_URL and its bare host before upload.
-          (Get-Content agent.log) -replace [regex]::Escape($env:SOAK_ENROLL_TOKEN), '<enroll-token>' `
+          # Raw output goes outside the artifact path; only the scrub step below writes the uploaded agent.log.
+          dist\pqcscan.exe agent --once --server $env:SOAK_SERVER_URL --enroll-token $env:SOAK_ENROLL_TOKEN --ca-cert ca.pem --labels env=soak,os=windows,runner=${{ matrix.os }} --state-dir $env:RUNNER_TEMP\pqc-state 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\agent-raw.log"
+          exit $LASTEXITCODE
+
+      # Fail closed: the artifact is uploaded only if this step succeeds, and it is the only writer of agent.log.
+      - name: Scrub agent log
+        id: scrub
+        if: always()
+        env:
+          SOAK_SERVER_URL: ${{ secrets.SOAK_SERVER_URL }}
+          SOAK_ENROLL_TOKEN: ${{ secrets.SOAK_ENROLL_TOKEN }}
+        run: |
+          $raw = "$env:RUNNER_TEMP\agent-raw.log"
+          if (-not (Test-Path $raw)) { Set-Content agent.log "the agent did not run (no $raw)"; exit 0 }
+          $server = $env:SOAK_SERVER_URL.TrimEnd('/'); $serverHost = ([uri]$server).Host
+          # An empty pattern would insert the replacement between every character: refuse instead.
+          if (-not $env:SOAK_ENROLL_TOKEN -or -not $server -or -not $serverHost) { throw "empty scrub pattern" }
+          (Get-Content $raw) -replace [regex]::Escape($env:SOAK_ENROLL_TOKEN), '<enroll-token>' `
             -replace [regex]::Escape($server), '<server>' -replace [regex]::Escape($serverHost), '<server>' |
             Set-Content agent.log
-          exit $code
 
       # Runs after a failed agent too: the token and the spool must survive to the next night.
       - name: Encrypt state dir
@@ -160,7 +172,7 @@ jobs:
         run: Get-ChildItem -Recurse -Force "$env:RUNNER_TEMP\pqc-state" | Format-Table -AutoSize FullName, Length, LastWriteTimeUtc | Out-String -Width 400 | Set-Content state-listing.txt
 
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && steps.scrub.outcome == 'success'
         with:
           name: soak-${{ matrix.os }}-${{ github.run_id }}
           path: |
