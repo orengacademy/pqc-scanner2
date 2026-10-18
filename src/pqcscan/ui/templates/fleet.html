@@ -16,6 +16,7 @@
   </form>
 </section>
 
+{% if rows %}
 <div class="card overflow-x-auto">
   <table class="w-full text-sm table-nowrap">
     <thead class="text-xs uppercase tracking-wider text-zinc-500">
@@ -55,18 +56,18 @@
             {% if row.scan_id %}<a href="/scans/{{ row.scan_id }}" class="text-blue-400 hover:text-blue-300 text-xs">#{{ row.scan_id }} &rarr;</a>{% endif %}
           </td>
         </tr>
-      {% else %}
-        <tr>
-          <td colspan="8" class="py-12 text-center text-sm text-zinc-500">
-            {% if label_error %}<a href="/fleet" class="text-blue-400 hover:text-blue-300">{{ t('fleet.show_all') }}</a>
-            {% elif label %}{{ t('fleet.no_match') }} <code class="font-mono text-zinc-300">{{ label }}</code>.
-              <a href="/fleet" class="text-blue-400 hover:text-blue-300">{{ t('fleet.show_all') }}</a>
-            {% else %}{{ t('fleet.none') }}{% endif %}
-          </td>
-        </tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
+{% else %}
+{# Outside the table: inside a nowrap, horizontally scrolling table the message and its link sat past the card edge on phones. #}
+<div class="card py-12 px-5 text-center text-sm text-zinc-500">
+  {% if label_error %}<a href="/fleet" class="text-blue-400 hover:text-blue-300">{{ t('fleet.show_all') }}</a>
+  {% elif label %}{{ t('fleet.no_match') }} <code class="font-mono text-zinc-300">{{ label }}</code>.
+    <a href="/fleet" class="text-blue-400 hover:text-blue-300">{{ t('fleet.show_all') }}</a>
+  {% else %}{{ t('fleet.none') }}{% endif %}
+</div>
+{% endif %}
 
 {% endblock %}
