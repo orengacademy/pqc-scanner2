@@ -55,7 +55,11 @@
         </tr>
       {% else %}
         <tr>
-          <td colspan="8" class="py-12 text-center text-sm text-zinc-500">{{ t('fleet.none') }}</td>
+          <td colspan="8" class="py-12 text-center text-sm text-zinc-500">
+            {% if label %}{{ t('fleet.no_match') }} <code class="font-mono text-zinc-300">{{ label }}</code>.
+              <a href="/fleet" class="text-blue-400 hover:text-blue-300">{{ t('fleet.show_all') }}</a>
+            {% else %}{{ t('fleet.none') }}{% endif %}
+          </td>
         </tr>
       {% endfor %}
     </tbody>

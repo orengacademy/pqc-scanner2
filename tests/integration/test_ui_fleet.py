@@ -36,6 +36,8 @@ def test_fleet_page_lists_hosts_and_filters(tmp_db_path, fast_registry, tmp_path
     assert r.status_code == 200 and "web01" in r.text and "dr01" in r.text
     r = c.get("/fleet?label=env=dr")
     assert "dr01" in r.text and "web01" not in r.text
+    r = c.get("/fleet?label=env=nope")                          # a filter that matches nothing is not "no hosts"
+    assert "No hosts match" in r.text and "No enrolled hosts" not in r.text
     assert 'href="/fleet"' in c.get("/").text                   # nav entry
     c.cookies.set("pqcscan_locale", "ms")
     body = c.get("/fleet").text
