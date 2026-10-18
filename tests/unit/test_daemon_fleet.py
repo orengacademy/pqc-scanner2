@@ -464,3 +464,46 @@ def test_upsert_host_survives_losing_the_insert_race(tmp_db_path):
     host = repo.upsert_host(ident, token_hash="mine")
     assert fired and host.machine_id == "m-race" and host.token_hash == "mine"
     assert len(repo.list_hosts()) == 1
+
+
+def test_ingest_queue_full_answers_503_with_retry_after(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    """Past INGEST_QUEUE_MAX bundles waiting for or holding a parse slot, the collector sheds load before reading."""
+    import asyncio
+    import threading
+
+    import httpx
+
+    monkeypatch.setattr(fleet, "INGEST_PARALLELISM", 1)
+    monkeypatch.setattr(fleet, "INGEST_QUEUE_MAX", 2)
+    gate = threading.Event()
+    real = fleet.load_bundle
+
+    def slow_load(data):
+        gate.wait(10)            # hold the single parse slot until a request has been shed
+        return real(data)
+    monkeypatch.setattr(fleet, "load_bundle", slow_load)
+    app = create_app(db_path=tmp_db_path, registry=fast_registry, enroll_token="ENROLL")
+    bodies = [_bundle(tmp_path) for _ in range(4)]
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1") as ac:
+            tok = (await ac.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": HOST})).json()
+            hdr = _hdr(tok["agent_token"])
+
+            async def post(body):
+                r = await ac.post("/api/ingest", content=body, headers=hdr)
+                if r.status_code == 503:
+                    gate.set()
+                return r
+            burst = await asyncio.gather(*[post(b) for b in bodies[:3]])
+            gate.set()
+            # Every outcome gives its place back, errors included: two rejected bodies, then a good one.
+            after = [await ac.post("/api/ingest", content=b, headers=hdr) for b in (b"junk", b"junk", bodies[3])]
+            return burst, after
+
+    burst, after = asyncio.run(run())
+    assert sorted(r.status_code for r in burst) == [200, 200, 503], [r.text for r in burst]
+    shed = next(r for r in burst if r.status_code == 503)
+    assert shed.headers["retry-after"] == "60"
+    assert shed.json()["detail"] == "collector busy: ingest queue full (2 bundles); the agent spools and retries"
+    assert [r.status_code for r in after] == [400, 400, 200], [r.text for r in after]

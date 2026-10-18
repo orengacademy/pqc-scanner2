@@ -149,6 +149,9 @@ as change. `pqcscan diff --parity` uses the same key to compare a primary with i
   Labels merge across bundles. At 64 the host keeps its labels, existing keys take their new values, new keys are
   dropped (in sorted order) and the collector logs one warning naming them; the scan is still stored. There is no command to delete a label.
   The bundle `machine_id` must match the token that posted it.
+  The collector parses and stores two bundles at a time and holds at most 32 in all, those two included; past that it
+  answers `503` with `Retry-After: 60` without reading the body, and the agent spools the bundle and sends it on its
+  next run. A queued bundle waits at most about half a minute, so no request is abandoned at the agent's 60 s timeout.
 - **No key material.** Findings never carry key bytes. Machine ids are
   domain-separated hashes, not raw `/etc/machine-id` values.
 
@@ -161,13 +164,10 @@ as change. `pqcscan diff --parity` uses the same key to compare a primary with i
   and flushing continues. Nothing prunes that directory, so clear it by hand. A revoked host's
   ingest gets 401 and its re-enroll gets 403, so its bundles spool and replay after `agents unrevoke`.
   Replaying needs the enrollment token on the host again (`--enroll-token` / `PQCSCAN_ENROLL_TOKEN`) if it was removed after the first run.
-- **Ingest capacity.** One collector (8 cores, local loopback, 300-finding bundles, each host posting once a minute)
-  met p95 < 2 s at 120 hosts in both runs on SQLite, but at 90 and 250 hosts in only one of two, so capacity there is
-  somewhere between 60 and 250 hosts. On Postgres it passed at 30 hosts and in one of two runs at 60 and 120, so treat
-  it as 30 to 60. 500 hosts is not met (SQLite p95 8.6 s, Postgres times out). The runs shared a busy box (load average
-  10 to 31) and the results are not monotone in host count, so these are bands, not thresholds. Real scans store about 1,670 findings, so real capacity is likely lower than this band; it was not measured.
-  2,000 hosts on a daily timer with a 2 h jitter post about 17 bundles a minute, roughly 95 test-sized posts a minute,
-  which is inside the band, not far below it. See `benchmark/fleet/LOAD.md` and [FLEET-EVIDENCE.md](FLEET-EVIDENCE.md).
-- **Postgres is tested in CI but not profiled.** The URL is accepted, `fleet-pg` installs the driver, and the CI job
+- **Ingest capacity.** TODO(task5): the measured λ_max per backend (posts per second at p95 < 2 s, 1,670-finding
+  bundles). History: the PR #92 rows ran on a shared box at 8.3 posts/s, 30 times FLEET.md's 2,000-host rate.
+  See `benchmark/fleet/LOAD.md` and [FLEET-EVIDENCE.md](FLEET-EVIDENCE.md).
+- **Postgres is tested in CI and profiled.** The URL is accepted, `fleet-pg` installs the driver, and the CI job
   `postgres` (`.github/workflows/verify.yml`) runs 120 fleet tests against `postgres:16-alpine`. Under the load test
-  it was no faster than SQLite, and nobody has profiled why.
+  it was no faster than SQLite. Profiled in `benchmark/fleet/profiles/postgres-before`: `_communicate_gen`
+  (psycopg pipeline, one round trip per inserted row) was 28.1 %; after TODO(task5) it is TODO(task5) %.
