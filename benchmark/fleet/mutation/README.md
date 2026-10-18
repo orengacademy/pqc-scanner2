@@ -1,6 +1,6 @@
 # Mutation testing: fleet collector and bundle loader
 
-mutmut 3.8.0 (the `verify` extra asks for `mutmut>=3.2`) mutates `src/pqcscan/daemon/fleet.py` and
+mutmut 3.8.0 (the `verify` extra asks for `mutmut>=3.8`) mutates `src/pqcscan/daemon/fleet.py` and
 `src/pqcscan/store/bundle.py` and re-runs `tests/unit` for each mutant. A surviving mutant is a behaviour the unit
 tests do not pin.
 

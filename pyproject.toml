@@ -42,7 +42,7 @@ dev = [
 # Evidence campaign (docs/superpowers/specs/2026-10-17-fleet-evidence-spec.md): fuzzing, load tests, Postgres runs.
 verify = [
   "hypothesis>=6.100", "locust>=2.29", "psycopg[binary]>=3.1",
-  "mutmut>=3.2", "coverage>=7",
+  "mutmut>=3.8", "coverage>=7",
   # libFuzzer bindings: Linux wheels only (CPython 3.11); the fuzz harnesses skip elsewhere.
   "atheris>=2.3; sys_platform == 'linux'",
 ]

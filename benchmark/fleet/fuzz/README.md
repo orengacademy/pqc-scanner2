@@ -12,6 +12,21 @@ expected rejections; any other exception, a hang past 30 s, or an RSS past 4 GB 
 `pqcscan.store.bundle` and `pqcscan.core.parity` are instrumented. `load_bundle` imports only `DRIFT_PROBE` from
 `parity`, so coverage of `parity.py` stays at its import-time lines; the figure that matters is `bundle.py`.
 
+## Input size limit and which caps it can reach
+
+Both harnesses run with `-max_len=262144` (256 KiB per input), which keeps executions fast. That bounds what they can
+reach in `load_bundle`:
+
+| Cap | JSON harness | Raw harness |
+|---|---|---|
+| `len(data) > MAX_GZIP_BYTES` (8 MiB gzip) | unreachable | unreachable |
+| 50 MiB raw cap (`MAX_RAW_BYTES`) | unreachable: the input is at most 256 KiB of text | reachable only as a compression bomb: a gzip body of at most 256 KiB can inflate past 50 MiB |
+| `MAX_FINDINGS` (200,000) | unreachable: 200,000 findings need at least 600 KB of JSON | only through a gzip that inflates to that many findings, which the fuzzer would have to assemble |
+
+So the `BundleTooLarge` raises for the gzip size and, in practice, the findings count show as uncovered lines in
+`coverage.txt`. They are a limit of the harness, not untested behaviour: the unit tests in `tests/unit/test_bundle.py`
+cover the caps. Only the raw harness exercises the decompression cap.
+
 ## Run
 
 ```bash
