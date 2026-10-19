@@ -106,3 +106,13 @@ def test_commit_filter_scores_one_run_alone(tmp_path):
     assert len(capacity.load(tmp_path)["-sweep"]) == 1                    # unfiltered: same point, newest file wins
     md = capacity.render(capacity.load(tmp_path, commit="bbbb"), commit="bbbb")
     assert "Scored from only the rows run at commit `bbbb`" in md
+
+
+def test_retention_rows_get_their_own_table_and_never_set_lambda_max():
+    sweep = [row("sqlite", 1, s, 300) for s in (1, 2)]
+    ret = [{**row("sqlite", 1, s, 2500), "hosts": 100, "keep_scans_per_host": 2} for s in (1, 2)]
+    md = capacity.render({"-sweep": sweep, "-retention": ret})
+    assert "**λ_max = 1 posts/s**" in md                       # the failing retention rows do not move it
+    section = md[md.index("## Retention"):]
+    assert section.count("| 1 | 100 |") == 2 and "keep 2" in section
+    assert "No retention results" in capacity.render({"-sweep": sweep})
