@@ -38,7 +38,9 @@ exports from them.
    hosts with many findings dominate it.
 4. **Exports.** `pqcscan export --scan fleet --format cbom|sarif|xlsx-bukukerja|pdf-tech … -o …`
    builds the export from the latest scan of every host, each finding attributed to its host via `evidence._fleet`.
-   The same works from the daemon API: `GET /api/scans/fleet/export/<fmt>`.
+   The same works from the daemon API: `GET /api/scans/fleet/export/<fmt>`. It is slow on a large fleet: at 500 hosts
+   a fleet CBOM export took about 17 minutes and 343 MB, holding one of the two render slots throughout (see Known
+   limits, Fleet page and export at scale).
 5. **Parity (HA/DR).** `pqcscan diff --scan <dr scan> --baseline-scan <primary scan> --parity --fail-on-drift`.
    `pqcscan merge -o fleet.db a.db b.db` still folds per-host DBs offline.
 6. **Admin.**
@@ -48,7 +50,8 @@ exports from them.
      discards `<state dir>/agent.token`, re-enrolls and sends (spooled bundles included). Without
      `--enroll-token` it spools the bundle and tells you to re-run with it or delete the token file.
    - `pqcscan fleet prune --keep 12` keeps the newest 12 scans per host. It is for one-off trims: the daemon already does this after every ingest (see Retention).
-7. **Scale.** SQLite handles roughly 2,000 hosts daily with margin. On an 8-vCPU droplet with real-size
+7. **Scale.** SQLite takes the ingest rate of roughly 2,000 daily hosts with margin. The fleet export and the `/fleet`
+   page have no such margin: both were already slow at 500 hosts (see Known limits). On an 8-vCPU droplet with real-size
    (1,670-finding) bundles it sustains 1 post/s at p95 under 2 s, about 7,200 hosts on the daily timer with its 2 h
    jitter, and 2,000 hosts offer 0.28 posts/s (see Known limits, Ingest capacity). At the default 12 scans per host the
    database reaches about 28 GB for 2,000 hosts (1.2 MB per scan on one measurement; the real soak re-measures it).
@@ -183,6 +186,11 @@ as change. `pqcscan diff --parity` uses the same key to compare a primary with i
   times) and six on Postgres (5.8 to 6.6 times), at 60 hosts on the runner against 100 on the box. History: the PR #92
   rows (`benchmark/fleet/LOAD-pr92.md`) ran at 8.3 posts/s, 30 times FLEET.md's 2,000-host rate. See
   `benchmark/fleet/CAPACITY.md` and [FLEET-EVIDENCE.md](FLEET-EVIDENCE.md).
+- **Fleet page and export at scale.** Measured at 500 hosts with 1,670-finding scans ([FLEET-UI-REVIEW.md](FLEET-UI-REVIEW.md),
+  on a busy workstation, so the times are relative): a fleet CBOM export took about 17 minutes (1,005.6 s) and produced
+  343 MB, holding one of the two render slots throughout; `/fleet` took 2.2 s to first byte with 532 KB of HTML, because
+  it lists every host without paging. Both grow with the host count, and 2,000 hosts were not measured. There is no
+  `json` export format; `GET /api/fleet` is the JSON view of the fleet.
 - **Postgres is tested in CI and profiled.** The URL is accepted, `fleet-pg` installs the driver, and the CI job
   `postgres` (`.github/workflows/verify.yml`) runs 120 fleet tests against `postgres:16-alpine`. Under the load test
   it was no faster than SQLite, and on the 8-vCPU `DO-Regular` droplet it does not reach p95 < 2 s with 1,670-finding
