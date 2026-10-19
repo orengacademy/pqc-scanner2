@@ -25,18 +25,19 @@ case "$1" in
     for db in sqlite postgres; do
       run --db "$db" --hosts 500 --rate 4 --duration 300s --profile "benchmark/fleet/profiles/$db-$1" --tag "$1"
     done;;
-  sweep)  # per-host interval = hosts / rate must stay under half the 300 s run, or Little's law cannot be checked:
-    # 60 hosts at 0.5/s (120 s) and 100 at 1/s (100 s); 500 hosts (250 s or less) from 2/s up
+  sweep)  # the CAPACITY.md shape. Per-host interval = hosts / rate must stay under half the 300 s run, or Little's
+    # law cannot be checked: 60 hosts at 0.5/s (120 s), 100 at 1/s (100 s), 250 at 2/s (125 s), 300 at 3/s (100 s),
+    # 500 hosts (125 s or less) from 4/s up
     for db in sqlite postgres; do
-      for rate in 0.5 1 2 4 6 8 12; do
-        case $rate in 0.5) hosts=60;; 1) hosts=100;; *) hosts=500;; esac
+      for rate in 0.5 1 2 3 4 6 8 12; do
+        case $rate in 0.5) hosts=60;; 1) hosts=100;; 2) hosts=250;; 3) hosts=300;; *) hosts=500;; esac
         for seed in 1 2; do
           run --db "$db" --hosts "$hosts" --rate "$rate" --duration 300s --seed "$seed" --tag sweep
         done
       done
       run --db "$db" --herd --hosts 500 --duration 180s --seed 1 --tag herd
     done
-    # Postgres only: does a wider ingest gate move the saturation point? (the knob's default stays 4)
+    # Postgres only: does a wider ingest gate move the saturation point? (the shipped default is 2 slots)
     for rate in 4 6; do
       for slots in 2 4 8; do
         run --db postgres --hosts 500 --rate "$rate" --duration 300s --seed 1 --ingest-parallelism "$slots" --tag par
@@ -54,9 +55,9 @@ case "$1" in
       run --db sqlite --hosts 100 --rate 1 --duration 300s --seed "$seed" --keep-scans-per-host 2 --tag retention
       run --db postgres --hosts 60 --rate 0.5 --duration 300s --seed "$seed" --keep-scans-per-host 2 --tag retention
     done;;
-  ratio-baseline)  # the CI job's shape
+  ratio-baseline)  # the CI load-ratio job's shape (verify.yml): 60 hosts at 1 post/s
     for db in sqlite postgres; do
-      run --db "$db" --hosts 120 --interval 60 --duration 90s --findings-per-bundle 1670 --tag ci-shape
+      run --db "$db" --hosts 60 --interval 60 --duration 120s --findings-per-bundle 1670 --tag ci-shape
     done;;
 esac
 echo "suite $1 finished: $crashes crash(es)"

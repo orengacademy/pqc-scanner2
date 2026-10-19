@@ -15,6 +15,16 @@ Measured on 8 vCPU, 16 GB, `cpu_model: DO-Regular` (a shared-CPU DigitalOcean dr
 
 Open arrival: each host enrols and posts at a random offset within its interval, so the offered load is a steady λ posts/s. Each post is a 1,670-finding bundle. Every run lasts 300 s and is repeated with two seeds. The rule: λ_max is the largest swept rate at which both seeds have p95 below 2 s and a sound measurement, with no higher rate failing; the band's upper edge is the lowest rate where any seed fails or loses requests. Little's law (hosts / (interval + mean latency) against the achieved rate) decides whether requests were lost. It cannot be checked when a host's interval exceeds half the run, so the host count follows the rate: 60 hosts at 0.5 posts/s (120 s interval), 100 at 1 (100 s), 250 at 2 (125 s), 300 at 3 (100 s), 500 at 4 and above. The first SQLite pass at 2 posts/s used 500 hosts, a 250 s interval; its `measurement_defect` is `None`, so those rows are listed as excluded and the 250-host rows decide that rate. The Postgres 500-host rows at 2 posts/s are 4-slot rows (see the superseded section), not passes. The SQLite rows come from two code commits, shown in the commit column (`2a25807` for all but the 250- and 300-host rows at 2 and 3 posts/s, which are `04c2650`). The SQLite ingest code is identical between them: under `src/` only the Postgres slot default (and a comment) and UI files changed. The capacity tables come from unprofiled runs at the shipped ingest parallelism (2 slots on both backends). Profiled runs carry asyncio debug-mode overhead and their latencies are not capacity numbers.
 
+## Reproduce
+
+The sweep is `suite.sh sweep` on a DigitalOcean load box (`cloud/README.md`), at the host counts above. Score the pulled rows alone with `--commit`; without it they are pooled with the committed rows, so a reproduction could only confirm or lower λ_max:
+
+```bash
+bash benchmark/fleet/cloud/loadbox.sh up && bash benchmark/fleet/cloud/loadbox.sh run sweep
+bash benchmark/fleet/cloud/loadbox.sh wait && bash benchmark/fleet/cloud/loadbox.sh pull
+python -m benchmark.fleet.capacity --commit $(git rev-parse HEAD)
+```
+
 ## postgres
 
 | rate (posts/s) | hosts | seed | commit | requests | p50 ms | p95 ms | p99 ms | achieved rps | Little ratio | 429 | 503 | errors | result |

@@ -93,3 +93,16 @@ def test_cli_help_prints_help_and_does_not_regenerate(capsys, monkeypatch):
     with pytest.raises(SystemExit) as e:
         capacity.main()
     assert e.value.code == 0 and "CAPACITY.md" in capsys.readouterr().out
+
+
+def test_commit_filter_scores_one_run_alone(tmp_path):
+    import json
+
+    def put(name, commit, p95):
+        (tmp_path / name).write_text(json.dumps({**row("sqlite", 2, 1, p95), "schema_version": 2, "commit": commit}))
+    put("load-sqlite-20261018-r2-sweep.json", "aaaa1111", 300)            # committed, passing
+    put("load-sqlite-20261019-r2-sweep.json", "bbbb2222", 2500)           # a stranger's run, failing
+    assert [r["commit"] for r in capacity.load(tmp_path, commit="bbbb")["-sweep"]] == ["bbbb2222"]
+    assert len(capacity.load(tmp_path)["-sweep"]) == 1                    # unfiltered: same point, newest file wins
+    md = capacity.render(capacity.load(tmp_path, commit="bbbb"), commit="bbbb")
+    assert "Scored from only the rows run at commit `bbbb`" in md

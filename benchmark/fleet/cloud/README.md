@@ -18,7 +18,7 @@ A throwaway droplet that runs `benchmark/fleet` away from the shared workstation
 ```bash
 export PQC_SSH_KEY=~/.ssh/pqc_campaign_ed25519   # private key, passed as ssh -i; omit to use ssh defaults
 bash benchmark/fleet/cloud/loadbox.sh up            # create pqc-loadbox, wait for setup (about 5-8 min), print the IP; refuses if it already exists
-bash benchmark/fleet/cloud/loadbox.sh run before    # before | after | sweep | ratio-baseline
+bash benchmark/fleet/cloud/loadbox.sh run before    # before | after | sweep | ratio-baseline | pg-insert | retention
 bash benchmark/fleet/cloud/loadbox.sh wait          # block until the suite finishes; fails if it died or the box is unreachable
 bash benchmark/fleet/cloud/loadbox.sh pull          # rsync results/, profiles/, LOAD.md and the suite log back here
 bash benchmark/fleet/cloud/loadbox.sh down          # destroy the droplet
@@ -31,8 +31,18 @@ The suites (see `suite.sh`):
 | Mode | What it runs, per backend (sqlite, postgres) |
 | --- | --- |
 | `before` / `after` | 500 hosts, 4 posts/s, 300 s, with `--profile` into `profiles/<db>-before` or `-after` |
-| `sweep` | 500 hosts, rates 0.5 1 2 4 6 8 12 posts/s, seeds 1 and 2, 300 s each; then a 180 s herd |
-| `ratio-baseline` | 120 hosts, 60 s interval, 90 s, 1,670 findings per bundle (the CI job's shape) |
+| `sweep` | the CAPACITY.md shape: 60 hosts at 0.5 posts/s, 100 at 1, 250 at 2, 300 at 3, 500 at 4, 6, 8 and 12; seeds 1 and 2, 300 s each; then a 180 s herd of 500 hosts. Postgres also runs 500 hosts at 4 and 6 posts/s with 2, 4 and 8 ingest slots |
+| `pg-insert` | Postgres only: 500 hosts, 4 posts/s, insert mode `pages` and `executemany` at 2 and 4 slots |
+| `retention` | keep 2 scans per host: SQLite 100 hosts at 1 post/s and Postgres 60 hosts at 0.5 posts/s, seeds 1 and 2, 300 s |
+| `ratio-baseline` | 60 hosts at 1 post/s (60 s interval), 120 s, 1,670 findings per bundle (the CI load-ratio job's shape) |
+
+To reproduce the capacity number, run the sweep at your commit and score it alone, not pooled with the committed rows:
+
+```bash
+bash benchmark/fleet/cloud/loadbox.sh up && bash benchmark/fleet/cloud/loadbox.sh run sweep
+bash benchmark/fleet/cloud/loadbox.sh wait && bash benchmark/fleet/cloud/loadbox.sh pull
+python -m benchmark.fleet.capacity --commit $(git rev-parse HEAD)   # rewrites CAPACITY.md from your rows only
+```
 
 `up` succeeds only when setup finished and the box is at the commit you asked for; if setup fails it exits 1 and the droplet is left running (and billing) for you to inspect, then `down`. Its host key is pinned per droplet in `benchmark/fleet/cloud/.loadbox_known_hosts` (gitignored): `up` starts a fresh file, `down` deletes it, because DigitalOcean recycles IPs.
 
@@ -46,7 +56,7 @@ The box is pinned to the `PQC_REF` it was created with. The `after` suite needs 
 
 ## Cost
 
-US$0.14 an hour for `s-8vcpu-16gb`, billed while the droplet exists, powered off or not. Run `down` as soon as `pull` is done. A `before` run is about 15 minutes, a `sweep` about 2.5 hours.
+US$0.14 an hour for `s-8vcpu-16gb`, billed while the droplet exists, powered off or not. Run `down` as soon as `pull` is done. A `before` run is about 15 minutes, a `sweep` about 3.5 hours.
 
 ## Provenance
 
