@@ -41,11 +41,11 @@ class NetKerberosAsreq(Probe):
             return
         # Write a single zero byte to elicit a malformed-request response,
         # confirming KDC is alive without sending a full AS-REQ.
-        writer.write(b"\x00\x00\x00\x00")
-        await writer.drain()
         try:
+            writer.write(b"\x00\x00\x00\x00")
+            await writer.drain()
             resp = await asyncio.wait_for(reader.read(64), timeout=self.timeout_s)
-        except TimeoutError:
+        except (TimeoutError, OSError):
             resp = b""
         writer.close()
         with contextlib.suppress(Exception):

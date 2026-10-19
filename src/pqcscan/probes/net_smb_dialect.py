@@ -70,12 +70,12 @@ class NetSmbDialect(Probe):
             ))
             return
         try:
-            writer.write(_smb2_negotiate())
-            await writer.drain()
             try:
+                writer.write(_smb2_negotiate())
+                await writer.drain()
                 resp = await asyncio.wait_for(reader.read(1024), timeout=self.timeout_s)
-            except TimeoutError:
-                return
+            except (TimeoutError, OSError):
+                return  # silent or reset mid-handshake: no signal to classify
         finally:
             writer.close()
             with contextlib.suppress(Exception):
