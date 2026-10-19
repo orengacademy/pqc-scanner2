@@ -4,6 +4,7 @@
 #   soak.sh agent-init <name>  # re-run the agent setup on one agent droplet (after fixing soak-agent-init.sh)
 #   soak.sh status             # /api/fleet through the site token: host, os, last_seen, drift
 #   soak.sh collect            # sample CSVs, a DB copy, the observer JSON and the redacted collector journal
+#                              (tokens and every non-droplet IP replaced)
 #   soak.sh down               # destroy the four droplets (they bill until you do)
 # Env: DO_REGION=sgp1 DO_SSH_KEY=pqc-campaign PQC_REF=$(git rev-parse HEAD) (must be pushed: the droplets fetch it
 #      from GitHub)  PQC_SSH_KEY=<private key path, passed as ssh -i>  PYTHON=<repo venv python, for collect>
@@ -145,11 +146,16 @@ for r in sorted(rows, key=lambda r: r["hostname"] or ""):
     # The journal carries uvicorn's access log, which the observer counts 200/401/403/429/503 from. Tokens are
     # replaced before anything is written into the repo, and the result is checked. The tokens reach sed and grep
     # through process substitution (printf is a builtin), never through argv.
+    # Every IP that is not one of the four droplets (the operator's /api/health and /api/fleet reads) becomes
+    # <operator> (redact-ips.awk).
     journal=$CONF/collector-journal-$day.log
     tokens() { printf '%s\n%s\n' "$SOAK_SITE_TOKEN" "$SOAK_ENROLL_TOKEN"; }
+    keep=$(for n in "$COLLECTOR" "${AGENTS[@]}"; do host "$n"; done | xargs)
+    [ "$(wc -w <<< "$keep")" -eq 4 ] || { echo "found $(wc -w <<< "$keep") of the 4 droplet IPs; not collecting" >&2; exit 1; }
     on "$COLLECTOR" 'journalctl -u pqcscan-collector --since -8d -o short-iso --no-pager' \
       | sed -f <(printf 's/%s/<site-token>/g\ns/%s/<enroll-token>/g\n' "$SOAK_SITE_TOKEN" "$SOAK_ENROLL_TOKEN") \
-            -e 's/\(Bearer \)[A-Za-z0-9._~+\/=-]*/\1<redacted>/g' > "$journal"
+            -e 's/\(Bearer \)[A-Za-z0-9._~+\/=-]*/\1<redacted>/g' \
+      | awk -v keep="$keep" -f "$HERE/redact-ips.awk" > "$journal"
     if grep -qF -f <(tokens) "$journal"; then
       echo "redaction failed: a token is still in $journal" >&2; exit 1
     fi

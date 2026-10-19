@@ -86,3 +86,16 @@ esac
     assert r.returncode == 2
     assert "image debian-13-x64 is not offered" in r.stderr
     assert "create" not in log.read_text()
+
+
+def test_journal_redaction_keeps_droplet_ips_and_hides_the_operator():
+    lines = ("INFO:     203.0.113.9:33180 - \"GET /api/fleet HTTP/1.1\" 200 OK\n"
+             "INFO:     198.51.100.7:47576 - \"POST /api/agents/enroll HTTP/1.1\" 201 Created\n"
+             "INFO:     Uvicorn running on https://0.0.0.0:8765 (Press CTRL+C to quit)\n")
+    r = subprocess.run(["awk", "-v", "keep=198.51.100.7 198.51.100.8", "-f", str(CLOUD / "redact-ips.awk")],
+                       input=lines, capture_output=True, text=True, check=True)
+    assert r.stdout.splitlines() == [
+        "INFO:     <operator>:33180 - \"GET /api/fleet HTTP/1.1\" 200 OK",
+        "INFO:     198.51.100.7:47576 - \"POST /api/agents/enroll HTTP/1.1\" 201 Created",
+        "INFO:     Uvicorn running on https://0.0.0.0:8765 (Press CTRL+C to quit)"]
+    assert "redact-ips.awk" in (CLOUD / "soak.sh").read_text()      # collect runs the journal through it

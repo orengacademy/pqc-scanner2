@@ -8,6 +8,8 @@ are left out of the table.
 
 Precondition: when the baseline itself saturated the runner (rps < 0.9 x offered, offered = hosts / interval_s, or
 p95 > 5 s) the ratio only measures queueing, so the run is inconclusive and exits 1 with a message saying so.
+At the unsaturated shape the job runs, every request must get an answer: an error or a 503 (load shed) on either
+side fails the gate before the ratio is read.
 """
 import argparse
 import json
@@ -43,6 +45,11 @@ def verdict(base: Path, head: Path, *, max_ratio: float, floor_ms: float) -> int
         print(f"baseline saturated on this runner; ratio inconclusive (base p95 {b['p95_ms']:.0f} ms, base rps "
               f"{b['rps']:.3g} vs offered {_cell(offered)}; limits: p95 <= {SATURATED_P95_MS} ms, rps >= "
               f"{SATURATED_RPS_FRACTION:g} x offered)")
+        return 1
+    lost = [f"{side} answered {r.get('errors', 0)} request(s) with an error and {r.get('http_503', 0)} with 503"
+            for side, r in (("base", b), ("head", h)) if r.get("errors", 0) or r.get("http_503", 0)]
+    if lost:
+        print("; ".join(lost) + ". At this unsaturated shape both sides must answer every request; FAIL")
         return 1
     ok = h["p95_ms"] <= limit
     print(f"head p95 {h['p95_ms']:.0f} ms vs limit {limit:.0f} ms "

@@ -56,3 +56,13 @@ def test_saturated_baseline_is_inconclusive_not_a_pass(tmp_path, capsys):
     lost = _w(tmp_path / "b3.json", 400, hosts=60, interval_s=60.0, rps=0.89)  # below 0.9 x 1.0
     assert ratio.verdict(lost, head, max_ratio=1.5, floor_ms=1000) == 1
     assert "inconclusive" in capsys.readouterr().out
+
+
+def test_errors_or_503s_on_either_side_fail_the_unsaturated_gate(tmp_path, capsys):
+    ok = _w(tmp_path / "ok.json", 400)
+    for side, extra in (("base", {"errors": 2}), ("head", {"http_503": 1})):
+        bad = _w(tmp_path / f"{side}.json", 400, **extra)
+        args = (bad, ok) if side == "base" else (ok, bad)
+        assert ratio.verdict(*args, max_ratio=1.5, floor_ms=1000) == 1
+        out = capsys.readouterr().out
+        assert f"{side} answered" in out and "every request" in out and "PASS" not in out
