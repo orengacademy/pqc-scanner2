@@ -330,7 +330,7 @@ Profiled, fixed, measured and re-graded what §11 left failed or simulated. The 
 | 2 Capacity | SQLite λ_max 1 post/s (band 1 to 2), about 7,200 hosts on the daily timer; Postgres meets p95 < 2 s at no swept rate on the 8-vCPU load box (F23). `benchmark/fleet/CAPACITY.md` |
 | 3 Overload | Holds, with residual F24. Bounded ingest queue (32), 64 reads, 2 per host, 120 s body deadline; a 500-host herd gets `503`s |
 | 4 Real soak | Running since 2026-10-18 on three Linux droplets; day 7 is 2026-10-25 (`bash benchmark/fleet/cloud/soak.sh collect`). Windows runners wait for PR #93 |
-| 5 Test strength | Mutation 0.745 raw, 0.896 adjusted; fuzz 4.0 CPU-hours, 0 crashes. `benchmark/fleet/mutation/MUTATION.md`, `benchmark/fleet/fuzz/FUZZ.md` |
+| 5 Test strength | Mutation 0.745 raw, 0.898 adjusted (389 of 433 non-equivalent); fuzz 4.0 CPU-hours, 0 crashes. `benchmark/fleet/mutation/MUTATION.md`, `benchmark/fleet/fuzz/FUZZ.md` |
 | 6 Contradicted claims | F6 fixed (`windows-task.ps1` refuses unsupported `-RunAs` before writing, rolls back a rejected one); Postgres profiled |
 
 No v0.10.3 tag until soak day 7 and the Windows runners. Open items: Postgres per-row ingest cost (F23), herd
