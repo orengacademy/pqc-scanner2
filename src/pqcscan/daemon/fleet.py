@@ -43,9 +43,10 @@ INGEST_PARALLELISM = 2          # bundles parsed/stored at once, across all host
 # Kept apart from INGEST_PARALLELISM so a sweep (run_load --ingest-parallelism) can move it.
 INGEST_PARALLELISM_PG = 2
 INGEST_QUEUE_MAX = 32   # bundles waiting for or holding a parse slot, all hosts. Longest wait ≈ QUEUE_MAX x service
-                        # time / slots; at 2 s per large bundle and 2 slots that is 32 s,
-                        # under the agent's 60 s timeout, so a queued request is served, never abandoned. Past the
-                        # bound the collector answers 503 + Retry-After and the agent spools (FLEET.md, Ingest limits).
+                        # time / slots; at 2 s per large bundle and 2 slots that is 32 s. Bounded so that a queued
+                        # request normally completes before the agent's 60 s timeout; under a 500-host herd a few
+                        # still exceed it (6 on SQLite, 14 on Postgres; FLEET-EVIDENCE F24). Past the bound the
+                        # collector answers 503 + Retry-After and the agent spools (FLEET.md, Ingest limits).
 INGEST_READ_MAX = 64    # ingest bodies being read at once, all hosts: 64 x 8 MiB = 512 MiB worst case in flight
 INGEST_READ_PER_HOST = 2       # of those, from one host: a trickling host cannot hold the read places alone
 INGEST_BODY_TIMEOUT_S = 120.0  # a body must arrive within this; 408 past it (the agent spools and retries)
