@@ -192,7 +192,7 @@ as change. `pqcscan diff --parity` uses the same key to compare a primary with i
   it lists every host without paging. Both grow with the host count, and 2,000 hosts were not measured. There is no
   `json` export format; `GET /api/fleet` is the JSON view of the fleet.
 - **Postgres is tested in CI and profiled.** The URL is accepted, `fleet-pg` installs the driver, and the CI job
-  `postgres` (`.github/workflows/verify.yml`) runs 120 fleet tests against `postgres:16-alpine`. Under the load test
+  `postgres` (`.github/workflows/verify.yml`) runs 149 fleet tests against `postgres:16-alpine`. Under the load test
   it was no faster than SQLite, and on the 8-vCPU `DO-Regular` droplet it does not reach p95 < 2 s with 1,670-finding
   bundles at any swept rate, while the CI runner does at 1 post/s (p95 710 ms). Profiled before and after
   (`benchmark/fleet/profiles/postgres-before`, `postgres-after`): statements per ingest went from 16,996 to 16,103,

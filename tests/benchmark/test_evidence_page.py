@@ -149,9 +149,13 @@ def test_item_3_holds_with_a_residual_under_one_percent_and_fails_above(tmp_path
     item3 = d["items"][2]
     assert (item3["kind"], item3["verdict"]) == ("ok", "Holds, residual F24")
     assert "postgres 14 of 1486" in item3["basis"]  # the enrolment 503 is not counted as a lost request
-    assert "item 3" not in d["tag"] and " is " not in d["tag"].split("hold.")[-1]
+    assert "Not yet holding: item 4 (running)." in d["tag"]
     (res / "load-postgres-20261019-herd-herd.json").write_text(json.dumps({**herd, "errors": 16, "failure_samples": [
         "ingest: CatchResponseError('ingest 0: ') x16"]}))  # 16 of 1486 is 1.08 %
     d = evidence_page.load(root)
     assert (d["items"][2]["kind"], d["items"][2]["verdict"]) == ("bad", "Fails")
     assert "Not yet holding: item 3 (fails)" in d["tag"]
+    (res / "load-postgres-20261019-herd-herd.json").write_text(json.dumps({**herd, "errors": 1, "failure_samples": [
+        "enroll: CatchResponseError('enroll 503: {}') x1"]}))  # the only failure is a shed enrolment
+    d = evidence_page.load(root)
+    assert (d["items"][2]["kind"], d["items"][2]["verdict"]) == ("ok", "Holds")

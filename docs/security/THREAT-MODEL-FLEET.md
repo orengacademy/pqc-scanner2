@@ -55,7 +55,7 @@ anything a root user on the agent host or the collector host can do.
 | AR3 | A revoked host cannot re-enroll until an operator unrevokes it; its bundles spool locally and replay after that. | FLEET.md Security "Revoked hosts stay out"; Known limits "Permanent rejections" | E4, S4 |
 | AR4 | `windows-task.ps1` has run only under Pester on GitHub's `windows-2022` and `windows-latest` runners. Windows Server 2019, Windows 11 and real hosts are untested, a non-SYSTEM `-RunAs` account cannot finish the install, and the other recipes are checked by text assertions only (`tests/unit/test_fleet_recipes.py`). | FLEET.md Deployment recipes; spec "Environment constraints" | D3, T3 |
 | AR5 | Nothing prunes `spool/rejected/`. | FLEET.md Known limits | S6 |
-| AR6 | Postgres runs the fleet tests in CI (120 pass) and is profiled; on the load box it meets p95 < 2 s at no swept rate, paying one insert and one FK check per finding row (F23). | FLEET.md Known limits | I13, X5 |
+| AR6 | Postgres runs the fleet tests in CI (149 pass) and is profiled; on the load box it meets p95 < 2 s at no swept rate, paying one insert and one FK check per finding row (F23). | FLEET.md Known limits | I13, X5 |
 | AR7 | A host with a valid token is trusted about itself: nothing attests that its findings are true. | design | I5 |
 
 Each accepted risk keeps a row below so it has an owner.

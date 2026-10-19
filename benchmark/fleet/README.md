@@ -67,7 +67,7 @@ literal reading of "500 hosts posting concurrently". Both are reported.
 ## Postgres status
 
 The Postgres path was run here against a `postgres:16-alpine` container on the same box. The CI job `postgres`
-in `.github/workflows/verify.yml` also runs the fleet tests on it (120 passed), so `docs/FLEET.md` no longer calls it
+in `.github/workflows/verify.yml` also runs the fleet tests on it (149 passed), so `docs/FLEET.md` no longer calls it
 untested. It is profiled before and after in `profiles/postgres-before` and `profiles/postgres-after`: one insert and
 one foreign-key check per finding row (finding F23 in `CAPACITY.md`), and it meets p95 < 2 s at no swept rate on the
 load box.

@@ -32,7 +32,7 @@ operator guide: `docs/FLEET.md`.
       `windows-2022` and `windows-latest` runners (`.github/workflows/verify.yml`, 31 tests); Server 2019, Windows 11
       and a gMSA `-RunAs` are not covered, and the owner check depends on the default-owner policy. Other `-RunAs`
       accounts are refused before any write (F6, fixed).
-- [ ] **Postgres collector ingest cost (FLEET-EVIDENCE F23)**: wired, tested in CI (`verify.yml`, 120 fleet tests)
+- [ ] **Postgres collector ingest cost (FLEET-EVIDENCE F23)**: wired, tested in CI (`verify.yml`, 149 fleet tests)
       and profiled (`benchmark/fleet/profiles/postgres-*`): one insert and one FK check per finding row, 16,103
       statements per 1,670-finding ingest, so it meets p95 < 2 s at no swept rate on the 8-vCPU load box
       (`benchmark/fleet/CAPACITY.md`). Try `COPY` or batched inserts with FK checks deferred to commit, then re-run
