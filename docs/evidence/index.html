@@ -130,7 +130,7 @@ footer { color: var(--muted); font-size: .85rem; margin-top: 28px; }
       <td data-label="Basis">The bounded ingest queue answers 503 with Retry-After past 32 waiting bundles, before reading the body; a unit test drives it full and sees the 503. Herd requests that got neither an answer nor a 503: postgres 14 of 1486; sqlite 6 of 1497, each under 1 %, and every herd p95 is below the agent&#39;s 60 s timeout.</td><td data-label="Source" class="src">benchmark/<wbr>fleet/<wbr>results/<wbr>load-postgres-20261018-herd-herd.json, benchmark/<wbr>fleet/<wbr>results/<wbr>load-sqlite-20261018-herd-herd.json</td></tr>
     <tr class="item"><td data-label="#" class="num">4</td><td data-label="Item">Real soak, 7 days</td>
       <td data-label="Verdict"><span class="pill wait">Running</span></td>
-      <td data-label="Basis">Running since 2026-10-18, day 0 recorded, day 7 on 2026-10-25. Day 0: 3 hosts, 6 scans, drift 0, ingest 200 × 6, enrol 201 × 3. Collector DB 4.3 MB and WAL 4.8 MB at 3 scans and 4,219 findings: about 0.0 MB per scan including WAL since the 2-scan sample, against FLEET.md&#39;s 1.2 MB estimate; the final figure is read at day 7. Linux agents: debian, rocky, ubuntu. Windows Server 2022 and 2025 runners join when PR #93 merges. GitHub offers no Windows 11 runner. IBM i is untested.</td><td data-label="Source" class="src">benchmark/<wbr>fleet/<wbr>results/<wbr>soak-real-*.json, benchmark/<wbr>fleet/<wbr>results/<wbr>soak-real/<wbr>*-samples.csv, commit ed7a795</td></tr>
+      <td data-label="Basis">Running since 2026-10-18, day 1 recorded, day 7 on 2026-10-25. Day 1: 3 hosts, 6 scans (every host&#39;s daily scans arrived on schedule), drift 0, ingest 200 × 6, enrol 201 × 3. Collector DB 12.4 MB and WAL 5.3 MB at 6 scans and 8,438 findings: about 2.1 MB per scan including WAL since the 2-scan sample, against FLEET.md&#39;s 1.2 MB estimate; the final figure is read at day 7. Linux agents: debian, rocky, ubuntu. Windows Server 2022 and 2025 runners join when PR #93 merges. GitHub offers no Windows 11 runner. IBM i is untested.</td><td data-label="Source" class="src">benchmark/<wbr>fleet/<wbr>results/<wbr>soak-real-*.json, benchmark/<wbr>fleet/<wbr>results/<wbr>soak-real/<wbr>*-samples.csv, commit ed7a795</td></tr>
     <tr class="item"><td data-label="#" class="num">5</td><td data-label="Item">Test strength</td>
       <td data-label="Verdict"><span class="pill ok">Done</span></td>
       <td data-label="Basis">atheris 4 CPU-hours, 589,697,349 executions, 0 crashes. Mutation score 0.745 raw (333 of 447 killed in the mutmut run). Adjusted 0.898 = 389 / 433, killed / (total - equivalent): 56 killed by the new tests, 14 equivalent, 41 message-text and 3 other open.</td><td data-label="Source" class="src">benchmark/<wbr>fleet/<wbr>fuzz/<wbr>stats.json, benchmark/<wbr>fleet/<wbr>mutation/<wbr>score.json, benchmark/<wbr>fleet/<wbr>mutation/<wbr>MUTATION.md</td></tr>
@@ -321,19 +321,19 @@ bash benchmark/fleet/mutation/run.sh                # mutmut over fleet.py and b
 
 <section id="soak" aria-labelledby="soak-h">
   <h2 id="soak-h">Real soak</h2>
-  <p>Started 2026-10-18. Day 0 is the newest sample on record; day 7 falls on 2026-10-25.
+  <p>Started 2026-10-18. Day 1 is the newest sample on record; day 7 falls on 2026-10-25.
 The Windows runners join when PR #93 merges. IBM i is untested.</p>
   <div class="scroll" role="region" aria-label="Soak hosts" tabindex="0"><table>
     <thead><tr><th>Host</th><th>Role</th><th class="num">Samples</th><th>First sample, UTC</th><th>Last sample, UTC</th><th class="num">Spool files</th><th class="num">DB or state bytes</th><th class="num">Scans</th><th>Source</th></tr></thead>
     <tbody>
-    <tr><td>collector</td><td>collector</td><td class="num">3</td><td class="mono">2026-10-18T13:20:22Z</td><td class="mono">2026-10-18T13:40:02Z</td>
-      <td class="num">-</td><td class="num">4,308,992</td><td class="num">3</td><td class="src">benchmark/<wbr>fleet/<wbr>results/<wbr>soak-real/<wbr>collector-samples.csv</td></tr>
-    <tr><td>debian</td><td>agent</td><td class="num">2</td><td class="mono">2026-10-18T13:35:47Z</td><td class="mono">2026-10-18T13:40:01Z</td>
-      <td class="num">0</td><td class="num">1,986,603</td><td class="num">-</td><td class="src">benchmark/<wbr>fleet/<wbr>results/<wbr>soak-real/<wbr>debian-samples.csv</td></tr>
-    <tr><td>rocky</td><td>agent</td><td class="num">3</td><td class="mono">2026-10-18T13:26:33Z</td><td class="mono">2026-10-18T13:40:02Z</td>
-      <td class="num">0</td><td class="num">2,502,740</td><td class="num">-</td><td class="src">benchmark/<wbr>fleet/<wbr>results/<wbr>soak-real/<wbr>rocky-samples.csv</td></tr>
-    <tr><td>ubuntu</td><td>agent</td><td class="num">3</td><td class="mono">2026-10-18T13:23:05Z</td><td class="mono">2026-10-18T13:40:01Z</td>
-      <td class="num">0</td><td class="num">1,908,779</td><td class="num">-</td><td class="src">benchmark/<wbr>fleet/<wbr>results/<wbr>soak-real/<wbr>ubuntu-samples.csv</td></tr>
+    <tr><td>collector</td><td>collector</td><td class="num">98</td><td class="mono">2026-10-18T13:20:22Z</td><td class="mono">2026-10-19T05:30:01Z</td>
+      <td class="num">-</td><td class="num">12,357,632</td><td class="num">6</td><td class="src">benchmark/<wbr>fleet/<wbr>results/<wbr>soak-real/<wbr>collector-samples.csv</td></tr>
+    <tr><td>debian</td><td>agent</td><td class="num">97</td><td class="mono">2026-10-18T13:35:47Z</td><td class="mono">2026-10-19T05:30:01Z</td>
+      <td class="num">0</td><td class="num">3,850,283</td><td class="num">-</td><td class="src">benchmark/<wbr>fleet/<wbr>results/<wbr>soak-real/<wbr>debian-samples.csv</td></tr>
+    <tr><td>rocky</td><td>agent</td><td class="num">98</td><td class="mono">2026-10-18T13:26:33Z</td><td class="mono">2026-10-19T05:30:01Z</td>
+      <td class="num">0</td><td class="num">4,894,804</td><td class="num">-</td><td class="src">benchmark/<wbr>fleet/<wbr>results/<wbr>soak-real/<wbr>rocky-samples.csv</td></tr>
+    <tr><td>ubuntu</td><td>agent</td><td class="num">98</td><td class="mono">2026-10-18T13:23:05Z</td><td class="mono">2026-10-19T05:30:01Z</td>
+      <td class="num">0</td><td class="num">3,727,403</td><td class="num">-</td><td class="src">benchmark/<wbr>fleet/<wbr>results/<wbr>soak-real/<wbr>ubuntu-samples.csv</td></tr>
     <tr><td>windows-2022, windows-latest</td><td>agent</td><td class="num">-</td><td colspan="5"><span class="pill wait">pending</span> joins when PR #93 merges</td><td class="src">benchmark/<wbr>fleet/<wbr>soak-real.md</td></tr>
     </tbody>
   </table></div>
