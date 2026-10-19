@@ -38,6 +38,17 @@ Regraded claims (rows in the table below):
 | Security | Bounded queue, read bounds and body deadline answer 503 or 408 | new | Evidenced | item 3 tests and herd files |
 | Security | No queued request is abandoned at the agent's 60 s timeout | new | Contradicted under the herd, F24; FLEET.md changed | `CAPACITY.md` Herd |
 
+Acceptance, clause by clause (the request's acceptance paragraph, plus the `LoadTestShape` instruction of its
+item 2, which the campaign also did not follow literally):
+
+| Clause | Asked | Delivered | Verdict | Source |
+|---|---|---|---|---|
+| Stranger reproduction | A person following `LOAD.md` and `soak-real.md` on a fresh machine reproduces the capacity number inside the stated band without asking | The steps are written down: `loadbox.sh up`, `run sweep`, `wait`, `pull`, then `capacity --commit $(git rev-parse HEAD)` scores that run alone. Nobody outside the campaign has run them | Not attempted | `cloud/README.md`; `CAPACITY.md` Reproduce |
+| CI ratio gate | CI asserts the p95 ratio against a recorded baseline at 120 hosts on both backends | The `load-ratio` job runs the harness at the `77867a1` baseline and at HEAD on the same runner, SQLite and Postgres, at 60 hosts at 1 post/s. 120 hosts at 2 posts/s saturated the runner's Postgres side (runs 39127318186, 39130841180), so the ratio measured queueing. `ratio.py` fails the job as inconclusive when the baseline saturates, and fails it on any error or 503 | Deviates: 60 hosts, not 120 | `.github/workflows/verify.yml` job `load-ratio`; `ratio.py` |
+| Locust `LoadTestShape` (item 2) | Use locust `LoadTestShape` for the jittered arrival | A per-host interval derived from the rate, with seeded offsets: a steady open arrival with distinct hosts. The spec's arrival-model ruling explains why `LoadTestShape`, which changes user counts over time, is the wrong knob | Deviates, by ruling | spec `2026-10-18-fleet-capacity-spec.md`, Environment and rulings, Arrival model |
+| Tag hold | Tag v0.10.3 only when items 1 to 4 hold; otherwise FLEET.md carries the measured capacity and the tag waits | Not tagged: item 4 runs to 2026-10-25. FLEET.md Known limits carries the measured capacity | Holds | Tag decision above; `docs/FLEET.md` Known limits |
+| One-page summary | One page at the top of FLEET-EVIDENCE.md says what changed since PR #92 | This section, and its designed copy at `docs/evidence/index.html` | Done | this file; `docs/evidence/index.html` |
+
 New findings (full rows under Findings): **F21** Postgres 4-slot regression, closed. **F22** wheel build broken, fixed.
 **F23** Postgres per-row ingest cost, open. **F24** herd residual timeouts, open. **F25** fleet UI and export at
 500 hosts, open. **F26** "Postgres past 10k per day" contradicted, doc fixed. Closed since PR #92: F7 (restated, load shedding added),
@@ -49,7 +60,7 @@ To finish item 4 and to reproduce the capacity number on a fresh machine:
 bash benchmark/fleet/cloud/soak.sh collect          # day 7, after 05:00 UTC on 2026-10-25; then soak.sh down
 bash benchmark/fleet/cloud/loadbox.sh up && bash benchmark/fleet/cloud/loadbox.sh run sweep \
   && bash benchmark/fleet/cloud/loadbox.sh wait && bash benchmark/fleet/cloud/loadbox.sh pull
-python -m benchmark.fleet.capacity                  # rewrites CAPACITY.md from the pulled results
+python -m benchmark.fleet.capacity --commit $(git rev-parse HEAD)   # CAPACITY.md from the pulled run alone
 bash benchmark/fleet/fuzz/run.sh 4                  # 4 CPU-hours of atheris
 bash benchmark/fleet/mutation/run.sh                # mutmut over fleet.py and bundle.py
 ```

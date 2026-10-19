@@ -131,7 +131,7 @@ footer { color: var(--muted); font-size: .85rem; margin-top: 28px; }
 <section id="since" aria-labelledby="since-h">
   <h2 id="since-h">Since PR #92</h2>
   {% if d.since %}
-  <p>Regraded claims, copied from the "Since PR #92" section of FLEET-EVIDENCE.md.</p>
+  <p>The item verdicts, the regraded claims and the acceptance grading, copied from the "Since PR #92" section of FLEET-EVIDENCE.md.</p>
   {% for t in d.since %}
   <div class="scroll" role="region" aria-label="Since PR #92, table {{ loop.index }}" tabindex="0"><table class="stack">
     <thead><tr>{% for h in t[0] %}<th>{{ h|md }}</th>{% endfor %}</tr></thead>
