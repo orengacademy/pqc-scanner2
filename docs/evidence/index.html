@@ -416,7 +416,7 @@ The Windows runners join when PR #93 merges. IBM i is untested.</p>
       <td data-label="State"><span class="pill bad">Open</span></td><td data-label="Source" class="src"><code>docs/FLEET-UI-REVIEW.md</code>, <code>benchmark/fleet/ui/timings.json</code></td></tr>
     <tr><td data-label="ID" class="mono">F26</td><td data-label="Finding" class="wide">FLEET.md said to move to Postgres past roughly 10k hosts a day.</td><td data-label="Severity">Medium</td>
       <td data-label="State"><span class="pill ok long">Fixed (doc change, no test)</span></td><td data-label="Source" class="src">CAPACITY.md; <code>docs/FLEET.md</code> section 7</td></tr>
-    <tr><td data-label="ID" class="mono">F27</td><td data-label="Finding" class="wide">The collector&#39;s event loop blocks for 100 ms to 1 s per callback under saturation.</td><td data-label="Severity">Medium</td>
+    <tr><td data-label="ID" class="mono">F27</td><td data-label="Finding" class="wide">The collector&#39;s event loop blocks for 100 ms to 1 s per callback under saturation, inside the daemon&#39;s Starlette BaseHTTPMiddleware.</td><td data-label="Severity">Medium</td>
       <td data-label="State"><span class="pill bad">Open</span></td><td data-label="Source" class="src"><code>profiles/*-after/asyncio-slow.log</code>, <code>summary.md</code>, <code>pyspy.collapsed.txt</code></td></tr>
     <tr><td data-label="ID" class="mono">F7</td><td data-label="Finding" class="wide">Ingest misses the 2 s target at 500 hosts on both databases.</td><td data-label="Severity">High</td>
       <td data-label="State"><span class="pill wait long">Closed (restated; load shedding added)</span></td><td data-label="Source" class="src">LOAD-pr92.md, task 2; CAPACITY.md</td></tr>
