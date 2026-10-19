@@ -111,3 +111,13 @@ def test_load_md_head_names_the_keep_column():
     header = next(ln for ln in run_load._load_md_head().splitlines() if ln.startswith("| date"))
     cells = [c.strip() for c in header.strip("|").split("|")]
     assert cells[cells.index("insert") + 1] == "keep"
+
+
+def test_accepted_percentiles_count_only_ingests_answered_200():
+    rows = ["ts,name,status,response_ms,bytes", "1,enroll,201,5000,73"]
+    rows += [f"2,ingest,200,{ms},10" for ms in range(100, 1100, 100)]       # 100 .. 1000 ms, ten accepted
+    rows += ["3,ingest,503,1,10"] * 30 + ["4,ingest,0,60000,0"] * 5           # shed and unanswered: left out
+    r = run_load.accepted_percentiles("\n".join(rows).encode())
+    assert r == {"p50_accepted_ms": 500.0, "p95_accepted_ms": 1000.0}
+    assert run_load.accepted_percentiles(b"ts,name,status,response_ms,bytes\n") == {
+        "p50_accepted_ms": None, "p95_accepted_ms": None}

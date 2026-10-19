@@ -7,6 +7,7 @@
 except the item wording that only exists in commit messages, and those rows name the commit as their source.
 """
 import csv
+import gzip
 import json
 import re
 from datetime import date, timedelta
@@ -16,6 +17,7 @@ from jinja2 import Environment
 from markupsafe import Markup, escape
 
 from benchmark.fleet import capacity as cap
+from benchmark.fleet.run_load import accepted_percentiles
 
 ROOT = Path(__file__).resolve().parents[2]
 RES = "benchmark/fleet/results"
@@ -33,6 +35,21 @@ def _results(root: Path) -> dict[str, list[dict]]:
     return cap.load(root / RES)
 
 
+def _profile_run(root: Path, profile_dir: str, commit: str | None) -> dict:
+    """The load result that wrote `profile_dir` at `commit` (the newest, if several): its stored scans and the
+    p50/p95 of accepted (200) ingests, computed from its per-request CSV."""
+    runs = [(r, f) for f in (root / RES).glob("load-*.json") if (r := _json(f) or {}).get("profile_dir") == profile_dir
+            and commit and r.get("commit") == commit]
+    if not runs:
+        return {}
+    r, f = max(runs, key=lambda x: x[0].get("started_at", ""))
+    try:
+        acc = accepted_percentiles(gzip.decompress((root / RES / r["requests_csv"]).read_bytes()))
+    except (OSError, KeyError, TypeError):
+        acc = {}
+    return {"stored_scans": r.get("stored_scans"), **acc, "run_source": f"{RES}/{f.name}"}
+
+
 def _profiles(root: Path) -> dict:
     out: dict = {}
     for p in sorted((root / "benchmark/fleet/profiles").glob("*-*/summary.json")):
@@ -41,7 +58,8 @@ def _profiles(root: Path) -> dict:
         run = s.get("run", {})
         out.setdefault(db, {})[side] = {
             "top": s.get("top_frames", [])[:3], "statements_per_ingest": s.get("statements_per_ingest"),
-            "instrumentation_pct": s.get("instrumentation_pct"), "p95_ms": run.get("p95_ms"), "rps": run.get("rps"),
+            "instrumentation_pct": s.get("instrumentation_pct"), "commit": (run.get("commit") or "")[:7],
+            **_profile_run(root, str(p.parent.relative_to(root)), run.get("commit")),
             "source": str(p.relative_to(root))}
     return out
 
@@ -173,8 +191,14 @@ def _items(d: dict) -> list[dict]:
     if both:
         spi = "; ".join(f"{db} {prof[db]['before']['statements_per_ingest']:,.0f} to "
                         f"{prof[db]['after']['statements_per_ingest']:,.0f} statements per ingest" for db in both)
-        i1 = ("ok", "Done", f"Before and after profiles for {', '.join(both)}: {spi}.",
-              "benchmark/fleet/profiles/*/summary.json")
+        runs = [prof[db][side] for db in both for side in ("before", "after")]
+        if all(r.get("p50_accepted_ms") is not None for r in runs):
+            spi += (". Stored scans in the 300 s run and the median accepted (200) ingest: " + "; ".join(
+                f"{db} {prof[db]['before']['stored_scans']} at {prof[db]['before']['p50_accepted_ms'] / 1000:.1f} s, "
+                f"then {prof[db]['after']['stored_scans']} at {prof[db]['after']['p50_accepted_ms'] / 1000:.1f} s"
+                for db in both) + ". Medians over every response count the 503s the queue sheds and are not quoted")
+        srcs = ["benchmark/fleet/profiles/*/summary.json", *(r["run_source"] for r in runs if "run_source" in r)]
+        i1 = ("ok", "Done", f"Before and after profiles for {', '.join(both)}: {spi}.", ", ".join(srcs))
     else:
         i1 = ("wait", "Pending", "Before and after profiles are not both present.", "benchmark/fleet/profiles/")
     if caps:

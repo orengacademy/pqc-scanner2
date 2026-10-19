@@ -181,3 +181,23 @@ def test_page_shows_adjusted_mutation_verdict_words_and_the_commands(tmp_path):
     assert "<pre" in html and "bash benchmark/fleet/cloud/soak.sh collect" in html
     assert "Adjusted score 0.898 = 389 / 433" in html
     assert "56 killed by the new tests, 14 equivalent, 41 message-text and 3 other open" in d["items"][4]["basis"]
+
+
+def test_item_1_quotes_stored_scans_and_accepted_latency_from_the_profiled_run(tmp_path):
+    import gzip
+    root = _tree(tmp_path)
+    fl = root / "benchmark" / "fleet"
+    for side, commit, stored, accepted in (("before", "a" * 40, 21, [9000, 10000, 11000]),
+                                           ("after", "b" * 40, 420, [17000, 18000, 19000])):
+        s = json.loads((fl / "profiles" / f"sqlite-{side}" / "summary.json").read_text())
+        s["run"]["commit"] = commit
+        (fl / "profiles" / f"sqlite-{side}" / "summary.json").write_text(json.dumps(s))
+        rows = ["ts,name,status,response_ms,bytes", *[f"1,ingest,200,{ms},1" for ms in accepted],
+                *["2,ingest,503,3,1"] * 50]
+        (fl / "results" / f"load-sqlite-r4-{side}-requests.csv.gz").write_bytes(gzip.compress("\n".join(rows).encode()))
+        (fl / "results" / f"load-sqlite-r4-{side}.json").write_text(json.dumps({
+            "profile_dir": f"benchmark/fleet/profiles/sqlite-{side}", "commit": commit, "stored_scans": stored,
+            "requests_csv": f"load-sqlite-r4-{side}-requests.csv.gz", "started_at": "2026-10-18T10:00:00"}))
+    i1 = evidence_page.load(root)["items"][0]
+    assert "sqlite 21 at 10.0 s, then 420 at 18.0 s" in i1["basis"]       # the 503s are not in the median
+    assert "load-sqlite-r4-after.json" in i1["source"]

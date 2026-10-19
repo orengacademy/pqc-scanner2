@@ -13,7 +13,9 @@ import argparse
 import csv
 import gzip
 import hashlib
+import io
 import json
+import math
 import os
 import shlex
 import subprocess
@@ -148,6 +150,18 @@ def _stored(url: str) -> tuple[int, int]:
     return len(ids), n
 
 
+def accepted_percentiles(requests_csv: bytes) -> dict:
+    """p50 and p95 (nearest rank) of the ingests answered 200, from the per-request CSV. Locust's own percentiles
+    also count the 503s a shedding collector answers in milliseconds and the timeouts it never answers, so under
+    overload they say little about an accepted ingest."""
+    ms = sorted(float(r["response_ms"]) for r in csv.DictReader(io.StringIO(requests_csv.decode()))
+                if r["name"] == "ingest" and r["status"] == "200")
+
+    def pick(q: float) -> float | None:
+        return ms[max(math.ceil(q * len(ms)) - 1, 0)] if ms else None
+    return {"p50_accepted_ms": pick(0.5), "p95_accepted_ms": pick(0.95)}
+
+
 def _stats(path: Path) -> dict[str, dict[str, str]]:
     with path.open(newline="") as fh:
         return {row["Name"]: row for row in csv.DictReader(fh)}
@@ -216,6 +230,7 @@ def run(*, db: str, hosts: int, spawn_rate: int, duration_s: int, findings: int 
         "findings_per_bundle": findings, "arrival": "staggered" if stagger else "herd",
         "requests": int(ing.get("Request Count", 0) or 0),
         "p50_ms": float(ing.get("50%", 0) or 0), "p95_ms": p95, "p99_ms": float(ing.get("99%", 0) or 0),
+        **accepted_percentiles(raw_csvs["requests"]),
         "rps": round(achieved, 2),
         **littles(hosts=hosts, interval_s=interval_s, mean_ms=mean_ms, achieved_rps=achieved, duration_s=duration_s),
         "hosts_daily_2h_equiv": round(hosts / interval_s * JITTER_WINDOW_S),
