@@ -130,7 +130,8 @@ def test_the_committed_page_has_no_external_scripts():
     assert all(s.startswith(allowed) for s in srcs) and not srcs
     assert "<script" not in html.lower()  # no inline script either
     assert "ubuntu" in html and 'id="capacity"' in html
-    assert "1,908,779" in html  # ubuntu agent state bytes from results/soak-real/ubuntu-samples.csv
+    last = (REPO / "benchmark/fleet/results/soak-real/ubuntu-samples.csv").read_text().splitlines()[-1].split(",")
+    assert f"{int(last[8]):,}" in html  # the ubuntu agent's latest state bytes (state_bytes column)
     d = evidence_page.load(REPO)
     f6 = next(f for f in d["findings"] if f["id"] == "F6")
     assert d["items"][5]["verdict"] == f6["state"].split(" (")[0]
