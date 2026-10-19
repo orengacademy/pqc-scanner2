@@ -204,3 +204,20 @@ def test_item_1_quotes_stored_scans_and_accepted_latency_from_the_profiled_run(t
     i1 = evidence_page.load(root)["items"][0]
     assert "sqlite 21 at 10.0 s, then 420 at 18.0 s" in i1["basis"]       # the 503s are not in the median
     assert "load-sqlite-r4-after.json" in i1["source"]
+
+
+def test_item_4_carries_the_day_line_and_db_growth_per_scan(tmp_path):
+    root = _tree(tmp_path)
+    res = root / "benchmark" / "fleet" / "results"
+    head = "ts,role,load1,mem_used_kb,mem_avail_kb,disk_used_kb,db_bytes,wal_bytes,state_bytes,spool_files,hosts,scans,findings\n"
+    (res / "soak-real" / "collector-samples.csv").write_text(
+        head + "2026-10-18T13:20:22Z,collector,1,1,1,1,4096,222512,,,0,0,0\n"
+        "2026-10-18T13:30:01Z,collector,0,1,1,1,4308992,4832792,,,2,2,3000\n"
+        "2026-10-19T05:30:01Z,collector,0,1,1,1,12357632,5269512,,,3,6,8438\n")
+    (res / "soak-real-20261019.json").write_text(json.dumps({"cycles": [{
+        "hosts_enrolled": 3, "scans_total": 6, "drift_rows_total": 0,
+        "statuses": {"ingest": {"200": 6}, "enroll": {"201": 3}}}]}))
+    basis = evidence_page.load(root)["items"][3]["basis"]
+    assert "Day 1: 3 hosts, 6 scans (every host's daily scans arrived on schedule), drift 0" in basis
+    assert "ingest 200 \u00d7 6, enrol 201 \u00d7 3" in basis
+    assert "about 2.1 MB per scan including WAL since the 2-scan sample" in basis   # (17.63 - 9.14) MB / 4 scans

@@ -76,7 +76,7 @@ def _soak(root: Path) -> dict:
         obs = {"hosts_enrolled": cyc.get("hosts_enrolled"), "scans_total": cyc.get("scans_total"),
                "drift_rows_total": cyc.get("drift_rows_total"), "statuses": cyc.get("statuses", {}),
                "source": f"{RES}/{jsons[-1].name}"}
-    hosts, latest = [], None
+    hosts, latest, growth = [], None, None
     for f in sorted((root / RES / "soak-real").glob("*-samples.csv")):
         rows = list(csv.DictReader(f.open()))
         if not rows:
@@ -90,11 +90,27 @@ def _soak(root: Path) -> dict:
         d = date.fromisoformat(z["ts"][:10])
         latest = d if latest is None or d > latest else latest
         start = start or date.fromisoformat(a["ts"][:10])
+        if z.get("role") == "collector":
+            growth = _db_growth(rows)
     hosts.sort(key=lambda h: (h["role"] != "collector", h["host"]))
     day = (latest - start).days if start and latest else None
     return {"start": start.isoformat() if start else None, "day": day,
             "day7": (start + timedelta(days=7)).isoformat() if start else None,
-            "hosts": hosts, "observe": obs, "windows": (root / RES / "soak-real" / "windows").is_dir()}
+            "hosts": hosts, "observe": obs, "growth": growth,
+            "windows": (root / RES / "soak-real" / "windows").is_dir()}
+
+
+def _db_growth(rows: list[dict]) -> dict | None:
+    """Collector DB plus WAL bytes per scan, from the first sample holding scans to the latest one."""
+    def size(r: dict) -> int:
+        return int(r.get("db_bytes") or 0) + int(r.get("wal_bytes") or 0)
+    held = [r for r in rows if int(r.get("scans") or 0) > 0]
+    if len(held) < 2 or int(held[-1]["scans"]) <= int(held[0]["scans"]):
+        return None
+    a, z = held[0], held[-1]
+    return {"from_scans": int(a["scans"]), "scans": int(z["scans"]), "findings": int(z.get("findings") or 0),
+            "db_mb": int(z["db_bytes"]) / 1e6, "wal_mb": int(z.get("wal_bytes") or 0) / 1e6, "at": z["ts"],
+            "per_scan_mb": (size(z) - size(a)) / (int(z["scans"]) - int(a["scans"])) / 1e6}
 
 
 def _fuzz(root: Path) -> dict | None:
@@ -232,8 +248,22 @@ def _items(d: dict) -> list[dict]:
     linux = [h["host"] for h in soak["hosts"] if h["role"] == "agent"]
     if soak["start"]:
         done = soak["day"] is not None and soak["day"] >= 7 and soak["windows"]
+        o, g = soak["observe"] or {}, soak["growth"]
+        day_line = ""
+        if o.get("scans_total") is not None and soak["day"] is not None:
+            st = o.get("statuses", {})
+            on_time = o["scans_total"] == (o.get("hosts_enrolled") or 0) * (soak["day"] + 1)
+            day_line = (f" Day {soak['day']}: {o.get('hosts_enrolled')} hosts, {o['scans_total']} scans"
+                        + (" (every host's daily scans arrived on schedule)" if on_time else "")
+                        + f", drift {o.get('drift_rows_total')}, ingest {_codes(st.get('ingest'))}, "
+                        f"enrol {_codes(st.get('enroll'))}.")
+        if g:
+            day_line += (f" Collector DB {g['db_mb']:.1f} MB and WAL {g['wal_mb']:.1f} MB at {g['scans']} scans and "
+                         f"{g['findings']:,} findings: about {g['per_scan_mb']:.1f} MB per scan including WAL since "
+                         f"the {g['from_scans']}-scan sample, against FLEET.md's 1.2 MB estimate; the final figure is "
+                         "read at day 7.")
         i4 = ("ok" if done else "wait", "Done" if done else "Running",
-              f"Running since {soak['start']}, day {soak['day']} recorded, day 7 on {soak['day7']}. "
+              f"Running since {soak['start']}, day {soak['day']} recorded, day 7 on {soak['day7']}.{day_line} "
               f"Linux agents: {', '.join(linux) or 'none'}. Windows Server 2022 and 2025 runners join when PR #93 "
               "merges. GitHub offers no Windows 11 runner. IBM i is untested.",
               f"{RES}/soak-real-*.json, {RES}/soak-real/*-samples.csv, commit ed7a795")
@@ -257,6 +287,11 @@ def _items(d: dict) -> list[dict]:
              "Test strength", "The two contradicted claims"]
     return [{"n": n, "item": name, "kind": k, "verdict": v, "basis": b, "source": s}
             for n, (name, (k, v, b, s)) in enumerate(zip(names, [i1, i2, i3, i4, i5, i6], strict=True), 1)]
+
+
+def _codes(counts: dict | None) -> str:
+    """{"200": 6} as "200 \u00d7 6" (the ledger's multiplication sign); none as "none"."""
+    return ", ".join(f"{k} \u00d7 {v}" for k, v in sorted((counts or {}).items())) or "none"
 
 
 def _non_503_failures(r: dict) -> int:
