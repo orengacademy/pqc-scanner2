@@ -167,7 +167,8 @@ def test_page_shows_adjusted_mutation_verdict_words_and_the_commands(tmp_path):
     mut.mkdir()
     (mut / "score.json").write_text(json.dumps({"killed": 333, "survived": 113, "timeout": 1, "total": 447,
                                                 "score": 0.745}))
-    (mut / "MUTATION.md").write_text("**Adjusted score with the new tests: killed / (total - equivalent) = "
+    (mut / "MUTATION.md").write_text("| equivalent | 14 |\n| open: message text | 41 |\n| open: other | 3 |\n\n"
+                                     "**Adjusted score with the new tests: killed / (total - equivalent) = "
                                      "(333 + 56) / (447 - 14) = 389 / 433 = 0.898.**\n")
     ledger = root / "docs" / "FLEET-EVIDENCE.md"
     ledger.write_text(ledger.read_text().replace("## Findings", "## Since PR #92\n\n| # | Item |\n|---|---|\n| 1 | x |\n\n"
@@ -179,3 +180,4 @@ def test_page_shows_adjusted_mutation_verdict_words_and_the_commands(tmp_path):
     html = evidence_page.render(d)
     assert "<pre" in html and "bash benchmark/fleet/cloud/soak.sh collect" in html
     assert "Adjusted score 0.898 = 389 / 433" in html
+    assert "56 killed by the new tests, 14 equivalent, 41 message-text and 3 other open" in d["items"][4]["basis"]

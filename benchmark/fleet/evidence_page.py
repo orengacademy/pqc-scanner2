@@ -222,7 +222,9 @@ def _items(d: dict) -> list[dict]:
     mtxt = (f"Mutation score {mut['score']:.3f} raw ({mut['killed']} of {mut['total']} killed in the mutmut run)."
             if mut else "Mutation score pending (the mutmut run was relaunched).")
     if mut and adj:
-        mtxt += f" Adjusted {adj['score']:.3f} = {adj['killed']} / {adj['denominator']}, {adj['rule']}."
+        adj["counts"] = _mutation_counts(mut, adj)
+        mtxt += (f" Adjusted {adj['score']:.3f} = {adj['killed']} / {adj['denominator']}, {adj['rule']}: "
+                 f"{adj['counts']}.")
     i5 = ("ok" if fuzz and mut else "wait", "Done" if fuzz and mut else "Partial", ftxt + mtxt,
           "benchmark/fleet/fuzz/stats.json, benchmark/fleet/mutation/score.json"
           + (", benchmark/fleet/mutation/MUTATION.md" if adj else ""))
@@ -243,7 +245,22 @@ def _non_503_failures(r: dict) -> int:
 def _adjusted_mutation(md: str) -> dict | None:
     """The adjusted score line of MUTATION.md: `killed / (total - equivalent) = ... = K / N = S`."""
     m = re.search(r"Adjusted score[^:]*: (killed / \(total - equivalent\)) = .*?= (\d+) / (\d+) = (\d\.\d+)", md)
-    return {"rule": m[1], "killed": int(m[2]), "denominator": int(m[3]), "score": float(m[4])} if m else None
+    if not m:
+        return None
+    row = {k: int(v) for k, v in re.findall(r"^\| (equivalent|open: message text|open: other) \| (\d+) \|$", md, re.M)}
+    return {"rule": m[1], "killed": int(m[2]), "denominator": int(m[3]), "score": float(m[4]),
+            "equivalent": row.get("equivalent"), "open_text": row.get("open: message text"),
+            "open_other": row.get("open: other")}
+
+
+def _mutation_counts(mut: dict, adj: dict) -> str:
+    """"56 killed by the new tests, 14 equivalent, 41 message-text and 3 other open", from MUTATION.md's score table."""
+    parts = [f"{adj['killed'] - mut['killed']} killed by the new tests"]
+    if adj["equivalent"] is not None:
+        parts.append(f"{adj['equivalent']} equivalent")
+    if adj["open_text"] is not None and adj["open_other"] is not None:
+        parts.append(f"{adj['open_text']} message-text and {adj['open_other']} other open")
+    return ", ".join(parts)
 
 
 def _commands(since: str | None) -> str | None:

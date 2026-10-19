@@ -303,7 +303,7 @@ footer { color: var(--muted); font-size: .85rem; margin-top: 28px; }
       <td class="num">{{ m.timeout|n }}</td><td class="num">{{ m.total|n }}</td><td class="src">{{ "benchmark/fleet/mutation/score.json"|wbr }}</td></tr></tbody>
   </table></div>
   {% if d.mutation_adjusted %}{% set a = d.mutation_adjusted %}
-  <p>Adjusted score {{ '%.3f'|format(a.score) }} = {{ a.killed }} / {{ a.denominator }}, {{ a.rule }}: the raw run plus the mutants the new tests kill, over the mutants that are not equivalent. Source: <span class="src">{{ "benchmark/fleet/mutation/MUTATION.md"|wbr }}</span>.</p>
+  <p>Adjusted score {{ '%.3f'|format(a.score) }} = {{ a.killed }} / {{ a.denominator }}, {{ a.rule }}: the raw run plus the mutants the new tests kill, over the mutants that are not equivalent{% if a.counts %} ({{ a.counts }}){% endif %}. Source: <span class="src">{{ "benchmark/fleet/mutation/MUTATION.md"|wbr }}</span>.</p>
   {% endif %}
   {% else %}
   <p class="empty">Pending. The mutmut run was relaunched and <code>benchmark/fleet/mutation/score.json</code> does not exist yet.</p>
