@@ -38,6 +38,8 @@ html { scrollbar-color: var(--line) var(--bg); accent-color: var(--accent); }
 a:focus-visible, .scroll:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 code, .mono, td.num, .src { font-family: var(--mono); font-variant-numeric: tabular-nums; font-variant-ligatures: none; }
 td.mono { white-space: nowrap; }
+pre { overflow-x: auto; background: var(--code-bg); padding: 12px 14px; border-radius: 6px; font-size: .85em; }
+pre code { background: none; padding: 0; }
 code { font-size: .88em; background: var(--code-bg); padding: 1px 4px; border-radius: 4px; }
 h1 { font-size: clamp(1.6rem, 1.2rem + 1.6vw, 2.2rem); line-height: 1.15; margin: 0 0 8px; letter-spacing: -.01em; }
 h2 { font-size: 1.4rem; line-height: 1.25; margin: 0 0 6px; letter-spacing: -.005em; }
@@ -136,6 +138,11 @@ footer { color: var(--muted); font-size: .85rem; margin-top: 28px; }
     <tbody>{% for r in t[1:] %}<tr>{% for c in r %}<td data-label="{{ t[0][loop.index0] }}">{{ c|md }}</td>{% endfor %}</tr>{% endfor %}</tbody>
   </table></div>
   {% endfor %}
+  {% if d.commands %}
+  <h3>Commands a stranger runs</h3>
+  <p>To finish the soak and to reproduce the capacity number, copied from FLEET-EVIDENCE.md.</p>
+  <pre tabindex="0" aria-label="Reproduction commands"><code>{{ d.commands }}</code></pre>
+  {% endif %}
   {% else %}
   <p class="empty">Pending. The "Since PR #92" section of docs/FLEET-EVIDENCE.md is not written yet; regenerate this page after it is.</p>
   {% endif %}
@@ -295,6 +302,9 @@ footer { color: var(--muted); font-size: .85rem; margin-top: 28px; }
     <tbody><tr><td class="num">{{ '%.1f'|format(m.score * 100) }} %</td><td class="num">{{ m.killed|n }}</td><td class="num">{{ m.survived|n }}</td>
       <td class="num">{{ m.timeout|n }}</td><td class="num">{{ m.total|n }}</td><td class="src">{{ "benchmark/fleet/mutation/score.json"|wbr }}</td></tr></tbody>
   </table></div>
+  {% if d.mutation_adjusted %}{% set a = d.mutation_adjusted %}
+  <p>Adjusted score {{ '%.3f'|format(a.score) }} = {{ a.killed }} / {{ a.denominator }}, {{ a.rule }}: the raw run plus the mutants the new tests kill, over the mutants that are not equivalent. Source: <span class="src">{{ "benchmark/fleet/mutation/MUTATION.md"|wbr }}</span>.</p>
+  {% endif %}
   {% else %}
   <p class="empty">Pending. The mutmut run was relaunched and <code>benchmark/fleet/mutation/score.json</code> does not exist yet.</p>
   {% endif %}

@@ -173,7 +173,7 @@ def _items(d: dict) -> list[dict]:
     if both:
         spi = "; ".join(f"{db} {prof[db]['before']['statements_per_ingest']:,.0f} to "
                         f"{prof[db]['after']['statements_per_ingest']:,.0f} statements per ingest" for db in both)
-        i1 = ("ok", "Delivered", f"Before and after profiles for {', '.join(both)}: {spi}.",
+        i1 = ("ok", "Done", f"Before and after profiles for {', '.join(both)}: {spi}.",
               "benchmark/fleet/profiles/*/summary.json")
     else:
         i1 = ("wait", "Pending", "Before and after profiles are not both present.", "benchmark/fleet/profiles/")
@@ -218,9 +218,14 @@ def _items(d: dict) -> list[dict]:
     mut = d["mutation"]
     ftxt = (f"atheris {fuzz['cpu_hours']:g} CPU-hours, {fuzz['execs']:,} executions, {fuzz['crashes']} crashes. "
             if fuzz else "Fuzz stats pending. ")
-    mtxt = f"Mutation score {mut['score']:.1%}." if mut else "Mutation score pending (the mutmut run was relaunched)."
-    i5 = ("ok" if fuzz and mut else "wait", "Delivered" if fuzz and mut else "Partial", ftxt + mtxt,
-          "benchmark/fleet/fuzz/stats.json, benchmark/fleet/mutation/score.json")
+    adj = d["mutation_adjusted"]
+    mtxt = (f"Mutation score {mut['score']:.3f} raw ({mut['killed']} of {mut['total']} killed in the mutmut run)."
+            if mut else "Mutation score pending (the mutmut run was relaunched).")
+    if mut and adj:
+        mtxt += f" Adjusted {adj['score']:.3f} = {adj['killed']} / {adj['denominator']}, {adj['rule']}."
+    i5 = ("ok" if fuzz and mut else "wait", "Done" if fuzz and mut else "Partial", ftxt + mtxt,
+          "benchmark/fleet/fuzz/stats.json, benchmark/fleet/mutation/score.json"
+          + (", benchmark/fleet/mutation/MUTATION.md" if adj else ""))
     i6 = _item6(d)
     names = ["Profile before fixing", "Arrival model and capacity", "Overload behaviour", "Real soak, 7 days",
              "Test strength", "The two contradicted claims"]
@@ -233,6 +238,18 @@ def _non_503_failures(r: dict) -> int:
     that carry a 503, such as a shed enrolment. Ingest 503s are counted apart (`http_503`) and are not failures."""
     shed = sum(int(m[1]) for f in r.get("failure_samples", []) if (m := re.search(r" 503: .*x(\d+)$", f)))
     return (r.get("errors") or 0) - shed
+
+
+def _adjusted_mutation(md: str) -> dict | None:
+    """The adjusted score line of MUTATION.md: `killed / (total - equivalent) = ... = K / N = S`."""
+    m = re.search(r"Adjusted score[^:]*: (killed / \(total - equivalent\)) = .*?= (\d+) / (\d+) = (\d\.\d+)", md)
+    return {"rule": m[1], "killed": int(m[2]), "denominator": int(m[3]), "score": float(m[4])} if m else None
+
+
+def _commands(since: str | None) -> str | None:
+    """The fenced bash block of the "Since PR #92" section: the commands a stranger runs."""
+    m = re.search(r"^```bash\n(.*?)^```", since or "", re.M | re.S)
+    return m[1].rstrip("\n") if m else None
 
 
 def _item6(d: dict) -> tuple[str, str, str, str]:
@@ -267,10 +284,15 @@ def load(repo_root: Path = ROOT) -> dict:
     for c in caps.values():
         c["files"] = [r["_file"] for r in c["rows"]]
     mut = _json(root / "benchmark/fleet/mutation/score.json")
+    try:
+        adjusted = _adjusted_mutation((root / "benchmark/fleet/mutation/MUTATION.md").read_text())
+    except OSError:
+        adjusted = None
     since = _section(ledger, "Since PR #92")
     d = {"results": res, "capacity": caps, "profiles": _profiles(root), "soak": _soak(root), "fuzz": _fuzz(root),
          "mutation": mut if isinstance(mut, dict) and "score" in mut else None, "ci": _ci(root), "ui": _ui(root),
-         "findings": _findings(ledger), "since": _md_tables(since) if since else None,
+         "findings": _findings(ledger), "since": _md_tables(since) if since else None, "commands": _commands(since),
+         "mutation_adjusted": adjusted,
          "ci_runs": _json(root / RES / "ci-runs.json") or {}}
     d["items"] = _items(d)
     blocking = [i for i in d["items"][:4] if i["kind"] != "ok"]

@@ -159,3 +159,23 @@ def test_item_3_holds_with_a_residual_under_one_percent_and_fails_above(tmp_path
         "enroll: CatchResponseError('enroll 503: {}') x1"]}))  # the only failure is a shed enrolment
     d = evidence_page.load(root)
     assert (d["items"][2]["kind"], d["items"][2]["verdict"]) == ("ok", "Holds")
+
+
+def test_page_shows_adjusted_mutation_verdict_words_and_the_commands(tmp_path):
+    root = _tree(tmp_path)
+    mut = root / "benchmark" / "fleet" / "mutation"
+    mut.mkdir()
+    (mut / "score.json").write_text(json.dumps({"killed": 333, "survived": 113, "timeout": 1, "total": 447,
+                                                "score": 0.745}))
+    (mut / "MUTATION.md").write_text("**Adjusted score with the new tests: killed / (total - equivalent) = "
+                                     "(333 + 56) / (447 - 14) = 389 / 433 = 0.898.**\n")
+    ledger = root / "docs" / "FLEET-EVIDENCE.md"
+    ledger.write_text(ledger.read_text().replace("## Findings", "## Since PR #92\n\n| # | Item |\n|---|---|\n| 1 | x |\n\n"
+                                                 "```bash\nbash benchmark/fleet/cloud/soak.sh collect\n```\n\n## Findings"))
+    d = evidence_page.load(root)
+    assert "0.745 raw" in d["items"][4]["basis"] and "Adjusted 0.898 = 389 / 433" in d["items"][4]["basis"]
+    assert "killed / (total - equivalent)" in d["items"][4]["basis"] and "MUTATION.md" in d["items"][4]["source"]
+    assert (d["items"][0]["verdict"], d["items"][4]["verdict"]) == ("Done", "Done")
+    html = evidence_page.render(d)
+    assert "<pre" in html and "bash benchmark/fleet/cloud/soak.sh collect" in html
+    assert "Adjusted score 0.898 = 389 / 433" in html
