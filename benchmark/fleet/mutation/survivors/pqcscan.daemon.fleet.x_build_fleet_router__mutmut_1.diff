@@ -1,0 +1,9 @@
+# pqcscan.daemon.fleet.x_build_fleet_router__mutmut_1: survived
+--- src/pqcscan/daemon/fleet.py
++++ src/pqcscan/daemon/fleet.py
+@@ -1,4 +1,4 @@
+-def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_host: int = 12,
++def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_host: int = 13,
+                        ingest_parallelism: int | None = None) -> APIRouter:
+     """`ingest_parallelism`: see resolve_ingest_parallelism."""
+     router = APIRouter()

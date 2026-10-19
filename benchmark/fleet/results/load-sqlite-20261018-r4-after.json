@@ -1,0 +1,62 @@
+{
+  "db": "sqlite",
+  "hosts": 500,
+  "spawn_rate": 50,
+  "duration_s": 300,
+  "interval_s": 125.0,
+  "findings_per_bundle": 1670,
+  "arrival": "staggered",
+  "requests": 1091,
+  "p50_ms": 2600.0,
+  "p95_ms": 35000.0,
+  "p99_ms": 39000.0,
+  "rps": 3.48,
+  "offered_rps": 4.0,
+  "mean_ms": 9098.219165696628,
+  "littles_expected_rps": 3.7286,
+  "littles_ratio": 0.932,
+  "measurement_defect": false,
+  "measurement_defect_reason": "",
+  "hosts_daily_2h_equiv": 28800,
+  "hosts_daily_24h_equiv": 345600,
+  "schema_version": 2,
+  "requests_csv": "load-sqlite-20261018-r4-after-requests.csv.gz",
+  "history_csv": "load-sqlite-20261018-r4-after-history.csv.gz",
+  "http_429": 0,
+  "http_503": 566,
+  "errors": 6,
+  "ingest_error_rate": 0.0,
+  "enroll_error_rate": 0.012,
+  "enroll_503": 6,
+  "stored_hosts": 494,
+  "stored_scans": 527,
+  "seed": 1,
+  "ingest_parallelism": 2,
+  "enroll_requests": 500,
+  "enroll_p95_ms": 6100.0,
+  "failure_samples": [
+    "enroll: CatchResponseError('enroll 503: {\"detail\":\"store busy, retry later\"}') x6"
+  ],
+  "pass_p95_lt_2s": false,
+  "commit": "0881a0db89ebc70e8881b53f1ab167de9f97c6dd",
+  "src_hash": "e40608db63b36ae9dc7931f8bcf497c14aa62e06f154514e652e8e026587ba60",
+  "tree_dirty": false,
+  "dirty_files": [],
+  "box": {
+    "cpus": 8,
+    "cpu_model": "DO-Regular",
+    "mem_gb": 16
+  },
+  "box_load_start": {
+    "loadavg_1m": 0.6,
+    "cpu_pressure_avg60_pct": 0.26
+  },
+  "box_load_end": {
+    "loadavg_1m": 1.6,
+    "cpu_pressure_avg60_pct": 0.82
+  },
+  "command": "python -m benchmark.fleet.run_load --db sqlite --hosts 500 --rate 4 --duration 300s --profile benchmark/fleet/profiles/sqlite-after --tag after",
+  "locust_command": "/root/pqc-scanner2/.venv/bin/python -m locust -f /root/pqc-scanner2/benchmark/fleet/locustfile.py --headless -u 500 -r 50 -t 300s --stop-timeout 70 --csv /tmp/fleet-load-nlmoevqh/run --csv-full-history --only-summary --host http://127.0.0.1:60385",
+  "started_at": "2026-10-18T12:20:01.407616+00:00",
+  "profile_dir": "benchmark/fleet/profiles/sqlite-after"
+}

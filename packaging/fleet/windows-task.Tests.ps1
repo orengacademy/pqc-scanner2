@@ -274,51 +274,72 @@ Describe "windows-task.ps1 refuses a pre-planted junction" {
     }
 }
 
-Describe "windows-task.ps1 with a dedicated task account" {
-    # The installer gives a non-SYSTEM -RunAs account Modify on state and ReadAndExecute on code. Registering a
-    # password-logon task needs a password the installer does not take, so the run may fail at that last step;
-    # the folders and files are already on disk by then, which is what these tests inspect.
+Describe "windows-task.ps1 refuses a shared or password-logon -RunAs" {
+    # A plain user would need a password the installer does not take; LOCAL SERVICE and NETWORK SERVICE are shared
+    # by many services, any of which could read agent.env; NT SERVICE\ virtual accounts are unsupported (TrustedInstaller
+    # exists on every host, so the name resolves). Each must be refused before anything is written.
     BeforeAll {
         Remove-Install
-        $script:SvcName = "pqcsvc" + (Get-Random -Maximum 99999)
+        $script:UserName = "pqcusr" + (Get-Random -Maximum 99999)
         $pw = ConvertTo-SecureString ("Pq1!" + [guid]::NewGuid().ToString("N")) -AsPlainText -Force
-        New-LocalUser -Name $SvcName -Password $pw -PasswordNeverExpires | Out-Null
-        $script:Svc = "$env:COMPUTERNAME\$SvcName"
-        $script:Run = Invoke-Installer -Extra @("-RunAs", $Svc)
-        Write-Host "installer (-RunAs $Svc) exit $($Run.ExitCode): $($Run.Output.Trim())"
-        $f = [int][Security.AccessControl.FileSystemRights]::FullControl
-        # Windows stores a Modify or ReadAndExecute grant with Synchronize added; that is the right asserted here.
-        $sync = [int][Security.AccessControl.FileSystemRights]::Synchronize
-        $m = [int][Security.AccessControl.FileSystemRights]::Modify -bor $sync
-        $x = [int][Security.AccessControl.FileSystemRights]::ReadAndExecute -bor $sync
-        $script:State = @{ "NT AUTHORITY\SYSTEM" = $f; "BUILTIN\Administrators" = $f; $Svc = $m }
-        $script:Code  = @{ "NT AUTHORITY\SYSTEM" = $f; "BUILTIN\Administrators" = $f; $Svc = $x }
+        New-LocalUser -Name $UserName -Password $pw -PasswordNeverExpires | Out-Null
+        $script:User = "$env:COMPUTERNAME\$UserName"
     }
     AfterAll {
         Remove-Install
-        Remove-LocalUser -Name $SvcName -ErrorAction SilentlyContinue
+        Remove-LocalUser -Name $UserName -ErrorAction SilentlyContinue
     }
 
-    It "fails to register the task, which is a known installer gap" {
-        # No password reaches Register-ScheduledTask for a password-logon account. This assertion documents that
-        # and breaks the day the installer takes a credential, so the finding gets revisited.
-        $Run.ExitCode | Should -Not -Be 0
-        $Run.Output | Should -Match "user name or password is incorrect"
+    It "refuses <Name>, names the supported accounts, and writes nothing" -ForEach @(
+        @{ Name = "a plain local user" }
+        @{ Name = "NT AUTHORITY\LOCAL SERVICE" }
+        @{ Name = "NT AUTHORITY\NETWORK SERVICE" }
+        @{ Name = "NT SERVICE\TrustedInstaller" }
+    ) {
+        $acct = if ($Name -eq "a plain local user") { $User } else { $Name }
+        $r = Invoke-Installer -Extra @("-RunAs", $acct)
+        Write-Host "installer (-RunAs $acct) exit $($r.ExitCode): $($r.Output.Trim())"
+        try {
+            $r.ExitCode | Should -Not -Be 0 -Because $r.Output
+            $r.Output | Should -Match "is not supported"
+            $r.Output | Should -Match "group managed service account"
+            Test-Path -LiteralPath $Bin | Should -BeFalse -Because $r.Output
+            Test-Path -LiteralPath $Data | Should -BeFalse -Because $r.Output
+            Get-ScheduledTask -TaskName "pqcscan-agent" -ErrorAction SilentlyContinue | Should -BeNullOrEmpty
+        } finally {
+            Remove-Install
+        }
+    }
+}
+
+Describe "windows-task.ps1 removes what it wrote when task registration fails" {
+    # A name ending in '$' passes the gMSA check, so a local user named so gets a Password logon with no password and
+    # Register-ScheduledTask fails after the folders and files are written (as a computer account, or a gMSA this
+    # host cannot use, would). The installer must remove both folders and fail with the registration error.
+    BeforeAll {
+        Remove-Install
+        $script:DollarName = "pqcusr" + (Get-Random -Maximum 99999) + '$'
+        $pw = ConvertTo-SecureString ("Pq1!" + [guid]::NewGuid().ToString("N")) -AsPlainText -Force
+        New-LocalUser -Name $DollarName -Password $pw -PasswordNeverExpires | Out-Null
+        $script:Dollar = "$env:COMPUTERNAME\$DollarName"
+        $script:Run = Invoke-Installer -Extra @("-RunAs", $Dollar)
+        Write-Host "installer (-RunAs $Dollar) exit $($Run.ExitCode): $($Run.Output.Trim())"
+    }
+    AfterAll {
+        Remove-Install
+        Remove-LocalUser -Name $DollarName -ErrorAction SilentlyContinue
+    }
+
+    It "gets past the account check and fails at registration" {
+        $Run.ExitCode | Should -Not -Be 0 -Because $Run.Output
+        $Run.Output | Should -Not -Match "is not supported"
+        $Run.Output | Should -Match "task registration failed"
+    }
+
+    It "leaves neither folder behind and registers no task" {
+        Test-Path -LiteralPath $Bin | Should -BeFalse -Because $Run.Output
+        Test-Path -LiteralPath $Data | Should -BeFalse -Because $Run.Output
         Get-ScheduledTask -TaskName "pqcscan-agent" -ErrorAction SilentlyContinue | Should -BeNullOrEmpty
-    }
-
-    It "gives the task account Modify on the state folders and agent.env" {
-        foreach ($p in @($Data, (Join-Path $Data "agent"), (Join-Path $Data "agent.env"))) {
-            Test-Path -LiteralPath $p | Should -BeTrue -Because $Run.Output
-            Get-AclProblems -Path $p -Expected $State | Should -BeNullOrEmpty -Because $p
-        }
-    }
-
-    It "gives the task account ReadAndExecute, not write, on the code folder and its files" {
-        foreach ($p in @($Bin, (Join-Path $Bin "pqcscan.exe"), (Join-Path $Bin "run-agent.ps1"))) {
-            Test-Path -LiteralPath $p | Should -BeTrue -Because $Run.Output
-            Get-AclProblems -Path $p -Expected $Code | Should -BeNullOrEmpty -Because $p
-        }
     }
 }
 

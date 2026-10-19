@@ -1,0 +1,4 @@
+{
+  "windows_installer_f6": {"run": 39131286228, "commit": "6c694c6", "result": "31/31 on windows-2022 and windows-latest"},
+  "load_ratio_first_green": {"run": 39133754655, "commit": "e14e538"}
+}

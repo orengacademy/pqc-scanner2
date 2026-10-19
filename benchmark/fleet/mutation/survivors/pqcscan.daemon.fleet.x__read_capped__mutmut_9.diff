@@ -1,0 +1,12 @@
+# pqcscan.daemon.fleet.x__read_capped__mutmut_9: survived
+--- src/pqcscan/daemon/fleet.py
++++ src/pqcscan/daemon/fleet.py
+@@ -3,7 +3,7 @@
+     try:
+         declared = int(request.headers.get("content-length") or 0)
+     except ValueError:
+-        declared = 0
++        declared = 1
+     if declared > cap:
+         raise HTTPException(413, f"body over {cap} bytes")
+     chunks: list[bytes] = []

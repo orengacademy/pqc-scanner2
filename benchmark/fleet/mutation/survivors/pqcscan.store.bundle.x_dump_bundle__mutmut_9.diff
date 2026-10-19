@@ -1,0 +1,12 @@
+# pqcscan.store.bundle.x_dump_bundle__mutmut_9: survived
+--- src/pqcscan/store/bundle.py
++++ src/pqcscan/store/bundle.py
+@@ -5,7 +5,7 @@
+     findings: list[dict[str, Any]] = []
+     with Session(repo.engine) as s:
+         rows = s.execute(select(FindingRow).where(FindingRow.scan_id == scan_id)
+-                         .order_by(FindingRow.id)).scalars().all()
++                         .order_by(None)).scalars().all()
+         for r in rows:
+             views = s.execute(select(FrameworkView).where(FrameworkView.finding_id == r.id)).scalars().all()
+             findings.append({

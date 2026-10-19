@@ -16,8 +16,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   CBOM-vs-inventory reconciliation script and sign-off template (`benchmark/fleet/reconcile.py`,
   `docs/ACCEPTANCE-TEMPLATE.md`), and a `verify` CI workflow (Postgres, Windows installer, fuzz, accuracy).
   The `verify` extra and the `fuzz` and `benchmark` pytest markers are new; a plain `pytest` skips the fuzz tests.
+- Fleet ingest load shedding. The collector holds at most 32 bundles waiting for or holding one of its two parse slots
+  (`INGEST_QUEUE_MAX`), reads at most 64 bodies at once and 2 per host, and gives a body 120 s to arrive. Past a bound
+  it answers `503` with `Retry-After: 60` (`408` for the deadline), before reading the body when the queue is already
+  full, and the agent spools and resends. A herd of 500 hosts posting at once is shed with `503`s instead of queueing
+  past the agent's 60 s timeout. `docs/FLEET.md` (Security, Known limits) states the limits and the measured capacity.
+- Capacity and real-soak campaign, graded in the "Since PR #92" section of `docs/FLEET-EVIDENCE.md`. Tooling under
+  `benchmark/fleet/`: rate-based open arrival with a Little's law check, per-request CSVs and 1,670-finding bundles in
+  `run_load.py`; `--profile` (py-spy, asyncio slow callbacks, statements per ingest); `capacity.py`, which writes
+  `CAPACITY.md`; `cloud/loadbox.sh` for a rented load box; `cloud/soak.sh` with cloud-init, a 10-minute sampler and
+  `.github/workflows/soak-windows.yml` for the real soak; mutmut and atheris runners (`mutation/`, `fuzz/`);
+  `make_fleet_db.py` for timing the fleet pages; and `evidence_page.py`, which regenerates `docs/evidence/index.html`.
+  The `verify` workflow gains a `load-ratio` job, a same-runner A/B of ingest p95 against the PR #92 head on SQLite
+  and Postgres. `docs/FLEET-UI-REVIEW.md` records the fleet web UI at 500 hosts.
+
+### Changed
+- Fleet ingest on SQLite sends findings and compliance views as multi-row `INSERT ... VALUES` pages, replacing the
+  executemany inserts. That removes `do_executemany`, 17.2 % of sampled wall time in the before-profile. Both backends
+  now insert through SQLAlchemy Core rather than the ORM bulk path, which removes `_collect_insert_commands` (4.5 % on
+  SQLite, 3.1 % on Postgres). A 1,670-finding ingest on SQLite went from 8,528 statements to 34.8
+  (`benchmark/fleet/profiles/sqlite-*`). Postgres keeps psycopg's pipelined executemany: pages reached no higher rate
+  and had a higher p95. Postgres also keeps two parse slots like SQLite, because four were measured slower (p95 1.5 to
+  2.2 times in CI).
 
 ### Fixed
+- `packaging/fleet/windows-task.ps1` no longer leaves a half-finished install for a non-SYSTEM `-RunAs` account. It
+  accepts SYSTEM or a group managed service account and refuses plain users, LOCAL SERVICE, NETWORK SERVICE and
+  `NT SERVICE\` accounts before it writes anything. If Task Scheduler rejects an account that passed that check, the
+  installer removes what it wrote. Pester covers the refusals and the rollback on both Windows runners (31 tests).
+- `pip install .` and `pip install git+…` of the repository work again. The hatchling `force-include` table re-added
+  template directories the package already ships, so the wheel build failed on a second `bukukerja-template.xlsx`.
+  Editable installs and PyInstaller never build the wheel, so CI did not notice. `tests/packaging/test_wheel_builds.py`
+  now builds it. Found by the real soak's collector install.
+- Fleet web UI at 500 hosts: tables scroll sideways on phones instead of clipping columns; the header nav scrolls
+  inside the header instead of widening every page; light and dark themes meet 4.5:1 contrast on the fleet pages; a
+  malformed label filter shows an inline error instead of a bare JSON body; a filter that matches nothing says so
+  instead of "no enrolled hosts"; timestamps say UTC and stop at the minute; stale and drift markers are static pills,
+  not button-styled chips; the scan-link column has a header; and the no-scan readiness dash is readable.
 - `net.ports.tcp` no longer loses open ports when the box is busy. It timed each connect inside the event loop,
   and the scan's other probes block that loop with synchronous database writes, so a port that accepted at once read
   as closed. Two of twelve concurrent scans found none of the four open well-known ports on the test box. Fleet drift

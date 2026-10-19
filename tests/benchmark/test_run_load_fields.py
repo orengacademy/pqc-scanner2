@@ -1,0 +1,123 @@
+import sys
+from pathlib import Path
+
+import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from benchmark.fleet import run_load
+
+
+def test_littles_law_matches_closed_loop_expectation():
+    # 120 hosts, 60 s think time, 500 ms mean response: expected 120 / 60.5 = 1.983 rps
+    r = run_load.littles(hosts=120, interval_s=60.0, mean_ms=500.0, achieved_rps=1.98)
+    assert abs(r["littles_expected_rps"] - 1.983) < 0.01
+    assert 0.99 < r["littles_ratio"] < 1.01
+    assert r["measurement_defect"] is False
+
+
+def test_littles_law_flags_lost_requests():
+    r = run_load.littles(hosts=500, interval_s=60.0, mean_ms=60000.0, achieved_rps=3.6)
+    # 500 / 120 s = 4.17 expected; achieved 3.6 is 0.86: outside 0.9..1.1
+    assert r["measurement_defect"] is True
+    assert "0.86" in r["measurement_defect_reason"]
+
+
+def test_rate_derives_interval():
+    assert run_load.interval_for(hosts=500, rate=2.0) == 250.0
+
+
+def test_littles_not_evaluated_for_run_shorter_than_two_intervals():
+    r = run_load.littles(hosts=5, interval_s=60.0, mean_ms=200.0, achieved_rps=0.5, duration_s=100)
+    assert r["measurement_defect"] is None
+    assert "shorter than two intervals" in r["measurement_defect_reason"]
+    assert run_load.littles(hosts=5, interval_s=60.0, mean_ms=200.0, achieved_rps=0.08, duration_s=120)[
+        "measurement_defect"] is False
+
+
+def test_append_row_refuses_a_header_with_a_different_column_count(tmp_path):
+    md = tmp_path / "LOAD.md"
+    md.write_text("| date (UTC) | db | rps |\n|---|---|---|\n")
+    with pytest.raises(RuntimeError, match="3-column header"):
+        run_load._check_md_columns(md, run_load.ROW_COLUMNS)
+    md.write_text(run_load._load_md_head())          # the header the harness writes matches the row it appends
+    run_load._check_md_columns(md, run_load.ROW_COLUMNS)
+
+
+def test_committed_load_md_matches_the_row_format():
+    run_load._check_md_columns(run_load.HERE / "LOAD.md", run_load.ROW_COLUMNS)
+
+
+def test_ingest_parallelism_flag_refuses_below_one():
+    import argparse
+    assert run_load._at_least_one("3") == 3
+    with pytest.raises(argparse.ArgumentTypeError, match="at least 1"):
+        run_load._at_least_one("0")
+
+
+def test_collector_reports_the_resolved_ingest_parallelism(tmp_path):
+    from benchmark.fleet import _collector
+    from pqcscan.daemon.fleet import INGEST_PARALLELISM
+    for given, want in ((None, INGEST_PARALLELISM), (3, 3)):
+        info: dict = {}
+        work = tmp_path / str(given)
+        work.mkdir()
+        with _collector.collector("sqlite", work, ingest_parallelism=given, info=info):
+            pass
+        assert info["ingest_parallelism"] == want
+
+
+def test_collector_insert_mode_sets_the_dialect_flag(tmp_path, monkeypatch):
+    from benchmark.fleet import _collector
+    seen = {}
+    real = _collector.create_app
+
+    def spy(**kw):
+        app = real(**kw)
+        seen["dialect"] = app.state.repo.engine.dialect
+        return app
+
+    monkeypatch.setattr(_collector, "create_app", spy)
+    for given, flag in (("executemany", False), ("pages", True), (None, True)):      # None: the product default
+        info: dict = {}
+        work = tmp_path / str(given)
+        work.mkdir()
+        with _collector.collector("sqlite", work, insert_mode=given, info=info):
+            assert seen["dialect"].use_insertmanyvalues_wo_returning is flag
+        assert info["insert_mode"] == ("pages" if flag else "executemany")
+    with pytest.raises(ValueError, match="insert_mode"):
+        _collector.collector("sqlite", tmp_path, insert_mode="bulk").__enter__()
+
+
+def test_keep_scans_per_host_reaches_create_app_and_the_result(tmp_path, monkeypatch):
+    from benchmark.fleet import _collector
+    seen = {}
+    real = _collector.create_app
+
+    def spy(**kw):
+        seen["keep"] = kw.get("keep_scans_per_host", "default")
+        return real(**kw)
+
+    monkeypatch.setattr(_collector, "create_app", spy)
+    for given, passed, recorded in ((2, 2, 2), (None, "default", 12)):     # None: the product default, recorded
+        info: dict = {}
+        work = tmp_path / str(given)
+        work.mkdir()
+        with _collector.collector("sqlite", work, keep_scans_per_host=given, info=info):
+            pass
+        assert seen["keep"] == passed and info["keep_scans_per_host"] == recorded
+
+
+def test_load_md_head_names_the_keep_column():
+    header = next(ln for ln in run_load._load_md_head().splitlines() if ln.startswith("| date"))
+    cells = [c.strip() for c in header.strip("|").split("|")]
+    assert cells[cells.index("insert") + 1] == "keep"
+
+
+def test_accepted_percentiles_count_only_ingests_answered_200():
+    rows = ["ts,name,status,response_ms,bytes", "1,enroll,201,5000,73"]
+    rows += [f"2,ingest,200,{ms},10" for ms in range(100, 1100, 100)]       # 100 .. 1000 ms, ten accepted
+    rows += ["3,ingest,503,1,10"] * 30 + ["4,ingest,0,60000,0"] * 5           # shed and unanswered: left out
+    r = run_load.accepted_percentiles("\n".join(rows).encode())
+    assert r == {"p50_accepted_ms": 500.0, "p95_accepted_ms": 1000.0}
+    assert run_load.accepted_percentiles(b"ts,name,status,response_ms,bytes\n") == {
+        "p50_accepted_ms": None, "p95_accepted_ms": None}

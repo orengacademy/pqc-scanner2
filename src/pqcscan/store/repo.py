@@ -106,6 +106,16 @@ class Repo:
         if url.startswith("sqlite"):
             kwargs["connect_args"] = {"check_same_thread": False}
         self.engine = create_engine(url, **kwargs)
+        # Bulk-insert strategy per backend, measured on the load box (benchmark/fleet/results, 1,670-finding bundles):
+        # - SQLite: an executemany INSERT goes as multi-row INSERT ... VALUES pages of up to 1,000 rows (SQLAlchemy's
+        #   "insertmanyvalues"), compiled once, instead of sqlite3 stepping it row by row: 8,528 -> 32 statements per
+        #   ingest and 1.18 -> 3.48 posts/s (load-sqlite-20261018-r4-after.json). Pages stay under its parameter limit.
+        # - Postgres keeps psycopg 3's pipelined executemany: at 4 posts/s both strategies reach the same ~3.3 posts/s
+        #   (server-bound, per-row FK checks), but p50 is 59 / 54 ms with executemany (2 / 4 slots) against
+        #   160 / 440 ms with pages (load-postgres-20261018-r4-pginsert*.json), and in CI run 39127318186 at 2 posts/s
+        #   p95 was 1.9 s with executemany against 2.9 s with pages.
+        if self.engine.dialect.name == "sqlite":
+            self.engine.dialect.use_insertmanyvalues_wo_returning = True
 
         if self.engine.dialect.name == "sqlite":
             # WAL lets the daemon's background-thread writer coexist with request
@@ -497,8 +507,9 @@ class Repo:
             s.flush()
             # One executemany for the findings, one query for their ids, one executemany for the views: no flush per
             # finding, and no INSERT ... RETURNING (SQLite before 3.35 lacks it). The scan row is new in this
-            # transaction, so its findings are exactly ours, and rows of one executemany get ascending ids in
-            # parameter order (one session draws its sequence/rowid values in execution order).
+            # transaction, so its findings are exactly ours. Their ids ascend in parameter order: the executemany runs
+            # in that order (multi-row VALUES pages on SQLite, pipelined rows on Postgres; see __init__), and both
+            # were observed to assign ids in that order. Not a documented guarantee, so it is checked below, row by row.
             rows = [{
                 "scan_id": scan.id, "probe_id": str(f["probe_id"]), "algorithm": str(f.get("algorithm", "N/A")),
                 "classification": str(f.get("classification", "info")), "severity": str(f.get("severity", "info")),
@@ -514,18 +525,23 @@ class Repo:
             } for d in drift]
             view_rows: list[dict] = []
             if rows:
-                s.execute(insert(FindingRow), rows)
-                ids = list(s.scalars(select(FindingRow.id).where(FindingRow.scan_id == scan.id)
-                                     .order_by(FindingRow.id)))
-                if len(ids) != len(rows):
-                    raise RuntimeError(f"stored {len(ids)} findings for {len(rows)} rows")
+                s.execute(insert(FindingRow.metadata.tables["findings"]), rows)
+                stored = s.execute(select(FindingRow.id, FindingRow.probe_id, FindingRow.algorithm, FindingRow.title)
+                                   .where(FindingRow.scan_id == scan.id).order_by(FindingRow.id)).all()
+                if len(stored) != len(rows):
+                    raise RuntimeError(f"stored {len(stored)} findings for {len(rows)} rows")
+                if any((st.probe_id, st.algorithm, st.title) != (r["probe_id"], r["algorithm"], r["title"])
+                       for st, r in zip(stored, rows, strict=True)):
+                    raise RuntimeError("stored findings came back out of row order; views would attach to the wrong "
+                                       "finding")
+                ids = [st.id for st in stored]
                 view_rows = [{
                     "finding_id": fid, "framework": str(v["framework"]), "clause": str(v["clause"]),
                     "verdict": str(v["verdict"]),
                     "deadline": date.fromisoformat(v["deadline"]) if v.get("deadline") else None,
                 } for fid, f in zip(ids, bundle.findings, strict=False) for v in f.get("views") or []]
                 if view_rows:
-                    s.execute(insert(FrameworkView), view_rows)
+                    s.execute(insert(FrameworkView.metadata.tables["framework_views"]), view_rows)
             n_v = len(view_rows)
             _apply_identity(h, bundle.host)
             s.commit()

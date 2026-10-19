@@ -1,0 +1,12 @@
+# pqcscan.store.bundle.x_dump_bundle__mutmut_4: survived
+--- src/pqcscan/store/bundle.py
++++ src/pqcscan/store/bundle.py
+@@ -1,7 +1,7 @@
+ def dump_bundle(repo: Repo, scan_id: int, host: HostIdentity) -> bytes:
+     scan = repo.get_scan(scan_id)
+     if scan is None:
+-        raise ValueError(f"scan {scan_id} not found")
++        raise ValueError(None)
+     findings: list[dict[str, Any]] = []
+     with Session(repo.engine) as s:
+         rows = s.execute(select(FindingRow).where(FindingRow.scan_id == scan_id)

@@ -1,0 +1,12 @@
+# pqcscan.daemon.fleet.xǁ_TokenBucketǁtake__mutmut_20: survived
+--- src/pqcscan/daemon/fleet.py
++++ src/pqcscan/daemon/fleet.py
+@@ -3,7 +3,7 @@
+     with self._lock:
+         tokens, then = self._state.get(key, (float(INGEST_BURST), now))
+         tokens = (min(float(INGEST_BURST), tokens + (now - then) / INGEST_MIN_INTERVAL_S)
+-                  if INGEST_MIN_INTERVAL_S > 0 else float(INGEST_BURST))
++                  if INGEST_MIN_INTERVAL_S > 1 else float(INGEST_BURST))
+         ok = tokens >= 1
+         self._state[key] = (tokens - 1 if ok else tokens, now)
+         return ok

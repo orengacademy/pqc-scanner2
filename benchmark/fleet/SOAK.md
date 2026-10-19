@@ -186,8 +186,10 @@ Every number above zero that `docs/FLEET.md` does not predict, and every sentenc
    300 of the load test. With six agents posting at once, the collector's own ingest time per call was
    0.3 to 1.3 s (p50) and 0.6 to 7.9 s (p95) on SQLite, and 3.1 to 4.6 s (p50) and 6.0 to 10.6 s (p95) on Postgres,
    by cycle. No call timed out (the agent waits 60 s), none drew a 429 or 503, and no bundle was stored twice by a
-   retry. Postgres was several times slower than SQLite per call here, in line with `LOAD.md`. FLEET.md's advice to move
+   retry. Postgres was several times slower than SQLite per call here, in line with `LOAD-pr92.md`. FLEET.md's advice to move
    to Postgres past about 10,000 hosts a day is about write concurrency, not latency, and this does not contradict it.
+   The later capacity campaign did: on its load box Postgres met p95 < 2 s at no swept rate while SQLite sustained
+   1 post/s (`CAPACITY.md`), and FLEET.md dropped the advice (finding F26 in `docs/FLEET-EVIDENCE.md`).
 5. **Observation, not in FLEET.md: database size.** The SQLite file was 106 MB with 90 stored scans (30 hosts at 3
    each), about 1.2 MB per scan. A straight-line extrapolation to the default 12 scans per host is 420 MB for 30
    hosts and about 28 GB for 2,000. That is arithmetic on one measurement, not a test.

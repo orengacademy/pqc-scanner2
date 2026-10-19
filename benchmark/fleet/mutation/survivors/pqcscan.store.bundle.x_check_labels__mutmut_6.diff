@@ -1,0 +1,11 @@
+# pqcscan.store.bundle.x_check_labels__mutmut_6: survived
+--- src/pqcscan/store/bundle.py
++++ src/pqcscan/store/bundle.py
+@@ -4,6 +4,6 @@
+         raise BundleInvalid(f"host.labels has {len(labels)} entries; cap {MAX_LABELS}")
+     for k, v in labels.items():
+         if not isinstance(v, str):
+-            raise BundleInvalid("host.labels values must be strings")
++            raise BundleInvalid("HOST.LABELS VALUES MUST BE STRINGS")
+         if len(k) > MAX_LABEL_KEY or len(v) > MAX_LABEL_VALUE:
+             raise BundleInvalid(f"host.labels keys are capped at {MAX_LABEL_KEY} and values at {MAX_LABEL_VALUE} chars")

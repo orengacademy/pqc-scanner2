@@ -5,17 +5,20 @@
   <div>
     <p class="text-xs font-mono uppercase tracking-[0.2em] text-zinc-500 mb-2">{{ t('nav.fleet') }}</p>
     <h1 class="text-3xl font-semibold tracking-tight text-zinc-50">{{ t('fleet.title') }}</h1>
-    <p class="mt-2 text-sm text-zinc-400">{{ rows|length }} {{ t('fleet.host') }}</p>
+    {% if not label_error %}<p class="mt-2 text-sm text-zinc-400">{{ rows|length }} {{ t('fleet.host') }}</p>{% endif %}
   </div>
-  <form method="get" action="/fleet" class="flex items-center gap-2">
+  <form method="get" action="/fleet" class="flex flex-wrap items-center gap-2">
     <label for="fleet-label" class="text-xs font-mono uppercase tracking-wider text-zinc-500">{{ t('fleet.labels') }}</label>
     <input id="fleet-label" type="text" name="label" value="{{ label }}" placeholder="env=prod"
+           {% if label_error %}aria-invalid="true" aria-describedby="fleet-label-error"{% endif %}
            class="px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-sm font-mono text-zinc-200">
+    {% if label_error %}<p id="fleet-label-error" class="w-full text-xs text-red-400">{{ t('fleet.label_error') }}</p>{% endif %}
   </form>
 </section>
 
-<div class="card overflow-hidden">
-  <table class="w-full text-sm">
+{% if rows %}
+<div class="card overflow-x-auto">
+  <table class="w-full text-sm table-nowrap">
     <thead class="text-xs uppercase tracking-wider text-zinc-500">
       <tr class="border-b border-zinc-800/80">
         <th class="text-left font-medium py-3 px-5">{{ t('fleet.host') }}</th>
@@ -25,7 +28,7 @@
         <th class="text-right font-medium py-3 px-5">{{ t('fleet.crit') }}</th>
         <th class="text-right font-medium py-3 px-5">{{ t('fleet.high') }}</th>
         <th class="text-right font-medium py-3 px-5">{{ t('fleet.total') }}</th>
-        <th class="py-3 px-5"></th>
+        <th class="text-right font-medium py-3 px-5">{{ t('common.scan') }}</th>
       </tr>
     </thead>
     <tbody class="divide-y divide-zinc-800/60">
@@ -33,15 +36,15 @@
         <tr class="row-hover">
           <td class="py-2.5 px-5 font-mono text-zinc-200">
             <a href="/fleet/{{ row.host.id }}" class="text-blue-400 hover:text-blue-300">{{ row.host.hostname or row.host.machine_id }}</a>
-            {% if row.stale %}<span class="sev-chip ml-2">{{ t('fleet.stale') }}</span>{% endif %}
-            {% if row.drift %}<span class="sev-chip ml-2">{{ t('fleet.drift') }} {{ row.drift }}</span>{% endif %}
+            {% if row.stale %}<span class="sev-pill ml-2" data-sev="med">{{ t('fleet.stale') }}</span>{% endif %}
+            {% if row.drift %}<span class="sev-pill ml-2 border border-zinc-800 text-zinc-300">{{ t('fleet.drift') }} {{ row.drift }}</span>{% endif %}
           </td>
           <td class="py-2.5 px-5 font-mono text-xs text-zinc-400">
             {% for k, v in (row.host.labels or {}).items() %}{{ k }}={{ v }}{% if not loop.last %}, {% endif %}{% endfor %}
           </td>
-          <td class="py-2.5 px-5 font-mono text-xs text-zinc-500">{{ row.host.last_seen }}</td>
+          <td class="py-2.5 px-5 font-mono text-xs text-zinc-500">{{ row.host.last_seen.strftime('%Y-%m-%d %H:%M UTC') if row.host.last_seen else '—' }}</td>
           <td class="py-2.5 px-5 text-right font-mono tabular-nums">
-            {% if row.readiness is none %}<span class="text-zinc-600">&mdash;</span>
+            {% if row.readiness is none %}<span class="text-zinc-500">&mdash;</span>
             {% else %}
               <span class="{{ 'text-emerald-400' if row.readiness >= 67 else ('text-amber-400' if row.readiness >= 34 else 'text-red-400') }}">{{ row.readiness }}</span>
             {% endif %}
@@ -53,13 +56,18 @@
             {% if row.scan_id %}<a href="/scans/{{ row.scan_id }}" class="text-blue-400 hover:text-blue-300 text-xs">#{{ row.scan_id }} &rarr;</a>{% endif %}
           </td>
         </tr>
-      {% else %}
-        <tr>
-          <td colspan="8" class="py-12 text-center text-sm text-zinc-500">{{ t('fleet.none') }}</td>
-        </tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
+{% else %}
+{# Outside the table: inside a nowrap, horizontally scrolling table the message and its link sat past the card edge on phones. #}
+<div class="card py-12 px-5 text-center text-sm text-zinc-500">
+  {% if label_error %}<a href="/fleet" class="text-blue-400 hover:text-blue-300">{{ t('fleet.show_all') }}</a>
+  {% elif label %}{{ t('fleet.no_match') }} <code class="font-mono text-zinc-300">{{ label }}</code>.
+    <a href="/fleet" class="text-blue-400 hover:text-blue-300">{{ t('fleet.show_all') }}</a>
+  {% else %}{{ t('fleet.none') }}{% endif %}
+</div>
+{% endif %}
 
 {% endblock %}

@@ -34,7 +34,22 @@ from pqcscan.store.repo import Repo
 FLEET_BEARER_PATHS = ("/api/ingest", "/api/agents/enroll")
 INGEST_MIN_INTERVAL_S = 60.0   # one ingest token refilled per interval, per host
 INGEST_BURST = 10               # tokens a host can spend at once (spool replay after an outage)
-INGEST_PARALLELISM = 2          # bundles parsed/stored at once, across all hosts
+INGEST_PARALLELISM = 2          # bundles parsed/stored at once, across all hosts, on SQLite (one writer)
+# Postgres slots. 4 was measured slower: concurrent 1,670-row ingests contend on the server's per-row FK and index
+# work, and throughput is server-bound at about 3.3 posts/s on the 8-vCPU load box, so extra slots only lengthen the
+# tail. Box at 4 posts/s: p95 29 s with 2 slots vs 48 s with 4 (benchmark/fleet/results/
+# load-postgres-20261018-r4-pginsert-3.json and -4.json). CI same-runner A/B (runs 39127318186, 39130841180,
+# 39131286228): p95 1.5-2.2x the 2-slot baseline with 4; with --ingest-parallelism 2 at 431cc50, 0.97x.
+# Kept apart from INGEST_PARALLELISM so a sweep (run_load --ingest-parallelism) can move it.
+INGEST_PARALLELISM_PG = 2
+INGEST_QUEUE_MAX = 32   # bundles waiting for or holding a parse slot, all hosts. Longest wait ≈ QUEUE_MAX x service
+                        # time / slots; at 2 s per large bundle and 2 slots that is 32 s. Bounded so that a queued
+                        # request normally completes before the agent's 60 s timeout; under a 500-host herd a few
+                        # still exceed it (6 on SQLite, 14 on Postgres; FLEET-EVIDENCE F24). Past the bound the
+                        # collector answers 503 + Retry-After and the agent spools (FLEET.md, Ingest limits).
+INGEST_READ_MAX = 64    # ingest bodies being read at once, all hosts: 64 x 8 MiB = 512 MiB worst case in flight
+INGEST_READ_PER_HOST = 2       # of those, from one host: a trickling host cannot hold the read places alone
+INGEST_BODY_TIMEOUT_S = 120.0  # a body must arrive within this; 408 past it (the agent spools and retries)
 MAX_ENROLL_BYTES = 64 * 1024
 _TERMINAL_STATUSES = ("done", "failed", "interrupted")
 
@@ -89,11 +104,26 @@ def _host_dict(h: Any) -> dict[str, Any]:
             "last_seen": h.last_seen.isoformat() if h.last_seen else None, "revoked": bool(h.revoked)}
 
 
-def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_host: int = 12) -> APIRouter:
+def resolve_ingest_parallelism(repo: Repo, given: int | None) -> int:
+    """Bundles parsed/stored at once: `given`, else by dialect (INGEST_PARALLELISM_PG on Postgres, INGEST_PARALLELISM
+    elsewhere). Below 1 no ingest could ever run, so it is refused."""
+    n = given if given is not None else (
+        INGEST_PARALLELISM_PG if repo.engine.dialect.name == "postgresql" else INGEST_PARALLELISM)
+    if n < 1:
+        raise ValueError(f"ingest_parallelism must be at least 1, not {n}")
+    return n
+
+
+def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_host: int = 12,
+                       ingest_parallelism: int | None = None) -> APIRouter:
+    """`ingest_parallelism`: see resolve_ingest_parallelism."""
     router = APIRouter()
     limiter = _TokenBucket()
     # Per router (one per app): an asyncio.Semaphore binds to the loop it first blocks on.
-    parse_slots = asyncio.Semaphore(INGEST_PARALLELISM)
+    parse_slots = asyncio.Semaphore(resolve_ingest_parallelism(repo, ingest_parallelism))
+    queued = 0      # ingest requests with their body read, waiting for or holding a parse slot
+    reading = 0     # ingest requests reading their body
+    reading_by_host: dict[int, int] = {}   # of those, per host id; a host with none has no entry
 
     async def _agent_host(request: Request):
         auth = request.headers.get("authorization", "")
@@ -150,43 +180,73 @@ def build_fleet_router(repo: Repo, *, enroll_token: str | None, keep_scans_per_h
         logger.info("fleet: enrolled host {} ({})", host.hostname, host.machine_id)
         return {"host_id": host.id, "agent_token": token}
 
+    def _queue_full() -> HTTPException:
+        return HTTPException(503, f"collector busy: ingest queue full ({INGEST_QUEUE_MAX} bundles); "
+                                  "the agent spools and retries", headers={"Retry-After": "60"})
+
     @router.post("/api/ingest")
     async def ingest(request: Request) -> dict:
+        nonlocal queued, reading
         host = await _agent_host(request)
         if not limiter.take(host.id):     # before reading or parsing anything
             raise HTTPException(429, f"ingest rate limit: {INGEST_BURST} bundles, then one per "
                                      f"{INGEST_MIN_INTERVAL_S:g} s per host")
         # Every outcome spends the token, duplicates included: a free resend would let one agent token push
         # 50 MiB through the parser endlessly, and the burst already absorbs a rare retry after a lost response.
-        data = await _read_capped(request, MAX_GZIP_BYTES)
-        async with parse_slots:
-            try:
-                bundle = await run_in_threadpool(load_bundle, data)
-            except BundleTooLarge as e:
-                raise HTTPException(413, str(e)) from e
-            except BundleInvalid as e:
-                raise HTTPException(400, str(e)) from e
-            if bundle.host.machine_id != host.machine_id:
-                raise HTTPException(403, "bundle machine_id does not match the agent token")
-            status = bundle.scan.get("status")
-            if status not in _TERMINAL_STATUSES:
-                raise HTTPException(400, f"scan status {status!r} is not terminal; "
-                                         f"expected one of {_TERMINAL_STATUSES}")
-            try:
-                res = await run_in_threadpool(repo.ingest_bundle, bundle, host.id)
-            except (ValueError, KeyError, TypeError) as e:
-                raise HTTPException(400, f"invalid bundle content: {e}") from e
-            except OperationalError as e:     # e.g. SQLite busy past its timeout: the agent spools and retries
-                raise HTTPException(503, "store busy, retry later", headers={"Retry-After": "5"}) from e
-            except IntegrityError as e:
-                # Two requests with the same scan_uuid raced past the duplicate check; the loser is a duplicate.
+        if queued >= INGEST_QUEUE_MAX:    # early and cheap: nothing reserved, the body not read
+            raise _queue_full()
+        if reading >= INGEST_READ_MAX:    # bounds the capped bodies held in memory at once
+            raise HTTPException(503, "collector busy: too many uploads in flight", headers={"Retry-After": "60"})
+        if reading_by_host.get(host.id, 0) >= INGEST_READ_PER_HOST:
+            raise HTTPException(503, f"collector busy: this host already has {INGEST_READ_PER_HOST} uploads in flight",
+                                headers={"Retry-After": "60"})
+        reading += 1
+        reading_by_host[host.id] = reading_by_host.get(host.id, 0) + 1
+        try:
+            data = await asyncio.wait_for(_read_capped(request, MAX_GZIP_BYTES), INGEST_BODY_TIMEOUT_S)
+        except TimeoutError as e:
+            raise HTTPException(408, f"upload too slow: body not received within {INGEST_BODY_TIMEOUT_S:g} s") from e
+        finally:
+            reading -= 1
+            reading_by_host[host.id] -= 1
+            if not reading_by_host[host.id]:
+                del reading_by_host[host.id]
+        # A place is taken only once the whole capped body is in, so a slow upload holds none. No await between the
+        # re-check and the increment, and one event loop, so the count needs no lock.
+        if queued >= INGEST_QUEUE_MAX:
+            raise _queue_full()
+        queued += 1
+        try:
+            async with parse_slots:
                 try:
-                    existing = await run_in_threadpool(repo.get_scan_id_by_uuid, bundle.scan_uuid)
-                except OperationalError as e2:
-                    raise HTTPException(503, "store busy, retry later", headers={"Retry-After": "5"}) from e2
-                if existing is None:
-                    raise HTTPException(400, "bundle violates a store constraint") from e
-                return {"scan_id": existing, "stored_findings": 0, "stored_views": 0, "duplicate": True}
+                    bundle = await run_in_threadpool(load_bundle, data)
+                except BundleTooLarge as e:
+                    raise HTTPException(413, str(e)) from e
+                except BundleInvalid as e:
+                    raise HTTPException(400, str(e)) from e
+                if bundle.host.machine_id != host.machine_id:
+                    raise HTTPException(403, "bundle machine_id does not match the agent token")
+                status = bundle.scan.get("status")
+                if status not in _TERMINAL_STATUSES:
+                    raise HTTPException(400, f"scan status {status!r} is not terminal; "
+                                             f"expected one of {_TERMINAL_STATUSES}")
+                try:
+                    res = await run_in_threadpool(repo.ingest_bundle, bundle, host.id)
+                except (ValueError, KeyError, TypeError) as e:
+                    raise HTTPException(400, f"invalid bundle content: {e}") from e
+                except OperationalError as e:     # e.g. SQLite busy past its timeout: the agent spools and retries
+                    raise HTTPException(503, "store busy, retry later", headers={"Retry-After": "5"}) from e
+                except IntegrityError as e:
+                    # Two requests with the same scan_uuid raced past the duplicate check; the loser is a duplicate.
+                    try:
+                        existing = await run_in_threadpool(repo.get_scan_id_by_uuid, bundle.scan_uuid)
+                    except OperationalError as e2:
+                        raise HTTPException(503, "store busy, retry later", headers={"Retry-After": "5"}) from e2
+                    if existing is None:
+                        raise HTTPException(400, "bundle violates a store constraint") from e
+                    return {"scan_id": existing, "stored_findings": 0, "stored_views": 0, "duplicate": True}
+        finally:
+            queued -= 1
         if bundle.dropped_drift:
             logger.warning("fleet: dropped {} agent-sent fleet.drift rows from host {}", bundle.dropped_drift, host.id)
         # After the write (drift was computed against the older scans) and outside parse_slots: these only delete.

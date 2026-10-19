@@ -1,0 +1,12 @@
+# pqcscan.daemon.fleet.x_build_fleet_router__mutmut_31: survived
+--- src/pqcscan/daemon/fleet.py
++++ src/pqcscan/daemon/fleet.py
+@@ -12,7 +12,7 @@
+     async def _agent_host(request: Request):
+         auth = request.headers.get("authorization", "")
+         if not auth.lower().startswith("bearer "):
+-            raise HTTPException(401, "agent token required")
++            raise HTTPException(401, )
+         try:
+             host = await run_in_threadpool(repo.get_host_by_token_hash, hash_token(auth[7:].strip()))
+         except OperationalError as e:

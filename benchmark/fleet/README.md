@@ -1,7 +1,9 @@
 # Fleet collector load test
 
 Posts real bundles from simulated agent hosts at the fleet collector (`pqcscan daemon`) and reports ingest
-latency, errors, and the collector's own throttling answers. Results live in [`LOAD.md`](LOAD.md) (one row per run)
+latency, errors, and the collector's own throttling answers. Results live in [`LOAD.md`](LOAD.md) (one row per run;
+the PR #92 rows, in an older 19-column format, are in [`LOAD-pr92.md`](LOAD-pr92.md)), the measured capacity in
+[`CAPACITY.md`](CAPACITY.md) (`python -m benchmark.fleet.capacity` rewrites it from the result files),
 and `results/load-<db>-<YYYYMMDD>[-<hosts>h][-herd][-N].json` (full record with the exact commands and the git commit; the plain name is the 500-host staggered run, `N` numbers reruns, files are never overwritten; `*-prefix.json` ran before commit 41b9dea).
 
 Related: [`SOAK.md`](SOAK.md) is the simulated 30-host, 7-cycle soak with its faults and findings, and
@@ -11,10 +13,14 @@ Related: [`SOAK.md`](SOAK.md) is the simulated 30-host, 7-cycle soak with its fa
 
 ```bash
 pip install -e '.[dev]' locust 'psycopg[binary]'     # locust and psycopg are not runtime dependencies
-python -m benchmark.fleet.run_load --db sqlite   --hosts 500 --spawn-rate 50 --duration 120s --findings-per-bundle 300
-python -m benchmark.fleet.run_load --db postgres --hosts 500 --spawn-rate 50 --duration 120s --findings-per-bundle 300
+python -m benchmark.fleet.run_load --db sqlite   --hosts 100 --rate 1 --duration 300s --seed 1 --tag sweep   # one capacity point
+python -m benchmark.fleet.run_load --db postgres --hosts 100 --rate 1 --duration 300s --seed 1 --tag sweep
+python -m benchmark.fleet.run_load --db sqlite --hosts 500 --spawn-rate 50 --duration 120s --findings-per-bundle 300  # a PR #92 row
 python -m benchmark.fleet.run_load --db sqlite --herd ...    # every host posts the moment it spawns
 ```
+
+The capacity sweep, the herd and the profiles run on a rented droplet, not a shared workstation:
+`benchmark/fleet/cloud/loadbox.sh up`, `run sweep`, `wait`, `pull`, `down` (see `cloud/README.md`).
 
 Each run starts its own collector on a free loopback port (SQLite file in a temp dir, or a throwaway
 `postgres:16-alpine` container started with `docker run` and killed in a `finally`), builds one template scan,
@@ -26,13 +32,14 @@ Smoke test (5 hosts, 10 s, SQLite, marker `benchmark`): `pytest tests/benchmark/
 ## What one simulated host does
 
 1. `POST /api/agents/enroll` once, with a machine id `m-load-NNNN`, hostname, and labels (after the offset below).
-2. Staggered (the default): waits a random offset in `[0, 60 s)` (seeded by `--seed`, recorded in the JSON) before
+2. Staggered (the default): waits a random offset in `[0, interval)` (seeded by `--seed`, recorded in the JSON) before
    enrolling, as an agent does on its first scan. `--herd`: enrols and posts at once; with 500 hosts at 50 spawns/s
    that is a 10 s ramp, not a single instant.
-3. `POST /api/ingest` with a gzip bundle and a fresh `scan_uuid`, then once more every 60 s. The collector's
-   per-host token bucket refills one token a minute (burst 10), so a host that posts once a minute is never throttled.
+3. `POST /api/ingest` with a gzip bundle and a fresh `scan_uuid`, then once more every interval: `--interval` seconds
+   (default 60), or hosts / `--rate`. The collector's per-host token bucket refills one token a minute (burst 10), so a
+   host that posts at most once a minute is never throttled.
 
-Staggered arrival offers a steady `hosts / 60` bundles per second. The herd offers all hosts at once and is the
+Staggered arrival offers a steady `hosts / interval` bundles per second, which is `--rate` when given. The herd offers all hosts at once and is the
 literal reading of "500 hosts posting concurrently". Both are reported.
 
 ## What it measures, and what it does not
@@ -40,13 +47,15 @@ literal reading of "500 hosts posting concurrently". Both are reported.
 - **Ingest percentiles** come from locust's `ingest` row only, not the enrolment calls. Requests time out after 60 s,
   the real agent's HTTP timeout; a timeout is an error. After the run locust waits up to 70 s for in-flight requests
   so a backlog is counted instead of discarded.
-- **Queueing.** The collector parses and stores at most `INGEST_PARALLELISM=2` bundles at once and holds that slot
-  across both steps, so at overload the p50 and p95 are mostly queue wait, not service time. The server also keeps
-  working on a request after the client gave up at 60 s, so an overloaded run wastes capacity on bundles nobody is
-  waiting for. `stored_scans` in the JSON (counted through `/api/fleet` after the run) shows how many arrived.
+- **Queueing.** The collector parses and stores at most 2 bundles at once on SQLite and on Postgres
+  (`INGEST_PARALLELISM`, `INGEST_PARALLELISM_PG`; `--ingest-parallelism N` overrides it and is recorded in the JSON) and
+  holds that slot across both steps, so at overload the p50 and p95 are mostly queue wait, not service time. At most
+  `INGEST_QUEUE_MAX=32` bundles wait for or hold a slot; past that the collector answers 503 with `Retry-After: 60`.
+  `stored_scans` in the JSON (counted through `/api/fleet` after the run) shows how many arrived.
 - **429 and 503** are counted separately and are not errors: 429 is the per-host throttle working, 503 is the store
-  reporting it is busy (the agent would spool and retry). Their latency is still inside the ingest percentiles.
-- **Every host sends the same findings.** One template scan (`--findings-per-bundle`, default 300, about 40% weak
+  reporting it is busy or the ingest queue full (the agent would spool and retry). Their latency is still inside the ingest percentiles.
+- **Every host sends the same findings.** One template scan (`--findings-per-bundle`, default 1,670 since the capacity
+  campaign and 300 in PR #92, about 40% weak
   rows with 8 compliance views each, the rest SBOM info rows with one) is stored through the real `Repo` and exported by
   the real `dump_bundle`; hosts differ only in identity and `scan_uuid`. The test therefore measures ingest cost per
   bundle, not content diversity, and it does not exercise drift between differing scans.
@@ -58,12 +67,19 @@ literal reading of "500 hosts posting concurrently". Both are reported.
 ## Postgres status
 
 The Postgres path was run here against a `postgres:16-alpine` container on the same box. The CI job `postgres`
-in `.github/workflows/verify.yml` also runs the fleet tests on it (120 passed), so `docs/FLEET.md` no longer calls it
-untested. It is still unprofiled.
+in `.github/workflows/verify.yml` also runs the fleet tests on it (149 passed), so `docs/FLEET.md` no longer calls it
+untested. It is profiled before and after in `profiles/postgres-before` and `profiles/postgres-after`: one insert and
+one foreign-key check per finding row (finding F23 in `CAPACITY.md`), and it meets p95 < 2 s at no swept rate on the
+load box.
 
-## Results (2026-10-17)
+## Results (2026-10-18, capacity campaign)
 
-`LOAD.md` has every run, the summary, and the commit and box load of each row. Ingest p50 / p95, 300-finding bundles,
+`CAPACITY.md`: SQLite λ_max 1 post/s (band 1 to 2) with 1,670-finding bundles on an 8-vCPU `DO-Regular` droplet;
+Postgres passes no swept rate. The PR #92 results below are kept as history.
+
+## Results (2026-10-17, PR #92)
+
+`LOAD-pr92.md` has every run, the summary, and the commit and box load of each row. Ingest p50 / p95, 300-finding bundles,
 staggered arrival, from a clean worktree at commit 97c8578 (after the ingest bulk insert). Two seeds where run; the
 second seed ran on a busier box, yet on SQLite it was faster at 90 and 250 hosts.
 
@@ -83,9 +99,12 @@ treat it as 30 to 60. The rows are not monotone in host count and box load was 1
 from them. `rps` counts every completed request, timeouts included.
 
 Probable cause of the old ceiling: a 300-finding ingest used to issue about 1,450 SQL statements (one ORM flush per
-finding, from a cProfile of one SQLite ingest). It now issues 10 statements on both SQLite and Postgres (two executemany inserts and one id
-query), at about a tenth of the CPU. Postgres was re-measured on that code and is not measurably faster than with
-RETURNING (see LOAD.md). Why Postgres still trails SQLite was not profiled.
+finding, from a cProfile of one SQLite ingest). It now makes 10 SQLAlchemy calls on both SQLite and Postgres (two
+executemany inserts and one id query), at about a tenth of the CPU. Those are calls, not database statements: the
+after-profiles count what the database receives per 1,670-finding ingest, 34.8 statements on SQLite (multi-row
+INSERT pages) and 16,131 on Postgres (psycopg's executemany sends one INSERT per row;
+`profiles/*-after/summary.json`). Postgres was re-measured on that code and is not measurably faster than with
+RETURNING (see LOAD-pr92.md). Why Postgres still trailed SQLite was profiled later (Postgres status, above).
 
 Enrolment under load: before commit 41b9dea an enrolment waiting on SQLite's write lock blocked the whole event loop
 (enroll p95 22 s at 500 hosts) and a lock timeout escaped as a 500. After it, enroll p95 is about 2 s and a busy store

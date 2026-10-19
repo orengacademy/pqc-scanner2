@@ -1,0 +1,71 @@
+{
+  "db": "postgres",
+  "hosts": 500,
+  "spawn_rate": 50,
+  "duration_s": 300,
+  "interval_s": 125.0,
+  "findings_per_bundle": 1670,
+  "arrival": "staggered",
+  "requests": 929,
+  "p50_ms": 60000.0,
+  "p95_ms": 60000.0,
+  "p99_ms": 60000.0,
+  "rps": 2.59,
+  "offered_rps": 4.0,
+  "mean_ms": 58964.78800415609,
+  "littles_expected_rps": 2.7179,
+  "littles_ratio": 0.954,
+  "measurement_defect": false,
+  "measurement_defect_reason": "",
+  "hosts_daily_2h_equiv": 28800,
+  "hosts_daily_24h_equiv": 345600,
+  "schema_version": 2,
+  "requests_csv": "load-postgres-20261018-r4-before-requests.csv.gz",
+  "history_csv": "load-postgres-20261018-r4-before-history.csv.gz",
+  "http_429": 0,
+  "http_503": 0,
+  "errors": 895,
+  "ingest_error_rate": 0.9634,
+  "enroll_error_rate": 0.0,
+  "enroll_503": 0,
+  "stored_hosts": 500,
+  "stored_scans": 270,
+  "seed": 1,
+  "enroll_requests": 500,
+  "enroll_p95_ms": 960.0,
+  "failure_samples": [
+    "ingest: CatchResponseError('ingest 0: ') x895"
+  ],
+  "pass_p95_lt_2s": false,
+  "commit": "c330937af7c269af8c2688341ee9025be8ad7771",
+  "src_hash": "d8a022136d3622c06654ab6b950f56144ef07033d7a15eb71f71d9f6f25f02c2",
+  "tree_dirty": true,
+  "dirty_files": [
+    "benchmark/fleet/profiles/postgres-before/asyncio-slow.log",
+    "benchmark/fleet/profiles/postgres-before/auto_explain.log.gz",
+    "benchmark/fleet/profiles/postgres-before/pyspy.collapsed.txt",
+    "benchmark/fleet/profiles/postgres-before/statements.json",
+    "benchmark/fleet/profiles/sqlite-before/asyncio-slow.log",
+    "benchmark/fleet/profiles/sqlite-before/pyspy.collapsed.txt",
+    "benchmark/fleet/profiles/sqlite-before/statements.json",
+    "benchmark/fleet/profiles/sqlite-before/summary.json",
+    "benchmark/fleet/profiles/sqlite-before/summary.md"
+  ],
+  "box": {
+    "cpus": 8,
+    "cpu_model": "DO-Regular",
+    "mem_gb": 16
+  },
+  "box_load_start": {
+    "loadavg_1m": 1.0,
+    "cpu_pressure_avg60_pct": 0.49
+  },
+  "box_load_end": {
+    "loadavg_1m": 2.9,
+    "cpu_pressure_avg60_pct": 3.92
+  },
+  "command": "python -m benchmark.fleet.run_load --db postgres --hosts 500 --rate 4 --duration 300s --profile benchmark/fleet/profiles/postgres-before --tag before",
+  "locust_command": "/root/pqc-scanner2/.venv/bin/python -m locust -f /root/pqc-scanner2/benchmark/fleet/locustfile.py --headless -u 500 -r 50 -t 300s --stop-timeout 70 --csv /tmp/fleet-load-z2bjodl7/run --csv-full-history --only-summary --host http://127.0.0.1:48443",
+  "started_at": "2026-10-18T10:39:21.329148+00:00",
+  "profile_dir": "benchmark/fleet/profiles/postgres-before"
+}

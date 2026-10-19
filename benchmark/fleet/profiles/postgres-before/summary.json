@@ -1,0 +1,267 @@
+{
+  "run": {
+    "db": "postgres",
+    "hosts": 500,
+    "interval_s": 125.0,
+    "offered_rps": 4.0,
+    "rps": 2.59,
+    "p50_ms": 60000.0,
+    "p95_ms": 60000.0,
+    "findings_per_bundle": 1670,
+    "stored_scans": 270,
+    "seed": 1,
+    "commit": "c330937af7c269af8c2688341ee9025be8ad7771",
+    "src_hash": "d8a022136d3622c06654ab6b950f56144ef07033d7a15eb71f71d9f6f25f02c2",
+    "tree_dirty": true,
+    "box": {
+      "cpus": 8,
+      "cpu_model": "DO-Regular",
+      "mem_gb": 16
+    },
+    "command": "python -m benchmark.fleet.run_load --db postgres --hosts 500 --rate 4 --duration 300s --profile benchmark/fleet/profiles/postgres-before --tag before"
+  },
+  "wall_s": 360.7,
+  "ingest_requests": 929,
+  "enroll_requests": 500,
+  "top_frames": [
+    {
+      "frame": "_communicate_gen (psycopg/_pipeline_base.py:112)",
+      "self_pct": 28.1,
+      "total_pct": 28.1
+    },
+    {
+      "frame": "wait (psycopg/connection.py:495)",
+      "self_pct": 24.5,
+      "total_pct": 66.4
+    },
+    {
+      "frame": "_collect_insert_commands (sqlalchemy/orm/persistence.py:349)",
+      "self_pct": 3.1,
+      "total_pct": 3.1
+    },
+    {
+      "frame": "run (asyncio/runners.py:118)",
+      "self_pct": 2.2,
+      "total_pct": 3.7
+    },
+    {
+      "frame": "dump (psycopg/_queries.py:103)",
+      "self_pct": 1.9,
+      "total_pct": 3.4
+    },
+    {
+      "frame": "raw_decode (json/decoder.py:353)",
+      "self_pct": 1.8,
+      "total_pct": 1.8
+    },
+    {
+      "frame": "construct_params (sqlalchemy/sql/compiler.py:2025)",
+      "self_pct": 1.7,
+      "total_pct": 1.7
+    },
+    {
+      "frame": "_exec_command (psycopg/_connection_base.py:474)",
+      "self_pct": 1.0,
+      "total_pct": 1.0
+    },
+    {
+      "frame": "_init_compiled (sqlalchemy/engine/default.py:1783)",
+      "self_pct": 1.0,
+      "total_pct": 1.0
+    },
+    {
+      "frame": "_exec_command (psycopg/_connection_base.py:478)",
+      "self_pct": 0.9,
+      "total_pct": 0.9
+    }
+  ],
+  "instrumentation_pct": 10.4,
+  "slow_callbacks": {
+    "captured": false,
+    "count": 0,
+    "max_s": 0.0,
+    "top": [],
+    "callbacks": []
+  },
+  "statements_source": "pg_stat_statements",
+  "statements_total": 4588951,
+  "statements_per_ingest": 16996.1,
+  "statements_note": "total statements over the run divided by the 270 scans the collector reports stored; enrolments (500) and the post-run fleet reads are included",
+  "statements_top": [
+    {
+      "sql": "INSERT INTO framework_views (finding_id, framework, clause, verdict) VALUES ($1::INTEGER, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR)",
+      "count": 1684087,
+      "total_exec_ms": 146154.8,
+      "mean_exec_ms": 0.087,
+      "rows": 1684087
+    },
+    {
+      "sql": "SELECT $2 FROM ONLY \"public\".\"findings\" x WHERE \"id\" OPERATOR(pg_catalog.=) $1 FOR KEY SHARE OF x",
+      "count": 1808610,
+      "total_exec_ms": 48107.6,
+      "mean_exec_ms": 0.027,
+      "rows": 1808610
+    },
+    {
+      "sql": "INSERT INTO findings (scan_id, probe_id, algorithm, classification, severity, title, evidence, remediation, created_at) VALUES ($1::INTEGER, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VAR",
+      "count": 477225,
+      "total_exec_ms": 47757.7,
+      "mean_exec_ms": 0.1,
+      "rows": 477225
+    },
+    {
+      "sql": "SELECT $2 FROM ONLY \"public\".\"scans\" x WHERE \"id\" OPERATOR(pg_catalog.=) $1 FOR KEY SHARE OF x",
+      "count": 477223,
+      "total_exec_ms": 13832.1,
+      "mean_exec_ms": 0.029,
+      "rows": 477223
+    },
+    {
+      "sql": "INSERT INTO framework_views (finding_id, framework, clause, verdict) VALUES ($1::INTEGER, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR)",
+      "count": 124523,
+      "total_exec_ms": 11269.3,
+      "mean_exec_ms": 0.09,
+      "rows": 124523
+    },
+    {
+      "sql": "SELECT findings.id \nFROM findings \nWHERE findings.scan_id = $1::INTEGER ORDER BY findings.id",
+      "count": 285,
+      "total_exec_ms": 454.7,
+      "mean_exec_ms": 1.595,
+      "rows": 475950
+    },
+    {
+      "sql": "SELECT findings.scan_id, findings.classification, findings.algorithm, findings.probe_id, findings.severity, count(*) AS n \nFROM findings \nWHERE findings.scan_id IN (SELECT max(scans.id) AS max_1 \nFROM",
+      "count": 1,
+      "total_exec_ms": 263.5,
+      "mean_exec_ms": 263.512,
+      "rows": 795
+    },
+    {
+      "sql": "SELECT hosts.id, hosts.machine_id, hosts.hostname, hosts.os, hosts.labels, hosts.agent_version, hosts.first_seen, hosts.last_seen, hosts.token_hash, hosts.revoked \nFROM hosts \nWHERE hosts.id = $1::INT",
+      "count": 1287,
+      "total_exec_ms": 96.5,
+      "mean_exec_ms": 0.075,
+      "rows": 1287
+    },
+    {
+      "sql": "INSERT INTO scans (started_at, finished_at, host_fingerprint, mode, status, label, probe_versions, tool_versions, host_id, scan_uuid) VALUES ($1::TIMESTAMP WITHOUT TIME ZONE, $2::TIMESTAMP WITHOUT TIM",
+      "count": 287,
+      "total_exec_ms": 76.8,
+      "mean_exec_ms": 0.268,
+      "rows": 287
+    },
+    {
+      "sql": "SELECT hosts.id, hosts.machine_id, hosts.hostname, hosts.os, hosts.labels, hosts.agent_version, hosts.first_seen, hosts.last_seen, hosts.token_hash, hosts.revoked \nFROM hosts \nWHERE hosts.token_hash =",
+      "count": 933,
+      "total_exec_ms": 75.6,
+      "mean_exec_ms": 0.081,
+      "rows": 933
+    },
+    {
+      "sql": "CREATE TABLE hosts (\n\tid SERIAL NOT NULL, \n\tmachine_id VARCHAR(128) NOT NULL, \n\thostname VARCHAR(255) NOT NULL, \n\tos VARCHAR(32) NOT NULL, \n\tlabels JSON NOT NULL, \n\tagent_version VARCHAR(32) NOT NULL,",
+      "count": 1,
+      "total_exec_ms": 62.4,
+      "mean_exec_ms": 62.392,
+      "rows": 0
+    },
+    {
+      "sql": "SELECT hosts.id, hosts.machine_id, hosts.hostname, hosts.os, hosts.labels, hosts.agent_version, hosts.first_seen, hosts.last_seen, hosts.token_hash, hosts.revoked \nFROM hosts \nWHERE hosts.machine_id =",
+      "count": 1000,
+      "total_exec_ms": 58.1,
+      "mean_exec_ms": 0.058,
+      "rows": 0
+    },
+    {
+      "sql": "INSERT INTO hosts (machine_id, hostname, os, labels, agent_version, first_seen, last_seen, token_hash, revoked) VALUES ($1::VARCHAR, $2::VARCHAR, $3::VARCHAR, $4::JSON, $5::VARCHAR, $6::TIMESTAMP WITH",
+      "count": 500,
+      "total_exec_ms": 46.4,
+      "mean_exec_ms": 0.093,
+      "rows": 500
+    },
+    {
+      "sql": "SELECT scans.id, scans.started_at, scans.finished_at, scans.host_fingerprint, scans.mode, scans.status, scans.label, scans.probe_versions, scans.tool_versions, scans.host_id, scans.scan_uuid \nFROM sca",
+      "count": 500,
+      "total_exec_ms": 40.5,
+      "mean_exec_ms": 0.081,
+      "rows": 270
+    },
+    {
+      "sql": "CREATE TABLE components (\n\tid SERIAL NOT NULL, \n\tscan_id INTEGER NOT NULL, \n\tpurl VARCHAR(512) NOT NULL, \n\ttype VARCHAR(32) NOT NULL, \n\tname VARCHAR(256) NOT NULL, \n\tversion VARCHAR(128), \n\tlocation T",
+      "count": 1,
+      "total_exec_ms": 29.4,
+      "mean_exec_ms": 29.446,
+      "rows": 0
+    },
+    {
+      "sql": "UPDATE hosts SET last_seen=$1::TIMESTAMP WITHOUT TIME ZONE WHERE hosts.id = $2::INTEGER",
+      "count": 285,
+      "total_exec_ms": 27.5,
+      "mean_exec_ms": 0.096,
+      "rows": 285
+    },
+    {
+      "sql": "CREATE TABLE scans (\n\tid SERIAL NOT NULL, \n\tstarted_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tfinished_at TIMESTAMP WITHOUT TIME ZONE, \n\thost_fingerprint VARCHAR(128), \n\tmode VARCHAR(8) NOT NULL, \n\ts",
+      "count": 1,
+      "total_exec_ms": 27.2,
+      "mean_exec_ms": 27.167,
+      "rows": 0
+    },
+    {
+      "sql": "SELECT scans.id \nFROM scans \nWHERE scans.host_id = $1::INTEGER AND (scans.id NOT IN (SELECT baselines.scan_id \nFROM baselines)) ORDER BY scans.id DESC\n LIMIT $3 OFFSET $2::INTEGER",
+      "count": 285,
+      "total_exec_ms": 26.5,
+      "mean_exec_ms": 0.093,
+      "rows": 0
+    },
+    {
+      "sql": "CREATE TABLE findings (\n\tid SERIAL NOT NULL, \n\tscan_id INTEGER NOT NULL, \n\tcomponent_id INTEGER, \n\tprobe_id VARCHAR(64) NOT NULL, \n\talgorithm VARCHAR(64) NOT NULL, \n\tclassification VARCHAR(16) NOT NUL",
+      "count": 1,
+      "total_exec_ms": 24.4,
+      "mean_exec_ms": 24.351,
+      "rows": 0
+    },
+    {
+      "sql": "CREATE TABLE baselines (\n\tid SERIAL NOT NULL, \n\tscan_id INTEGER NOT NULL, \n\tlabel VARCHAR(128) NOT NULL, \n\tcreated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tnotes TEXT, \n\tPRIMARY KEY (id), \n\tFOREIGN ",
+      "count": 1,
+      "total_exec_ms": 23.9,
+      "mean_exec_ms": 23.853,
+      "rows": 0
+    },
+    {
+      "sql": "SELECT scans.id \nFROM scans \nWHERE scans.host_id = $1::INTEGER AND scans.status = $2::VARCHAR ORDER BY scans.id DESC \n LIMIT $3::INTEGER",
+      "count": 287,
+      "total_exec_ms": 23.6,
+      "mean_exec_ms": 0.082,
+      "rows": 0
+    },
+    {
+      "sql": "SELECT scans.id, scans.started_at, scans.finished_at, scans.host_fingerprint, scans.mode, scans.status, scans.label, scans.probe_versions, scans.tool_versions, scans.host_id, scans.scan_uuid \nFROM sca",
+      "count": 285,
+      "total_exec_ms": 21.3,
+      "mean_exec_ms": 0.075,
+      "rows": 285
+    },
+    {
+      "sql": "SELECT scans.id \nFROM scans \nWHERE scans.scan_uuid = $1::VARCHAR",
+      "count": 287,
+      "total_exec_ms": 17.9,
+      "mean_exec_ms": 0.062,
+      "rows": 0
+    },
+    {
+      "sql": "CREATE TABLE graph_edges (\n\tid SERIAL NOT NULL, \n\tscan_id INTEGER NOT NULL, \n\tsrc_id INTEGER NOT NULL, \n\tdst_id INTEGER NOT NULL, \n\tedge_type VARCHAR(32) NOT NULL, \n\tattrs JSON NOT NULL, \n\tPRIMARY KEY",
+      "count": 1,
+      "total_exec_ms": 16.5,
+      "mean_exec_ms": 16.55,
+      "rows": 0
+    },
+    {
+      "sql": "SELECT scans.id, scans.host_id \nFROM scans \nWHERE scans.scan_uuid = $1::VARCHAR",
+      "count": 287,
+      "total_exec_ms": 16.0,
+      "mean_exec_ms": 0.056,
+      "rows": 0
+    }
+  ]
+}

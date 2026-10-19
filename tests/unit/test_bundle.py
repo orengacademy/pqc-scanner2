@@ -1,11 +1,16 @@
 """ScanBundle round-trip: everything a host scan produced survives dump -> load."""
 import gzip
 import json
+import tracemalloc
+import zlib
 from datetime import date
 
 import pytest
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from pqcscan.core.types import Classification, Finding, Severity
+from pqcscan.store import bundle
 from pqcscan.store.bundle import (
     MAX_FINDINGS,
     MAX_GZIP_BYTES,
@@ -16,13 +21,14 @@ from pqcscan.store.bundle import (
     load_bundle,
 )
 from pqcscan.store.repo import Repo
+from pqcscan.store.schema import FindingRow
 
 HOST = HostIdentity(machine_id="m-1", hostname="web01", os="linux",
                     labels={"env": "prod"}, agent_version="0.10.0")
 
 
 def _seed(repo: Repo) -> int:
-    sid = repo.create_scan(mode="root", probe_versions={"p": "1"}, tool_versions={})
+    sid = repo.create_scan(mode="root", probe_versions={"p": "1"}, tool_versions={"pqcscan": "0.10.0"})
     fid = repo.record_finding(sid, Finding(
         probe_id="fs.cert.x509", algorithm="RSA-2048", classification=Classification.SANGAT_TINGGI,
         severity=Severity.CRIT, title="weak cert", evidence={"path": "/etc/x.pem"},
@@ -50,6 +56,34 @@ def test_round_trip(tmp_db_path):
     assert f["evidence"] == {"path": "/etc/x.pem"} and f["classification"] == "sangat-tinggi"
     assert f["views"] == [{"framework": "cnsa2", "clause": "CNSA2:RSA",
                            "verdict": "non-compliant", "deadline": "2030-12-31"}]
+
+
+def test_round_trip_keeps_the_whole_document(tmp_db_path, monkeypatch):
+    repo = Repo(tmp_db_path); repo.init_schema()
+    sid = _seed(repo)
+    scan = repo.get_scan(sid)
+    with Session(repo.engine) as s:
+        created = [r.created_at.isoformat() for r in s.execute(
+            select(FindingRow).where(FindingRow.scan_id == sid).order_by(FindingRow.id)).scalars()]
+    data = dump_bundle(repo, sid, HOST)
+    raw = gzip.decompress(data)
+    assert raw == json.dumps(json.loads(raw), separators=(",", ":")).encode()   # compact: the raw cap counts these
+    b = load_bundle(data)
+    assert (b.schema_version, b.scan_uuid, b.host, b.dropped_drift) == (1, scan.scan_uuid, HOST, 0)
+    assert b.scan == {"started_at": scan.started_at.isoformat(), "finished_at": scan.finished_at.isoformat(),
+                      "mode": "root", "status": "done", "probe_versions": {"p": "1"},
+                      "tool_versions": {"pqcscan": "0.10.0"}}
+    assert b.findings == [
+        {"probe_id": "fs.cert.x509", "algorithm": "RSA-2048", "classification": "sangat-tinggi", "severity": "crit",
+         "title": "weak cert", "evidence": {"path": "/etc/x.pem"}, "remediation": {"replacement": "ML-DSA-65"},
+         "created_at": created[0], "views": [{"framework": "cnsa2", "clause": "CNSA2:RSA",
+                                              "verdict": "non-compliant", "deadline": "2030-12-31"}]},
+        {"probe_id": "net.tls.https", "algorithm": "N/A", "classification": "error", "severity": "info",
+         "title": "probe error: timeout", "evidence": {"error": "timeout"}, "remediation": {},
+         "created_at": created[1], "views": []},
+    ]
+    monkeypatch.setattr(bundle, "MAX_RAW_BYTES", len(raw))
+    assert gzip.decompress(dump_bundle(repo, sid, HOST)) == raw                   # exactly at the raw cap: dumped
 
 
 def test_is_gzip_json(tmp_db_path):
@@ -98,7 +132,44 @@ def _doc(**over):
 
 
 def test_load_accepts_minimal_valid_doc():
-    assert load_bundle(_doc()).host.labels == {}
+    h = load_bundle(_doc()).host
+    assert h.labels == {} and (h.hostname, h.os, h.agent_version) == ("", "", "")   # absent optional fields are ''
+
+
+def test_load_defaults_absent_findings_to_empty():
+    doc = {"schema_version": 1, "scan_uuid": "u", "host": {"machine_id": "m"}, "scan": {}}
+    assert load_bundle(gzip.compress(json.dumps(doc).encode())).findings == []
+
+
+def test_load_size_caps_are_inclusive(monkeypatch):
+    blob = _doc(findings=[{}, {}])
+    raw = gzip.decompress(blob)
+    monkeypatch.setattr(bundle, "MAX_GZIP_BYTES", len(blob))
+    monkeypatch.setattr(bundle, "MAX_RAW_BYTES", len(raw))
+    monkeypatch.setattr(bundle, "MAX_FINDINGS", 2)
+    assert len(load_bundle(blob).findings) == 2                    # exactly at all three caps: accepted
+    monkeypatch.setattr(bundle, "MAX_RAW_BYTES", len(raw) - 1)     # one byte over, the whole stream consumed
+    with pytest.raises(BundleTooLarge):
+        load_bundle(blob)
+
+
+def test_load_inflates_a_bomb_no_further_than_the_cap(monkeypatch):
+    monkeypatch.setattr(bundle, "MAX_RAW_BYTES", 1024 * 1024)
+    bomb = gzip.compress(b"\0" * (64 * 1024 * 1024))              # 64 MiB of zeros in about 64 KiB
+    tracemalloc.start()
+    try:
+        with pytest.raises(BundleTooLarge):
+            load_bundle(bomb)
+        peak = tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+    assert peak < 8 * 1024 * 1024, peak
+
+
+def test_load_rejects_zlib_framing():
+    doc = {"schema_version": 1, "scan_uuid": "u", "host": {"machine_id": "m"}, "scan": {}, "findings": []}
+    with pytest.raises(BundleInvalid, match="bad gzip"):
+        load_bundle(zlib.compress(json.dumps(doc).encode()))
 
 
 def test_load_strips_server_only_evidence_keys():

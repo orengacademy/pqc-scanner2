@@ -115,3 +115,54 @@ jobs:
         run: python benchmark/run_benchmark.py --by-family --accept-fp-file benchmark/corpus/accepted_fp.txt --min-precision 1.0 --min-recall 0.95
       - name: Accuracy gate
         run: pytest -q -ra tests/benchmark/test_accuracy.py
+
+  load-ratio:
+    # Same-runner A/B: the load harness at 60 hosts, 60 s interval (1 post/s), 1,670-finding bundles, 120 s, on SQLite
+    # and Postgres, once from the baseline commit (PR #92 head, checked out into baseline/) and once from HEAD.
+    # Fails when HEAD p95 exceeds both 1.5 x baseline and 1 s. Postgres runs in a container the harness starts itself
+    # (docker is on ubuntu-latest). The baseline harness has no --rate, so both sides use --interval 60. run_load exits
+    # 1 when p95 >= 2 s; the pipe to tail swallows that on purpose, because ratio.py is the gate.
+    # Why 1 post/s: the first shape, 120 hosts at 2 posts/s, saturated the Postgres side of the runner, so the ratio
+    # measured queueing. Run 39127318186: base p95 1,900 ms (p50 810 ms), head 2,900 ms. Run 39130841180: base p95
+    # 15,000 ms, head 28,000 ms, base rps 1.57 against 1.87 offered (requests lost). SQLite passed both times
+    # (280 to 190 ms, 0.68x). ratio.py now fails the job as inconclusive when the baseline itself saturates the runner
+    # (rps below 0.9 x offered, or p95 above 5 s): a saturated runner is a job failure with a reason, not a regression.
+    # Run at c189c82 (1 post/s): SQLite 260 to 190 ms, Postgres base p95 2,000 ms, head 4,400 ms (2.20x), rps 0.98 vs
+    # 0.96, not saturated. A diagnostic run with HEAD at --ingest-parallelism 2 on Postgres (431cc50) passed: p50 520 to
+    # 510 ms, p95 910 to 880 ms (0.97x), SQLite 0.71x. The Postgres slot count of 4 was the regression, so the product
+    # default is 2 again and the job runs HEAD with its default.
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      BASE_REF: 77867a1d1bbd8b822fa445887aa0da25cffd1fec
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BASE_REF }}
+          path: baseline
+      - name: Keep baseline/ out of the HEAD run's dirty-file list
+        run: echo baseline/ >> .git/info/exclude
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m venv "${{ runner.temp }}/venv-head" && "${{ runner.temp }}/venv-head/bin/pip" install -e ".[dev,verify]"
+      - run: python -m venv "${{ runner.temp }}/venv-base" && "${{ runner.temp }}/venv-base/bin/pip" install -e "./baseline[dev,verify]"
+      - name: Run both on both backends
+        run: |
+          set -e
+          for db in sqlite postgres; do
+            (cd baseline && ${{ runner.temp }}/venv-base/bin/python -m benchmark.fleet.run_load --db $db --hosts 60 --interval 60 --duration 120s --findings-per-bundle 1670 --tag ci-base | tail -1 >/dev/null)
+            ${{ runner.temp }}/venv-head/bin/python -m benchmark.fleet.run_load --db $db --hosts 60 --interval 60 --duration 120s --findings-per-bundle 1670 --tag ci-head | tail -1 >/dev/null
+            base=$(ls -t baseline/benchmark/fleet/results/load-$db-*-ci-base*.json | head -1)
+            head=$(ls -t benchmark/fleet/results/load-$db-*-ci-head*.json | head -1)
+            [ -n "$base" ] && [ -n "$head" ] || { echo "missing result for $db: base=$base head=$head"; exit 1; }
+            ${{ runner.temp }}/venv-head/bin/python -m benchmark.fleet.ratio "$base" "$head" --max-ratio 1.5 --floor-ms 1000
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-ratio-results
+          path: |
+            benchmark/fleet/results/*ci-*.json
+            baseline/benchmark/fleet/results/*ci-*.json

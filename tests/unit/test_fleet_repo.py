@@ -444,9 +444,10 @@ def _doc_bundle(host: HostIdentity, n: int, *, views: int = 1, uuid: str | None 
 
 
 def _no_returning(repo: Repo) -> None:
-    """What SQLite < 3.35 looks like to SQLAlchemy: no RETURNING and no batched insert-many."""
-    repo.engine.dialect.insert_returning = False
-    repo.engine.dialect.use_insertmanyvalues = False
+    """What SQLite < 3.35 looks like to SQLAlchemy (its dialect clears these three): no RETURNING. Multi-row
+    INSERT ... VALUES pages still apply, they need only SQLite 3.7.11."""
+    d = repo.engine.dialect
+    d.insert_returning = d.update_returning = d.delete_returning = False
 
 
 def test_bulk_ingest_works_without_returning(tmp_db_path):
@@ -464,15 +465,61 @@ def test_bulk_ingest_works_without_returning(tmp_db_path):
 
 
 def test_bulk_ingest_across_the_batch_boundary(tmp_db_path):
-    """2,500 findings is past SQLAlchemy's 1,000-row insert batch; views must still land on the right finding."""
+    """2,500 findings is past SQLAlchemy's 1,000-row insert batch; views must still land on the right finding.
+
+    SQLite sends findings and views as multi-row INSERT ... VALUES pages (sqlite3 would step an executemany row by
+    row); Postgres keeps psycopg 3's pipelined executemany, one VALUES row per parameter set (measured faster under
+    load on the box: benchmark/fleet/results/load-postgres-20261018-r4-pginsert*.json)."""
     fleet = Repo(tmp_db_path); fleet.init_schema()
     host = fleet.upsert_host(WEB01)
+    sent: list[tuple[int, int]] = []         # (VALUES rows in the statement, parameter sets sent with it)
+
+    @event.listens_for(fleet.engine, "before_cursor_execute")
+    def _note(conn, cursor, statement, parameters, context, executemany):
+        if statement.startswith(("INSERT INTO findings", "INSERT INTO framework_views")):
+            many = executemany and parameters and isinstance(parameters[0], (tuple, list, dict))
+            sent.append((statement.count("), (") + 1, len(parameters) if many else 1))
     r = fleet.ingest_bundle(_doc_bundle(WEB01, 2500, views=2), host.id)
     assert (r.stored_findings, r.stored_views) == (2500, 5000)
+    if fleet.engine.dialect.name == "sqlite":
+        assert all(sets == 1 for _, sets in sent) and sum(rows for rows, _ in sent) == 7500 and len(sent) <= 10, sent
+    else:
+        assert all(rows == 1 for rows, _ in sent) and sum(sets for _, sets in sent) == 7500, sent
     with Session(fleet.engine) as s:
         pairs = s.execute(select(FindingRow.title, FrameworkView.clause).join(
             FrameworkView, FrameworkView.finding_id == FindingRow.id).where(FindingRow.scan_id == r.scan_id)).all()
     assert len(pairs) == 5000 and all(t == "f" + c[1:] for t, c in pairs)
+
+
+def test_bulk_ingest_round_trips_json_dates_and_deadlines(tmp_db_path):
+    """The Core INSERT binds evidence/remediation (JSON), created_at and a view deadline like the ORM did."""
+    from datetime import date, datetime
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    host = fleet.upsert_host(WEB01)
+    b = _doc_bundle(WEB01, 2, views=1)
+    b.findings[0]["remediation"] = {"steps": ["rotate", "re-issue"]}
+    b.findings[0]["views"][0]["deadline"] = "2030-12-31"
+    r = fleet.ingest_bundle(b, host.id)
+    f = {x.title: x for x in fleet.list_findings(r.scan_id)}
+    assert f["f0"].evidence == {"path": "/p/0"} and f["f0"].remediation == {"steps": ["rotate", "re-issue"]}
+    assert f["f0"].created_at == datetime(2026, 10, 17, 0, 0, 30)
+    deadlines = {v.finding_id: v.deadline for v in fleet.list_framework_views(r.scan_id)}
+    assert deadlines == {f["f0"].id: date(2030, 12, 31), f["f1"].id: None}
+
+
+def test_bulk_ingest_refuses_ids_out_of_row_order(tmp_db_path):
+    """ids are matched to rows by position; if the stored rows do not line up the ingest fails and stores nothing."""
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    host = fleet.upsert_host(WEB01)
+
+    @event.listens_for(fleet.engine, "after_cursor_execute")
+    def _swap(conn, cursor, statement, parameters, context, executemany):
+        if statement.startswith("INSERT INTO findings"):     # as if the store handed out ids in another order
+            cursor.execute("UPDATE findings SET title = 'moved' WHERE id = (SELECT min(id) FROM findings)")
+    with pytest.raises(RuntimeError, match="out of row order"):
+        fleet.ingest_bundle(_doc_bundle(WEB01, 3, views=1), host.id)
+    event.remove(fleet.engine, "after_cursor_execute", _swap)
+    assert fleet.list_scans() == []          # one transaction: the scan row and its findings rolled back together
 
 
 def test_empty_bundle_and_drift_only_bundle(tmp_db_path):
