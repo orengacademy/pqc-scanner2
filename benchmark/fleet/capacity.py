@@ -134,7 +134,9 @@ def _retention_sentence(sweep: list[dict], retention: list[dict]) -> list[str]:
                      + (f", against {_p95_range(base)} in the sweep" if base else ""))
     return ["", "The sweep ran at the default retention of 12 scans per host. No host posts that often in 300 s, so "
             "`prune_host` never deleted a scan, while in production every ingest past the twelfth also deletes the "
-            "host's oldest scan. The retention runs keep fewer, so pruning runs from each host's third post on: "
+            "host's oldest scan. The retention runs (`suite.sh retention`: two seeds at the sweep's host counts, "
+            "then one seed of the steady variants with fewer hosts, whose hosts post about ten times each) keep "
+            "fewer, so pruning runs from each host's third post on: "
             + "; ".join(parts) + ". The retention rows ran at a later commit than the sweep (commit column); the "
             "Retention section has them."]
 

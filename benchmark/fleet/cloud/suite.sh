@@ -54,7 +54,10 @@ case "$1" in
     for seed in 1 2; do
       run --db sqlite --hosts 100 --rate 1 --duration 300s --seed "$seed" --keep-scans-per-host 2 --tag retention
       run --db postgres --hosts 60 --rate 0.5 --duration 300s --seed "$seed" --keep-scans-per-host 2 --tag retention
-    done;;
+    done
+    # steady pruning: fewer hosts at the same rate post about ten times each, so most ingests prune (one seed)
+    run --db sqlite --hosts 30 --rate 1 --duration 300s --seed 1 --keep-scans-per-host 2 --tag retention-steady
+    run --db postgres --hosts 15 --rate 0.5 --duration 300s --seed 1 --keep-scans-per-host 2 --tag retention-steady;;
   ratio-baseline)  # the CI load-ratio job's shape (verify.yml): 60 hosts at 1 post/s
     for db in sqlite postgres; do
       run --db "$db" --hosts 60 --interval 60 --duration 120s --findings-per-bundle 1670 --tag ci-shape

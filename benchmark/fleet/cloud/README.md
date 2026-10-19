@@ -33,7 +33,7 @@ The suites (see `suite.sh`):
 | `before` / `after` | 500 hosts, 4 posts/s, 300 s, with `--profile` into `profiles/<db>-before` or `-after` |
 | `sweep` | the CAPACITY.md shape: 60 hosts at 0.5 posts/s, 100 at 1, 250 at 2, 300 at 3, 500 at 4, 6, 8 and 12; seeds 1 and 2, 300 s each; then a 180 s herd of 500 hosts. Postgres also runs 500 hosts at 4 and 6 posts/s with 2, 4 and 8 ingest slots |
 | `pg-insert` | Postgres only: 500 hosts, 4 posts/s, insert mode `pages` and `executemany` at 2 and 4 slots |
-| `retention` | keep 2 scans per host: SQLite 100 hosts at 1 post/s and Postgres 60 hosts at 0.5 posts/s, seeds 1 and 2, 300 s |
+| `retention` | keep 2 scans per host: SQLite 100 hosts at 1 post/s and Postgres 60 hosts at 0.5 posts/s, seeds 1 and 2, 300 s; then the steady variants, SQLite 30 hosts and Postgres 15 at the same rates, seed 1, tag `retention-steady` |
 | `ratio-baseline` | 60 hosts at 1 post/s (60 s interval), 120 s, 1,670 findings per bundle (the CI load-ratio job's shape) |
 
 To reproduce the capacity number, run the sweep at your commit and score it alone, not pooled with the committed rows:

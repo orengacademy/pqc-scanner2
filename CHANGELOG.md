@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fleet ingest on SQLite sends findings and compliance views as multi-row `INSERT ... VALUES` pages, replacing the
   executemany inserts. That removes `do_executemany`, 17.2 % of sampled wall time in the before-profile. Both backends
   now insert through SQLAlchemy Core rather than the ORM bulk path, which removes `_collect_insert_commands` (4.5 % on
-  SQLite, 3.1 % on Postgres). A 1,670-finding ingest on SQLite went from 8,528 statements to 35
+  SQLite, 3.1 % on Postgres). A 1,670-finding ingest on SQLite went from 8,528 statements to 34.8
   (`benchmark/fleet/profiles/sqlite-*`). Postgres keeps psycopg's pipelined executemany: pages reached no higher rate
   and had a higher p95. Postgres also keeps two parse slots like SQLite, because four were measured slower (p95 1.5 to
   2.2 times in CI).
