@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| **Date** | 2026-10-18 |
-| **Branch / commit** | `main`; the fleet evidence work (§11) is on `verify/fleet-evidence`, not merged |
+| **Date** | 2026-10-19 |
+| **Branch / commit** | `main`; the fleet evidence work (§11) is on `verify/fleet-evidence` and the capacity campaign (§12) on `verify/fleet-capacity`, neither merged |
 | **Version** | `0.10.2` |
 | **Probes** | 180 registered across 14 families |
 | **Frameworks** | 19 compliance YAMLs |
-| **Tests** | 1825 passed / 6 skipped / 42 fuzz tests deselected locally on `verify/fleet-evidence` at `3e64137` (Python 3.11, `-p no:cacheprovider`); 1583 passed / 5 skipped on `main` before that branch |
+| **Tests** | 1825 passed / 6 skipped / 42 fuzz tests deselected locally on `verify/fleet-evidence` at `3e64137` (Python 3.11, `-p no:cacheprovider`); 1583 passed / 5 skipped on `main` before that branch. The `verify/fleet-capacity` count is recorded by that branch's final review |
 | **Status** | Design-doc target shipped, plus four loops (§7 coverage+UX, §8 deferred-items + bilingual + any-OS, §9 the 0.8.x–0.9.4 precision/decision loop, §10 the 0.9.5–0.9.11 coverage-completeness + FOSS-verification loop). See `CHANGELOG.md` for the authoritative per-version record — it is kept current every release; this file is a coarser resume guide. |
 
 ## 1. TL;DR
@@ -303,9 +303,9 @@ every claim graded evidenced, simulated, asserted or contradicted, the findings,
 
 | Spec item | Result |
 |---|---|
-| 1 Real-fleet soak | Simulated only (30 state dirs on one box). The real run needs hosts: `benchmark/fleet/soak-real.md` |
+| 1 Real-fleet soak | Simulated only (30 state dirs on one box). The real five-host soak started in the capacity campaign (§12): `benchmark/fleet/soak-real.md` |
 | 2 Accuracy | Pass. 176 cases, precision 1.000 excluding 8 accepted false positives (raw 0.922), recall 0.990. `docs/ACCURACY.md` |
-| 3 Load | **Fail.** Ingest p95 at 500 hosts: SQLite 8.6 s, Postgres 61 s. Capacity at p95 < 2 s with 300-finding bundles (real scans store about 1,670, so likely less; F19): SQLite 60 to 250 hosts, Postgres 30 to 60. `benchmark/fleet/LOAD.md` |
+| 3 Load | **Fail.** Ingest p95 at 500 hosts: SQLite 8.6 s, Postgres 61 s. Capacity at p95 < 2 s with 300-finding bundles (real scans store about 1,670, so likely less; F19): SQLite 60 to 250 hosts, Postgres 30 to 60. `benchmark/fleet/LOAD-pr92.md`; superseded by the measured capacity in §12 |
 | 4 Threat model and fuzz | Pass, with 7 rows that have no test. 57 STRIDE rows, 42 fuzz tests. `docs/security/THREAT-MODEL-FLEET.md` |
 | 5 Bake-off | Delivered. `docs/BAKEOFF.md` |
 | 6 Acceptance | Tooling delivered, run blocked on prospect data. `benchmark/fleet/reconcile.py`, `docs/ACCEPTANCE-TEMPLATE.md` |
@@ -318,4 +318,24 @@ non-SYSTEM account (F6).
 
 ---
 
-_Last updated: 2026-10-18. Update this file at the end of any session that ships meaningful work._
+## 12. 2026-10-18 fleet capacity and real-soak campaign (branch `verify/fleet-capacity`, not merged)
+
+Profiled, fixed, measured and re-graded what §11 left failed or simulated. The one-page result is the
+"Since PR #92" section at the top of **[docs/FLEET-EVIDENCE.md](FLEET-EVIDENCE.md)**; the designed summary is
+`docs/evidence/index.html`. Spec: `docs/superpowers/specs/2026-10-18-fleet-capacity-spec.md`.
+
+| Spec item | Result |
+|---|---|
+| 1 Profile | Done. SQLite 8,528 to 34 statements per 1,670-finding ingest; Postgres 16,996 to 16,103. `benchmark/fleet/profiles/` |
+| 2 Capacity | SQLite λ_max 1 post/s (band 1 to 2), about 7,200 hosts on the daily timer; Postgres meets p95 < 2 s at no swept rate on the 8-vCPU load box (F23). `benchmark/fleet/CAPACITY.md` |
+| 3 Overload | Holds, with residual F24. Bounded ingest queue (32), 64 reads, 2 per host, 120 s body deadline; a 500-host herd gets `503`s |
+| 4 Real soak | Running since 2026-10-18 on three Linux droplets; day 7 is 2026-10-25 (`bash benchmark/fleet/cloud/soak.sh collect`). Windows runners wait for PR #93 |
+| 5 Test strength | Mutation 0.745 raw, 0.896 adjusted; fuzz 4.0 CPU-hours, 0 crashes. `benchmark/fleet/mutation/MUTATION.md`, `benchmark/fleet/fuzz/FUZZ.md` |
+| 6 Contradicted claims | F6 fixed (`windows-task.ps1` refuses unsupported `-RunAs` before writing, rolls back a rejected one); Postgres profiled |
+
+No v0.10.3 tag until soak day 7 and the Windows runners. Open items: Postgres per-row ingest cost (F23), herd
+residual timeouts (F24), `/fleet` and the fleet CBOM export at 500 hosts (F25, `docs/FLEET-UI-REVIEW.md`).
+
+---
+
+_Last updated: 2026-10-19. Update this file at the end of any session that ships meaningful work._

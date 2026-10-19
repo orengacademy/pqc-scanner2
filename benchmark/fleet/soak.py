@@ -9,7 +9,8 @@ subprocess for every host against a real collector (`create_app` under uvicorn, 
 spool, token, enrolment, ingest, drift and retention code is the product's own. The harness only starts and stops
 the collector, calls `pqcscan agents revoke|unrevoke`, swaps one host's `--path`, and re-posts one bundle.
 
-What is simulated, and what is not: see benchmark/fleet/SOAK.md. The real 30-host, 7-day run is soak-real.md.
+What is simulated, and what is not: see benchmark/fleet/SOAK.md. The real 7-day run (five hosts: three Linux droplets
+and two Windows runners, one SQLite collector) is soak-real.md.
 Note the agent scans the whole box (host probes), not only `--path`, so every host reports ~1,700 findings and one
 scan takes 10 to 20 s of CPU. A cycle therefore starts at `max(previous start + interval, previous end)`.
 """

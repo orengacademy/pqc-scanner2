@@ -48,13 +48,15 @@ exports from them.
      discards `<state dir>/agent.token`, re-enrolls and sends (spooled bundles included). Without
      `--enroll-token` it spools the bundle and tells you to re-run with it or delete the token file.
    - `pqcscan fleet prune --keep 12` keeps the newest 12 scans per host. It is for one-off trims: the daemon already does this after every ingest (see Retention).
-7. **Scale.** SQLite handles roughly 2,000 hosts daily. That is an arithmetic estimate from the load run's per-post
-   cost, not a measurement at 2,000 hosts: about 1.4 posts a minute on average, 17 with the 2 h jitter, and about 28 GB of
-   database at the default 12 scans per host (1.2 MB per scan on one measurement). See [FLEET-EVIDENCE.md](FLEET-EVIDENCE.md). Past roughly 10k per day,
-   run the daemon with `--db postgresql+psycopg://user:pw@host/db` (every CLI command
-   takes the same `--db` URL; `fleet-pg` installs psycopg 3, so the URL needs
-   the `+psycopg` driver suffix) after
-   `pip install 'pqcscan[fleet-pg]'`. See Known limits.
+7. **Scale.** SQLite handles roughly 2,000 hosts daily with margin. On an 8-vCPU droplet with real-size
+   (1,670-finding) bundles it sustains 1 post/s at p95 under 2 s, about 7,200 hosts on the daily timer with its 2 h
+   jitter, and 2,000 hosts offer 0.28 posts/s (see Known limits, Ingest capacity). At the default 12 scans per host the
+   database reaches about 28 GB for 2,000 hosts (1.2 MB per scan on one measurement; the real soak re-measures it).
+   SQLite is also the faster backend on that box. Postgres works, for operators who need it for other reasons: run the
+   daemon with `--db postgresql+psycopg://user:pw@host/db` (every CLI command takes the same `--db` URL; `fleet-pg`
+   installs psycopg 3, so the URL needs the `+psycopg` driver suffix) after `pip install 'pqcscan[fleet-pg]'`. Its
+   measured cost: on the same box it did not reach p95 under 2 s at any swept rate, 0.5 posts/s and up, because it pays
+   one insert and one foreign-key check per finding row. See Known limits and [FLEET-EVIDENCE.md](FLEET-EVIDENCE.md).
 
 ## Retention
 
@@ -154,8 +156,10 @@ as change. `pqcscan diff --parity` uses the same key to compare a primary with i
   the agent spools the bundle and sends it on its next run. At most 64 uploads are read at once, with the same `503`
   past that; a body must arrive within 120 s (`408` otherwise, which the agent also retries), and one host may have
   two uploads in flight.
-  A bundle takes its place in the queue only once its body is fully read, so a slow upload holds none. A queued bundle
-  waits at most about half a minute, so no request is abandoned at the agent's 60 s timeout.
+  A bundle takes its place in the queue only once its body is fully read, so a slow upload holds none. The queue is
+  sized so a bundle waits about half a minute at 2 s per bundle, inside the agent's 60 s timeout. When 500 hosts post
+  at once a few requests still go unanswered within 60 s (6 of 1,497 on SQLite, 14 of 1,486 on Postgres, on the load
+  box); the agent spools those and sends them on its next run.
 - **No key material.** Findings never carry key bytes. Machine ids are
   domain-separated hashes, not raw `/etc/machine-id` values.
 
@@ -173,12 +177,12 @@ as change. `pqcscan diff --parity` uses the same key to compare a primary with i
   2). Under the daily timer with a 2 h jitter that is about 7,200 hosts, or 86,400 if the posts are spread over 24 h.
   Postgres met p95 < 2 s at no swept rate: at the lowest, 0.5 posts/s, p95 was 2.2 to 2.3 s, and the sweep did not go
   lower. FLEET.md's 2,000 hosts offer 0.28 posts/s, inside the SQLite figure with margin. A herd of 500 hosts at once gets
-  1,186 `503`s on SQLite and 1,272 on Postgres, and 6 and 14 ingests that were never answered; p95 stays at 15 s and
-  27 s, below the agent's 60 s timeout. These figures are for this box class: the GitHub `ubuntu-latest` runner measured
-  p95 150 ms (SQLite) and 710 ms (Postgres) at 1 post/s, about five times faster on SQLite (4.9 to 5.1 times) and
-  six on Postgres (5.8 to 6.6 times), at 60 hosts on the runner against 100 on the box. History: the PR #92 rows ran
-  at 8.3 posts/s, 30 times FLEET.md's 2,000-host rate. See `benchmark/fleet/LOAD.md` and
-  [FLEET-EVIDENCE.md](FLEET-EVIDENCE.md).
+  1,186 `503`s on SQLite and 1,272 on Postgres, and 6 and 14 ingests that were never answered (finding F24); p95 stays
+  at 15 s and 27 s, below the agent's 60 s timeout. These figures are for this box class: the GitHub `ubuntu-latest`
+  runner measured p95 150 ms (SQLite) and 710 ms (Postgres) at 1 post/s, about five times faster on SQLite (4.9 to 5.1
+  times) and six on Postgres (5.8 to 6.6 times), at 60 hosts on the runner against 100 on the box. History: the PR #92
+  rows (`benchmark/fleet/LOAD-pr92.md`) ran at 8.3 posts/s, 30 times FLEET.md's 2,000-host rate. See
+  `benchmark/fleet/CAPACITY.md` and [FLEET-EVIDENCE.md](FLEET-EVIDENCE.md).
 - **Postgres is tested in CI and profiled.** The URL is accepted, `fleet-pg` installs the driver, and the CI job
   `postgres` (`.github/workflows/verify.yml`) runs 120 fleet tests against `postgres:16-alpine`. Under the load test
   it was no faster than SQLite, and on the 8-vCPU `DO-Regular` droplet it does not reach p95 < 2 s with 1,670-finding
@@ -189,7 +193,7 @@ as change. `pqcscan diff --parity` uses the same key to compare a primary with i
   as multi-row `INSERT ... VALUES` pages and Postgres keeps psycopg's pipelined one-row-per-execution inserts: on the
   load box Postgres reached the same rate either way, bound by its per-row FK checks, with lower latency pipelined
   (`benchmark/fleet/results/load-postgres-20261018-r4-pginsert*.json`). Four ingest slots instead of two were measured
-  slower on Postgres (p95 29 s against 48 s at 4 posts/s on the box, 1.5 to 2.2 times in CI, and 7.5 to 8.8 s against
-  2.2 to 2.3 s at 0.5 posts/s), so it parses two bundles at a time like SQLite. The per-row cost is finding F23 in
-  `benchmark/fleet/CAPACITY.md`; bulk loading with `COPY` or batched inserts and deferred FK checks is the proposed
+  slower on Postgres (p95 48 s with four against 29 s with two at 4 posts/s on the box, 1.5 to 2.2 times the baseline
+  p95 in CI, and 7.5 to 8.8 s against 2.2 to 2.3 s at 0.5 posts/s), so it parses two bundles at a time like SQLite. The
+  per-row cost is finding F23 in `benchmark/fleet/CAPACITY.md` and [FLEET-EVIDENCE.md](FLEET-EVIDENCE.md); bulk loading with `COPY` or batched inserts and deferred FK checks is the proposed
   fix and is not done.
