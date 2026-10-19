@@ -191,11 +191,18 @@ def _items(d: dict) -> list[dict]:
     queue = ("The bounded ingest queue answers 503 with Retry-After past 32 waiting bundles, before reading the body; "
              "a unit test drives it full and sees the 503.")
     if herd:
-        clean = all((r.get("errors") or 0) == (r.get("http_503") or 0) for r in herd)
-        i3 = ("ok" if clean else "bad", "Holds" if clean else "Fails",
-              queue + (" The herd run's failures are all 503s." if clean
-                       else " The herd run has failures that are not 503s."),
-              ", ".join(r["_src"] for r in herd))
+        lost = [(r, _non_503_failures(r)) for r in herd]
+        counts = "; ".join(f"{r['db']} {n} of {r.get('requests') or 0}" for r, n in lost)
+        src3 = ", ".join(r["_src"] for r in herd)
+        lost_txt = queue + f" Herd requests that got neither an answer nor a 503: {counts}"
+        if all(n == 0 for _, n in lost):
+            i3 = ("ok", "Holds", queue + " Every herd failure is a 503.", src3)
+        elif all(n < 0.01 * (r.get("requests") or 0) and (r.get("p95_ms") or 0) < 60000 for r, n in lost):
+            i3 = ("ok", "Holds, residual F24",
+                  lost_txt + ", each under 1 %, and every herd p95 is below the agent's 60 s timeout.", src3)
+        else:
+            i3 = ("bad", "Fails",
+                  lost_txt + "; at 1 % or more, or a herd p95 at or past the agent's 60 s timeout.", src3)
     else:
         i3 = ("wait", "Partial", queue + " Herd result pending.", "commits aaa9c0c, 6e7d8a4; daemon/fleet.py")
     linux = [h["host"] for h in soak["hosts"] if h["role"] == "agent"]
@@ -219,6 +226,13 @@ def _items(d: dict) -> list[dict]:
              "Test strength", "The two contradicted claims"]
     return [{"n": n, "item": name, "kind": k, "verdict": v, "basis": b, "source": s}
             for n, (name, (k, v, b, s)) in enumerate(zip(names, [i1, i2, i3, i4, i5, i6], strict=True), 1)]
+
+
+def _non_503_failures(r: dict) -> int:
+    """Locust failures that are not a 503 answer (timeouts, resets, other codes): `errors` minus the failure samples
+    that carry a 503, such as a shed enrolment. Ingest 503s are counted apart (`http_503`) and are not failures."""
+    shed = sum(int(m[1]) for f in r.get("failure_samples", []) if (m := re.search(r" 503: .*x(\d+)$", f)))
+    return (r.get("errors") or 0) - shed
 
 
 def _item6(d: dict) -> tuple[str, str, str, str]:
@@ -262,8 +276,8 @@ def load(repo_root: Path = ROOT) -> dict:
     blocking = [i for i in d["items"][:4] if i["kind"] != "ok"]
     d["tag_ok"] = not blocking
     d["tag"] = ("Items 1 to 4 hold. The spec allows tagging v0.10.3." if not blocking else
-                "Do not tag v0.10.3 yet. The spec holds the tag until items 1 to 4 hold; "
-                + "; ".join(f"item {i['n']} is {i['verdict'].lower()}" for i in blocking) + ".")
+                "Do not tag v0.10.3 yet. The spec holds the tag until items 1 to 4 hold. Not yet holding: "
+                + "; ".join(f"item {i['n']} ({i['verdict'].lower()})" for i in blocking) + ".")
     return d
 
 

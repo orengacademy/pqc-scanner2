@@ -135,3 +135,23 @@ def test_the_committed_page_has_no_external_scripts():
     f6 = next(f for f in d["findings"] if f["id"] == "F6")
     assert d["items"][5]["verdict"] == f6["state"].split(" (")[0]
     assert (REPO / "docs/evidence/index.html").read_text() == html  # the committed page is a fresh regeneration
+
+
+def test_item_3_holds_with_a_residual_under_one_percent_and_fails_above(tmp_path):
+    root = _tree(tmp_path)
+    res = root / "benchmark" / "fleet" / "results"
+    herd = {"schema_version": 2, "db": "postgres", "arrival": "herd", "hosts": 500, "seed": 1, "offered_rps": 8.3,
+            "requests": 1486, "http_503": 1272, "errors": 15, "p95_ms": 27000.0,
+            "failure_samples": ["enroll: CatchResponseError('enroll 503: {}') x1",
+                                "ingest: CatchResponseError('ingest 0: ') x14"]}
+    (res / "load-postgres-20261019-herd-herd.json").write_text(json.dumps(herd))
+    d = evidence_page.load(root)
+    item3 = d["items"][2]
+    assert (item3["kind"], item3["verdict"]) == ("ok", "Holds, residual F24")
+    assert "postgres 14 of 1486" in item3["basis"]  # the enrolment 503 is not counted as a lost request
+    assert "item 3" not in d["tag"] and " is " not in d["tag"].split("hold.")[-1]
+    (res / "load-postgres-20261019-herd-herd.json").write_text(json.dumps({**herd, "errors": 16, "failure_samples": [
+        "ingest: CatchResponseError('ingest 0: ') x16"]}))  # 16 of 1486 is 1.08 %
+    d = evidence_page.load(root)
+    assert (d["items"][2]["kind"], d["items"][2]["verdict"]) == ("bad", "Fails")
+    assert "Not yet holding: item 3 (fails)" in d["tag"]

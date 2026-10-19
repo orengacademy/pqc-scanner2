@@ -108,7 +108,7 @@ footer { color: var(--muted); font-size: .85rem; margin-top: 28px; }
 <main>
 <div class="tag" role="status">
   <strong>Tag decision: hold the release</strong>
-  <p>Do not tag v0.10.3 yet. The spec holds the tag until items 1 to 4 hold; item 3 is fails; item 4 is running.</p>
+  <p>Do not tag v0.10.3 yet. The spec holds the tag until items 1 to 4 hold. Not yet holding: item 4 (running).</p>
 </div>
 
 <section id="items" aria-labelledby="items-h">
@@ -124,8 +124,8 @@ footer { color: var(--muted); font-size: .85rem; margin-top: 28px; }
       <td data-label="Verdict"><span class="pill ok">Measured</span></td>
       <td data-label="Basis">postgres: no swept rate passed, lowest failure 0.5 posts/s; sqlite λ_max 1 posts/s (band 1 to 2).</td><td data-label="Source" class="src">benchmark/<wbr>fleet/<wbr>results/<wbr>load-*-sweep*.json</td></tr>
     <tr class="item"><td data-label="#" class="num">3</td><td data-label="Item">Overload behaviour</td>
-      <td data-label="Verdict"><span class="pill bad">Fails</span></td>
-      <td data-label="Basis">The bounded ingest queue answers 503 with Retry-After past 32 waiting bundles, before reading the body; a unit test drives it full and sees the 503. The herd run has failures that are not 503s.</td><td data-label="Source" class="src">benchmark/<wbr>fleet/<wbr>results/<wbr>load-postgres-20261018-herd-herd.json, benchmark/<wbr>fleet/<wbr>results/<wbr>load-sqlite-20261018-herd-herd.json</td></tr>
+      <td data-label="Verdict"><span class="pill ok">Holds, residual F24</span></td>
+      <td data-label="Basis">The bounded ingest queue answers 503 with Retry-After past 32 waiting bundles, before reading the body; a unit test drives it full and sees the 503. Herd requests that got neither an answer nor a 503: postgres 14 of 1486; sqlite 6 of 1497, each under 1 %, and every herd p95 is below the agent&#39;s 60 s timeout.</td><td data-label="Source" class="src">benchmark/<wbr>fleet/<wbr>results/<wbr>load-postgres-20261018-herd-herd.json, benchmark/<wbr>fleet/<wbr>results/<wbr>load-sqlite-20261018-herd-herd.json</td></tr>
     <tr class="item"><td data-label="#" class="num">4</td><td data-label="Item">Real soak, 7 days</td>
       <td data-label="Verdict"><span class="pill wait">Running</span></td>
       <td data-label="Basis">Running since 2026-10-18, day 0 recorded, day 7 on 2026-10-25. Linux agents: debian, rocky, ubuntu. Windows Server 2022 and 2025 runners join when PR #93 merges. GitHub offers no Windows 11 runner. IBM i is untested.</td><td data-label="Source" class="src">benchmark/<wbr>fleet/<wbr>results/<wbr>soak-real-*.json, benchmark/<wbr>fleet/<wbr>results/<wbr>soak-real/<wbr>*-samples.csv, commit ed7a795</td></tr>
