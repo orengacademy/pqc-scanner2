@@ -1,0 +1,62 @@
+{
+  "SIMULATED": false,
+  "mode": "observe",
+  "command": "python -m benchmark.fleet.soak --observe fleet-copy-20261019.db --access-log collector-journal-20261019.log --cycles 1 --interval 0",
+  "interval_s": 0.0,
+  "started_at": "2026-10-19T05:31:48.876868+00:00",
+  "commit": "58f22a25a8ad70c84371cd6b651b98363db46690",
+  "cycles": [
+    {
+      "cycle": 1,
+      "at": "2026-10-19T05:31:48.893351+00:00",
+      "hosts": {
+        "6aaef9e3fd3beff9172f89f75bf619b7fc30927dc4a05e458824ebed5fd67862": {
+          "host_id": 1,
+          "scans": 2,
+          "labels": 2,
+          "drift_rows_newest": 0,
+          "drift_sample": [],
+          "new_scans": null,
+          "old_scans_gone": null,
+          "last_seen": "2026-10-19 02:00:10.218502"
+        },
+        "44a89080e07e58f1c7d584fea7f002026f662607b22ec40466c5b28b0ffeaf91": {
+          "host_id": 2,
+          "scans": 2,
+          "labels": 2,
+          "drift_rows_newest": 0,
+          "drift_sample": [],
+          "new_scans": null,
+          "old_scans_gone": null,
+          "last_seen": "2026-10-19 00:07:08.910216"
+        },
+        "8ecb10a764588741fb905a100a9cb3f04375b41d6a1a577f6a1dc086014554e6": {
+          "host_id": 3,
+          "scans": 2,
+          "labels": 2,
+          "drift_rows_newest": 0,
+          "drift_sample": [],
+          "new_scans": null,
+          "old_scans_gone": null,
+          "last_seen": "2026-10-19 01:51:25.457274"
+        }
+      },
+      "hosts_enrolled": 3,
+      "statuses": {
+        "ingest": {
+          "200": 6
+        },
+        "enroll": {
+          "201": 3
+        }
+      },
+      "scans_total": 6,
+      "drift_rows_total": 0,
+      "old_scans_gone_total": 0,
+      "labels_min_max": [
+        2,
+        2
+      ]
+    }
+  ]
+}
