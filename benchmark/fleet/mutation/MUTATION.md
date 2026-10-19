@@ -15,16 +15,17 @@ numbers below point at the current code.
 | timeout in the droplet run | 1 |
 | killed by the in-scope tests (24 survivors and the timeout) | 25 |
 | killed by the two whole-object tests | 30 |
+| killed by the in-scope tests on rerun (a message-text mutant) | 1 |
 | equivalent | 14 |
-| open: message text | 42 |
+| open: message text | 41 |
 | open: other | 3 |
 
 **Raw score of the droplet run: 333 / 447 = 0.745.**
 
-**Adjusted score with the new tests: killed / (total - equivalent) = (333 + 25 + 30) / (447 - 14) = 388 / 433 = 0.896.**
+**Adjusted score with the new tests: killed / (total - equivalent) = (333 + 25 + 30 + 1) / (447 - 14) = 389 / 433 = 0.898.**
 
-The 60 targeted mutants were re-run with the new tests; the 333 already killed stay killed because no test was
-removed. The 42 message-text mutants were not re-run, so the figure is a lower bound.
+Every mutant the droplet run did not kill was re-run with the new tests, except the 12 equivalent ones from the
+first round; the 333 already killed stay killed because no test was removed.
 
 ## How the kills were proven
 
@@ -32,7 +33,9 @@ Each kill was proven on this workstation, against the `mutants/` tree mutmut gen
 
 1. `mutmut run --max-children 1 <ids>` re-ran the selected tests for those mutants, in two rounds. For the 25
    in-scope ids `mutmut results` listed all 25 as `killed`. For the 35 `_host_dict` and `dump_bundle` ids it listed
-   30 as `killed` and 5 as `survived` (`_host_dict #17`, `#21`, `dump_bundle #9`, `#91`, `#92`).
+   30 as `killed` and 5 as `survived` (`_host_dict #17`, `#21`, `dump_bundle #9`, `#91`, `#92`). A third round on
+   the 42 message-text ids listed 1 as `killed` (`load_bundle #14`: under the mutant the exception is
+   `BundleInvalid(None)`, so `test_load_rejects_zlib_framing`'s `match="bad gzip"` fails) and 41 as `survived`.
 2. For the 25 in-scope ids, each killing test was also run on its own with `PYTHONPATH=mutants/src` and
    `MUTANT_UNDER_TEST=<id>` (mutmut 3.8's own mutant switch). It failed on the mutant and passed on the original through the same mutated module. As a control,
    the new tests pass on three mutants classed equivalent below (`_read_capped #6`, `load_bundle #13`, `_req_str #3`).
@@ -45,7 +48,7 @@ helper `_req_str`) and `check_labels`, `resolve_ingest_parallelism`, and the `re
 No mutant of `enroll` (token compare, revoked host, labels) or of the `ingest` handler (read bounds, body timeout,
 queue re-check) survived the droplet run.
 
-Message-text mutants inside those functions are left open: they change only the error wording, while the status
+The other 41 message-text mutants inside those functions are left open: they change only the error wording, while the status
 code or exception class, which agents and callers act on, is pinned. Pinning every string would make the tests fail
 on rewording.
 
@@ -179,7 +182,7 @@ Ids are shortened: `_read_capped #5` is `pqcscan.daemon.fleet.x__read_capped__mu
 | `load_bundle #11` | bundle.py:124 | `MAX_RAW_BYTES + 1` removed | bomb memory | killed by `test_load_inflates_a_bomb_no_further_than_the_cap` |
 | `load_bundle #12` | bundle.py:124 | `MAX_RAW_BYTES +` becomes `MAX_RAW_BYTES -` | size cap | killed by `test_load_size_caps_are_inclusive` |
 | `load_bundle #13` | bundle.py:124 | `+ 1` becomes `+ 2` | size cap | equivalent: over the cap either read limit returns more than `MAX_RAW_BYTES` bytes and raises `BundleTooLarge`; at or under it both read the whole stream |
-| `load_bundle #14` | bundle.py:126 | `f"bad gzip: {e}"` becomes `None` | message text | open: wording only; status code and exception type unchanged |
+| `load_bundle #14` | bundle.py:126 | `f"bad gzip: {e}"` becomes `None` | message text | killed by `test_load_rejects_zlib_framing` |
 | `load_bundle #15` | bundle.py:127 | `MAX_RAW_BYTES or` becomes `MAX_RAW_BYTES and` | size cap | killed by `test_load_size_caps_are_inclusive` |
 | `load_bundle #16` | bundle.py:127 | `raw) >` becomes `raw) >=` | size cap | killed by `test_load_size_caps_are_inclusive` |
 | `load_bundle #17` | bundle.py:128 | `f"bundle decompresses past {MAX_RAW_BYTES} bytes"` becomes `None` | message text | open: wording only; status code and exception type unchanged |
