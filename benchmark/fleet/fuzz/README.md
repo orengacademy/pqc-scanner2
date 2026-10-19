@@ -29,8 +29,12 @@ cover the caps. Only the raw harness exercises the decompression cap.
 
 ## Run
 
+`run.sh` expects the repo's virtualenv at `.venv/bin` (it runs `.venv/bin/python` and puts `.venv/bin` first on
+`PATH`), so create it there first:
+
 ```bash
-uv pip install -e ".[dev,verify]"
+python3 -m venv .venv                   # or: uv venv
+uv pip install -e ".[dev,verify]"       # or: .venv/bin/pip install -e ".[dev,verify]"
 nohup bash benchmark/fleet/fuzz/run.sh 4 > benchmark/fleet/fuzz/run.log 2>&1 &    # 4 CPU-hours
 ```
 

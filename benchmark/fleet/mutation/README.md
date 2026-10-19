@@ -4,8 +4,11 @@ mutmut 3.8.0 (the `verify` extra asks for `mutmut>=3.8`) mutates `src/pqcscan/da
 `src/pqcscan/store/bundle.py` and re-runs the fleet test files for each mutant. A surviving mutant is a behaviour the unit
 tests do not pin.
 
+`run.sh` expects the repo's virtualenv at `.venv/bin` (it puts that first on `PATH`), so create it there first:
+
 ```bash
-uv pip install -e ".[dev,verify]"
+python3 -m venv .venv                   # or: uv venv
+uv pip install -e ".[dev,verify]"       # or: .venv/bin/pip install -e ".[dev,verify]"
 bash benchmark/fleet/mutation/run.sh            # hours; MUTMUT_CHILDREN=4 by default
 ```
 
@@ -55,9 +58,8 @@ selection is in `[tool.mutmut]`.
   `test_fleet_reconcile.py` does `import reconcile` through a `sys.path` hack that does not resolve from the
   `mutants/` copy, pytest stopped at that one collection error and mutmut reported "failed to collect stats". That
   test covers `benchmark/fleet/reconcile.py`, not the mutated code, so it is also passed `--ignore`. `-p
-  no:cacheprovider` keeps pytest from writing caches into the copy. Checked locally: the stats pass completes and
-  mutants get verdicts (447 mutants; stopped after 12).
+  no:cacheprovider` keeps pytest from writing caches into the copy.
 - pytest's own `addopts` (`-m 'not fuzz'`) is left alone: no test in the selection is fuzz-marked, and mutmut adds
   its own `-x -q`.
-- Only the config was verified here (it loads without warnings and lists exactly the two files); `mutmut run` was
-  not started.
+- The full run went on a clean 8-vCPU droplet at `8457f85`: 447 mutants, 333 killed, 113 survived, 1 timeout, raw
+  score 0.745 (`score.json`, outputs committed in `c8c31fc`). `MUTATION.md` grades every survivor.

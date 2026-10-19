@@ -78,10 +78,10 @@ def _box() -> dict:
 
 
 def _load_md_head() -> str:
-    b = _box()
     return (
-        f"Box: {b['cpus']} cores ({b['cpu_model']}), {b['mem_gb']} GB, local loopback; locust and the collector share "
-        "one host, so these numbers are not a network result.\n\n"
+        "Box: per row, in the result JSON's `box` field (CPU count, model, memory). "
+        "[cloud/README.md](cloud/README.md) reproduces the runs on a DigitalOcean droplet. Locust and the collector "
+        "share one host over loopback, so these numbers are not a network result.\n\n"
         "Locust drives simulated agent hosts at the collector (uvicorn plus the database, same host). Pass means "
         "ingest p95 under 2 s. Arrival is `staggered` (each host enrols and sends its first bundle at a random offset "
         "in the first interval, so the offered load is steady at hosts/interval posts/s) or `herd` (every host enrols "
@@ -94,9 +94,9 @@ def _load_md_head() -> str:
         "strategy (`pages`: multi-row INSERT ... VALUES, the default; `executemany`: one parameter set per row; "
         "`-`: row predates the knob); `keep` is the per-host retention passed to the collector (scans kept per host; "
         "the product default is 12, and pruning starts only once a host has posted more than that). Rows from "
-        "PR #92 (19-column format, 300-finding bundles) are in [LOAD-pr92.md](LOAD-pr92.md). The box was shared "
-        "with unrelated work, so the load average "
-        "column matters when reading a row. Postgres rows ran against a local `postgres:16-alpine` container.\n\n"
+        "PR #92 (19-column format, 300-finding bundles) are in [LOAD-pr92.md](LOAD-pr92.md). The load average "
+        "column shows whether anything else was running on the box. Postgres rows ran against a local "
+        "`postgres:16-alpine` container.\n\n"
         "| date (UTC) | db | arrival | hosts | spawn/s | duration | findings/bundle | parse slots | insert | keep "
         "| ingest reqs | p50 ms | p95 ms "
         "| p99 ms | rps | offered rps | Little ratio | 429 | 503 | errors | p95 < 2 s "

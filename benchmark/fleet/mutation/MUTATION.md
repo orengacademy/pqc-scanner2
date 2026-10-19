@@ -2,8 +2,9 @@
 
 mutmut 3.8.0 mutated `src/pqcscan/daemon/fleet.py` and `src/pqcscan/store/bundle.py` at `8457f85` on a clean 8-vCPU
 droplet and ran the nine fleet test files named in `pyproject.toml` `[tool.mutmut]` against each mutant (outputs
-committed in `c8c31fc`; `README.md` has the setup). Neither source file has changed since `8457f85`, so the line
-numbers below point at the current code.
+committed in `c8c31fc`; `README.md` has the setup). The mutant ids and line numbers below refer to the code at
+`8457f85`. `bundle.py` has not changed since. `fleet.py`'s one later change is the comment on `INGEST_QUEUE_MAX` at
+line 46 (`98f3be7`), one line longer, so a `fleet.py` line past 48 here is one lower than in the current code.
 
 ## Score
 

@@ -135,7 +135,7 @@ footer { color: var(--muted); font-size: .85rem; margin-top: 28px; }
       <td data-label="Verdict"><span class="pill ok">Done</span></td>
       <td data-label="Basis">atheris 4 CPU-hours, 589,697,349 executions, 0 crashes. Mutation score 0.745 raw (333 of 447 killed in the mutmut run). Adjusted 0.898 = 389 / 433, killed / (total - equivalent): 56 killed by the new tests, 14 equivalent, 41 message-text and 3 other open.</td><td data-label="Source" class="src">benchmark/<wbr>fleet/<wbr>fuzz/<wbr>stats.json, benchmark/<wbr>fleet/<wbr>mutation/<wbr>score.json, benchmark/<wbr>fleet/<wbr>mutation/<wbr>MUTATION.md</td></tr>
     <tr class="item"><td data-label="#" class="num">6</td><td data-label="Item">The two contradicted claims</td>
-      <td data-label="Verdict"><span class="pill ok">Fixed</span></td>
+      <td data-label="Verdict"><span class="pill ok">Done</span></td>
       <td data-label="Basis">F6 (Windows installer, non-SYSTEM -RunAs) is fixed in FLEET-EVIDENCE.md. Pester 31/31 on windows-2022 and windows-latest, CI run 39131286228 at 6c694c6. Postgres: profiled before and after (benchmark/fleet/profiles/postgres-*).</td><td data-label="Source" class="src">docs/<wbr>FLEET-EVIDENCE.md (F6 row); benchmark/<wbr>fleet/<wbr>results/<wbr>ci-runs.json; benchmark/<wbr>fleet/<wbr>profiles/<wbr>postgres-*</td></tr>
     </tbody>
   </table></div>
@@ -248,11 +248,11 @@ bash benchmark/fleet/mutation/run.sh                # mutmut over fleet.py and b
 
   <h3>Herd, all 500 hosts at once</h3>
   <div class="scroll" role="region" aria-label="Herd runs" tabindex="0"><table>
-    <thead><tr><th>Backend</th><th class="num">Requests</th><th class="num">503</th><th class="num">Errors</th><th class="num">p95 ms</th><th>Result</th><th>Source</th></tr></thead>
+    <thead><tr><th>Backend</th><th class="num">Requests</th><th class="num">503</th><th class="num">Unanswered</th><th class="num">p95 ms</th><th>Result</th><th>Source</th></tr></thead>
     <tbody>    <tr><td>postgres</td><td class="num">1,486</td><td class="num">1,272</td><td class="num">14</td>
-      <td class="num">27,000</td><td>FAIL</td><td class="src">benchmark/<wbr>fleet/<wbr>results/<wbr>load-postgres-20261018-herd-herd.json</td></tr>
-    <tr><td>sqlite</td><td class="num">1,497</td><td class="num">1,186</td><td class="num">7</td>
-      <td class="num">15,000</td><td>excluded (defect)</td><td class="src">benchmark/<wbr>fleet/<wbr>results/<wbr>load-sqlite-20261018-herd-herd.json</td></tr>
+      <td class="num">27,000</td><td>herd: Little's law not applicable</td><td class="src">benchmark/<wbr>fleet/<wbr>results/<wbr>load-postgres-20261018-herd-herd.json</td></tr>
+    <tr><td>sqlite</td><td class="num">1,497</td><td class="num">1,186</td><td class="num">6</td>
+      <td class="num">15,000</td><td>herd: Little's law not applicable</td><td class="src">benchmark/<wbr>fleet/<wbr>results/<wbr>load-sqlite-20261018-herd-herd.json</td></tr>
 </tbody>
   </table></div>
 

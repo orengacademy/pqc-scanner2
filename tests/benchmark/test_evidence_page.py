@@ -106,7 +106,7 @@ def test_ci_ratio_reads_the_base_side_file(tmp_path):
 def test_item_6_follows_the_f6_row(tmp_path):
     root = _tree(tmp_path)
     item6 = evidence_page.load(root)["items"][5]
-    assert (item6["kind"], item6["verdict"]) == ("ok", "Fixed")
+    assert (item6["kind"], item6["verdict"]) == ("ok", "Done")       # the item table's word for a fixed F6
     assert "39131286228" in item6["basis"] and "ci-runs.json" in item6["source"]
     ledger = root / "docs" / "FLEET-EVIDENCE.md"
     ledger.write_text(ledger.read_text().replace("| Medium | Fixed | Packaging |", "| Medium | Open | Packaging |"))
@@ -134,7 +134,9 @@ def test_the_committed_page_has_no_external_scripts():
     assert f"{int(last[8]):,}" in html  # the ubuntu agent's latest state bytes (state_bytes column)
     d = evidence_page.load(REPO)
     f6 = next(f for f in d["findings"] if f["id"] == "F6")
-    assert d["items"][5]["verdict"] == f6["state"].split(" (")[0]
+    assert d["items"][5]["verdict"] == ("Done" if evidence_page._state_kind(f6["state"]) == "ok"
+                                        else f6["state"].split(" (")[0])
+    assert "excluded (defect)" not in html[html.index("Herd, all 500"):html.index("Postgres ingest parallelism")]
     assert (REPO / "docs/evidence/index.html").read_text() == html  # the committed page is a fresh regeneration
 
 

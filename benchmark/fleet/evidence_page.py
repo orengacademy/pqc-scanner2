@@ -294,7 +294,8 @@ def _commands(since: str | None) -> str | None:
 
 
 def _item6(d: dict) -> tuple[str, str, str, str]:
-    """Item 6 follows the F6 row of FLEET-EVIDENCE.md, so the verdict and the findings table cannot disagree."""
+    """Item 6 follows the F6 row of FLEET-EVIDENCE.md, so the verdict and the findings table cannot disagree. A fixed
+    F6 reads "Done", the word the item table of FLEET-EVIDENCE.md uses; any other state is shown as written."""
     f6 = next((f for f in d["findings"] if f["id"] == "F6"), None)
     src = "docs/FLEET-EVIDENCE.md (F6 row)"
     pg = (" Postgres: profiled before and after (benchmark/fleet/profiles/postgres-*)."
@@ -307,7 +308,8 @@ def _item6(d: dict) -> tuple[str, str, str, str]:
     if kind == "ok" and run:
         text += f" Pester {run['result']}, CI run {run['run']} at {run['commit']}."
         src += f"; {RES}/ci-runs.json"
-    return kind, f6["state"].split(" (")[0], text + pg, src + "; benchmark/fleet/profiles/postgres-*"
+    verdict = "Done" if kind == "ok" else f6["state"].split(" (")[0]
+    return kind, verdict, text + pg, src + "; benchmark/fleet/profiles/postgres-*"
 
 
 def _g(x) -> str:
@@ -365,7 +367,7 @@ TEMPLATE = Path(__file__).with_name("evidence_page.html.j2")
 
 def render(data: dict) -> str:
     env = Environment(autoescape=True, trim_blocks=True, lstrip_blocks=True)
-    env.filters.update(md=_md, n=_n, g=_g, kind=_state_kind, wbr=_wbr)
+    env.filters.update(md=_md, n=_n, g=_g, kind=_state_kind, wbr=_wbr, unanswered=_non_503_failures)
     return env.from_string(TEMPLATE.read_text()).render(d=data, verdict=cap._pass_cell)
 
 

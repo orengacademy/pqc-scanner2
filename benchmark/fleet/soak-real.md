@@ -48,7 +48,7 @@ Each row is checked on day 7. A cell that differs is a finding. Name the host, t
 | Duplicates | 0 | total ingest `200`s equals total scans stored. A duplicate answers 200 and stores nothing. | FLEET.md Security, "Ingest limits" |
 | Prune count | 0 until day 13 | scans per host never drops between collects. 9 scans at most by day 8, under 12 kept. | `--keep-scans-per-host 12` |
 | DB growth per host per scan | about 1.2 MB | collector `db_bytes` in `collector-samples.csv`: day 7 minus day 0, divided by scans added | FLEET.md "1.2 MB per scan on one measurement" |
-| Token refreshes | 0 | `statuses.enroll["200"]` is 5 for the whole soak, one per host. Any more is a re-enrolment, for example a Windows cache miss. | FLEET.md: a host keeps its agent token |
+| Token refreshes | 0 | `statuses.enroll["201"]` (enrolment answers 201 Created; `soak.py --observe` counts every status code it reads) is 5 for the whole soak, one per host. Any more is a re-enrolment, for example a Windows cache miss. | FLEET.md: a host keeps its agent token |
 | Stale flag | none | `last_seen` within 48 h for all five in `soak.sh status`, no stale chip on `/fleet` | FLEET.md "Hosts not seen for 48 hours are flagged stale" |
 
 What counts as "the host changed": unattended package upgrades on the droplets, and a new runner image on Windows. GitHub

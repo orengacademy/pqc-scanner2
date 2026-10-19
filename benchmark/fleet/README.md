@@ -99,8 +99,10 @@ treat it as 30 to 60. The rows are not monotone in host count and box load was 1
 from them. `rps` counts every completed request, timeouts included.
 
 Probable cause of the old ceiling: a 300-finding ingest used to issue about 1,450 SQL statements (one ORM flush per
-finding, from a cProfile of one SQLite ingest). It now issues 10 statements on both SQLite and Postgres (two executemany inserts and one id
-query), at about a tenth of the CPU. Postgres was re-measured on that code and is not measurably faster than with
+finding, from a cProfile of one SQLite ingest). It now makes 10 SQLAlchemy calls on both SQLite and Postgres (two
+executemany inserts and one id query), at about a tenth of the CPU. Those are calls, not database statements: the
+after-profiles count what the database receives per 1,670-finding ingest, 34 statements on SQLite (multi-row INSERT
+pages) and 16,103 on Postgres (psycopg's executemany sends one INSERT per row; `profiles/*-after/summary.json`). Postgres was re-measured on that code and is not measurably faster than with
 RETURNING (see LOAD-pr92.md). Why Postgres still trailed SQLite was profiled later (Postgres status, above).
 
 Enrolment under load: before commit 41b9dea an enrolment waiting on SQLite's write lock blocked the whole event loop

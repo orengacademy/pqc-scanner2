@@ -183,10 +183,10 @@ footer { color: var(--muted); font-size: .85rem; margin-top: 28px; }
   <h3>Herd, all 500 hosts at once</h3>
   {% if d.results['-herd'] %}
   <div class="scroll" role="region" aria-label="Herd runs" tabindex="0"><table>
-    <thead><tr><th>Backend</th><th class="num">Requests</th><th class="num">503</th><th class="num">Errors</th><th class="num">p95 ms</th><th>Result</th><th>Source</th></tr></thead>
+    <thead><tr><th>Backend</th><th class="num">Requests</th><th class="num">503</th><th class="num">Unanswered</th><th class="num">p95 ms</th><th>Result</th><th>Source</th></tr></thead>
     <tbody>{% for r in d.results['-herd'] %}
-    <tr><td>{{ r.db }}</td><td class="num">{{ r.requests|n }}</td><td class="num">{{ r.http_503|n }}</td><td class="num">{{ r.errors|n }}</td>
-      <td class="num">{{ r.p95_ms|n('{:,.0f}') }}</td><td>{{ verdict(r) }}</td><td class="src">{{ r._src|wbr }}</td></tr>
+    <tr><td>{{ r.db }}</td><td class="num">{{ r.requests|n }}</td><td class="num">{{ r.http_503|n }}</td><td class="num">{{ r|unanswered|n }}</td>
+      <td class="num">{{ r.p95_ms|n('{:,.0f}') }}</td><td>herd: Little's law not applicable</td><td class="src">{{ r._src|wbr }}</td></tr>
     {% endfor %}</tbody>
   </table></div>
   {% else %}
