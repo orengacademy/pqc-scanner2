@@ -7,7 +7,7 @@
 | **Version** | `0.10.2` |
 | **Probes** | 180 registered across 14 families |
 | **Frameworks** | 19 compliance YAMLs |
-| **Tests** | 1825 passed / 6 skipped / 42 fuzz tests deselected locally on `verify/fleet-evidence` at `3e64137` (Python 3.11, `-p no:cacheprovider`); 1583 passed / 5 skipped on `main` before that branch. The `verify/fleet-capacity` count is recorded by that branch's final review |
+| **Tests** | 1825 passed / 6 skipped / 42 fuzz tests deselected locally on `verify/fleet-evidence` at `3e64137` (Python 3.11, `-p no:cacheprovider`); 1583 passed / 5 skipped on `main` before that branch. 1897 passed / 6 skipped / 42 fuzz tests deselected locally on `verify/fleet-capacity` at `e1157e4` (Python 3.11, `-p no:cacheprovider`, `ruff check src tests benchmark` and `mypy src` clean, 263 source files) |
 | **Status** | Design-doc target shipped, plus four loops (§7 coverage+UX, §8 deferred-items + bilingual + any-OS, §9 the 0.8.x–0.9.4 precision/decision loop, §10 the 0.9.5–0.9.11 coverage-completeness + FOSS-verification loop). See `CHANGELOG.md` for the authoritative per-version record — it is kept current every release; this file is a coarser resume guide. |
 
 ## 1. TL;DR
