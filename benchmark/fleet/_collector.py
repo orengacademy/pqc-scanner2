@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import collections
 import gzip
+import inspect
 import json
 import logging
 import re
@@ -33,6 +34,7 @@ PG_PROFILE_FLAGS = ("-c", "shared_preload_libraries=pg_stat_statements", "-c", "
 PG_TOP_SQL = ("SELECT calls, total_exec_time, mean_exec_time, rows, left(query, 200) FROM pg_stat_statements "
               "WHERE query NOT ILIKE '%pg_stat_statements%' ORDER BY total_exec_time DESC LIMIT 25")
 PG_SUM_SQL = "SELECT sum(calls) FROM pg_stat_statements WHERE query NOT ILIKE '%pg_stat_statements%'"
+KEEP_DEFAULT = inspect.signature(create_app).parameters["keep_scans_per_host"].default   # product retention
 SLOW_LOG_MARKER = "# asyncio slow-callback log, threshold 0.1 s"
 LAST_PG_CONTAINER: str | None = None     # id of the last profiled Postgres container, for the auto_explain log dump
 
@@ -166,13 +168,15 @@ def _profile_hooks(stack: ExitStack, app, profile_dir: Path) -> None:
 @contextmanager
 def collector(db: str, workdir: Path, enroll_token: str = ENROLL_TOKEN,
               profile_dir: Path | None = None, ingest_parallelism: int | None = None,
-              insert_mode: str | None = None, info: dict | None = None) -> Iterator[str]:
+              insert_mode: str | None = None, keep_scans_per_host: int | None = None,
+              info: dict | None = None) -> Iterator[str]:
     """Yield the base URL of a running collector; `db` is "sqlite" or "postgres". `profile_dir` turns on the
     profile hooks (asyncio slow callbacks, statement counts, Postgres auto_explain log). `ingest_parallelism` goes to
     `create_app` (None: its per-dialect default). `insert_mode` picks the bulk-insert strategy: "pages" (multi-row
     INSERT ... VALUES, the product default on SQLite) or "executemany" (one parameter set per row, the product default
-    on Postgres); None leaves the product default. `info`, when given, receives the resolved `ingest_parallelism`
-    and `insert_mode`."""
+    on Postgres); None leaves the product default. `keep_scans_per_host` is the retention passed to `create_app`
+    (None: the product default). `info`, when given, receives the resolved `ingest_parallelism`, `insert_mode` and
+    `keep_scans_per_host`."""
     if db not in ("sqlite", "postgres"):
         raise ValueError(f"db must be sqlite or postgres, not {db!r}")
     if insert_mode not in (None, "pages", "executemany"):
@@ -187,14 +191,16 @@ def collector(db: str, workdir: Path, enroll_token: str = ENROLL_TOKEN,
             if profile_dir:                          # registered after the container: run before its kill
                 stack.callback(_pg_logs, profile_dir / "auto_explain.log.gz")
                 stack.callback(_pg_statements, target, profile_dir / "statements.json")
+        keep = {} if keep_scans_per_host is None else {"keep_scans_per_host": keep_scans_per_host}
         app = create_app(db_path=target, registry=Registry(), enroll_token=enroll_token,
-                         ingest_parallelism=ingest_parallelism)
+                         ingest_parallelism=ingest_parallelism, **keep)
         dialect = app.state.repo.engine.dialect
         if insert_mode is not None:
             dialect.use_insertmanyvalues_wo_returning = insert_mode == "pages"
         if info is not None:
             info["ingest_parallelism"] = app.state.ingest_parallelism
             info["insert_mode"] = "pages" if dialect.use_insertmanyvalues_wo_returning else "executemany"
+            info["keep_scans_per_host"] = keep_scans_per_host if keep_scans_per_host is not None else KEEP_DEFAULT
         if profile_dir:                              # registered before the server: dumps run after it stops
             _profile_hooks(stack, app, profile_dir)
         port = free_port()

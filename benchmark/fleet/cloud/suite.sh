@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Runs ON the load box. Usage: suite.sh before|after|sweep|ratio-baseline|pg-insert
+# Runs ON the load box. Usage: suite.sh before|after|sweep|ratio-baseline|pg-insert|retention
 # run_load exit 1 means a FAIL row or request errors: the suite goes on. Any other non-zero exit is a
 # crash (traceback 1 is indistinguishable from exit 1 here; argparse 2, OOM 137, ...): counted and
 # reported, and the suite goes on. /root/SUITE_DONE is always touched at the end.
 set -euo pipefail
-case "${1:-}" in before|after|sweep|ratio-baseline|pg-insert) ;; *) sed -n 2,2p "$0"; exit 2;; esac
+case "${1:-}" in before|after|sweep|ratio-baseline|pg-insert|retention) ;; *) sed -n 2,2p "$0"; exit 2;; esac
 cd /root/pqc-scanner2
 PY=.venv/bin/python
 rm -f /root/SUITE_DONE
@@ -48,6 +48,11 @@ case "$1" in
         run --db postgres --hosts 500 --rate 4 --duration 300s --seed 1 --insert-mode "$mode" \
           --ingest-parallelism "$slots" --tag pginsert
       done
+    done;;
+  retention)  # keep 2, so prune_host runs from each host's third post; same shapes as the sweep's 1 and 0.5 posts/s
+    for seed in 1 2; do
+      run --db sqlite --hosts 100 --rate 1 --duration 300s --seed "$seed" --keep-scans-per-host 2 --tag retention
+      run --db postgres --hosts 60 --rate 0.5 --duration 300s --seed "$seed" --keep-scans-per-host 2 --tag retention
     done;;
   ratio-baseline)  # the CI job's shape
     for db in sqlite postgres; do

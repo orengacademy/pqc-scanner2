@@ -56,7 +56,7 @@ def test_loadbox_run_takes_its_modes_from_suite():
     # Mode validation happens before any doctl or ssh call, so a bad mode is safe to try here.
     r = subprocess.run(["bash", str(CLOUD / "loadbox.sh"), "run", "no-such-mode"], capture_output=True, text=True)
     assert r.returncode == 2
-    assert "before|after|sweep|ratio-baseline|pg-insert" in r.stderr
+    assert "before|after|sweep|ratio-baseline|pg-insert|retention" in r.stderr
 
 
 def test_soak_down_fails_when_doctl_cannot_list(tmp_path):

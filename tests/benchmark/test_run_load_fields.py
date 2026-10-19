@@ -86,3 +86,28 @@ def test_collector_insert_mode_sets_the_dialect_flag(tmp_path, monkeypatch):
         assert info["insert_mode"] == ("pages" if flag else "executemany")
     with pytest.raises(ValueError, match="insert_mode"):
         _collector.collector("sqlite", tmp_path, insert_mode="bulk").__enter__()
+
+
+def test_keep_scans_per_host_reaches_create_app_and_the_result(tmp_path, monkeypatch):
+    from benchmark.fleet import _collector
+    seen = {}
+    real = _collector.create_app
+
+    def spy(**kw):
+        seen["keep"] = kw.get("keep_scans_per_host", "default")
+        return real(**kw)
+
+    monkeypatch.setattr(_collector, "create_app", spy)
+    for given, passed, recorded in ((2, 2, 2), (None, "default", 12)):     # None: the product default, recorded
+        info: dict = {}
+        work = tmp_path / str(given)
+        work.mkdir()
+        with _collector.collector("sqlite", work, keep_scans_per_host=given, info=info):
+            pass
+        assert seen["keep"] == passed and info["keep_scans_per_host"] == recorded
+
+
+def test_load_md_head_names_the_keep_column():
+    header = next(ln for ln in run_load._load_md_head().splitlines() if ln.startswith("| date"))
+    cells = [c.strip() for c in header.strip("|").split("|")]
+    assert cells[cells.index("insert") + 1] == "keep"
