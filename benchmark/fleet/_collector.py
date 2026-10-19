@@ -33,6 +33,7 @@ PG_PROFILE_FLAGS = ("-c", "shared_preload_libraries=pg_stat_statements", "-c", "
 PG_TOP_SQL = ("SELECT calls, total_exec_time, mean_exec_time, rows, left(query, 200) FROM pg_stat_statements "
               "WHERE query NOT ILIKE '%pg_stat_statements%' ORDER BY total_exec_time DESC LIMIT 25")
 PG_SUM_SQL = "SELECT sum(calls) FROM pg_stat_statements WHERE query NOT ILIKE '%pg_stat_statements%'"
+SLOW_LOG_MARKER = "# asyncio slow-callback log, threshold 0.1 s"
 LAST_PG_CONTAINER: str | None = None     # id of the last profiled Postgres container, for the auto_explain log dump
 
 
@@ -115,16 +116,21 @@ def _profile_hooks(stack: ExitStack, app, profile_dir: Path) -> None:
     callback into statements.json on exit."""
     profile_dir.mkdir(parents=True, exist_ok=True)
 
+    log = profile_dir / "asyncio-slow.log"
+    fh = logging.FileHandler(log, mode="a", delay=True)
+    fh.setLevel(logging.WARNING)
+    aio = logging.getLogger("asyncio")
+
     async def _debug() -> None:
         loop = asyncio.get_running_loop()
         loop.set_debug(True)
         loop.slow_callback_duration = 0.1
+        # Attached here, at server startup: uvicorn.Config's dictConfig closes every handler that exists when the
+        # config is built. The marker tells "0 slow callbacks" (marker only) from "not captured" (empty or absent).
+        log.write_text(SLOW_LOG_MARKER + "\n")                # a reused dir holds one run
+        aio.addHandler(fh)
 
     app.router.add_event_handler("startup", _debug)
-    fh = logging.FileHandler(profile_dir / "asyncio-slow.log", mode="w")     # a reused dir holds one run
-    fh.setLevel(logging.WARNING)
-    aio = logging.getLogger("asyncio")
-    aio.addHandler(fh)
     stack.callback(fh.close)
     stack.callback(aio.removeHandler, fh)
     engine = app.state.repo.engine

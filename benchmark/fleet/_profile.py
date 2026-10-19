@@ -97,15 +97,25 @@ def top_frames(raw_path: Path, n: int = 10) -> list[dict]:
 
 
 def slow_callbacks(log_path: Path) -> dict:
-    """asyncio's 'Executing <Handle ...> took N seconds' lines: count, max, top five."""
+    """asyncio's 'Executing <Handle ...> took N seconds' lines: count, max, top five. `captured` is False when the
+    log is absent or empty: the collector writes a marker line when it attaches the handler, and harnesses before
+    that fix lost the handler to uvicorn's logging config, so an empty log is no measurement."""
     rows = []
-    if log_path.exists():
-        for line in log_path.read_text().splitlines():
+    text = log_path.read_text() if log_path.exists() else ""
+    if text:
+        for line in text.splitlines():
             if " took " in line and line.rstrip().endswith("seconds"):
                 with suppress(ValueError):
                     rows.append((float(line.rsplit(" took ", 1)[1].split()[0]), line.strip()[:300]))
     rows.sort(reverse=True)
-    return {"count": len(rows), "max_s": rows[0][0] if rows else 0.0, "top": [r[1] for r in rows[:5]]}
+    return {"captured": bool(text), "count": len(rows), "max_s": rows[0][0] if rows else 0.0,
+            "top": [r[1] for r in rows[:5]]}
+
+
+def _slow_line(sc: dict) -> str:
+    if not sc["captured"]:
+        return "not captured (empty log: the harness lost its handler to uvicorn's logging config)"
+    return f"{sc['count']}, max {sc['max_s']:.3f} s"
 
 
 def summarise(profile_dir: Path, *, ingest_requests: int, enroll_requests: int, wall_s: float, run: dict) -> dict:
@@ -142,7 +152,6 @@ def summarise(profile_dir: Path, *, ingest_requests: int, enroll_requests: int, 
           f"{s['instrumentation_pct']} % of samples.", "",
           f"Statements per ingest: **{s['statements_per_ingest']}** ({s['statements_note']}; "
           f"source: {s['statements_source']}).", "",
-          f"Slow event-loop callbacks (>= 100 ms): {s['slow_callbacks']['count']}, "
-          f"max {s['slow_callbacks']['max_s']:.3f} s.", ""]
+          f"Slow event-loop callbacks (>= 100 ms): {_slow_line(s['slow_callbacks'])}.", ""]
     (profile_dir / "summary.md").write_text("\n".join(md))
     return s

@@ -70,3 +70,37 @@ def test_pyspy_raises_when_the_recorder_fails_but_never_masks_the_body(tmp_path,
         pass
     with pytest.raises(ValueError), _profile.pyspy(1, tmp_path):
         raise ValueError("the run's own failure")
+
+
+def test_slow_callback_log_survives_uvicorns_logging_config(tmp_path, monkeypatch):
+    real = _collector.create_app
+
+    def with_blocking_route(*a, **k):              # test-only route on the app object, not in the product
+        app = real(*a, **k)
+
+        async def block():
+            import time
+            time.sleep(0.3)  # noqa: ASYNC251 - blocks the event loop on purpose: a slow callback by construction
+            return {}
+
+        app.add_api_route("/test-block", block)
+        return app
+
+    monkeypatch.setattr(_collector, "create_app", with_blocking_route)
+    prof = tmp_path / "p"
+    with _collector.collector("sqlite", tmp_path, profile_dir=prof) as url:
+        assert httpx.get(f"{url}/test-block").status_code == 200
+    text = (prof / "asyncio-slow.log").read_text()
+    assert text.startswith(_collector.SLOW_LOG_MARKER)
+    assert "Executing" in text and " took " in text
+    assert _profile.slow_callbacks(prof / "asyncio-slow.log")["count"] >= 1
+
+
+def test_slow_callbacks_tell_not_captured_from_zero(tmp_path):
+    log = tmp_path / "asyncio-slow.log"
+    assert _profile.slow_callbacks(log)["captured"] is False       # absent
+    log.write_text("")
+    assert _profile.slow_callbacks(log)["captured"] is False       # empty: the pre-fix harness lost its handler
+    log.write_text(_collector.SLOW_LOG_MARKER + "\n")
+    s = _profile.slow_callbacks(log)
+    assert s["captured"] is True and s["count"] == 0
