@@ -116,3 +116,4 @@ def test_retention_rows_get_their_own_table_and_never_set_lambda_max():
     section = md[md.index("## Retention"):]
     assert section.count("| 1 | 100 |") == 2 and "keep 2" in section
     assert "No retention results" in capacity.render({"-sweep": sweep})
+    assert "sqlite at 1 posts/s, keep 2: p95 2.5 s over 2 runs, against 0.3 s in the sweep" in md

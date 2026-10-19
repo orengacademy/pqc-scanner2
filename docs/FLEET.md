@@ -179,7 +179,12 @@ as change. `pqcscan diff --parity` uses the same key to compare a primary with i
   `DO-Regular`, shared cores), with 1,670-finding bundles and p95 under 2 s, SQLite sustains λ_max = 1 post/s (band 1 to
   2). Under the daily timer with a 2 h jitter that is about 7,200 hosts, or 86,400 if the posts are spread over 24 h.
   Postgres met p95 < 2 s at no swept rate: at the lowest, 0.5 posts/s, p95 was 2.2 to 2.3 s, and the sweep did not go
-  lower. FLEET.md's 2,000 hosts offer 0.28 posts/s, inside the SQLite figure with margin. A herd of 500 hosts at once gets
+  lower. FLEET.md's 2,000 hosts offer 0.28 posts/s, inside the SQLite figure with margin. The sweep ran at the default
+  retention of 12 scans per host, which no host reached in a 300 s run, so pruning never ran; in production every
+  ingest past a host's twelfth scan also deletes its oldest. With `--keep-scans-per-host 2`, so pruning runs from each
+  host's third post, SQLite at 1 post/s had p95 1.5 to 1.8 s over three runs against 0.73 to 0.76 s without
+  retention: λ_max 1 post/s still holds, with less margin, and 2 posts/s with retention was not run. Postgres at
+  0.5 posts/s went from 2.2 to 2.3 s to 2.5 to 3.3 s. A herd of 500 hosts at once gets
   1,186 `503`s on SQLite and 1,272 on Postgres, and 6 and 14 ingests that were never answered (finding F24); p95 stays
   at 15 s and 27 s, below the agent's 60 s timeout. These figures are for this box class: the GitHub `ubuntu-latest`
   runner measured p95 150 ms (SQLite) and 710 ms (Postgres) at 1 post/s, about five times faster on SQLite (4.9 to 5.1

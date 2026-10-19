@@ -114,6 +114,31 @@ def _backend(db: str, c: dict) -> list[str]:
     return [*out, ""]
 
 
+def _p95_range(rows: list[dict]) -> str:
+    lo, hi = (min(r["p95_ms"] for r in rows) / 1000, max(r["p95_ms"] for r in rows) / 1000)
+    return f"{lo:g} s" if lo == hi else f"{lo:g} to {hi:g} s"
+
+
+def _retention_sentence(sweep: list[dict], retention: list[dict]) -> list[str]:
+    """The method's retention caveat: the sweep never pruned; what a low keep did to p95 at the same rate."""
+    if not retention:
+        return []
+    parts = []
+    for db in sorted({r["db"] for r in retention}):
+        mine = [r for r in retention if r["db"] == db]
+        rate = mine[0]["offered_rps"]
+        base = [r for r in sweep if r["db"] == db and r["offered_rps"] == rate
+                and r.get("ingest_parallelism", SHIPPED_SLOTS.get(db)) == SHIPPED_SLOTS.get(db)]
+        keeps = "/".join(str(k) for k in sorted({r.get("keep_scans_per_host") for r in mine}))
+        parts.append(f"{db} at {rate:g} posts/s, keep {keeps}: p95 {_p95_range(mine)} over {len(mine)} runs"
+                     + (f", against {_p95_range(base)} in the sweep" if base else ""))
+    return ["", "The sweep ran at the default retention of 12 scans per host. No host posts that often in 300 s, so "
+            "`prune_host` never deleted a scan, while in production every ingest past the twelfth also deletes the "
+            "host's oldest scan. The retention runs keep fewer, so pruning runs from each host's third post on: "
+            + "; ".join(parts) + ". The retention rows ran at a later commit than the sweep (commit column); the "
+            "Retention section has them."]
+
+
 def _no_response(r: dict) -> int:
     """Ingest requests that got no HTTP answer (locust status 0: timeout or reset), from the failure samples."""
     hits = (re.search(r"ingest 0: .*x(\d+)$", f) for f in r.get("failure_samples", []))
@@ -203,7 +228,7 @@ def render(res: dict[str, list[dict]], ci: dict | None = None, prof: dict | None
            "identical between them: under `src/` only the Postgres slot default (and a comment) and UI files "
            "changed. The capacity tables come from unprofiled runs at the shipped ingest parallelism (2 slots on "
            "both backends). Profiled runs carry asyncio debug-mode overhead and their "
-           "latencies are not capacity numbers.", ""]
+           "latencies are not capacity numbers.", *_retention_sentence(sweep, retention), ""]
     md += ["## Reproduce", "",
            "The sweep is `suite.sh sweep` on a DigitalOcean load box (`cloud/README.md`), at the host counts above. "
            "Score the pulled rows alone with `--commit`; without it they are pooled with the committed rows, so a "
