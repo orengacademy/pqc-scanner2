@@ -133,7 +133,7 @@ footer { color: var(--muted); font-size: .85rem; margin-top: 28px; }
       <td data-label="Basis">Running since 2026-10-18, day 0 recorded, day 7 on 2026-10-25. Linux agents: debian, rocky, ubuntu. Windows Server 2022 and 2025 runners join when PR #93 merges. GitHub offers no Windows 11 runner. IBM i is untested.</td><td data-label="Source" class="src">benchmark/<wbr>fleet/<wbr>results/<wbr>soak-real-*.json, benchmark/<wbr>fleet/<wbr>results/<wbr>soak-real/<wbr>*-samples.csv, commit ed7a795</td></tr>
     <tr class="item"><td data-label="#" class="num">5</td><td data-label="Item">Test strength</td>
       <td data-label="Verdict"><span class="pill ok">Done</span></td>
-      <td data-label="Basis">atheris 4 CPU-hours, 589,697,349 executions, 0 crashes. Mutation score 0.745 raw (333 of 447 killed in the mutmut run). Adjusted 0.896 = 388 / 433, killed / (total - equivalent).</td><td data-label="Source" class="src">benchmark/<wbr>fleet/<wbr>fuzz/<wbr>stats.json, benchmark/<wbr>fleet/<wbr>mutation/<wbr>score.json, benchmark/<wbr>fleet/<wbr>mutation/<wbr>MUTATION.md</td></tr>
+      <td data-label="Basis">atheris 4 CPU-hours, 589,697,349 executions, 0 crashes. Mutation score 0.745 raw (333 of 447 killed in the mutmut run). Adjusted 0.898 = 389 / 433, killed / (total - equivalent).</td><td data-label="Source" class="src">benchmark/<wbr>fleet/<wbr>fuzz/<wbr>stats.json, benchmark/<wbr>fleet/<wbr>mutation/<wbr>score.json, benchmark/<wbr>fleet/<wbr>mutation/<wbr>MUTATION.md</td></tr>
     <tr class="item"><td data-label="#" class="num">6</td><td data-label="Item">The two contradicted claims</td>
       <td data-label="Verdict"><span class="pill ok">Fixed</span></td>
       <td data-label="Basis">F6 (Windows installer, non-SYSTEM -RunAs) is fixed in FLEET-EVIDENCE.md. Pester 31/31 on windows-2022 and windows-latest, CI run 39131286228 at 6c694c6. Postgres: profiled before and after (benchmark/fleet/profiles/postgres-*).</td><td data-label="Source" class="src">docs/<wbr>FLEET-EVIDENCE.md (F6 row); benchmark/<wbr>fleet/<wbr>results/<wbr>ci-runs.json; benchmark/<wbr>fleet/<wbr>profiles/<wbr>postgres-*</td></tr>
@@ -361,7 +361,7 @@ The Windows runners join when PR #93 merges. IBM i is untested.</p>
     <tbody><tr><td class="num">74.5 %</td><td class="num">333</td><td class="num">113</td>
       <td class="num">1</td><td class="num">447</td><td class="src">benchmark/<wbr>fleet/<wbr>mutation/<wbr>score.json</td></tr></tbody>
   </table></div>
-  <p>Adjusted score 0.896 = 388 / 433, killed / (total - equivalent): the raw run plus the mutants the new tests kill, over the mutants that are not equivalent. Source: <span class="src">benchmark/<wbr>fleet/<wbr>mutation/<wbr>MUTATION.md</span>.</p>
+  <p>Adjusted score 0.898 = 389 / 433, killed / (total - equivalent): the raw run plus the mutants the new tests kill, over the mutants that are not equivalent. Source: <span class="src">benchmark/<wbr>fleet/<wbr>mutation/<wbr>MUTATION.md</span>.</p>
 </section>
 
 <section id="ci" aria-labelledby="ci-h">
