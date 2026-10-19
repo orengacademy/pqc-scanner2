@@ -86,6 +86,53 @@
       "Executing <Handle CancelScope._deliver_cancellation created at /root/pqc-scanner2/.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:623> took 0.624 seconds",
       "Executing <Task pending name='starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro' coro=<TaskHandle._run_coro() running at /root/pqc-scanner2/.venv/lib/python3.12/site-packages/anyio/_core/_tasks.py:327> wait_for=<Future pending cb=[Task.task_wakeup()] created at /",
       "Executing <Task pending name='starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro' coro=<TaskHandle._run_coro() running at /root/pqc-scanner2/.venv/lib/python3.12/site-packages/anyio/_core/_tasks.py:327> wait_for=<Future pending cb=[Task.task_wakeup()] created at /"
+    ],
+    "callbacks": [
+      {
+        "callback": "Task starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro (TaskHandle._run_coro)",
+        "count": 150,
+        "max_s": 0.964
+      },
+      {
+        "callback": "Task Task-N (RequestResponseCycle.run_asgi)",
+        "count": 75,
+        "max_s": 0.939
+      },
+      {
+        "callback": "Task Task-N (Server.serve)",
+        "count": 13,
+        "max_s": 0.354
+      },
+      {
+        "callback": "Handle WorkerThread._report_result",
+        "count": 10,
+        "max_s": 0.38
+      },
+      {
+        "callback": "TimerHandle _set_result_unless_cancelled",
+        "count": 9,
+        "max_s": 0.212
+      },
+      {
+        "callback": "Handle TaskGroup._spawn.<locals>.task_done",
+        "count": 5,
+        "max_s": 0.353
+      },
+      {
+        "callback": "Task starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.receive_or_disconnect.<locals>.wrap (TaskHandle._run_coro)",
+        "count": 5,
+        "max_s": 0.187
+      },
+      {
+        "callback": "Handle CancelScope._deliver_cancellation",
+        "count": 3,
+        "max_s": 0.624
+      },
+      {
+        "callback": "TimerHandle HttpToolsProtocol.timeout_keep_alive_handler",
+        "count": 3,
+        "max_s": 0.206
+      }
     ]
   },
   "statements_source": "sqlite3 trace callback",

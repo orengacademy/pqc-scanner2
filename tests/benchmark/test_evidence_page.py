@@ -194,6 +194,8 @@ def test_item_1_quotes_stored_scans_and_accepted_latency_from_the_profiled_run(t
                                            ("after", "b" * 40, 420, [17000, 18000, 19000])):
         s = json.loads((fl / "profiles" / f"sqlite-{side}" / "summary.json").read_text())
         s["run"]["commit"] = commit
+        s["slow_callbacks"] = ({"captured": False, "count": 0, "max_s": 0.0} if side == "before" else
+                               {"captured": True, "count": 273, "max_s": 0.964})
         (fl / "profiles" / f"sqlite-{side}" / "summary.json").write_text(json.dumps(s))
         rows = ["ts,name,status,response_ms,bytes", *[f"1,ingest,200,{ms},1" for ms in accepted],
                 *["2,ingest,503,3,1"] * 50]
@@ -204,6 +206,7 @@ def test_item_1_quotes_stored_scans_and_accepted_latency_from_the_profiled_run(t
     i1 = evidence_page.load(root)["items"][0]
     assert "sqlite 21 at 10.0 s, then 420 at 18.0 s" in i1["basis"]       # the 503s are not in the median
     assert "load-sqlite-r4-after.json" in i1["source"]
+    assert "sqlite not captured, then 273, max 0.964 s (finding F27)" in i1["basis"]
 
 
 def test_item_4_carries_the_day_line_and_db_growth_per_scan(tmp_path):

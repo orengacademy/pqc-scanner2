@@ -50,6 +50,13 @@ def _profile_run(root: Path, profile_dir: str, commit: str | None) -> dict:
     return {"stored_scans": r.get("stored_scans"), **acc, "run_source": f"{RES}/{f.name}"}
 
 
+def _slow_cell(sc: dict | None) -> str:
+    """Slow event-loop callbacks for one profile: "273, max 0.964 s", or "not captured" for an empty log."""
+    if not sc or not sc.get("captured", True):
+        return "not captured"
+    return f"{sc['count']}, max {sc['max_s']:.3f} s"
+
+
 def _profiles(root: Path) -> dict:
     out: dict = {}
     for p in sorted((root / "benchmark/fleet/profiles").glob("*-*/summary.json")):
@@ -59,6 +66,7 @@ def _profiles(root: Path) -> dict:
         out.setdefault(db, {})[side] = {
             "top": s.get("top_frames", [])[:3], "statements_per_ingest": s.get("statements_per_ingest"),
             "instrumentation_pct": s.get("instrumentation_pct"), "commit": (run.get("commit") or "")[:7],
+            "slow": _slow_cell(s.get("slow_callbacks")),
             **_profile_run(root, str(p.parent.relative_to(root)), run.get("commit")),
             "source": str(p.relative_to(root))}
     return out
@@ -205,14 +213,18 @@ def _items(d: dict) -> list[dict]:
     prof, caps, soak, fuzz, res = d["profiles"], d["capacity"], d["soak"], d["fuzz"], d["results"]
     both = [db for db, p in prof.items() if {"before", "after"} <= p.keys()]
     if both:
-        spi = "; ".join(f"{db} {prof[db]['before']['statements_per_ingest']:,.0f} to "
-                        f"{prof[db]['after']['statements_per_ingest']:,.0f} statements per ingest" for db in both)
+        def per(x: float) -> str:          # 34.8 stays 34.8; 16,131.4 reads 16,131
+            return f"{x:,.0f}" if x >= 100 else f"{x:.1f}"
+        spi = "; ".join(f"{db} {per(prof[db]['before']['statements_per_ingest'])} to "
+                        f"{per(prof[db]['after']['statements_per_ingest'])} statements per ingest" for db in both)
         runs = [prof[db][side] for db in both for side in ("before", "after")]
         if all(r.get("p50_accepted_ms") is not None for r in runs):
             spi += (". Stored scans in the 300 s run and the median accepted (200) ingest: " + "; ".join(
                 f"{db} {prof[db]['before']['stored_scans']} at {prof[db]['before']['p50_accepted_ms'] / 1000:.1f} s, "
                 f"then {prof[db]['after']['stored_scans']} at {prof[db]['after']['p50_accepted_ms'] / 1000:.1f} s"
                 for db in both) + ". Medians over every response count the 503s the queue sheds and are not quoted")
+        spi += (". Slow event-loop callbacks (100 ms or more), before then after: " + "; ".join(
+            f"{db} {prof[db]['before']['slow']}, then {prof[db]['after']['slow']}" for db in both) + " (finding F27)")
         srcs = ["benchmark/fleet/profiles/*/summary.json", *(r["run_source"] for r in runs if "run_source" in r)]
         i1 = ("ok", "Done", f"Before and after profiles for {', '.join(both)}: {spi}.", ", ".join(srcs))
     else:

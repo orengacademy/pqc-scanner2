@@ -7,6 +7,7 @@ from __future__ import annotations
 import collections
 import json
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -96,6 +97,20 @@ def top_frames(raw_path: Path, n: int = 10) -> list[dict]:
     return rows[:n]
 
 
+_TASK = re.compile(r"<Task (?:\w+ )?name='([^']*)'(?: coro=<([\w.<>]+)\()?")
+_HANDLE = re.compile(r"<(\w*Handle) (?:when=\S+ )?([\w.<>]+)")
+
+
+def _callback(line: str) -> str:
+    """The callback a slow-callback line names, without addresses, states and source positions: the task name and
+    its coroutine, or the handle kind and its function."""
+    if m := _TASK.search(line):        # asyncio's automatic names (Task-1355) differ per task: grouped as Task-N
+        return f"Task {re.sub(r'^Task-[0-9]+$', 'Task-N', m[1])}" + (f" ({m[2]})" if m[2] else "")
+    if m := _HANDLE.search(line):
+        return f"{m[1]} {m[2]}"
+    return line.split(" took ")[0].removeprefix("Executing ")[:120]
+
+
 def slow_callbacks(log_path: Path) -> dict:
     """asyncio's 'Executing <Handle ...> took N seconds' lines: count, max, top five. `captured` is False when the
     log is absent or empty: the collector writes a marker line when it attaches the handler, and harnesses before
@@ -108,14 +123,29 @@ def slow_callbacks(log_path: Path) -> dict:
                 with suppress(ValueError):
                     rows.append((float(line.rsplit(" took ", 1)[1].split()[0]), line.strip()[:300]))
     rows.sort(reverse=True)
+    by: dict[str, list[float]] = {}
+    for secs, line in rows:
+        by.setdefault(_callback(line), []).append(secs)
+    distinct = sorted(({"callback": k, "count": len(v), "max_s": max(v)} for k, v in by.items()),
+                      key=lambda c: (-c["count"], -c["max_s"], c["callback"]))
     return {"captured": bool(text), "count": len(rows), "max_s": rows[0][0] if rows else 0.0,
-            "top": [r[1] for r in rows[:5]]}
+            "top": [r[1] for r in rows[:5]], "callbacks": distinct[:10]}     # the ten most frequent
 
 
 def _slow_line(sc: dict) -> str:
     if not sc["captured"]:
-        return "not captured (empty log: the harness lost its handler to uvicorn's logging config)"
+        return ("not captured (empty log: harnesses before 74af188 lost the handler to uvicorn's logging "
+                "config)")
     return f"{sc['count']}, max {sc['max_s']:.3f} s"
+
+
+def _callback_table(sc: dict) -> list[str]:
+    top = sc.get("callbacks", [])[:3]
+    if not top:
+        return []
+    return ["Top three distinct slow callbacks (from `asyncio-slow.log`; a task is named by asyncio's task name and "
+            "its coroutine):", "", "| callback | count | max s |", "|---|---|---|",
+            *[f"| `{c['callback']}` | {c['count']} | {c['max_s']:.3f} |" for c in top], ""]
 
 
 def summarise(profile_dir: Path, *, ingest_requests: int, enroll_requests: int, wall_s: float, run: dict) -> dict:
@@ -152,6 +182,7 @@ def summarise(profile_dir: Path, *, ingest_requests: int, enroll_requests: int, 
           f"{s['instrumentation_pct']} % of samples.", "",
           f"Statements per ingest: **{s['statements_per_ingest']}** ({s['statements_note']}; "
           f"source: {s['statements_source']}).", "",
-          f"Slow event-loop callbacks (>= 100 ms): {_slow_line(s['slow_callbacks'])}.", ""]
+          f"Slow event-loop callbacks (>= 100 ms): {_slow_line(s['slow_callbacks'])}.", "",
+          *_callback_table(s["slow_callbacks"])]
     (profile_dir / "summary.md").write_text("\n".join(md))
     return s

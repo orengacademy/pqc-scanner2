@@ -195,9 +195,10 @@ as change. `pqcscan diff --parity` uses the same key to compare a primary with i
   `postgres` (`.github/workflows/verify.yml`) runs 149 fleet tests against `postgres:16-alpine`. Under the load test
   it was no faster than SQLite, and on the 8-vCPU `DO-Regular` droplet it does not reach p95 < 2 s with 1,670-finding
   bundles at any swept rate, while the CI runner does at 1 post/s (p95 710 ms). Profiled before and after
-  (`benchmark/fleet/profiles/postgres-before`, `postgres-after`): statements per ingest went from 16,996 to 16,103,
-  time inside psycopg's `wait` from 66.4 % to 68.8 % of sampled wall time, and `_communicate_gen` (the psycopg
-  pipeline: one server execution and one FK check per inserted row) from 28.1 % to 26.8 % self. SQLite stores findings
+  (`benchmark/fleet/profiles/postgres-before`, `postgres-after`, the after side re-run at `58f22a2`): statements per
+  ingest went from 16,996 to 16,131, time inside psycopg's `wait` from 66.4 % to 62.3 % of sampled wall time, and
+  `_communicate_gen` (the psycopg pipeline: one server execution and one FK check per inserted row) from 28.1 % to
+  19.9 % self. SQLite stores findings
   as multi-row `INSERT ... VALUES` pages and Postgres keeps psycopg's pipelined one-row-per-execution inserts: on the
   load box Postgres reached the same rate either way, bound by its per-row FK checks, with lower latency pipelined
   (`benchmark/fleet/results/load-postgres-20261018-r4-pginsert*.json`). Four ingest slots instead of two were measured

@@ -104,3 +104,20 @@ def test_slow_callbacks_tell_not_captured_from_zero(tmp_path):
     log.write_text(_collector.SLOW_LOG_MARKER + "\n")
     s = _profile.slow_callbacks(log)
     assert s["captured"] is True and s["count"] == 0
+
+
+def test_slow_callbacks_group_distinct_callbacks_with_counts(tmp_path):
+    log = tmp_path / "asyncio-slow.log"
+    task = ("Executing <Task {state} name='call_next.<locals>.coro' coro=<TaskHandle._run_coro() running at x.py:1> "
+            "cb=[f() at y.py:2] created at z.py:3> took {s} seconds")
+    log.write_text("\n".join([_collector.SLOW_LOG_MARKER, task.format(state="pending", s="0.300"),
+                              task.format(state="cancelling", s="0.200"),
+                              "Executing <Handle WorkerThread._report_result(<Future>) created at a.py:1> took 0.150 seconds",
+                              "Executing <Task pending name='Task-1' coro=<Server.serve() running at b.py:2> took 0.120 seconds",
+                              "Executing <TimerHandle when=5.0 _set_result_unless_cancelled() created at c.py:3> took 0.110 seconds"]))
+    s = _profile.slow_callbacks(log)
+    assert s["count"] == 5
+    assert s["callbacks"][0] == {"callback": "Task call_next.<locals>.coro (TaskHandle._run_coro)", "count": 2,
+                                 "max_s": 0.3}
+    assert [c["callback"] for c in s["callbacks"][1:]] == [
+        "Handle WorkerThread._report_result", "Task Task-N (Server.serve)", "TimerHandle _set_result_unless_cancelled"]

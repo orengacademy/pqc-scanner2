@@ -14,4 +14,4 @@ Harness instrumentation (statement counter, asyncio debug tracebacks), left out 
 
 Statements per ingest: **8528.2** (total statements over the run divided by the 301 scans the collector reports stored; enrolments (500) and the post-run fleet reads are included; source: sqlite3 trace callback).
 
-Slow event-loop callbacks (>= 100 ms): 0, max 0.000 s.
+Slow event-loop callbacks (>= 100 ms): not captured (empty log: harnesses before 74af188 lost the handler to uvicorn's logging config).

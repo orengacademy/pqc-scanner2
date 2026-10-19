@@ -77,9 +77,11 @@
   ],
   "instrumentation_pct": 10.4,
   "slow_callbacks": {
+    "captured": false,
     "count": 0,
     "max_s": 0.0,
-    "top": []
+    "top": [],
+    "callbacks": []
   },
   "statements_source": "pg_stat_statements",
   "statements_total": 4588951,

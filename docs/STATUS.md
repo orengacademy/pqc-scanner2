@@ -326,7 +326,7 @@ Profiled, fixed, measured and re-graded what §11 left failed or simulated. The 
 
 | Spec item | Result |
 |---|---|
-| 1 Profile | Done. SQLite 8,528 to 34 statements per 1,670-finding ingest; Postgres 16,996 to 16,103. `benchmark/fleet/profiles/` |
+| 1 Profile | Done. SQLite 8,528 to 34.8 statements per 1,670-finding ingest; Postgres 16,996 to 16,131 (after-profiles re-run at `58f22a2`, slow-callback log captured: F27). `benchmark/fleet/profiles/` |
 | 2 Capacity | SQLite λ_max 1 post/s (band 1 to 2), about 7,200 hosts on the daily timer; Postgres meets p95 < 2 s at no swept rate on the 8-vCPU load box (F23). `benchmark/fleet/CAPACITY.md` |
 | 3 Overload | Holds, with residual F24. Bounded ingest queue (32), 64 reads, 2 per host, 120 s body deadline; a 500-host herd gets `503`s |
 | 4 Real soak | Running since 2026-10-18 on three Linux droplets; day 7 is 2026-10-25 (`bash benchmark/fleet/cloud/soak.sh collect`). Windows runners wait for PR #93 |

@@ -222,16 +222,16 @@ footer { color: var(--muted); font-size: .85rem; margin-top: 28px; }
 
 <section id="profiles" aria-labelledby="prof-h">
   <h2 id="prof-h">Profiles before and after the fixes</h2>
-  <p>500 hosts at 4 posts/s with 1,670-finding bundles on the 8-vCPU load box, 300 s per run. Profiled runs carry asyncio debug overhead, so their latencies are not capacity numbers. Frames show self share of sampled wall time. Latency counts accepted ingests only (answered 200), from each run's per-request CSV: the 503s the queue sheds would pull a median over every response down.</p>
+  <p>500 hosts at 4 posts/s with 1,670-finding bundles on the 8-vCPU load box, 300 s per run. Profiled runs carry asyncio debug overhead, so their latencies are not capacity numbers. Frames show self share of sampled wall time. Latency counts accepted ingests only (answered 200), from each run's per-request CSV: the 503s the queue sheds would pull a median over every response down. The before-profiles' slow-callback log was not captured (harness defect, fixed in 74af188); the after-profiles carry it (finding F27).</p>
   {% if d.profiles %}
   <div class="scroll" role="region" aria-label="Profiles" tabindex="0"><table>
-    <thead><tr><th>Backend</th><th>Side</th><th>Top three frames, self %</th><th class="num">Statements per ingest</th><th class="num">Stored scans</th><th class="num">Accepted p50 ms</th><th class="num">Accepted p95 ms</th><th>Source</th></tr></thead>
+    <thead><tr><th>Backend</th><th>Side</th><th>Top three frames, self %</th><th class="num">Statements per ingest</th><th class="num">Stored scans</th><th class="num">Accepted p50 ms</th><th class="num">Accepted p95 ms</th><th>Slow callbacks, 100 ms or more</th><th>Source</th></tr></thead>
     <tbody>
     {% for db, sides in d.profiles.items() %}{% for side in ['before', 'after'] if side in sides %}{% set p = sides[side] %}
     <tr><td>{{ db }}</td><td>{{ side }}</td>
       <td><ol class="frames">{% for f in p.top %}<li><code>{{ f.frame }}</code> <span class="mono">{{ '%.1f'|format(f.self_pct) }}</span></li>{% endfor %}</ol></td>
       <td class="num">{{ p.statements_per_ingest|n('{:,.1f}') }}</td><td class="num">{{ p.stored_scans|n }}</td>
-      <td class="num">{{ p.p50_accepted_ms|n('{:,.0f}') }}</td><td class="num">{{ p.p95_accepted_ms|n('{:,.0f}') }}</td>
+      <td class="num">{{ p.p50_accepted_ms|n('{:,.0f}') }}</td><td class="num">{{ p.p95_accepted_ms|n('{:,.0f}') }}</td><td>{{ p.slow }}</td>
       <td class="src">{{ p.source|wbr }}{% if p.run_source %}, {{ p.run_source|wbr }}{% endif %}</td></tr>
     {% endfor %}{% endfor %}
     </tbody>

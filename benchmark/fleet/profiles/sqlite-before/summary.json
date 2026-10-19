@@ -77,9 +77,11 @@
   ],
   "instrumentation_pct": 20.2,
   "slow_callbacks": {
+    "captured": false,
     "count": 0,
     "max_s": 0.0,
-    "top": []
+    "top": [],
+    "callbacks": []
   },
   "statements_source": "sqlite3 trace callback",
   "statements_total": 2566974,

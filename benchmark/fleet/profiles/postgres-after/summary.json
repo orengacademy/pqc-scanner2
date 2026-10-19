@@ -86,6 +86,53 @@
       "Executing <Task pending name='Task-3249' coro=<RequestResponseCycle.run_asgi() running at /root/pqc-scanner2/.venv/lib/python3.12/site-packages/uvicorn/protocols/http/httptools_impl.py:422> wait_for=<Future pending cb=[Task.task_wakeup()] created at /usr/lib/python3.12/asyncio/locks.py:209> cb=[set.",
       "Executing <Task pending name='Task-1' coro=<Server.serve() running at /root/pqc-scanner2/.venv/lib/python3.12/site-packages/uvicorn/server.py:90> wait_for=<Future pending cb=[Task.task_wakeup()] created at /usr/lib/python3.12/asyncio/tasks.py:660> cb=[run_until_complete.<locals>.done_cb(), <4 more>,",
       "Executing <Task pending name='starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro' coro=<TaskHandle._run_coro() running at /root/pqc-scanner2/.venv/lib/python3.12/site-packages/anyio/_core/_tasks.py:327> cb=[TaskGroup._spawn.<locals>.task_done() at /root/pqc-scanne"
+    ],
+    "callbacks": [
+      {
+        "callback": "Task starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro (TaskHandle._run_coro)",
+        "count": 123,
+        "max_s": 0.747
+      },
+      {
+        "callback": "Task Task-N (RequestResponseCycle.run_asgi)",
+        "count": 121,
+        "max_s": 0.44
+      },
+      {
+        "callback": "Task Task-N (Server.serve)",
+        "count": 15,
+        "max_s": 0.437
+      },
+      {
+        "callback": "Handle WorkerThread._report_result",
+        "count": 7,
+        "max_s": 0.236
+      },
+      {
+        "callback": "TimerHandle _set_result_unless_cancelled",
+        "count": 7,
+        "max_s": 0.231
+      },
+      {
+        "callback": "TimerHandle HttpToolsProtocol.timeout_keep_alive_handler",
+        "count": 4,
+        "max_s": 0.27
+      },
+      {
+        "callback": "Handle TaskGroup._spawn.<locals>.task_done",
+        "count": 4,
+        "max_s": 0.19
+      },
+      {
+        "callback": "Task starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.receive_or_disconnect.<locals>.wrap (TaskHandle._run_coro)",
+        "count": 3,
+        "max_s": 0.119
+      },
+      {
+        "callback": "Handle CancelScope._deliver_cancellation",
+        "count": 1,
+        "max_s": 0.103
+      }
     ]
   },
   "statements_source": "pg_stat_statements",

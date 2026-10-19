@@ -82,9 +82,25 @@ Excluded from the rule:
 
 `503` is the bounded ingest queue shedding load; `no response` counts ingests that timed out or were reset. Little's law is not applied: a herd is not a steady arrival. Every p95 is below the agent's 60 s request timeout.
 
-## Retention
+## Retention (keep 2 scans per host)
 
-No retention results exist yet.
+The sweep above ran at the default keep of 12, where no host posts often enough in 300 s for `prune_host` to delete anything. These runs keep fewer scans per host, so each host's later posts also delete its oldest scan. They do not set λ_max.
+
+### postgres
+
+| rate (posts/s) | hosts | seed | commit | requests | p50 ms | p95 ms | p99 ms | achieved rps | Little ratio | 429 | 503 | errors | result |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0.5 | 15 | 1 | 58f22a2 | 140 | 1700 | 3000 | 3200 | 0.47 | 0.992 | 0 | 0 | 0 | FAIL |
+| 0.5 | 60 | 1 | 58f22a2 | 140 | 1400 | 2500 | 3300 | 0.47 | 0.961 | 0 | 0 | 0 | FAIL |
+| 0.5 | 60 | 2 | 58f22a2 | 145 | 1700 | 3300 | 4100 | 0.48 | 0.981 | 0 | 0 | 0 | FAIL |
+
+### sqlite
+
+| rate (posts/s) | hosts | seed | commit | requests | p50 ms | p95 ms | p99 ms | achieved rps | Little ratio | 429 | 503 | errors | result |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 100 | 1 | 58f22a2 | 300 | 500 | 1700 | 3400 | 1.01 | 1.013 | 0 | 0 | 0 | PASS |
+| 1 | 30 | 1 | 58f22a2 | 292 | 590 | 1500 | 2400 | 0.98 | 1.0 | 0 | 0 | 0 | PASS |
+| 1 | 100 | 2 | 58f22a2 | 298 | 470 | 1800 | 7600 | 1.0 | 1.007 | 0 | 0 | 0 | PASS |
 
 ## Superseded and diagnostic runs
 
@@ -125,7 +141,7 @@ Four 4-slot Postgres rows were overwritten by the 2-slot re-sweep under the same
 
 ## F23: Postgres ingest cost per row
 
-The profile at `04c2650` (`profiles/postgres-after`) shows 16,103 statements per ingest, against 16,996 at `c330937` (`profiles/postgres-before`). The statements are one INSERT per findings row and per framework-view row through the psycopg pipeline, plus one foreign-key check per inserted row. Time inside psycopg's `wait` is 66.4 % of sampled wall time before and 68.8 % after. The single-ingest service time is the Postgres p50 at the lowest swept rate, where nothing queues: 1.1 to 1.3 s. Two slots divide that, so Postgres saturates below the SQLite rate and meets no swept p95 target on this box.
+The profile at `58f22a2` (`profiles/postgres-after`) shows 16,131 statements per ingest, against 16,996 at `c330937` (`profiles/postgres-before`). The statements are one INSERT per findings row and per framework-view row through the psycopg pipeline, plus one foreign-key check per inserted row. Time inside psycopg's `wait` is 66.4 % of sampled wall time before and 62.3 % after. The single-ingest service time is the Postgres p50 at the lowest swept rate, where nothing queues: 1.1 to 1.3 s. Two slots divide that, so Postgres saturates below the SQLite rate and meets no swept p95 target on this box.
 
 Proposed fix, out of scope for this branch: bulk-load findings with `COPY` or batched inserts, and defer the foreign-key checks to the end of the transaction. Neither is tried here.
 

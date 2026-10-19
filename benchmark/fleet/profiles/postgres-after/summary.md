@@ -15,3 +15,11 @@ Harness instrumentation (statement counter, asyncio debug tracebacks), left out 
 Statements per ingest: **16131.4** (total statements over the run divided by the 147 scans the collector reports stored; enrolments (500) and the post-run fleet reads are included; source: pg_stat_statements).
 
 Slow event-loop callbacks (>= 100 ms): 285, max 0.747 s.
+
+Top three distinct slow callbacks (from `asyncio-slow.log`; a task is named by asyncio's task name and its coroutine):
+
+| callback | count | max s |
+|---|---|---|
+| `Task starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro (TaskHandle._run_coro)` | 123 | 0.747 |
+| `Task Task-N (RequestResponseCycle.run_asgi)` | 121 | 0.440 |
+| `Task Task-N (Server.serve)` | 15 | 0.437 |
