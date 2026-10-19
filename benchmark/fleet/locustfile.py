@@ -1,0 +1,91 @@
+"""Locust user = one simulated agent host: enroll once, then POST one fresh bundle every LOAD_INTERVAL_S.
+
+Env (set by run_load.py): LOAD_TEMPLATE (template bundle json), LOAD_PREFIX (machine-id prefix),
+LOAD_ENROLL_TOKEN, LOAD_INTERVAL_S (default 60, the collector's per-host refill), LOAD_COUNTERS (output json),
+LOAD_STAGGER (1: a host enrols and sends its first bundle at a random offset in [0, interval), so offered load is
+steady at hosts/interval; 0, "herd": every host enrols and posts as soon as it is spawned, which with 500 hosts at 50
+spawns/s is a 10 s ramp), LOAD_SEED (seeds the per-host offsets),
+LOAD_REQUESTS_CSV (one row per request: ts,name,status,response_ms,bytes).
+Requests time out after 60 s, the real agent's HTTP timeout.
+429 (throttled) and 503 (store busy) are expected collector answers: counted, not failures.
+"""
+import itertools
+import json
+import os
+import random
+import sys
+import time
+from collections import Counter
+from pathlib import Path
+
+import gevent
+from locust import HttpUser, constant, events, task
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _bundles import host_bundle
+
+TEMPLATE = json.loads(Path(os.environ["LOAD_TEMPLATE"]).read_text())
+PREFIX = os.environ.get("LOAD_PREFIX", "m-load-")
+ENROLL_TOKEN = os.environ["LOAD_ENROLL_TOKEN"]
+INTERVAL_S = float(os.environ.get("LOAD_INTERVAL_S", "60"))
+STAGGER = os.environ.get("LOAD_STAGGER", "1") == "1"
+SEED = int(os.environ.get("LOAD_SEED", "1"))
+COUNTERS: Counter = Counter()
+_seq = itertools.count(1)   # locust users are greenlets in one process: no lock needed
+_REQ_CSV = os.environ.get("LOAD_REQUESTS_CSV")
+_req_fh = open(_REQ_CSV, "w", newline="") if _REQ_CSV else None   # noqa: SIM115 - open for the process life
+if _req_fh:
+    _req_fh.write("ts,name,status,response_ms,bytes\n")
+
+
+@events.request.add_listener
+def _record_request(request_type, name, response_time, response_length, response, exception, **_kw):
+    if _req_fh:
+        status = getattr(response, "status_code", 0) if response is not None else 0
+        _req_fh.write(f"{time.time():.3f},{name},{status},{response_time:.1f},{response_length}\n")
+
+
+@events.quitting.add_listener
+def _close_requests(environment, **_kw):
+    if _req_fh:
+        _req_fh.close()
+
+
+@events.quitting.add_listener
+def _write_counters(environment, **_kw):
+    if path := os.environ.get("LOAD_COUNTERS"):
+        Path(path).write_text(json.dumps(COUNTERS))
+
+
+class FleetHost(HttpUser):
+    wait_time = constant(INTERVAL_S)
+
+    def on_start(self):
+        n = next(_seq)
+        self.machine_id, self.hostname = f"{PREFIX}{n:04d}", f"load-{n:04d}"
+        self.labels = {"env": ("prod", "dr", "dev")[n % 3], "site": f"dc{n % 5}"}
+        if STAGGER:       # a real agent enrols on its first scan and posts straight away
+            gevent.sleep(random.Random(SEED * 100_003 + n).uniform(0, INTERVAL_S))
+        with self.client.post("/api/agents/enroll", name="enroll", catch_response=True, timeout=60, json={
+                "enroll_token": ENROLL_TOKEN,
+                "host": {"machine_id": self.machine_id, "hostname": self.hostname, "os": "linux",
+                         "labels": self.labels, "agent_version": "load-test"}}) as r:
+            if r.status_code == 201:
+                self.token = r.json()["agent_token"]
+            else:
+                self.token = None
+                COUNTERS[f"enroll_{r.status_code}"] += 1
+                r.failure(f"enroll {r.status_code}: {r.text[:120]}")
+
+    @task
+    def ingest(self):
+        if not self.token:
+            return
+        body = host_bundle(TEMPLATE, self.machine_id, self.hostname, self.labels)
+        with self.client.post("/api/ingest", name="ingest", data=body, catch_response=True, timeout=60, headers={
+                "Authorization": f"Bearer {self.token}", "Content-Type": "application/gzip"}) as r:
+            COUNTERS[f"http_{r.status_code}"] += 1
+            if r.status_code in (200, 429, 503):
+                r.success()
+            else:
+                r.failure(f"ingest {r.status_code}: {r.text[:120]}")

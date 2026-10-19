@@ -7,6 +7,159 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Five TCP probes (`net.rdp.negotiation`, `net.smb.dialect`, `net.telnet.plaintext`, `net.kerberos.asreq`,
+  `net.ssh.handshake`) crashed when the peer accepted the connection and then reset it; they caught only a timeout on
+  the read after connect. Seen on GitHub Windows runners, whose RDP listener resets the probe (soak day 0). A reset is
+  now treated like a silent peer, as a refused connection already was.
+
+### Added
+- Fleet verification campaign. `docs/FLEET-EVIDENCE.md` grades each claim in `docs/FLEET.md` as evidenced, simulated,
+  asserted or contradicted, lists the findings, and lists what was not run. Its inputs: a STRIDE threat model with
+  hypothesis fuzz targets (`docs/security/THREAT-MODEL-FLEET.md`, `tests/fuzz/`), a 500-host load harness and a
+  30-host simulated soak with a real-fleet runbook (`benchmark/fleet/`), a 176-case labelled accuracy corpus with
+  per-family precision and recall (`docs/ACCURACY.md`), a bake-off against three FOSS scanners (`docs/BAKEOFF.md`), a
+  CBOM-vs-inventory reconciliation script and sign-off template (`benchmark/fleet/reconcile.py`,
+  `docs/ACCEPTANCE-TEMPLATE.md`), and a `verify` CI workflow (Postgres, Windows installer, fuzz, accuracy).
+  The `verify` extra and the `fuzz` and `benchmark` pytest markers are new; a plain `pytest` skips the fuzz tests.
+- Fleet ingest load shedding. The collector holds at most 32 bundles waiting for or holding one of its two parse slots
+  (`INGEST_QUEUE_MAX`), reads at most 64 bodies at once and 2 per host, and gives a body 120 s to arrive. Past a bound
+  it answers `503` with `Retry-After: 60` (`408` for the deadline), before reading the body when the queue is already
+  full, and the agent spools and resends. A herd of 500 hosts posting at once is shed with `503`s instead of queueing
+  past the agent's 60 s timeout. `docs/FLEET.md` (Security, Known limits) states the limits and the measured capacity.
+- Capacity and real-soak campaign, graded in the "Since PR #92" section of `docs/FLEET-EVIDENCE.md`. Tooling under
+  `benchmark/fleet/`: rate-based open arrival with a Little's law check, per-request CSVs and 1,670-finding bundles in
+  `run_load.py`; `--profile` (py-spy, asyncio slow callbacks, statements per ingest); `capacity.py`, which writes
+  `CAPACITY.md`; `cloud/loadbox.sh` for a rented load box; `cloud/soak.sh` with cloud-init, a 10-minute sampler and
+  `.github/workflows/soak-windows.yml` for the real soak; mutmut and atheris runners (`mutation/`, `fuzz/`);
+  `make_fleet_db.py` for timing the fleet pages; and `evidence_page.py`, which regenerates `docs/evidence/index.html`.
+  The `verify` workflow gains a `load-ratio` job, a same-runner A/B of ingest p95 against the PR #92 head on SQLite
+  and Postgres. `docs/FLEET-UI-REVIEW.md` records the fleet web UI at 500 hosts.
+
+### Changed
+- Fleet ingest on SQLite sends findings and compliance views as multi-row `INSERT ... VALUES` pages, replacing the
+  executemany inserts. That removes `do_executemany`, 17.2 % of sampled wall time in the before-profile. Both backends
+  now insert through SQLAlchemy Core rather than the ORM bulk path, which removes `_collect_insert_commands` (4.5 % on
+  SQLite, 3.1 % on Postgres). A 1,670-finding ingest on SQLite went from 8,528 statements to 34.8
+  (`benchmark/fleet/profiles/sqlite-*`). Postgres keeps psycopg's pipelined executemany: pages reached no higher rate
+  and had a higher p95. Postgres also keeps two parse slots like SQLite, because four were measured slower (p95 1.5 to
+  2.2 times in CI).
+
+### Fixed
+- `packaging/fleet/windows-task.ps1` no longer leaves a half-finished install for a non-SYSTEM `-RunAs` account. It
+  accepts SYSTEM or a group managed service account and refuses plain users, LOCAL SERVICE, NETWORK SERVICE and
+  `NT SERVICE\` accounts before it writes anything. If Task Scheduler rejects an account that passed that check, the
+  installer removes what it wrote. Pester covers the refusals and the rollback on both Windows runners (31 tests).
+- `pip install .` and `pip install git+…` of the repository work again. The hatchling `force-include` table re-added
+  template directories the package already ships, so the wheel build failed on a second `bukukerja-template.xlsx`.
+  Editable installs and PyInstaller never build the wheel, so CI did not notice. `tests/packaging/test_wheel_builds.py`
+  now builds it. Found by the real soak's collector install.
+- Fleet web UI at 500 hosts: tables scroll sideways on phones instead of clipping columns; the header nav scrolls
+  inside the header instead of widening every page; light and dark themes meet 4.5:1 contrast on the fleet pages; a
+  malformed label filter shows an inline error instead of a bare JSON body; a filter that matches nothing says so
+  instead of "no enrolled hosts"; timestamps say UTC and stop at the minute; stale and drift markers are static pills,
+  not button-styled chips; the scan-link column has a header; and the no-scan readiness dash is readable.
+- `net.ports.tcp` no longer loses open ports when the box is busy. It timed each connect inside the event loop,
+  and the scan's other probes block that loop with synchronous database writes, so a port that accepted at once read
+  as closed. Two of twelve concurrent scans found none of the four open well-known ports on the test box. Fleet drift
+  then reported them as removed on one scan and added on the next, on hosts where nothing had changed. The connect now
+  runs in a thread with the socket's own timeout. Found by the simulated fleet soak.
+- `code.crypto_primitives` decides each comment/string span once, and treats a span over 64 kB as code without
+  inspecting it (fail-open). A large literal full of tokens was re-inspected for every match inside it, which is
+  quadratic: about 15 s for 1 MiB with 10,000 `md5(` tokens. It now costs the same as any 1 MiB file.
+- Fleet drift no longer reports the system clock as a change on every scan. `aux.clock.cert_validity` put the
+  scan's timestamp in its title, so each scan of each host produced two `fleet.drift` rows (the old clock finding
+  removed, the new one added) and `/fleet` showed a drift chip on every host. The title is now fixed and the time stays
+  in `evidence.utc_now`. Found by the simulated fleet soak.
+- `code.crypto_primitives` keeps a call visible when a misread construct opens a "string" at a stray quote:
+  a regex literal `/"/`, a Python 3.12 nested f-string quote, a C# 11 raw string, or a Kotlin nested template.
+  A string span that holds one of the probe's primitives in call context (`md5(`, `MD5.Create`, `hashlib.md5`,
+  `createHash('md5'`) and code punctuation (`; = + , | & ?`) now counts as code. Prose that quotes a call still does
+  not. A bare `"LMS"` passed to a crypto call (`getInstance("LMS")`) is recognised, and `.cc`, `.cxx`, `.h` and
+  `.hpp` are scanned (unstripped, like `.c` and `.cpp`).
+- Fleet ingest stores findings and compliance views with two executemany inserts and one id query instead of one
+  ORM flush per finding, and does not use `INSERT ... RETURNING`, so it works on SQLite older than 3.35. A
+  300-finding bundle took about 1,450 SQL statements; it now takes 10, at about a tenth of the CPU. The minimum
+  SQLAlchemy is now 2.0.10. A busy store during the duplicate-scan recovery lookup answers 503, not 500. Found by
+  the 500-host load test.
+- The duplicate-`scan_uuid` recovery lookup in fleet ingest runs in the threadpool instead of on the event loop, so a
+  slow store no longer stalls other requests while a retried bundle is checked. Found by the 500-host load test.
+- `code.crypto_primitives` fails open where its lexer could be fooled. C/C++, Ruby and Swift files are scanned
+  unstripped again, because raw strings, regex and `%`-literals, `?x` characters and heredocs could make a crafted
+  literal blank the real call after it. A string that can interpolate code (`${...}`, `{$...}`, `#{...}`,
+  Python f-strings, C# `$"..."`) now counts as code. The cost is that comment and string mentions in those four
+  languages fire again.
+- XMSS, XMSS^MT, LMS and HSS/LMS (NIST SP 800-208 stateful hash-based signatures) are recognised as
+  `pqc-ready` everywhere. Certificates signed with them are recognised by their X.509 OIDs, and `HSS/LMS` names
+  classify. `code.crypto_primitives` finds them in source (`"XMSS-SHA2_10_256"`, `lms_sign`, `HSS-LMS`). Found by
+  the scanner bake-off.
+- `code.crypto_primitives` no longer flags algorithm names that appear only in comments or prose strings. It
+  matched raw text, so `// MD5 is banned` or `"never use md5 here"` fired on every language it scans (30 of 30
+  such corpus cases). Matches now go through the comment/string lexer: comments never count, and a string counts
+  only when it is a bare identifier (`"MD5"`, `"AES/GCM/NoPadding"`), so `getInstance("MD5")` is still found.
+  The lexer gains C/C++, Python and Ruby; Swift uses the Java rules and TypeScript the JavaScript rules.
+- Rust raw strings are matched by their own hash count again. After one unterminated `r##"`, the stripper stopped
+  recognising raw strings, so a later `r"\"` was read as an ordinary string and the real call after it was blanked
+  (an evasion). Unterminated Java text blocks and Kotlin raw strings no longer let later openers rescan the rest of
+  the file, which took 17 s for 64 KiB of escaped `\"""` lines.
+- `net.tls.pqc_handshake` still classifies the server when the local openssl cannot offer hybrid groups, for
+  example OpenSSL 3.0 without oqs-provider. It falls back to the raw ClientHello of `net.tls.kex_groups`, which offers
+  `X25519MLKEM768` and the classical groups itself. A classical-only server is flagged again, and a hybrid-capable one
+  is not mistaken for a fallback. It used to report only "local openssl does not support PQC hybrid groups".
+- `net.tls.pqc_handshake` no longer offers the pre-standard `X25519Kyber768Draft00` group (codepoint 0x6399). A server
+  that supports only that draft group now reads as a classical fallback. Before, the probe never connected on
+  OpenSSL 3.5, which rejects the name.
+- `net.tls.https` and the other OS-ssl TLS probes label negotiated-suite findings with the client mode
+  (`evidence.client`: `inventory (all suites offered)` or `strict (system defaults)`). An inventory scan offers every
+  suite, so "negotiated" means what the server chose from all of them.
+- The source stripper is linear on long lines and unterminated comments. An unterminated `"`/`'` used to be
+  rescanned from every later quote on its line, about 10 s for one 40 k-character line of `\"` escapes, so the 2 MiB
+  limit did not bound the work. Unterminated quotes are now left as code to the end of their line. Unterminated block
+  comments and raw/verbatim strings are left as code once, and stripping resumes after their opener.
+- The source stripper matches text blocks and raw strings in linear time (disjoint, possessive body), and skips
+  stripping for inputs over 2 MiB. Such a file is still scanned, unstripped, with an INFO note saying so.
+- OpenSSL-spelled suite names now get the same grade as their RFC spelling. The new OpenSSL branch above rated
+  anonymous (`ADH-`/`AECDH-`), export, DES/3DES and CBC-with-SHA-1 suites (`AES128-SHA`, `ECDHE-RSA-AES128-SHA`)
+  as `tinggi` or `info`; they are `sangat-tinggi`, as `TLS_..._CBC_SHA` already was. PSK, SRP and GOST suites follow
+  their RFC grade.
+- `fs.keystore.pkcs12` keeps going past a certificate or keystore it cannot parse. One CA cert with an unknown key
+  type raised out of the probe and ended the walk, so a single crafted `.p12` hid every other keystore. Such a cert or
+  file now yields an INFO finding (`additional-cert-unparseable` / `keystore-unparseable`) and the scan continues.
+- The Java text-block rule added to the source stripper above could be steered to hide real code. It closed on an
+  escaped `\"""` and on the first of a run of closing quotes, so a crafted string swallowed the `MessageDigest` call
+  after it. Java text blocks now honour escapes, need a line break after the opening `"""` and close on the final run
+  of quotes. Kotlin and Scala raw strings get their own rule (no escapes, close on the final run of quotes).
+- Fleet `enroll` and the agent-token lookup no longer block the daemon's event loop. Both ran SQLite calls on the
+  loop thread, so one enrolment waiting on the write lock stalled every other request (500 hosts enrolling during
+  ingest: enroll p95 22 s), and a lock timeout surfaced as an uncaught 500. They now run in the threadpool and
+  answer 503 with `Retry-After` when the store is busy, as ingest already did. Found by the 500-host load test.
+- The OS-ssl TLS probes (`net.tls.https`/`imaps`/`ldaps`/`smtps`/`pop3s`/`mqtts`, the STARTTLS probes,
+  `net.db.postgres_tls`, `net.starttls.ldap`) now connect to legacy servers when verification is off. The stock client
+  context refused TLS 1.0, static-RSA key transport and NULL suites, so the weakest servers yielded only "connection
+  failed". The negotiated suite is now classified with the suite classifier, which also understands OpenSSL names:
+  `AES256-GCM-SHA384` (static RSA) and `DHE-*` are `tinggi`, `NULL-*` is `sangat-tinggi`; they were `info`.
+- `net.tls.pqc_handshake` works with OpenSSL 3.5. Its group list named `X25519Kyber768Draft00`, which OpenSSL 3.5
+  no longer knows, so `s_client` refused the whole list and the probe never connected. It also now reads the
+  `Peer Temp Key:` line that OpenSSL 3.2+ prints for a classical group, so a classical fallback is flagged again.
+- `net.tls.versions`, `net.tls.kex_groups` and `net.tls.cert_chain_tls13` now offer the Ed25519, Ed448 and ML-DSA
+  signature schemes. A server whose only certificate was EdDSA or ML-DSA aborted their handshakes, so
+  `net.tls.versions` reported "does not support TLS 1.3" on fully post-quantum servers and the other two saw nothing.
+- `net.tls.versions` counts a version as accepted only when the ServerHello selects that version. A TLS-1.0-only
+  server answers a TLS 1.1 hello with a TLS 1.0 ServerHello, which used to be reported as "accepts TLS 1.1".
+- `fs.keystore.pkcs12` now reports the certificates in a cert-only PKCS#12 truststore. It read only the private key
+  and leaf, so a truststore of RSA CAs produced no finding at all. Found by the extended accuracy corpus.
+- `code.ts.java` no longer flags crypto calls quoted inside a Java text block or a Kotlin raw string (`"""..."""`).
+  The comment/string stripper did not know the triple-quoted form. Found by the extended accuracy corpus.
+- The 64-label cap now holds per host, as FLEET.md says. Labels merge across bundles and the cap was only checked per
+  bundle, so an agent could add 64 new keys on every ingest and grow its host row, and `/api/fleet`, without bound. At the
+  cap the host keeps its labels, existing keys take their new values, new keys are dropped (sorted order) and one warning
+  names them. A scan is never refused over labels, so a host already past 64 keeps reporting. Found by the new fuzz targets.
+- Drift and `diff --parity` keys no longer outgrow their cap. A 512-character title of short host-like tokens normalised
+  to as many as 1,800 characters, because `<host>` is longer than the text it replaces. The normalised title is now cut
+  at 512 characters. Found by the new hypothesis fuzz targets.
+- Ingest rejects a gzip bundle whose stream is cut off (400). A truncated body used to inflate to complete JSON and be
+  stored without its CRC and length check ever running. Found by the new hypothesis fuzz targets.
+
 ## [0.10.2] — 2026-10-17
 
 ### Added — fleet mode, phase 3

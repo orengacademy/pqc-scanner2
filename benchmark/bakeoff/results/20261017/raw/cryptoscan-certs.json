@@ -1,0 +1,615 @@
+{
+ "bytesScanned": 30354,
+ "filesScanned": 16,
+ "findings": [
+  {
+   "algorithm": "ECC",
+   "category": "Asymmetric Encryption",
+   "column": 29,
+   "confidence": "MEDIUM",
+   "context": "\u0006\b*\ufffdH\ufffd=\u0004\u0003\u00020&1$0\"\u0006\u0003U\u0004\u0003\f\u001bcert-ecdsa-p384-der.example0 \u0017\r240101000000Z\u0018\u000f21231208000000Z0&1$0\"\u0006\u0003U\u0004\u0003\f\u001bcert-ecdsa-p384-der....",
+   "description": "Elliptic curve cryptography detected. ECC is vulnerable to Shor's algorithm on quantum computers.",
+   "effort": "Medium to High",
+   "file": "/t/cert-ecdsa-p384-der/server.der",
+   "fileType": "certificate",
+   "findingType": "algorithm",
+   "fix": "Migrate to ML-DSA (FIPS 204) for signatures or ML-KEM (FIPS 203) for key exchange.",
+   "id": "ECC-001-2-28",
+   "impact": "Long-term data confidentiality at risk from quantum computing advances",
+   "language": "unknown",
+   "line": 2,
+   "match": "ecdsa",
+   "migrationStatus": "VULNERABLE",
+   "primitive": "pke",
+   "purpose": "signing",
+   "qrammMapping": {
+    "dimension": "CVI",
+    "evidence": "Quantum vulnerability assessment and classification",
+    "practice": "1.2"
+   },
+   "quantumRisk": "VULNERABLE",
+   "references": [
+    "https://csrc.nist.gov/pubs/fips/204/final"
+   ],
+   "remediation": "Migrate to ML-DSA (FIPS 204) for signatures or ML-KEM (FIPS 203) for key exchange.",
+   "severity": 3,
+   "sourceContext": {
+    "endLine": 3,
+    "lines": [
+     {
+      "content": "0\ufffd\u0001~0\ufffd\u0001\u0005\ufffd\u0003\u0002\u0001\u0002\u0002\bw\ufffd\u0403]\ufffd6\ufffd0",
+      "isMatch": false,
+      "number": 1
+     },
+     {
+      "content": "\u0006\b*\ufffdH\ufffd=\u0004\u0003\u00020&1$0\"\u0006\u0003U\u0004\u0003\f\u001bcert-ecdsa-p384-der.example0 \u0017\r240101000000Z\u0018\u000f21231208000000Z0&1$0\"\u0006\u0003U\u0004\u0003\f\u001bcert-ecdsa-p384-der.example0v0\u0010\u0006\u0007*\ufffdH\ufffd=\u0002\u0001\u0006\u0005+\ufffd\u0004\u0000\"\u0003b\u0000\u0004QU\ufffd\"\ufffd0\u0010\ufffd\ufffd*\u001d\ufffd|\ufffd\ufffd\u0016YB\ufffdT\ufffd\\\ufffd!\ufffd\ufffdi\u0648\ufffdO\ufffd\ufffd]\ufffd&\ufffd\ufffd0Ny\ufffd\ufffd\ufffd}\ufffd\ufffd\ufffd^[/l...",
+      "isMatch": true,
+      "number": 2
+     },
+     {
+      "content": "\u0006\b*\ufffdH\ufffd=\u0004\u0003\u0002\u0003g\u00000d\u00020'\ufffd`\ufffd\u001a\ufffd\ufffdi\u00176\ufffd\u0096\u00b9)\ufffd\ufffd\ufffdJ\u000f\bTM\ufffd\ufffd\ufffdB\ufffd\ufffd\ufffd\ufffdS\ufffd}E\\\u001d\u000e\ufffd1\ufffdS&,\ufffd\ufffda\u00020XQ\ufffd\ufffd\r\ufffdi-\ufffd\ufffd\u01ffmd\ufffdI`Y9w\ufffdO\t9\u056d\ufffdB\ufffd\ufffdh\ufffd\ufffd{KAg\ufffd\ufffd\u0000`H\ufffdt\ufffd\u075eH",
+      "isMatch": false,
+      "number": 3
+     }
+    ],
+    "matchLine": 2,
+    "startLine": 1
+   },
+   "tags": [
+    "asymmetric",
+    "quantum-vulnerable",
+    "digital-signature"
+   ],
+   "type": "Elliptic Curve Cryptography",
+   "verify": "sed -n '2p' /t/cert-ecdsa-p384-der/server.der"
+  },
+  {
+   "algorithm": "ECC",
+   "category": "Asymmetric Encryption",
+   "column": 62,
+   "confidence": "MEDIUM",
+   "context": "*\ufffdH\ufffd\ufffd\r\u0001\t\u0016\u0001\ufffd\ufffd\ufffd\u0004\ufffd\ufffd0\ufffd\ufffd0\ufffd\ufffd\ufffd\u0003\u0002\u0001\u0002\u0002\b:\u0014\ufffd2k\ufffd\u0007r0\u0005\u0006\u0003+ep0\u001e1\u001c0\u001a\u0006\u0003U\u0004\u0003\f\u0013p12-ed25519.example0 \u0017\r240101000000Z\u0018\u000f21231208000000Z0\u001e1\u001c0\u001a\u0006...",
+   "description": "Elliptic curve cryptography detected. ECC is vulnerable to Shor's algorithm on quantum computers.",
+   "effort": "Medium to High",
+   "file": "/t/p12-ed25519-nopass/keystore.p12",
+   "fileType": "key",
+   "findingType": "algorithm",
+   "fix": "Migrate to ML-DSA (FIPS 204) for signatures or ML-KEM (FIPS 203) for key exchange.",
+   "id": "ECC-001-4-61",
+   "impact": "Long-term data confidentiality at risk from quantum computing advances",
+   "language": "unknown",
+   "line": 4,
+   "match": "ed25519",
+   "migrationStatus": "VULNERABLE",
+   "primitive": "pke",
+   "purpose": "general",
+   "qrammMapping": {
+    "dimension": "CVI",
+    "evidence": "Quantum vulnerability assessment and classification",
+    "practice": "1.2"
+   },
+   "quantumRisk": "VULNERABLE",
+   "references": [
+    "https://csrc.nist.gov/pubs/fips/204/final"
+   ],
+   "remediation": "Migrate to ML-DSA (FIPS 204) for signatures or ML-KEM (FIPS 203) for key exchange.",
+   "severity": 3,
+   "sourceContext": {
+    "endLine": 6,
+    "lines": [
+     {
+      "content": "0\ufffd\u0002e\u0002\u0001\u00030\ufffd\u0002\u001b\u0006\t*\ufffdH\ufffd\ufffd\r\u0001\u0007\u0001\ufffd\ufffd\u0002\f\u0004\ufffd\u0002\b0\ufffd\u0002\u00040\ufffd\u0002\u0000\u0006\t*\ufffdH\ufffd\ufffd\r\u0001\u0007\u0001\ufffd\ufffd\u0001\ufffd\u0004\ufffd\u0001\ufffd0\ufffd\u0001\ufffd0\ufffd\u0001_\u0006\u000b*\ufffdH\ufffd\ufffd\r\u0001\f",
+      "isMatch": false,
+      "number": 1
+     },
+     {
+      "content": "\u0001\u0003\ufffd\ufffd\u0001",
+      "isMatch": false,
+      "number": 2
+     },
+     {
+      "content": "0\ufffd\u0001\u0006\u0006",
+      "isMatch": false,
+      "number": 3
+     },
+     {
+      "content": "*\ufffdH\ufffd\ufffd\r\u0001\t\u0016\u0001\ufffd\ufffd\ufffd\u0004\ufffd\ufffd0\ufffd\ufffd0\ufffd\ufffd\ufffd\u0003\u0002\u0001\u0002\u0002\b:\u0014\ufffd2k\ufffd\u0007r0\u0005\u0006\u0003+ep0\u001e1\u001c0\u001a\u0006\u0003U\u0004\u0003\f\u0013p12-ed25519.example0 \u0017\r240101000000Z\u0018\u000f21231208000000Z0\u001e1\u001c0\u001a\u0006\u0003U\u0004\u0003\f\u0013p12-ed25519.example0*0\u0005\u0006\u0003+ep\u0003!\u0000\u001b}T@h\ufffdz\ufffd^#\ufffdf\ufffd\ufffd\ufffd\ufffdR\ufffd:\ufffd\ufffd\ufffdV\ufffdM\ufffd+9X\u0007\u001cO0\u0005\u0006\u0003+ep\u0003A\u0000\u0006\u0014\u04a5...",
+      "isMatch": true,
+      "number": 4
+     },
+     {
+      "content": "'\u0004\ufffd\f1B0\u001b\u0006\t*\ufffdH\ufffd\ufffd\r\u0001\t\u00141\u000e\u001e\f\u0000s\u0000e\u0000r\u0000v\u0000e\u0000r0#\u0006\t*\ufffdH\ufffd\ufffd\r\u0001\t\u00151\u0016\u0004\u0014\ufffdi\ufffd\ufffdZ\ufffd\ufffd\u0608\ufffd=\u0010\u001c\ufffd[\ufffd\ufffd\ufffd\ufffd\ufffd0\ufffd\ufffd\u0006\u000b*\ufffdH\ufffd\ufffd\r\u0001\f",
+      "isMatch": false,
+      "number": 5
+     },
+     {
+      "content": "\u0001\u0001\ufffd00.\u0002\u0001\u00000\u0005\u0006\u0003+ep\u0004\"\u0004 \u0011\u0019\ufffdf\ufffd3Q\u0006\ufffd\u000b\ufffd\ufffd\u007fQ\u007fRBk\ufffd\ufffd\u0007V\ufffd\u007f\ufffd8\ufffd5YT\ufffd\ufffd1B0\u001b\u0006\t*\ufffdH\ufffd\ufffd\r\u0001\t\u00141\u000e\u001e\f\u0000s\u0000e\u0000r\u0000v\u0000e\u0000r0#\u0006\t*\ufffdH\ufffd\ufffd\r\u0001\t\u00151\u0016\u0004\u0014\ufffdi\ufffd\ufffdZ\ufffd\ufffd\u0608\ufffd=\u0010\u001c\ufffd[\ufffd\ufffd\ufffd\ufffd\ufffd0A010\r\u0006\t`\ufffdH\u0001e\u0003\u0004\u0002\u0001\u0005\u0000\u0004 \u013d\u0001a\ufffd\ufffd\ufffd\ufffd\u0015\u0017~\ufffdn#\ufffd{\ufffd\ufffd>\ufffdSr\ufffd/b`7\ufffd,\ufffd\ufffd!\u0004\b\u0004\ufffd\ufffd\ufffdk\ufffdk\ufffd\u0002\u0002\b\u0000",
+      "isMatch": false,
+      "number": 6
+     }
+    ],
+    "matchLine": 4,
+    "startLine": 1
+   },
+   "tags": [
+    "asymmetric",
+    "quantum-vulnerable",
+    "digital-signature"
+   ],
+   "type": "Elliptic Curve Cryptography",
+   "verify": "sed -n '4p' /t/p12-ed25519-nopass/keystore.p12"
+  },
+  {
+   "category": "Certificate",
+   "column": 1,
+   "confidence": "MEDIUM",
+   "context": "-----BEGIN CERTIFICATE-----",
+   "description": "X.509 certificate detected. Certificate algorithm and key size should be verified for quantum safety.",
+   "effort": "Inventory: Add to CBOM, verify algorithm meets requirements",
+   "file": "/t/cert-ecdsa-p256-pem/server.crt",
+   "fileType": "certificate",
+   "findingType": "algorithm",
+   "fix": "Verify certificate uses RSA-3072+ or ECC-P256+. Plan migration to PQC certificates when standards finalize.",
+   "id": "CERT-001-1-0",
+   "impact": "PKI infrastructure - include in cryptographic inventory",
+   "language": "unknown",
+   "line": 1,
+   "match": "-----BEGIN CERTIFICATE-----",
+   "migrationStatus": "PARTIAL",
+   "purpose": "signing",
+   "qrammMapping": {
+    "dimension": "CVI",
+    "evidence": "Automated cryptographic algorithm discovery",
+    "practice": "1.1"
+   },
+   "quantumRisk": "UNKNOWN",
+   "remediation": "Verify certificate uses RSA-3072+ or ECC-P256+. Plan migration to PQC certificates when standards finalize.",
+   "severity": 0,
+   "sourceContext": {
+    "endLine": 4,
+    "lines": [
+     {
+      "content": "-----BEGIN CERTIFICATE-----",
+      "isMatch": true,
+      "number": 1
+     },
+     {
+      "content": "MIIBQTCB6aADAgECAgkAiL4+zU75ZXowCgYIKoZIzj0EAwIwJjEkMCIGA1UEAwwb",
+      "isMatch": false,
+      "number": 2
+     },
+     {
+      "content": "Y2VydC1lY2RzYS1wMjU2LXBlbS5leGFtcGxlMCAXDTI0MDEwMTAwMDAwMFoYDzIx",
+      "isMatch": false,
+      "number": 3
+     },
+     {
+      "content": "MjMxMjA4MDAwMDAwWjAmMSQwIgYDVQQDDBtjZXJ0LWVjZHNhLXAyNTYtcGVtLmV4",
+      "isMatch": false,
+      "number": 4
+     }
+    ],
+    "matchLine": 1,
+    "startLine": 1
+   },
+   "tags": [
+    "certificate",
+    "x509",
+    "audit"
+   ],
+   "type": "X.509 Certificate",
+   "verify": "sed -n '1p' /t/cert-ecdsa-p256-pem/server.crt"
+  },
+  {
+   "category": "Certificate",
+   "column": 1,
+   "confidence": "MEDIUM",
+   "context": "-----BEGIN CERTIFICATE-----",
+   "description": "X.509 certificate detected. Certificate algorithm and key size should be verified for quantum safety.",
+   "effort": "Inventory: Add to CBOM, verify algorithm meets requirements",
+   "file": "/t/cert-ed25519-pem/server.crt",
+   "fileType": "certificate",
+   "findingType": "algorithm",
+   "fix": "Verify certificate uses RSA-3072+ or ECC-P256+. Plan migration to PQC certificates when standards finalize.",
+   "id": "CERT-001-1-0",
+   "impact": "PKI infrastructure - include in cryptographic inventory",
+   "language": "unknown",
+   "line": 1,
+   "match": "-----BEGIN CERTIFICATE-----",
+   "migrationStatus": "PARTIAL",
+   "purpose": "signing",
+   "qrammMapping": {
+    "dimension": "CVI",
+    "evidence": "Automated cryptographic algorithm discovery",
+    "practice": "1.1"
+   },
+   "quantumRisk": "UNKNOWN",
+   "remediation": "Verify certificate uses RSA-3072+ or ECC-P256+. Plan migration to PQC certificates when standards finalize.",
+   "severity": 0,
+   "sourceContext": {
+    "endLine": 4,
+    "lines": [
+     {
+      "content": "-----BEGIN CERTIFICATE-----",
+      "isMatch": true,
+      "number": 1
+     },
+     {
+      "content": "MIH7MIGuoAMCAQICCD2hpdLZOeW9MAUGAytlcDAjMSEwHwYDVQQDDBhjZXJ0LWVk",
+      "isMatch": false,
+      "number": 2
+     },
+     {
+      "content": "MjU1MTktcGVtLmV4YW1wbGUwIBcNMjQwMTAxMDAwMDAwWhgPMjEyMzEyMDgwMDAw",
+      "isMatch": false,
+      "number": 3
+     },
+     {
+      "content": "MDBaMCMxITAfBgNVBAMMGGNlcnQtZWQyNTUxOS1wZW0uZXhhbXBsZTAqMAUGAytl",
+      "isMatch": false,
+      "number": 4
+     }
+    ],
+    "matchLine": 1,
+    "startLine": 1
+   },
+   "tags": [
+    "certificate",
+    "x509",
+    "audit"
+   ],
+   "type": "X.509 Certificate",
+   "verify": "sed -n '1p' /t/cert-ed25519-pem/server.crt"
+  },
+  {
+   "category": "Certificate",
+   "column": 1,
+   "confidence": "MEDIUM",
+   "context": "-----BEGIN CERTIFICATE-----",
+   "description": "X.509 certificate detected. Certificate algorithm and key size should be verified for quantum safety.",
+   "effort": "Inventory: Add to CBOM, verify algorithm meets requirements",
+   "file": "/t/cert-mldsa65/server.pem",
+   "fileType": "certificate",
+   "findingType": "algorithm",
+   "fix": "Verify certificate uses RSA-3072+ or ECC-P256+. Plan migration to PQC certificates when standards finalize.",
+   "id": "CERT-001-1-0",
+   "impact": "PKI infrastructure - include in cryptographic inventory",
+   "language": "unknown",
+   "line": 1,
+   "match": "-----BEGIN CERTIFICATE-----",
+   "migrationStatus": "PARTIAL",
+   "purpose": "signing",
+   "qrammMapping": {
+    "dimension": "CVI",
+    "evidence": "Automated cryptographic algorithm discovery",
+    "practice": "1.1"
+   },
+   "quantumRisk": "UNKNOWN",
+   "remediation": "Verify certificate uses RSA-3072+ or ECC-P256+. Plan migration to PQC certificates when standards finalize.",
+   "severity": 0,
+   "sourceContext": {
+    "endLine": 4,
+    "lines": [
+     {
+      "content": "-----BEGIN CERTIFICATE-----",
+      "isMatch": true,
+      "number": 1
+     },
+     {
+      "content": "MIIVQTCCCD6gAwIBAgIUZj5JU8c80r9HrwWqOufWdeTgZYQwCwYJYIZIAWUDBAMS",
+      "isMatch": false,
+      "number": 2
+     },
+     {
+      "content": "MB4xHDAaBgNVBAMME3BxYy1tbGRzYTY1LmV4YW1wbGUwHhcNMjQwMTAxMDAwMDAw",
+      "isMatch": false,
+      "number": 3
+     },
+     {
+      "content": "WhcNMjYwMzExMDAwMDAwWjAeMRwwGgYDVQQDDBNwcWMtbWxkc2E2NS5leGFtcGxl",
+      "isMatch": false,
+      "number": 4
+     }
+    ],
+    "matchLine": 1,
+    "startLine": 1
+   },
+   "tags": [
+    "certificate",
+    "x509",
+    "audit"
+   ],
+   "type": "X.509 Certificate",
+   "verify": "sed -n '1p' /t/cert-mldsa65/server.pem"
+  },
+  {
+   "category": "Certificate",
+   "column": 1,
+   "confidence": "MEDIUM",
+   "context": "-----BEGIN CERTIFICATE-----",
+   "description": "X.509 certificate detected. Certificate algorithm and key size should be verified for quantum safety.",
+   "effort": "Inventory: Add to CBOM, verify algorithm meets requirements",
+   "file": "/t/cert-rsa1024/server.pem",
+   "fileType": "certificate",
+   "findingType": "algorithm",
+   "fix": "Verify certificate uses RSA-3072+ or ECC-P256+. Plan migration to PQC certificates when standards finalize.",
+   "id": "CERT-001-1-0",
+   "impact": "PKI infrastructure - include in cryptographic inventory",
+   "language": "unknown",
+   "line": 1,
+   "match": "-----BEGIN CERTIFICATE-----",
+   "migrationStatus": "PARTIAL",
+   "purpose": "signing",
+   "qrammMapping": {
+    "dimension": "CVI",
+    "evidence": "Automated cryptographic algorithm discovery",
+    "practice": "1.1"
+   },
+   "quantumRisk": "UNKNOWN",
+   "remediation": "Verify certificate uses RSA-3072+ or ECC-P256+. Plan migration to PQC certificates when standards finalize.",
+   "severity": 0,
+   "sourceContext": {
+    "endLine": 4,
+    "lines": [
+     {
+      "content": "-----BEGIN CERTIFICATE-----",
+      "isMatch": true,
+      "number": 1
+     },
+     {
+      "content": "MIIBuzCCASSgAwIBAgIIVM+3Sb0p5i8wDQYJKoZIhvcNAQELBQAwHzEdMBsGA1UE",
+      "isMatch": false,
+      "number": 2
+     },
+     {
+      "content": "AwwUd2Vhay1yc2ExMDI0LmV4YW1wbGUwIBcNMjQwMTAxMDAwMDAwWhgPMjEyMzEy",
+      "isMatch": false,
+      "number": 3
+     },
+     {
+      "content": "MDgwMDAwMDBaMB8xHTAbBgNVBAMMFHdlYWstcnNhMTAyNC5leGFtcGxlMIGfMA0G",
+      "isMatch": false,
+      "number": 4
+     }
+    ],
+    "matchLine": 1,
+    "startLine": 1
+   },
+   "tags": [
+    "certificate",
+    "x509",
+    "audit"
+   ],
+   "type": "X.509 Certificate",
+   "verify": "sed -n '1p' /t/cert-rsa1024/server.pem"
+  },
+  {
+   "category": "Certificate",
+   "column": 1,
+   "confidence": "MEDIUM",
+   "context": "-----BEGIN CERTIFICATE-----",
+   "description": "X.509 certificate detected. Certificate algorithm and key size should be verified for quantum safety.",
+   "effort": "Inventory: Add to CBOM, verify algorithm meets requirements",
+   "file": "/t/cert-rsa2048-pem/server.crt",
+   "fileType": "certificate",
+   "findingType": "algorithm",
+   "fix": "Verify certificate uses RSA-3072+ or ECC-P256+. Plan migration to PQC certificates when standards finalize.",
+   "id": "CERT-001-1-0",
+   "impact": "PKI infrastructure - include in cryptographic inventory",
+   "language": "unknown",
+   "line": 1,
+   "match": "-----BEGIN CERTIFICATE-----",
+   "migrationStatus": "PARTIAL",
+   "purpose": "signing",
+   "qrammMapping": {
+    "dimension": "CVI",
+    "evidence": "Automated cryptographic algorithm discovery",
+    "practice": "1.1"
+   },
+   "quantumRisk": "UNKNOWN",
+   "remediation": "Verify certificate uses RSA-3072+ or ECC-P256+. Plan migration to PQC certificates when standards finalize.",
+   "severity": 0,
+   "sourceContext": {
+    "endLine": 4,
+    "lines": [
+     {
+      "content": "-----BEGIN CERTIFICATE-----",
+      "isMatch": true,
+      "number": 1
+     },
+     {
+      "content": "MIICyTCCAbGgAwIBAgIJAMlBpgIJMCUFMA0GCSqGSIb3DQEBCwUAMCMxITAfBgNV",
+      "isMatch": false,
+      "number": 2
+     },
+     {
+      "content": "BAMMGGNlcnQtcnNhMjA0OC1wZW0uZXhhbXBsZTAgFw0yNDAxMDEwMDAwMDBaGA8y",
+      "isMatch": false,
+      "number": 3
+     },
+     {
+      "content": "MTIzMTIwODAwMDAwMFowIzEhMB8GA1UEAwwYY2VydC1yc2EyMDQ4LXBlbS5leGFt",
+      "isMatch": false,
+      "number": 4
+     }
+    ],
+    "matchLine": 1,
+    "startLine": 1
+   },
+   "tags": [
+    "certificate",
+    "x509",
+    "audit"
+   ],
+   "type": "X.509 Certificate",
+   "verify": "sed -n '1p' /t/cert-rsa2048-pem/server.crt"
+  },
+  {
+   "category": "Certificate",
+   "column": 1,
+   "confidence": "MEDIUM",
+   "context": "-----BEGIN CERTIFICATE-----",
+   "description": "X.509 certificate detected. Certificate algorithm and key size should be verified for quantum safety.",
+   "effort": "Inventory: Add to CBOM, verify algorithm meets requirements",
+   "file": "/t/cert-rsa3072-pem/server.crt",
+   "fileType": "certificate",
+   "findingType": "algorithm",
+   "fix": "Verify certificate uses RSA-3072+ or ECC-P256+. Plan migration to PQC certificates when standards finalize.",
+   "id": "CERT-001-1-0",
+   "impact": "PKI infrastructure - include in cryptographic inventory",
+   "language": "unknown",
+   "line": 1,
+   "match": "-----BEGIN CERTIFICATE-----",
+   "migrationStatus": "PARTIAL",
+   "purpose": "signing",
+   "qrammMapping": {
+    "dimension": "CVI",
+    "evidence": "Automated cryptographic algorithm discovery",
+    "practice": "1.1"
+   },
+   "quantumRisk": "UNKNOWN",
+   "remediation": "Verify certificate uses RSA-3072+ or ECC-P256+. Plan migration to PQC certificates when standards finalize.",
+   "severity": 0,
+   "sourceContext": {
+    "endLine": 4,
+    "lines": [
+     {
+      "content": "-----BEGIN CERTIFICATE-----",
+      "isMatch": true,
+      "number": 1
+     },
+     {
+      "content": "MIIDyTCCAjGgAwIBAgIJAPzJAAmgpbn+MA0GCSqGSIb3DQEBCwUAMCMxITAfBgNV",
+      "isMatch": false,
+      "number": 2
+     },
+     {
+      "content": "BAMMGGNlcnQtcnNhMzA3Mi1wZW0uZXhhbXBsZTAgFw0yNDAxMDEwMDAwMDBaGA8y",
+      "isMatch": false,
+      "number": 3
+     },
+     {
+      "content": "MTIzMTIwODAwMDAwMFowIzEhMB8GA1UEAwwYY2VydC1yc2EzMDcyLXBlbS5leGFt",
+      "isMatch": false,
+      "number": 4
+     }
+    ],
+    "matchLine": 1,
+    "startLine": 1
+   },
+   "tags": [
+    "certificate",
+    "x509",
+    "audit"
+   ],
+   "type": "X.509 Certificate",
+   "verify": "sed -n '1p' /t/cert-rsa3072-pem/server.crt"
+  }
+ ],
+ "insights": [
+  {
+   "action": "1. Identify ECC usage (signatures vs key exchange)\n2. For signatures: migrate to ML-DSA\n3. For key exchange: migrate to ML-KEM",
+   "description": "Elliptic curve cryptography is quantum-vulnerable. Signatures must migrate to ML-DSA (FIPS 204) or SLH-DSA (FIPS 205).",
+   "effort": "medium",
+   "findingIds": [
+    "ECC-001-2-28",
+    "ECC-001-4-61"
+   ],
+   "priority": "high",
+   "title": "ECC/ECDSA Migration Required (2 instances)",
+   "type": "migration_required"
+  }
+ ],
+ "languageStats": {
+  "unknown": 16
+ },
+ "linesScanned": 194,
+ "metadata": {
+  "scanRoot": "/t"
+ },
+ "migrationScore": {
+  "byAlgorithm": {
+   "ECC": 2
+  },
+  "byPrimitive": {
+   "pke": 2
+  },
+  "criticalCount": 0,
+  "hybridCount": 0,
+  "level": "CRITICAL",
+  "method": "(safe 0 + 0.8 x hybrid 0 + 0.3 x partial 6) / 8 findings, as a percentage. Every finding counts once; test and example files count the same as production code.",
+  "partialCount": 6,
+  "qrammReadiness": {
+   "assessmentLevel": 3,
+   "cviScore": 40,
+   "discoveryLevel": 3,
+   "mappingLevel": 2,
+   "recommendations": [
+    "Plan migration from quantum-vulnerable algorithms to PQC (ML-KEM, ML-DSA).",
+    "Consider hybrid cryptography as a transition strategy.",
+    "No quantum-safe algorithms detected. Begin PQC adoption planning."
+   ]
+  },
+  "safeCount": 0,
+  "score": 22.499999999999996,
+  "testDirectoryFindings": 0,
+  "topRiskFiles": [
+   {
+    "criticalCount": 0,
+    "file": "/t/cert-ecdsa-p384-der/server.der",
+    "riskScore": 10,
+    "totalFindings": 1,
+    "vulnerableCount": 1
+   },
+   {
+    "criticalCount": 0,
+    "file": "/t/p12-ed25519-nopass/keystore.p12",
+    "riskScore": 10,
+    "totalFindings": 1,
+    "vulnerableCount": 1
+   }
+  ],
+  "totalCount": 8,
+  "vulnerableCount": 2
+ },
+ "scanDuration": 76483911,
+ "scanTarget": "/t",
+ "scanTime": "2026-10-17T13:26:55.418834666Z",
+ "summary": {
+  "actionableCount": 0,
+  "byCategory": {
+   "Asymmetric Encryption": 2,
+   "Certificate": 6
+  },
+  "byConfidence": {
+   "MEDIUM": 8
+  },
+  "byEvidence": {
+   "operational": 8
+  },
+  "byFileType": {
+   "certificate": 7,
+   "key": 1
+  },
+  "byLanguage": {
+   "unknown": 8
+  },
+  "byQuantumRisk": {
+   "UNKNOWN": 6,
+   "VULNERABLE": 2
+  },
+  "bySeverity": {
+   "HIGH": 2,
+   "INFO": 6
+  },
+  "highConfidenceCount": 0,
+  "narrativeSuppressedCount": 0,
+  "quantumVulnerableCount": 2,
+  "totalFindings": 8
+ },
+ "tool": {
+  "name": "CryptoScan",
+  "version": "v1.4.1-0.20261016212122-22aad8a9a204"
+ },
+ "unanalyzedFiles": []
+}

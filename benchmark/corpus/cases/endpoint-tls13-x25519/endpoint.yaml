@@ -1,0 +1,7 @@
+{
+  "cert": "server.crt",
+  "group": "X25519",
+  "key": "server.key",
+  "max_version": "TLSv1.3",
+  "min_version": "TLSv1.3"
+}

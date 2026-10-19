@@ -38,7 +38,9 @@ exports from them.
    hosts with many findings dominate it.
 4. **Exports.** `pqcscan export --scan fleet --format cbom|sarif|xlsx-bukukerja|pdf-tech … -o …`
    builds the export from the latest scan of every host, each finding attributed to its host via `evidence._fleet`.
-   The same works from the daemon API: `GET /api/scans/fleet/export/<fmt>`.
+   The same works from the daemon API: `GET /api/scans/fleet/export/<fmt>`. It is slow on a large fleet: at 500 hosts
+   a fleet CBOM export took about 17 minutes and 343 MB, holding one of the two render slots throughout (see Known
+   limits, Fleet page and export at scale).
 5. **Parity (HA/DR).** `pqcscan diff --scan <dr scan> --baseline-scan <primary scan> --parity --fail-on-drift`.
    `pqcscan merge -o fleet.db a.db b.db` still folds per-host DBs offline.
 6. **Admin.**
@@ -48,11 +50,16 @@ exports from them.
      discards `<state dir>/agent.token`, re-enrolls and sends (spooled bundles included). Without
      `--enroll-token` it spools the bundle and tells you to re-run with it or delete the token file.
    - `pqcscan fleet prune --keep 12` keeps the newest 12 scans per host. It is for one-off trims: the daemon already does this after every ingest (see Retention).
-7. **Scale.** SQLite handles roughly 2,000 hosts daily. Past roughly 10k per day,
-   run the daemon with `--db postgresql+psycopg://user:pw@host/db` (every CLI command
-   takes the same `--db` URL; `fleet-pg` installs psycopg 3, so the URL needs
-   the `+psycopg` driver suffix) after
-   `pip install 'pqcscan[fleet-pg]'`. See Known limits.
+7. **Scale.** SQLite takes the ingest rate of roughly 2,000 daily hosts with margin. The fleet export and the `/fleet`
+   page have no such margin: both were already slow at 500 hosts (see Known limits). On an 8-vCPU droplet with real-size
+   (1,670-finding) bundles it sustains 1 post/s at p95 under 2 s, about 7,200 hosts on the daily timer with its 2 h
+   jitter, and 2,000 hosts offer 0.28 posts/s (see Known limits, Ingest capacity). At the default 12 scans per host the
+   database reaches about 28 GB for 2,000 hosts (1.2 MB per scan on one measurement; the real soak re-measures it).
+   SQLite is also the faster backend on that box. Postgres works, for operators who need it for other reasons: run the
+   daemon with `--db postgresql+psycopg://user:pw@host/db` (every CLI command takes the same `--db` URL; `fleet-pg`
+   installs psycopg 3, so the URL needs the `+psycopg` driver suffix) after `pip install 'pqcscan[fleet-pg]'`. Its
+   measured cost: on the same box it did not reach p95 under 2 s at any swept rate, 0.5 posts/s and up, because it pays
+   one insert and one foreign-key check per finding row. See Known limits and [FLEET-EVIDENCE.md](FLEET-EVIDENCE.md).
 
 ## Retention
 
@@ -92,7 +99,7 @@ rotate it on the collector after rollout.
 | File | What it does |
 |---|---|
 | `pqcscan-agent.service` + `pqcscan-agent.timer` | systemd one-shot `agent --once`, daily with up to 2 h random delay. Runs as a dedicated `pqcscan` user with `ProtectSystem=strict`, write access to the state dir `/var/lib/pqcscan/agent` only, read-only root access through `CAP_DAC_READ_SEARCH`. Settings come from `/etc/pqcscan/agent.env`. |
-| `windows-task.ps1` | Windows PowerShell 5.1 (Desktop edition), not PowerShell 7. Downloads the pinned `.exe` into `%ProgramFiles%\pqcscan` (admin-write only), verifies it against `SHA256SUMS.txt`, creates the state folder `%ProgramData%\pqcscan` fresh and locks it down (SYSTEM and Administrators full, task account modify, verified with `Get-Acl`; it refuses to run over an existing install, so to upgrade or rotate the token stop the task and move both folders aside, which drops the spool and `agent.token` and makes the host re-enroll), and registers a daily Scheduled Task (02:00 plus up to 2 h random delay). |
+| `windows-task.ps1` | Windows PowerShell 5.1 (Desktop edition), not PowerShell 7. Downloads the pinned `.exe` into `%ProgramFiles%\pqcscan` (admin-write only), verifies it against `SHA256SUMS.txt`, creates the state folder `%ProgramData%\pqcscan` fresh and locks it down (SYSTEM and Administrators full, task account modify, verified with `Get-Acl`; it refuses to run over an existing install, so to upgrade or rotate the token stop the task and move both folders aside, which drops the spool and `agent.token` and makes the host re-enroll), and registers a daily Scheduled Task (02:00 plus up to 2 h random delay). `-RunAs` accepts `NT AUTHORITY\SYSTEM` (the default) or a group managed service account (`DOMAIN\name$`, which CI cannot exercise) and refuses anything else before it writes anything: `LOCAL SERVICE`, `NETWORK SERVICE` and other shared accounts because every service running as them could read the token in `agent.env`, a plain user because it needs a password the script does not take, `NT SERVICE\` virtual accounts because this installer does not support them; an account that passes that check but that Task Scheduler rejects (a gMSA this host cannot use, or a computer account) fails at registration and the installer removes what it wrote. |
 | `ansible-playbook.yml` | Installs the verified binary, the `pqcscan` user, `agent.env` (root:root 0600, enroll token from a vaulted variable, `no_log`) and the timer. Rotate the token after rollout. |
 | `bigfix-fixlet.md` | Relevance clause and action script for BigFix. |
 | `osquery-wazuh.md` | Wazuh `command` wodle for the daily scan, plus an osquery query that spots a stuck spool. osquery only watches; the CM agent runs the binary. |
@@ -141,9 +148,21 @@ as change. `pqcscan diff --parity` uses the same key to compare a primary with i
   keeps its own token in a 0600 file written without following symlinks.
 - **Ingest limits.** A bundle is capped at 8 MiB on the wire, 50 MiB after
   decompression and 200,000 findings. Each host may post a burst of 10 bundles,
-  refilled at one per minute; only a duplicate resend is free.
+  refilled at one per minute. Every post spends a token before the bundle is read, a duplicate resend included: it is
+  answered `200` with `duplicate: true`, and after 10 in a row the next one gets `429`.
   Host labels are capped at 64 per host, keys at 64 characters and values at 256, at enrollment and ingest.
+  Labels merge across bundles. At 64 the host keeps its labels, existing keys take their new values, new keys are
+  dropped (in sorted order) and the collector logs one warning naming them; the scan is still stored. There is no command to delete a label.
   The bundle `machine_id` must match the token that posted it.
+  The collector parses and stores two bundles at a time and holds at most 32 bundles in all, those being parsed
+  included; past that it answers `503` with `Retry-After: 60`, before reading the body when it is already full, and
+  the agent spools the bundle and sends it on its next run. At most 64 uploads are read at once, with the same `503`
+  past that; a body must arrive within 120 s (`408` otherwise, which the agent also retries), and one host may have
+  two uploads in flight.
+  A bundle takes its place in the queue only once its body is fully read, so a slow upload holds none. The queue is
+  sized so a bundle waits about half a minute at 2 s per bundle, inside the agent's 60 s timeout. When 500 hosts post
+  at once a few requests still go unanswered within 60 s (6 of 1,497 on SQLite, 14 of 1,486 on Postgres, on the load
+  box); the agent spools those and sends them on its next run.
 - **No key material.** Findings never carry key bytes. Machine ids are
   domain-separated hashes, not raw `/etc/machine-id` values.
 
@@ -156,5 +175,39 @@ as change. `pqcscan diff --parity` uses the same key to compare a primary with i
   and flushing continues. Nothing prunes that directory, so clear it by hand. A revoked host's
   ingest gets 401 and its re-enroll gets 403, so its bundles spool and replay after `agents unrevoke`.
   Replaying needs the enrollment token on the host again (`--enroll-token` / `PQCSCAN_ENROLL_TOKEN`) if it was removed after the first run.
-- **Postgres is wired but untested.** The URL is accepted and `fleet-pg` installs
-  the driver, but the fleet test suite runs on SQLite only.
+- **Ingest capacity.** Measured on an 8-vCPU DigitalOcean droplet (`benchmark/fleet/CAPACITY.md`, CPU model
+  `DO-Regular`, shared cores), with 1,670-finding bundles and p95 under 2 s, SQLite sustains λ_max = 1 post/s (band 1 to
+  2). Under the daily timer with a 2 h jitter that is about 7,200 hosts, or 86,400 if the posts are spread over 24 h.
+  Postgres met p95 < 2 s at no swept rate: at the lowest, 0.5 posts/s, p95 was 2.2 to 2.3 s, and the sweep did not go
+  lower. FLEET.md's 2,000 hosts offer 0.28 posts/s, inside the SQLite figure with margin. The sweep ran at the default
+  retention of 12 scans per host, which no host reached in a 300 s run, so pruning never ran; in production every
+  ingest past a host's twelfth scan also deletes its oldest. With `--keep-scans-per-host 2`, so pruning runs from each
+  host's third post, SQLite at 1 post/s had p95 1.5 to 1.8 s over three runs against 0.73 to 0.76 s without
+  retention: λ_max 1 post/s still holds, with less margin, and 2 posts/s with retention was not run. Postgres at
+  0.5 posts/s went from 2.2 to 2.3 s to 2.5 to 3.3 s. A herd of 500 hosts at once gets
+  1,186 `503`s on SQLite and 1,272 on Postgres, and 6 and 14 ingests that were never answered (finding F24); p95 stays
+  at 15 s and 27 s, below the agent's 60 s timeout. These figures are for this box class: the GitHub `ubuntu-latest`
+  runner measured p95 150 ms (SQLite) and 710 ms (Postgres) at 1 post/s, about five times faster on SQLite (4.9 to 5.1
+  times) and six on Postgres (5.8 to 6.6 times), at 60 hosts on the runner against 100 on the box. History: the PR #92
+  rows (`benchmark/fleet/LOAD-pr92.md`) ran at 8.3 posts/s, 30 times FLEET.md's 2,000-host rate. See
+  `benchmark/fleet/CAPACITY.md` and [FLEET-EVIDENCE.md](FLEET-EVIDENCE.md).
+- **Fleet page and export at scale.** Measured at 500 hosts with 1,670-finding scans ([FLEET-UI-REVIEW.md](FLEET-UI-REVIEW.md),
+  on a busy workstation, so the times are relative): a fleet CBOM export took about 17 minutes (1,005.6 s) and produced
+  343 MB, holding one of the two render slots throughout; `/fleet` took 2.2 s to first byte with 532 KB of HTML, because
+  it lists every host without paging. Both grow with the host count, and 2,000 hosts were not measured. There is no
+  `json` export format; `GET /api/fleet` is the JSON view of the fleet.
+- **Postgres is tested in CI and profiled.** The URL is accepted, `fleet-pg` installs the driver, and the CI job
+  `postgres` (`.github/workflows/verify.yml`) runs 149 fleet tests against `postgres:16-alpine`. Under the load test
+  it was no faster than SQLite, and on the 8-vCPU `DO-Regular` droplet it does not reach p95 < 2 s with 1,670-finding
+  bundles at any swept rate, while the CI runner does at 1 post/s (p95 710 ms). Profiled before and after
+  (`benchmark/fleet/profiles/postgres-before`, `postgres-after`, the after side re-run at `58f22a2`): statements per
+  ingest went from 16,996 to 16,131, time inside psycopg's `wait` from 66.4 % to 62.3 % of sampled wall time, and
+  `_communicate_gen` (the psycopg pipeline: one server execution and one FK check per inserted row) from 28.1 % to
+  19.9 % self. SQLite stores findings
+  as multi-row `INSERT ... VALUES` pages and Postgres keeps psycopg's pipelined one-row-per-execution inserts: on the
+  load box Postgres reached the same rate either way, bound by its per-row FK checks, with lower latency pipelined
+  (`benchmark/fleet/results/load-postgres-20261018-r4-pginsert*.json`). Four ingest slots instead of two were measured
+  slower on Postgres (p95 48 s with four against 29 s with two at 4 posts/s on the box, 1.5 to 2.2 times the baseline
+  p95 in CI, and 7.5 to 8.8 s against 2.2 to 2.3 s at 0.5 posts/s), so it parses two bundles at a time like SQLite. The
+  per-row cost is finding F23 in `benchmark/fleet/CAPACITY.md` and [FLEET-EVIDENCE.md](FLEET-EVIDENCE.md); bulk loading with `COPY` or batched inserts and deferred FK checks is the proposed
+  fix and is not done.

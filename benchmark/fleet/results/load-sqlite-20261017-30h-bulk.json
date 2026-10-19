@@ -1,0 +1,34 @@
+{
+  "db": "sqlite",
+  "hosts": 30,
+  "spawn_rate": 50,
+  "duration_s": 120,
+  "interval_s": 60.0,
+  "findings_per_bundle": 300,
+  "arrival": "staggered",
+  "requests": 60,
+  "p50_ms": 75.0,
+  "p95_ms": 260.0,
+  "p99_ms": 940.0,
+  "rps": 0.5,
+  "http_429": 0,
+  "http_503": 0,
+  "errors": 0,
+  "enroll_requests": 30,
+  "enroll_p95_ms": 340.0,
+  "failure_samples": [],
+  "pass_p95_lt_2s": true,
+  "commit": "63a2003cc7944649db38d64daae4674a4ab817ba",
+  "tree_dirty": true,
+  "box_load_start": {
+    "loadavg_1m": 9.1,
+    "cpu_pressure_avg60_pct": null
+  },
+  "box_load_end": {
+    "loadavg_1m": 4.0,
+    "cpu_pressure_avg60_pct": null
+  },
+  "command": "python -m benchmark.fleet.run_load --db sqlite --hosts 30 --spawn-rate 50 --duration 120s --findings-per-bundle 300 --tag bulk",
+  "locust_command": "/home/farzul/Projects/pqc-scanner2/.venv/bin/python -m locust -f /home/farzul/Projects/pqc-scanner2/benchmark/fleet/locustfile.py --headless -u 30 -r 50 -t 120s --stop-timeout 70 --csv /tmp/fleet-load-ov3qlp5k/run --only-summary --host http://127.0.0.1:36557",
+  "started_at": "2026-10-17T13:57:34.445829+00:00"
+}

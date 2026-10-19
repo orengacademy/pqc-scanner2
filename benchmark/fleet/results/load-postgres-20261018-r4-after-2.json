@@ -1,0 +1,63 @@
+{
+  "db": "postgres",
+  "hosts": 500,
+  "spawn_rate": 50,
+  "duration_s": 300,
+  "interval_s": 125.0,
+  "findings_per_bundle": 1670,
+  "arrival": "staggered",
+  "requests": 1107,
+  "p50_ms": 230.0,
+  "p95_ms": 48000.0,
+  "p99_ms": 60000.0,
+  "rps": 3.3,
+  "offered_rps": 4.0,
+  "mean_ms": 9107.351312037044,
+  "littles_expected_rps": 3.7284,
+  "littles_ratio": 0.886,
+  "measurement_defect": true,
+  "measurement_defect_reason": "achieved 3.30 rps is 0.89 of the Little's law expectation 3.73 rps (500 hosts / (125 s + 9.11 s)); requests were lost or timed out",
+  "hosts_daily_2h_equiv": 28800,
+  "hosts_daily_24h_equiv": 345600,
+  "schema_version": 2,
+  "requests_csv": "load-postgres-20261018-r4-after-2-requests.csv.gz",
+  "history_csv": "load-postgres-20261018-r4-after-2-history.csv.gz",
+  "http_429": 0,
+  "http_503": 873,
+  "errors": 15,
+  "ingest_error_rate": 0.0136,
+  "enroll_error_rate": 0.0,
+  "enroll_503": 0,
+  "stored_hosts": 500,
+  "stored_scans": 235,
+  "seed": 1,
+  "ingest_parallelism": 2,
+  "insert_mode": "executemany",
+  "enroll_requests": 500,
+  "enroll_p95_ms": 3200.0,
+  "failure_samples": [
+    "ingest: CatchResponseError('ingest 0: ') x15"
+  ],
+  "pass_p95_lt_2s": false,
+  "commit": "04c2650dde10cac08328343a265f3a3bd782c582",
+  "src_hash": "3aab6c222f9b7b598b030451293023e14810a40fe029e9472ec69ed1d2c90525",
+  "tree_dirty": false,
+  "dirty_files": [],
+  "box": {
+    "cpus": 8,
+    "cpu_model": "DO-Regular",
+    "mem_gb": 16
+  },
+  "box_load_start": {
+    "loadavg_1m": 0.0,
+    "cpu_pressure_avg60_pct": 0.09
+  },
+  "box_load_end": {
+    "loadavg_1m": 3.6,
+    "cpu_pressure_avg60_pct": 3.2
+  },
+  "command": "python -m benchmark.fleet.run_load --db postgres --hosts 500 --rate 4 --duration 300s --profile benchmark/fleet/profiles/postgres-after --tag after",
+  "locust_command": "/root/pqc-scanner2/.venv/bin/python -m locust -f /root/pqc-scanner2/benchmark/fleet/locustfile.py --headless -u 500 -r 50 -t 300s --stop-timeout 70 --csv /tmp/fleet-load-mbdl85eu/run --csv-full-history --only-summary --host http://127.0.0.1:37773",
+  "started_at": "2026-10-18T17:18:52.217154+00:00",
+  "profile_dir": "benchmark/fleet/profiles/postgres-after"
+}

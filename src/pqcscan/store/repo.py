@@ -9,7 +9,9 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
-from sqlalchemy import create_engine, delete, event, func, select
+from loguru import logger
+from sqlalchemy import create_engine, delete, event, func, insert, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from pqcscan.core.parity import DRIFT_PROBE, drift_rows, parity_key
@@ -70,9 +72,22 @@ class HostSummary:
 
 
 def _apply_identity(h: Host, identity: HostIdentity) -> None:
+    from pqcscan.store.bundle import MAX_LABELS  # bundle.py imports Repo: a module-level import would be a cycle
     h.hostname = identity.hostname or h.hostname
     h.os = identity.os or h.os
-    h.labels = {**(h.labels or {}), **identity.labels}
+    # Labels merge across bundles, so the per-bundle cap does not bound a host. Never refuse the scan over labels:
+    # keep what the host has, update existing keys, and take new keys (sorted) only while there is room.
+    merged = dict(h.labels or {})
+    dropped: list[str] = []
+    for k in sorted(identity.labels):
+        if k in merged or len(merged) < MAX_LABELS:
+            merged[k] = identity.labels[k]
+        else:
+            dropped.append(k)
+    if dropped:
+        logger.warning("fleet: host {} is at the {}-label cap; dropped {} new label(s): {}",
+                       h.hostname or h.machine_id, MAX_LABELS, len(dropped), ", ".join(dropped[:10]))
+    h.labels = merged
     h.agent_version = identity.agent_version or h.agent_version
     h.last_seen = utcnow()
 
@@ -91,6 +106,16 @@ class Repo:
         if url.startswith("sqlite"):
             kwargs["connect_args"] = {"check_same_thread": False}
         self.engine = create_engine(url, **kwargs)
+        # Bulk-insert strategy per backend, measured on the load box (benchmark/fleet/results, 1,670-finding bundles):
+        # - SQLite: an executemany INSERT goes as multi-row INSERT ... VALUES pages of up to 1,000 rows (SQLAlchemy's
+        #   "insertmanyvalues"), compiled once, instead of sqlite3 stepping it row by row: 8,528 -> 32 statements per
+        #   ingest and 1.18 -> 3.48 posts/s (load-sqlite-20261018-r4-after.json). Pages stay under its parameter limit.
+        # - Postgres keeps psycopg 3's pipelined executemany: at 4 posts/s both strategies reach the same ~3.3 posts/s
+        #   (server-bound, per-row FK checks), but p50 is 59 / 54 ms with executemany (2 / 4 slots) against
+        #   160 / 440 ms with pages (load-postgres-20261018-r4-pginsert*.json), and in CI run 39127318186 at 2 posts/s
+        #   p95 was 1.9 s with executemany against 2.9 s with pages.
+        if self.engine.dialect.name == "sqlite":
+            self.engine.dialect.use_insertmanyvalues_wo_returning = True
 
         if self.engine.dialect.name == "sqlite":
             # WAL lets the daemon's background-thread writer coexist with request
@@ -366,18 +391,27 @@ class Repo:
 
     # ------------------------------------------------------------------ fleet
     def upsert_host(self, identity: HostIdentity, *, token_hash: str | None = None) -> Host:
-        with Session(self.engine) as s:
-            h = s.execute(select(Host).where(Host.machine_id == identity.machine_id)).scalar_one_or_none()
-            if h is None:
-                h = Host(machine_id=identity.machine_id)
-                s.add(h)
-            _apply_identity(h, identity)
-            if token_hash is not None:
-                h.token_hash = token_hash   # never clears `revoked`: only unrevoke_host does
-            s.commit()
-            s.refresh(h)
-            s.expunge(h)
-            return h
+        # Two concurrent first-time enrolls for one machine_id both see "no host" and both insert; the loser
+        # hits the UNIQUE constraint. Retry once: the winner's row now exists, so the retry takes the update path.
+        for attempt in (0, 1):
+            with Session(self.engine) as s:
+                h = s.execute(select(Host).where(Host.machine_id == identity.machine_id)).scalar_one_or_none()
+                if h is None:
+                    h = Host(machine_id=identity.machine_id)
+                    s.add(h)
+                _apply_identity(h, identity)
+                if token_hash is not None:
+                    h.token_hash = token_hash   # never clears `revoked`: only unrevoke_host does
+                try:
+                    s.commit()
+                except IntegrityError:
+                    if attempt:
+                        raise
+                    continue
+                s.refresh(h)
+                s.expunge(h)
+                return h
+        raise AssertionError("unreachable")
 
     def get_host(self, host_id: int) -> Host | None:
         with Session(self.engine) as s:
@@ -471,29 +505,44 @@ class Repo:
             )
             s.add(scan)
             s.flush()
-            n_f = n_v = 0
-            for f in bundle.findings:
-                row = FindingRow(
-                    scan_id=scan.id, probe_id=str(f["probe_id"]), algorithm=str(f.get("algorithm", "N/A")),
-                    classification=str(f.get("classification", "info")), severity=str(f.get("severity", "info")),
-                    title=str(f.get("title", "")), evidence=dict(f.get("evidence") or {}),
-                    remediation=dict(f.get("remediation") or {}),
-                    created_at=_parse_dt(f.get("created_at")) or utcnow(),
-                )
-                s.add(row)
-                s.flush()
-                n_f += 1
-                for v in f.get("views") or []:
-                    s.add(FrameworkView(finding_id=row.id, framework=str(v["framework"]), clause=str(v["clause"]),
-                                        verdict=str(v["verdict"]),
-                                        deadline=date.fromisoformat(v["deadline"]) if v.get("deadline") else None))
-                    n_v += 1
-            for d in drift:
-                s.add(FindingRow(
-                    scan_id=scan.id, probe_id=d.probe_id, algorithm=d.algorithm,
-                    classification=d.classification.value, severity=d.severity.value, title=d.title,
-                    evidence=d.evidence, remediation=d.remediation, created_at=d.created_at,
-                ))
+            # One executemany for the findings, one query for their ids, one executemany for the views: no flush per
+            # finding, and no INSERT ... RETURNING (SQLite before 3.35 lacks it). The scan row is new in this
+            # transaction, so its findings are exactly ours. Their ids ascend in parameter order: the executemany runs
+            # in that order (multi-row VALUES pages on SQLite, pipelined rows on Postgres; see __init__), and both
+            # were observed to assign ids in that order. Not a documented guarantee, so it is checked below, row by row.
+            rows = [{
+                "scan_id": scan.id, "probe_id": str(f["probe_id"]), "algorithm": str(f.get("algorithm", "N/A")),
+                "classification": str(f.get("classification", "info")), "severity": str(f.get("severity", "info")),
+                "title": str(f.get("title", "")), "evidence": dict(f.get("evidence") or {}),
+                "remediation": dict(f.get("remediation") or {}),
+                "created_at": _parse_dt(f.get("created_at")) or utcnow(),
+            } for f in bundle.findings]
+            n_f = len(rows)
+            rows += [{
+                "scan_id": scan.id, "probe_id": d.probe_id, "algorithm": d.algorithm,
+                "classification": d.classification.value, "severity": d.severity.value, "title": d.title,
+                "evidence": d.evidence, "remediation": d.remediation, "created_at": d.created_at,
+            } for d in drift]
+            view_rows: list[dict] = []
+            if rows:
+                s.execute(insert(FindingRow.metadata.tables["findings"]), rows)
+                stored = s.execute(select(FindingRow.id, FindingRow.probe_id, FindingRow.algorithm, FindingRow.title)
+                                   .where(FindingRow.scan_id == scan.id).order_by(FindingRow.id)).all()
+                if len(stored) != len(rows):
+                    raise RuntimeError(f"stored {len(stored)} findings for {len(rows)} rows")
+                if any((st.probe_id, st.algorithm, st.title) != (r["probe_id"], r["algorithm"], r["title"])
+                       for st, r in zip(stored, rows, strict=True)):
+                    raise RuntimeError("stored findings came back out of row order; views would attach to the wrong "
+                                       "finding")
+                ids = [st.id for st in stored]
+                view_rows = [{
+                    "finding_id": fid, "framework": str(v["framework"]), "clause": str(v["clause"]),
+                    "verdict": str(v["verdict"]),
+                    "deadline": date.fromisoformat(v["deadline"]) if v.get("deadline") else None,
+                } for fid, f in zip(ids, bundle.findings, strict=False) for v in f.get("views") or []]
+                if view_rows:
+                    s.execute(insert(FrameworkView.metadata.tables["framework_views"]), view_rows)
+            n_v = len(view_rows)
             _apply_identity(h, bundle.host)
             s.commit()
             return IngestResult(scan_id=scan.id, stored_findings=n_f, stored_views=n_v, duplicate=False,

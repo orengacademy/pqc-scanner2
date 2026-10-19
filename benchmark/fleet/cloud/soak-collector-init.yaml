@@ -1,0 +1,80 @@
+#cloud-config
+# Real soak collector (pqc-soak-collector). `soak.sh up` substitutes @PQC_REF@ and passes this as --user-data.
+# Writes /root/READY (the checked-out sha) once the collector answers on https://<public ip>:8765, or /root/FAILED.
+package_update: true
+packages:
+  - git
+  - python3.12-venv
+  - sqlite3
+  - ufw
+runcmd:
+  # One bash script (runcmd's default /bin/sh is dash, which has no pipefail). Any failing step stops it
+  # and writes /root/FAILED; only a complete setup writes /root/READY, holding the checked-out sha.
+  - - bash
+    - -c
+    - |
+      set -euo pipefail
+      trap 'echo "setup failed at line $LINENO: $BASH_COMMAND" > /root/FAILED' ERR
+      # The public IP exists only once the droplet does: the cert's SAN and --allow-host come from the metadata API.
+      ip=$(curl -fsS http://169.254.169.254/metadata/v1/interfaces/public/0/ipv4/address)
+      [[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
+      git clone https://github.com/orengacademy/pqc-scanner2 /opt/pqc-scanner2
+      git -C /opt/pqc-scanner2 checkout @PQC_REF@
+      python3 -m venv /opt/pqcscan
+      /opt/pqcscan/bin/pip install /opt/pqc-scanner2
+      useradd --system --home-dir /var/lib/pqcscan --shell /usr/sbin/nologin pqcscan
+      install -d -o pqcscan -g pqcscan -m 0750 /var/lib/pqcscan
+      install -d -o root -g pqcscan -m 0750 /etc/pqcscan
+
+      # Private CA and a server cert for the public IP, both 30 days. The CA key is deleted once it has signed.
+      cd /etc/pqcscan
+      openssl req -x509 -newkey rsa:3072 -nodes -sha256 -days 30 -keyout ca.key -out ca.pem -subj "/CN=pqc-soak CA" \
+        -addext "basicConstraints=critical,CA:TRUE" -addext "keyUsage=critical,keyCertSign,cRLSign"
+      openssl req -newkey rsa:3072 -nodes -keyout server.key -out server.csr -subj "/CN=$ip"
+      printf '%s\n' "subjectAltName=IP:$ip" "basicConstraints=critical,CA:FALSE" \
+        "keyUsage=critical,digitalSignature,keyEncipherment" "extendedKeyUsage=serverAuth" \
+        "subjectKeyIdentifier=hash" "authorityKeyIdentifier=keyid,issuer" > server.ext
+      openssl x509 -req -in server.csr -CA ca.pem -CAkey ca.key -set_serial "0x$(openssl rand -hex 16)" \
+        -days 30 -sha256 -extfile server.ext -out server.pem
+      openssl verify -CAfile ca.pem server.pem
+      rm -f ca.key server.csr server.ext
+      chown root:pqcscan server.key server.pem && chmod 0640 server.key && chmod 0644 server.pem ca.pem
+
+      # Site and enroll tokens. systemd reads the env file as root; soak.sh up copies it off over scp.
+      (umask 077; printf 'PQCSCAN_TOKEN=%s\nPQCSCAN_ENROLL_TOKEN=%s\n' "$(openssl rand -hex 24)" \
+        "$(openssl rand -hex 24)" > /etc/pqcscan/collector.env)
+      [ "$(grep -cE '^PQCSCAN_(ENROLL_)?TOKEN=[0-9a-f]{48}$' /etc/pqcscan/collector.env)" = 2 ]
+
+      cat > /etc/systemd/system/pqcscan-collector.service <<EOF
+      [Unit]
+      Description=pqcscan fleet collector (real soak)
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      EnvironmentFile=/etc/pqcscan/collector.env
+      ExecStart=/opt/pqcscan/bin/pqcscan daemon --bind 0.0.0.0 --port 8765 --db /var/lib/pqcscan/fleet.db --tls-cert /etc/pqcscan/server.pem --tls-key /etc/pqcscan/server.key --allow-host $ip --keep-scans-per-host 12
+      User=pqcscan
+      Restart=on-failure
+
+      [Install]
+      WantedBy=multi-user.target
+      EOF
+      ufw allow 22,8765/tcp
+      ufw --force enable
+      systemctl daemon-reload
+      systemctl enable --now pqcscan-collector.service
+      # Through the public name the agents use, verifying the cert against the new CA.
+      up=0
+      for _ in $(seq 30); do
+        if curl -fsS --cacert /etc/pqcscan/ca.pem "https://$ip:8765/api/health"; then up=1; break; fi
+        sleep 2
+      done
+      [ "$up" = 1 ]
+
+      install -m 0755 /opt/pqc-scanner2/benchmark/fleet/cloud/sampler.sh /usr/local/sbin/pqc-soak-sampler
+      install -d -m 0755 /var/lib/pqcscan-soak
+      echo '*/10 * * * * root /usr/local/sbin/pqc-soak-sampler collector 2>>/var/lib/pqcscan-soak/sampler.err' \
+        > /etc/cron.d/pqc-soak-sampler
+      /usr/local/sbin/pqc-soak-sampler collector
+      git -C /opt/pqc-scanner2 rev-parse HEAD > /root/READY

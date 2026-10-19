@@ -160,6 +160,14 @@ def test_parity_key_caps_title_and_path_at_512():
     assert len(d[0].evidence["title"]) == 512
 
 
+def test_parity_key_normalised_title_is_capped():
+    # `<host>` (6 chars) replaces a one-char host or a 3-char `a:1`, so the key used to grow to about 3.5x the cap
+    for title, host in (("a " * 256, "a"), ("a:1 " * 200, ""), ("at a " * 200, "")):
+        assert len(parity_key("p", "A", title, {"host": host})[2]) <= 512
+    short = parity_key("p", "A", "peer 10.0.0.1:443 uses RSA", {"host": "web01"})
+    assert short == ("p", "A", "peer <host>:443 uses RSA")
+
+
 def test_parity_key_normalises_at_host_and_bare_ipv6():
     assert parity_key("p", "A", "listener at web01.example.org", {}) == parity_key("p", "A", "listener at dr-02", {})
     assert parity_key("p", "A", "peer 2001:db8::1 uses RSA", {}) == parity_key("p", "A", "peer fe80::2 uses RSA", {})
@@ -226,3 +234,30 @@ def test_drift_rows_capped_with_summary_and_true_total(tmp_db_path, tmp_path, mo
     rows, total = drift_rows(prev, cur)
     assert total == 3 and [r.evidence for r in rows] == [
         {"change": "summary", "added": 2, "removed": 1, "truncated": True}]
+
+
+def test_clock_probe_is_not_drift_between_scans(tmp_path, monkeypatch):
+    """The clock finding differs on every scan by design; its title must not, or every host drifts every scan."""
+    import asyncio
+    from datetime import datetime
+
+    import pqcscan.probes.aux_clock_cert_validity as mod
+    from pqcscan.probes._base import ScanContext
+
+    def scan_at(when: str) -> list[Finding]:
+        out: list[Finding] = []
+        monkeypatch.setattr(mod, "utcnow", lambda: datetime.fromisoformat(when))
+        asyncio.run(mod.AuxClockCertValidity().run(ScanContext(1, "user", set()), out.append))
+        return out
+
+    first, second = scan_at("2026-10-17T10:00:00"), scan_at("2026-10-18T10:00:00")
+    assert first[0].evidence["utc_now"] != second[0].evidence["utc_now"]
+    repo = Repo(tmp_path / "d.db")
+    repo.init_schema()
+    ids = []
+    for fs in (first, second):
+        sid = repo.create_scan(mode="user", probe_versions={}, tool_versions={})
+        for f in fs:
+            repo.record_finding(sid, f)
+        ids.append(sid)
+    assert drift_rows(repo.list_findings(ids[0]), repo.list_findings(ids[1])) == ([], 0)

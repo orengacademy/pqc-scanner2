@@ -1,0 +1,12 @@
+# pqcscan.daemon.fleet.x_build_fleet_router__mutmut_74: survived
+--- src/pqcscan/daemon/fleet.py
++++ src/pqcscan/daemon/fleet.py
+@@ -66,7 +66,7 @@
+ 
+     def _queue_full() -> HTTPException:
+         return HTTPException(503, f"collector busy: ingest queue full ({INGEST_QUEUE_MAX} bundles); "
+-                                  "the agent spools and retries", headers={"Retry-After": "60"})
++                                  "the agent spools and retries", headers={"retry-after": "60"})
+ 
+     @router.post("/api/ingest")
+     async def ingest(request: Request) -> dict:

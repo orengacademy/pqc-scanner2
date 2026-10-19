@@ -1,0 +1,12 @@
+# pqcscan.store.bundle.x_dump_bundle__mutmut_35: survived
+--- src/pqcscan/store/bundle.py
++++ src/pqcscan/store/bundle.py
+@@ -11,7 +11,7 @@
+             findings.append({
+                 "probe_id": r.probe_id, "algorithm": r.algorithm, "classification": r.classification,
+                 "severity": r.severity, "title": r.title, "evidence": r.evidence or {},
+-                "remediation": r.remediation or {}, "created_at": _iso(r.created_at),
++                "remediation": r.remediation or {}, "XXcreated_atXX": _iso(r.created_at),
+                 "views": [{"framework": v.framework, "clause": v.clause, "verdict": v.verdict,
+                            "deadline": _iso(v.deadline)} for v in views],
+             })

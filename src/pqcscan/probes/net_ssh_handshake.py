@@ -48,11 +48,11 @@ class NetSshHandshake(Probe):
             # 1. Read peer banner ("SSH-2.0-OpenSSH_x.y\r\n").
             try:
                 banner = await asyncio.wait_for(reader.readuntil(b"\n"), timeout=5.0)
-            except (TimeoutError, asyncio.IncompleteReadError):
+                # 2. Send our banner.
+                writer.write(_BANNER)
+                await writer.drain()
+            except (TimeoutError, OSError, asyncio.IncompleteReadError):
                 return
-            # 2. Send our banner.
-            writer.write(_BANNER)
-            await writer.drain()
             # 3. Read packets until we get SSH_MSG_KEXINIT (msg type 20).
             kexinit = await self._read_until_kexinit(reader)
             if kexinit is None:
@@ -68,7 +68,7 @@ class NetSshHandshake(Probe):
         for _ in range(max_packets):
             try:
                 hdr = await asyncio.wait_for(reader.readexactly(5), timeout=5.0)
-            except (TimeoutError, asyncio.IncompleteReadError):
+            except (TimeoutError, OSError, asyncio.IncompleteReadError):
                 return None
             pkt_len = struct.unpack(">I", hdr[:4])[0]
             pad_len = hdr[4]
@@ -76,7 +76,7 @@ class NetSshHandshake(Probe):
                 rest = await asyncio.wait_for(
                     reader.readexactly(pkt_len - 1), timeout=5.0,
                 )
-            except (TimeoutError, asyncio.IncompleteReadError):
+            except (TimeoutError, OSError, asyncio.IncompleteReadError):
                 return None
             payload = rest[: pkt_len - 1 - pad_len]
             if not payload:

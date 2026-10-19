@@ -93,6 +93,12 @@ _OID_MAP: dict[str, str] = {
     "2.16.840.1.101.3.4.3.44": "HashSLH-DSA-SHAKE-192f",
     "2.16.840.1.101.3.4.3.45": "HashSLH-DSA-SHAKE-256s",
     "2.16.840.1.101.3.4.3.46": "HashSLH-DSA-SHAKE-256f",
+    # Stateful hash-based signatures (NIST SP 800-208; RFC 8391 XMSS, RFC 8554
+    # HSS/LMS) — quantum-safe. IANA "SMI Security for PKIX Algorithms" arc for
+    # XMSS / XMSS^MT (id-alg-xmss[mt]-hashsig), S/MIME arc for HSS/LMS (RFC 8708).
+    "1.3.6.1.5.5.7.6.34": "XMSS",
+    "1.3.6.1.5.5.7.6.35": "XMSSMT",
+    "1.2.840.113549.1.9.16.3.17": "HSS-LMS",
     # ML-KEM (FIPS 203)
     "2.16.840.1.101.3.4.4.1": "ML-KEM-512",
     "2.16.840.1.101.3.4.4.2": "ML-KEM-768",
@@ -164,7 +170,7 @@ _EC_BITS_RE = re.compile(r"(?:P-?|SECP|PRIME)(\d{3})", re.IGNORECASE)
 _PQC_READY_PREFIXES: tuple[str, ...] = (
     "ML-KEM", "ML-DSA", "SLH-DSA", "FN-DSA", "FALCON", "SPHINCS",
     "DILITHIUM", "KYBER", "FRODOKEM", "NTRU", "CLASSIC-MCELIECE",
-    "BIKE", "HQC", "XMSS", "LMS",
+    "BIKE", "HQC", "XMSS", "LMS", "HSS",  # XMSS/XMSS^MT, LMS and HSS/LMS: SP 800-208
     # Pre-hash FIPS 204/205 variants (HashML-DSA / HashSLH-DSA) — the "Hash"
     # prefix means a bare "ML-DSA"/"SLH-DSA" startswith won't match.
     "HASHML-DSA", "HASHSLH-DSA",

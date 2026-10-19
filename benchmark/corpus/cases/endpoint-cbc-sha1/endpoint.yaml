@@ -1,0 +1,7 @@
+{
+  "cert": "server.crt",
+  "ciphers": "DES-CBC3-SHA:AES128-SHA:@SECLEVEL=0",
+  "key": "server.key",
+  "max_version": "TLSv1.2",
+  "min_version": "TLSv1.2"
+}

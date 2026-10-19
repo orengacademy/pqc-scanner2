@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from pqcscan.core.srcstrip import code_finditer, strip_noncode
+from pqcscan.core.srcstrip import code_finditer, strip_for_scan
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
 from pqcscan.probes._code_walker import walk_source
@@ -47,7 +47,8 @@ class CodeTsJava(Probe):
             self._scan(text, path, emit)
 
     def _scan(self, text: str, path: Path, emit: Emitter) -> None:
-        scan_text = strip_noncode(text, "java")
+        lang = "java" if path.suffix.lower() == ".java" else "kotlin"  # .kt / .scala raw strings
+        scan_text = strip_for_scan(text, lang, probe_id=self.id, path=path, emit=emit)
         for m in code_finditer(_WEAK_DIGEST_RE, text, scan_text):
             line_no = text[: m.start()].count("\n") + 1
             alg = m.group(1).upper()

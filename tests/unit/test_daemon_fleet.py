@@ -1,9 +1,12 @@
 """Enroll → ingest → fleet view, with every rejection path."""
+import asyncio
 import gzip
 import json
 import os
+from types import SimpleNamespace
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from loguru import logger
 from sqlalchemy.exc import IntegrityError, OperationalError
@@ -94,6 +97,7 @@ def test_revoked_token_is_401(tmp_db_path, fast_registry, tmp_path):
     tok = _enroll(c)["agent_token"]
     assert c.post("/api/agents/1/revoke").json() == {"revoked": True}
     assert c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(tok)).status_code == 401
+    assert c.get("/api/fleet/1").json()["host"]["revoked"] is True
     assert c.post("/api/agents/99/revoke").status_code == 404
 
 
@@ -353,3 +357,470 @@ def test_exempt_paths_keep_host_and_origin_guards(tmp_db_path, fast_registry, pa
     body = {"enroll_token": "ENROLL", "host": HOST}
     assert c.post(path, json=body, headers={"host": "evil.example"}).status_code == 400
     assert c.post(path, json=body, headers={"origin": "http://evil.example"}).status_code == 403
+
+
+def test_over_cap_host_reenrolls_and_ingests_with_new_labels_dropped(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    from sqlalchemy.orm import Session
+
+    from pqcscan.store.schema import Host
+    monkeypatch.setattr(fleet, "INGEST_MIN_INTERVAL_S", 0)
+    c = _client(tmp_db_path, fast_registry)
+    _enroll(c)
+    repo = Repo(tmp_db_path)
+    with Session(repo.engine) as s:                                 # a v0.10.2 host that grew past the cap
+        s.get(Host, 1).labels = {f"old{i}": "v" for i in range(100)}
+        s.commit()
+    r = c.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": {**HOST, "labels": {"extra": "v"}}})
+    assert r.status_code == 201, r.text
+    tok = r.json()["agent_token"]
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    sid = src.create_scan(mode="user", probe_versions={}, tool_versions={})
+    src.finish_scan(sid, status="done")
+    blob = dump_bundle(src, sid, HostIdentity("m-1", "web01", "linux", {"extra": "v", "old1": "x"}, "x"))
+    r = c.post("/api/ingest", content=blob, headers=_hdr(tok))
+    assert r.status_code == 200, r.text
+    labels = repo.get_host(1).labels
+    assert len(labels) == 100 and labels["old1"] == "x" and "extra" not in labels
+    assert len(repo.host_history(1)) == 1
+
+
+def test_enroll_and_agent_lookup_run_off_the_event_loop(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    """A blocking DB call on the loop thread stalls every request while SQLite's write lock is held."""
+    import asyncio
+    on_loop: list[str] = []
+
+    def note(name, orig):
+        def wrapper(self, *a, **kw):
+            try:
+                asyncio.get_running_loop()
+                on_loop.append(name)
+            except RuntimeError:
+                pass
+            return orig(self, *a, **kw)
+        return wrapper
+
+    for name in ("get_host_by_machine_id", "upsert_host", "get_host_by_token_hash", "get_scan_id_by_uuid"):
+        monkeypatch.setattr(Repo, name, note(name, getattr(Repo, name)))
+    c = _client(tmp_db_path, fast_registry)
+    tok = _enroll(c)["agent_token"]
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(tok)).status_code == 200
+    real = Repo.ingest_bundle
+
+    def lose_race(self, bundle, host_id):      # the duplicate-scan_uuid recovery path looks the scan up again
+        real(self, bundle, host_id)
+        raise IntegrityError("INSERT", {}, Exception("UNIQUE constraint failed: scans.scan_uuid"))
+    monkeypatch.setattr(Repo, "ingest_bundle", lose_race)
+    monkeypatch.setattr(fleet, "INGEST_MIN_INTERVAL_S", 0.0)
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(tok)).json()["duplicate"] is True
+    assert on_loop == []
+
+
+@pytest.mark.parametrize("method", ["get_host_by_machine_id", "upsert_host", "get_host_by_token_hash"])
+def test_store_busy_on_enroll_or_auth_is_503_not_500(tmp_db_path, fast_registry, tmp_path, monkeypatch, method):
+    c = _client(tmp_db_path, fast_registry)
+    tok = _enroll(c)["agent_token"] if method == "get_host_by_token_hash" else None
+
+    def busy(self, *a, **kw):
+        raise OperationalError("SELECT", {}, Exception("database is locked"))
+    monkeypatch.setattr(Repo, method, busy)
+    if tok:
+        r = c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(tok))
+    else:
+        r = c.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": {**HOST, "machine_id": "m-2"}})
+    assert r.status_code == 503 and r.headers["retry-after"] == "5"
+
+
+def test_concurrent_enrolls_for_one_machine_id_never_500(tmp_db_path, fast_registry):
+    """Two threadpool calls can both see "no host" and both insert: the loser must not surface as a 500."""
+    import asyncio
+
+    import httpx
+
+    app = create_app(db_path=tmp_db_path, registry=fast_registry, enroll_token="ENROLL")
+
+    async def burst(mid):
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1") as ac:
+            rs = await asyncio.gather(*[
+                ac.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": {**HOST, "machine_id": mid}})
+                for _ in range(24)])
+        return [r.status_code for r in rs]
+
+    codes = [c for rnd in range(8) for c in asyncio.run(burst(f"race-{rnd}"))]
+    assert set(codes) == {201}, {c: codes.count(c) for c in set(codes)}
+    assert len(Repo(tmp_db_path).list_hosts()) == 8
+
+
+def test_upsert_host_survives_losing_the_insert_race(tmp_db_path):
+    """Deterministic form of the race: the row appears between upsert_host's SELECT and its INSERT."""
+    from sqlalchemy import event
+
+    repo = Repo(tmp_db_path)
+    repo.init_schema()
+    ident = HostIdentity(machine_id="m-race", hostname="h", os="linux", labels={}, agent_version="x")
+    fired = []
+
+    @event.listens_for(repo.engine, "after_cursor_execute")
+    def _rival(conn, cursor, statement, parameters, context, executemany):
+        if statement.lstrip().upper().startswith("SELECT") and "hosts" in statement and not fired:
+            fired.append(1)       # the SELECT just returned no row; a rival enroll now wins the insert
+            Repo(tmp_db_path).upsert_host(ident, token_hash="rival")
+
+    host = repo.upsert_host(ident, token_hash="mine")
+    assert fired and host.machine_id == "m-race" and host.token_hash == "mine"
+    assert len(repo.list_hosts()) == 1
+
+
+def test_ingest_queue_full_answers_503_with_retry_after(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    """Past INGEST_QUEUE_MAX bundles waiting for or holding a parse slot, the collector sheds load before reading."""
+    import asyncio
+    import threading
+
+    import httpx
+
+    monkeypatch.setattr(fleet, "INGEST_QUEUE_MAX", 2)
+    monkeypatch.setattr(fleet, "INGEST_READ_PER_HOST", 99)   # three posts from one host; this is about the queue
+    gate = threading.Event()
+    real = fleet.load_bundle
+
+    def slow_load(data):
+        gate.wait(10)            # hold the single parse slot until a request has been shed
+        return real(data)
+    monkeypatch.setattr(fleet, "load_bundle", slow_load)
+    app = create_app(db_path=tmp_db_path, registry=fast_registry, enroll_token="ENROLL", ingest_parallelism=1)
+    bodies = [_bundle(tmp_path) for _ in range(4)]
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1") as ac:
+            tok = (await ac.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": HOST})).json()
+            hdr = _hdr(tok["agent_token"])
+
+            async def post(body):
+                r = await ac.post("/api/ingest", content=body, headers=hdr)
+                if r.status_code == 503:
+                    gate.set()
+                return r
+            burst = await asyncio.gather(*[post(b) for b in bodies[:3]])
+            gate.set()
+            # Every outcome gives its place back, errors included: two rejected bodies, then a good one.
+            after = [await ac.post("/api/ingest", content=b, headers=hdr) for b in (b"junk", b"junk", bodies[3])]
+            return burst, after
+
+    burst, after = asyncio.run(run())
+    assert sorted(r.status_code for r in burst) == [200, 200, 503], [r.text for r in burst]
+    shed = next(r for r in burst if r.status_code == 503)
+    assert shed.headers["retry-after"] == "60"
+    assert shed.json()["detail"] == "collector busy: ingest queue full (2 bundles); the agent spools and retries"
+    assert [r.status_code for r in after] == [400, 400, 200], [r.text for r in after]
+
+
+def test_slow_body_upload_holds_no_queue_place(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    """A place is taken only once the whole capped body is in: an upload still streaming must not shed others."""
+    import asyncio
+
+    import httpx
+
+    monkeypatch.setattr(fleet, "INGEST_QUEUE_MAX", 1)
+    real = fleet._read_capped
+    reading, release = asyncio.Event(), asyncio.Event()
+
+    async def trickle(request, cap):
+        if request.url.path == "/api/ingest" and not reading.is_set():
+            reading.set()
+            await release.wait()             # this upload is still streaming its body
+        return await real(request, cap)
+    monkeypatch.setattr(fleet, "_read_capped", trickle)
+    app = create_app(db_path=tmp_db_path, registry=fast_registry, enroll_token="ENROLL", ingest_parallelism=1)
+    bodies = [_bundle(tmp_path) for _ in range(2)]
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1") as ac:
+            tok = (await ac.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": HOST})).json()
+            hdr = _hdr(tok["agent_token"])
+            slow = asyncio.create_task(ac.post("/api/ingest", content=bodies[0], headers=hdr))
+            await reading.wait()
+            fast = await ac.post("/api/ingest", content=bodies[1], headers=hdr)
+            release.set()
+            return fast, await slow
+
+    fast, slow = asyncio.run(run())
+    assert (fast.status_code, slow.status_code) == (200, 200), (fast.text, slow.text)
+
+
+@pytest.mark.parametrize("given", [None, 3])
+def test_ingest_parallelism_defaults_by_dialect(tmp_db_path, fast_registry, tmp_path, monkeypatch, given):
+    """Two bundles at a time on both (SQLite has one writer; on Postgres four measured slower), or as given."""
+    import asyncio
+    import threading
+
+    import httpx
+
+    monkeypatch.setattr(fleet, "INGEST_READ_PER_HOST", 99)   # one host sends them all; this is about parse slots
+    want = given or (fleet.INGEST_PARALLELISM_PG if str(tmp_db_path).startswith("postgresql")
+                     else fleet.INGEST_PARALLELISM)
+    lock, gate, reached = threading.Lock(), threading.Event(), threading.Event()
+    inside = [0, 0]                          # now, peak
+    real = fleet.load_bundle
+
+    def held_load(data):
+        with lock:
+            inside[0] += 1
+            inside[1] = max(inside)
+            if inside[0] == want:
+                reached.set()
+        gate.wait(10)
+        with lock:
+            inside[0] -= 1
+        return real(data)
+    monkeypatch.setattr(fleet, "load_bundle", held_load)
+    app = create_app(db_path=tmp_db_path, registry=fast_registry, enroll_token="ENROLL", ingest_parallelism=given)
+    bodies = [_bundle(tmp_path) for _ in range(want + 2)]
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1") as ac:
+            tok = (await ac.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": HOST})).json()
+            posts = [asyncio.create_task(ac.post("/api/ingest", content=b, headers=_hdr(tok["agent_token"])))
+                     for b in bodies]
+            await asyncio.to_thread(reached.wait, 10)
+            await asyncio.sleep(0.3)         # time for a slot past the bound to be (wrongly) taken
+            gate.set()
+            return await asyncio.gather(*posts)
+
+    codes = [r.status_code for r in asyncio.run(run())]
+    assert codes == [200] * len(bodies) and inside[1] == want, (codes, inside)
+
+
+def test_uploads_in_flight_are_bounded(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    """Past INGEST_READ_MAX bodies being read at once, the next ingest is shed before its body is read."""
+    import asyncio
+
+    import httpx
+
+    monkeypatch.setattr(fleet, "INGEST_READ_MAX", 1)
+    real = fleet._read_capped
+    reading, release = asyncio.Event(), asyncio.Event()
+
+    async def trickle(request, cap):
+        if request.url.path == "/api/ingest" and not reading.is_set():
+            reading.set()
+            await release.wait()             # this upload is still streaming its body
+        return await real(request, cap)
+    monkeypatch.setattr(fleet, "_read_capped", trickle)
+    app = create_app(db_path=tmp_db_path, registry=fast_registry, enroll_token="ENROLL")
+    bodies = [_bundle(tmp_path) for _ in range(3)]
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1") as ac:
+            tok = (await ac.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": HOST})).json()
+            hdr = _hdr(tok["agent_token"])
+            slow = asyncio.create_task(ac.post("/api/ingest", content=bodies[0], headers=hdr))
+            await reading.wait()
+            shed = await ac.post("/api/ingest", content=bodies[1], headers=hdr)
+            release.set()
+            first = await slow
+            after = await ac.post("/api/ingest", content=bodies[2], headers=hdr)     # the read place was given back
+            return shed, first, after
+
+    shed, first, after = asyncio.run(run())
+    assert shed.status_code == 503 and shed.headers["retry-after"] == "60"
+    assert shed.json()["detail"] == "collector busy: too many uploads in flight"
+    assert (first.status_code, after.status_code) == (200, 200), (first.text, after.text)
+
+
+def test_queue_is_rechecked_after_the_body_read(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    """The queue fills while a body streams in: when that body arrives the request is shed, it does not queue."""
+    import asyncio
+    import threading
+
+    import httpx
+
+    monkeypatch.setattr(fleet, "INGEST_QUEUE_MAX", 1)
+    real_read, real_load = fleet._read_capped, fleet.load_bundle
+    reading, release = asyncio.Event(), asyncio.Event()
+    in_load, gate = threading.Event(), threading.Event()
+
+    async def held_read(request, cap):
+        if request.url.path == "/api/ingest" and not reading.is_set():
+            reading.set()
+            await release.wait()             # request A: its body is still streaming
+        return await real_read(request, cap)
+
+    def held_load(data):
+        in_load.set()
+        gate.wait(10)                        # request B holds the only queue place
+        return real_load(data)
+    monkeypatch.setattr(fleet, "_read_capped", held_read)
+    monkeypatch.setattr(fleet, "load_bundle", held_load)
+    app = create_app(db_path=tmp_db_path, registry=fast_registry, enroll_token="ENROLL", ingest_parallelism=1)
+    bodies = [_bundle(tmp_path) for _ in range(2)]
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1") as ac:
+            tok = (await ac.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": HOST})).json()
+            hdr = _hdr(tok["agent_token"])
+            a = asyncio.create_task(ac.post("/api/ingest", content=bodies[0], headers=hdr))
+            await reading.wait()
+            b = asyncio.create_task(ac.post("/api/ingest", content=bodies[1], headers=hdr))
+            await asyncio.to_thread(in_load.wait, 10)
+            release.set()
+            done, _ = await asyncio.wait({a}, timeout=5)     # without the re-check A would queue behind B
+            gate.set()
+            return (a in done), await a, await b
+
+    a_done, a, b = asyncio.run(run())
+    assert a_done and a.status_code == 503 and a.headers["retry-after"] == "60", a.text
+    assert "ingest queue full" in a.json()["detail"] and b.status_code == 200, b.text
+
+
+def test_slow_body_hits_the_upload_deadline(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    """A body that does not arrive within INGEST_BODY_TIMEOUT_S is answered 408 and gives its read place back."""
+    import asyncio
+
+    import httpx
+
+    monkeypatch.setattr(fleet, "INGEST_BODY_TIMEOUT_S", 0.2)
+    monkeypatch.setattr(fleet, "INGEST_READ_MAX", 1)
+    real = fleet._read_capped
+    stalled: list[bool] = []
+
+    async def stall_once(request, cap):
+        if request.url.path == "/api/ingest" and not stalled:
+            stalled.append(True)
+            await asyncio.Event().wait()     # the body never finishes arriving
+        return await real(request, cap)
+    monkeypatch.setattr(fleet, "_read_capped", stall_once)
+    app = create_app(db_path=tmp_db_path, registry=fast_registry, enroll_token="ENROLL")
+    bodies = [_bundle(tmp_path) for _ in range(2)]
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1") as ac:
+            tok = (await ac.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": HOST})).json()
+            hdr = _hdr(tok["agent_token"])
+            slow = await asyncio.wait_for(ac.post("/api/ingest", content=bodies[0], headers=hdr), 10)
+            return slow, await ac.post("/api/ingest", content=bodies[1], headers=hdr)
+
+    slow, after = asyncio.run(run())
+    assert slow.status_code == 408 and slow.json()["detail"] == "upload too slow: body not received within 0.2 s"
+    assert after.status_code == 200, after.text
+
+
+def test_one_host_has_at_most_two_uploads_in_flight(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    """A third concurrent upload from one host is shed while another host's upload proceeds."""
+    import asyncio
+
+    import httpx
+
+    real = fleet._read_capped
+    held, release = asyncio.Event(), asyncio.Event()
+    holding: list[str] = []
+    app = create_app(db_path=tmp_db_path, registry=fast_registry, enroll_token="ENROLL")
+    one = _hdr("placeholder")
+
+    async def hold_host_one(request, cap):
+        if request.url.path == "/api/ingest" and request.headers["authorization"] == one["authorization"]:
+            holding.append("x")
+            if len(holding) == 2:
+                held.set()
+            await release.wait()             # host one's bodies are still streaming
+        return await real(request, cap)
+    monkeypatch.setattr(fleet, "_read_capped", hold_host_one)
+    mine = [_bundle(tmp_path) for _ in range(3)]
+    other = _bundle(tmp_path, machine_id="m-2")
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1") as ac:
+            t1 = (await ac.post("/api/agents/enroll", json={"enroll_token": "ENROLL", "host": HOST})).json()
+            t2 = (await ac.post("/api/agents/enroll", json={"enroll_token": "ENROLL",
+                                                            "host": {**HOST, "machine_id": "m-2"}})).json()
+            one.update(_hdr(t1["agent_token"]))
+            first = [asyncio.create_task(ac.post("/api/ingest", content=b, headers=one)) for b in mine[:2]]
+            await held.wait()
+            third = await asyncio.wait_for(ac.post("/api/ingest", content=mine[2], headers=one), 10)
+            elsewhere = await ac.post("/api/ingest", content=other, headers=_hdr(t2["agent_token"]))
+            release.set()
+            return third, elsewhere, await asyncio.gather(*first)
+
+    third, elsewhere, first = asyncio.run(run())
+    assert third.status_code == 503 and third.headers["retry-after"] == "60"
+    assert third.json()["detail"] == "collector busy: this host already has 2 uploads in flight"
+    assert elsewhere.status_code == 200 and [r.status_code for r in first] == [200, 200], elsewhere.text
+
+
+@pytest.mark.parametrize("given", [0, -1])
+def test_ingest_parallelism_below_one_is_refused(tmp_db_path, fast_registry, given):
+    with pytest.raises(ValueError, match="at least 1"):
+        create_app(db_path=tmp_db_path, registry=fast_registry, ingest_parallelism=given)
+
+
+def test_resolved_ingest_parallelism_is_on_app_state(tmp_db_path, fast_registry, monkeypatch):
+    assert fleet.INGEST_PARALLELISM == fleet.INGEST_PARALLELISM_PG == 2
+    monkeypatch.setattr(fleet, "INGEST_PARALLELISM", 1)          # apart, so the per-dialect choice is visible
+    monkeypatch.setattr(fleet, "INGEST_PARALLELISM_PG", 5)
+    want = 5 if str(tmp_db_path).startswith("postgresql") else 1
+    assert create_app(db_path=tmp_db_path, registry=fast_registry).state.ingest_parallelism == want
+    assert create_app(db_path=tmp_db_path, registry=fast_registry, ingest_parallelism=3).state.ingest_parallelism == 3
+
+
+def test_token_bucket_refills_sub_second_intervals_and_denials_cost_nothing(monkeypatch):
+    clock = [100.0]
+    monkeypatch.setattr(fleet, "time", SimpleNamespace(monotonic=lambda: clock[0]))
+    monkeypatch.setattr(fleet, "INGEST_BURST", 1)
+    monkeypatch.setattr(fleet, "INGEST_MIN_INTERVAL_S", 0.5)    # under one second still throttles
+    b = fleet._TokenBucket()
+    assert b.take(1) and not b.take(1) and not b.take(1)          # burst spent; the denials spend nothing
+    clock[0] += 0.5
+    assert b.take(1) and not b.take(1)                            # one interval later, exactly one token is back
+
+
+def _body_request(chunks, content_length=None):
+    headers = [] if content_length is None else [(b"content-length", str(content_length).encode())]
+    msgs = [{"type": "http.request", "body": c, "more_body": i < len(chunks) - 1} for i, c in enumerate(chunks)]
+    msgs = msgs or [{"type": "http.request", "body": b"", "more_body": False}]
+
+    async def receive():
+        return msgs.pop(0)
+    return Request({"type": "http", "method": "POST", "headers": headers}, receive)
+
+
+def _read(chunks, cap, content_length=None):
+    return asyncio.run(fleet._read_capped(_body_request(chunks, content_length), cap))
+
+
+def test_read_capped_bounds():
+    assert _read([b"abcd"], 4, content_length=4) == b"abcd"        # exactly the cap is accepted
+    for chunks, length in (([], 5), ([b"abc", b"de"], None)):       # declared over the cap; chunks summed past it
+        with pytest.raises(HTTPException) as e:
+            _read(chunks, 4, content_length=length)
+        assert e.value.status_code == 413
+    assert _read([b"ab"], 4, content_length="junk") == b"ab"       # an unparseable length: capped while reading
+    assert _read([], 0) == _read([], 0, content_length="junk") == b""   # no usable length counts as zero bytes
+
+
+def test_resolve_ingest_parallelism_picks_the_constant_by_dialect(monkeypatch):
+    monkeypatch.setattr(fleet, "INGEST_PARALLELISM", 1)
+    monkeypatch.setattr(fleet, "INGEST_PARALLELISM_PG", 5)
+
+    def repo(dialect):
+        return SimpleNamespace(engine=SimpleNamespace(dialect=SimpleNamespace(name=dialect)))
+    assert fleet.resolve_ingest_parallelism(repo("postgresql"), None) == 5
+    assert fleet.resolve_ingest_parallelism(repo("sqlite"), None) == 1
+    assert fleet.resolve_ingest_parallelism(repo("postgresql"), 3) == 3
+    fleet.build_fleet_router(repo("sqlite"), enroll_token=None)      # not given: resolved from the router's repo
+
+
+def test_one_place_ingest_queue_admits_a_bundle(tmp_db_path, fast_registry, tmp_path, monkeypatch):
+    monkeypatch.setattr(fleet, "INGEST_QUEUE_MAX", 1)
+    c = _client(tmp_db_path, fast_registry)
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(_enroll(c)["agent_token"])).status_code == 200
+
+
+def test_fleet_api_host_object_is_complete(tmp_db_path, fast_registry, tmp_path):
+    c = _client(tmp_db_path, fast_registry)
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(_enroll(c)["agent_token"])).status_code == 200
+    row = Repo(tmp_db_path).get_host(1)
+    host = {"host_id": 1, "machine_id": "m-1", "hostname": "web01", "os": "linux", "labels": {"env": "prod"},
+            "agent_version": "x", "first_seen": row.first_seen.isoformat(), "last_seen": row.last_seen.isoformat(),
+            "revoked": False}
+    detail = c.get("/api/fleet/1").json()
+    assert detail["host"] == host
+    assert c.get("/api/fleet").json() == [{**host, "scan_id": 1, "finished_at": detail["scans"][0]["finished_at"],
+                                           "readiness": 0, "crit": 1, "high": 0, "total": 1, "drift": 0}]

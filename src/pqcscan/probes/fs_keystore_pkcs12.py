@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from cryptography import x509
 from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, rsa
 from cryptography.hazmat.primitives.serialization import pkcs12
 
 from pqcscan.core.alg import classify
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._keyalg import key_algorithm
 from pqcscan.probes._severity import sev_for
 
 _EXTS = (".p12", ".pfx")
@@ -32,7 +34,11 @@ class FsKeystorePkcs12(Probe):
                 continue
             for path in root.rglob("*"):
                 if path.is_file() and path.suffix.lower() in _EXTS:
-                    self._scan_one(path, emit)
+                    # One crafted keystore must never end the walk and hide the rest.
+                    try:
+                        self._scan_one(path, emit)
+                    except Exception as exc:
+                        emit(_unparseable(self.id, path, "keystore-unparseable", exc))
 
     def _scan_one(self, path: Path, emit: Emitter) -> None:
         try:
@@ -40,10 +46,11 @@ class FsKeystorePkcs12(Probe):
         except OSError:
             return
         key, cert = None, None
+        cas: list[x509.Certificate] = []
         loaded = False
         for pw in _PASSWORDS:
             try:
-                key, cert, _ = pkcs12.load_key_and_certificates(data, pw)
+                key, cert, cas = pkcs12.load_key_and_certificates(data, pw)
                 loaded = True
                 break
             except (ValueError, TypeError):
@@ -88,6 +95,34 @@ class FsKeystorePkcs12(Probe):
                     "subject": cert.subject.rfc4514_string(),
                 },
             ))
+        # Additional certs: the whole content of a cert-only truststore.
+        for extra in cas:
+            try:  # an unknown key type or malformed name must not hide the other certs
+                alg = key_algorithm(extra.public_key())
+                subject = extra.subject.rfc4514_string()
+            except Exception as exc:
+                emit(_unparseable(self.id, path, "additional-cert-unparseable", exc))
+                continue
+            cls = classify(alg)
+            emit(Finding(
+                probe_id=self.id,
+                algorithm=alg,
+                classification=cls,
+                severity=sev_for(cls),
+                title=f"{path.name}: certificate {alg} ({subject})",
+                evidence={"path": str(path), "kind": "additional-cert", "subject": subject},
+            ))
+
+
+def _unparseable(probe_id: str, path: Path, kind: str, exc: Exception) -> Finding:
+    return Finding(
+        probe_id=probe_id,
+        algorithm="UNKNOWN",
+        classification=Classification.INFO,
+        severity=Severity.INFO,
+        title=f"{path.name}: could not parse ({type(exc).__name__})",
+        evidence={"path": str(path), "kind": kind, "error": str(exc)[:200]},
+    )
 
 
 def _classify_key(key: object) -> tuple[str, Classification]:

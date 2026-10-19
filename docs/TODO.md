@@ -25,17 +25,31 @@ operator guide: `docs/FLEET.md`.
       removed without `agents revoke`/re-enroll.
 - [ ] **Plain-HTTP warning on a non-loopback daemon bind** (spec §3.3).
 - [ ] **Render fleet exports from scan-id lists** instead of copying rows into a temporary
-      rollup (the copy is batched but still O(hosts × findings) per export).
-- [ ] **Run `packaging/fleet/windows-task.ps1` on a Windows host**: reviewed by reading only;
-      the owner check depends on the default-owner policy for elevated admins.
-- [ ] **Postgres collector**: wired (`pip install 'pqcscan[fleet-pg]'`, `postgresql+psycopg://`)
-      but untested; add a CI job against a service container.
+      rollup (the copy is batched but still O(hosts × findings) per export). At 500 hosts the fleet CBOM export
+      took 1,005.6 s and 343 MB (`docs/FLEET-UI-REVIEW.md` U11, FLEET-EVIDENCE F25); `/fleet` took 2.2 s to first
+      byte (U10).
+- [ ] **Run `packaging/fleet/windows-task.ps1` on a real Windows host**: it runs under Pester on GitHub's
+      `windows-2022` and `windows-latest` runners (`.github/workflows/verify.yml`, 31 tests); Server 2019, Windows 11
+      and a gMSA `-RunAs` are not covered, and the owner check depends on the default-owner policy. Other `-RunAs`
+      accounts are refused before any write (F6, fixed).
+- [ ] **Postgres collector ingest cost (FLEET-EVIDENCE F23)**: wired, tested in CI (`verify.yml`, 149 fleet tests)
+      and profiled (`benchmark/fleet/profiles/postgres-*`): one insert and one FK check per finding row, 16,103
+      statements per 1,670-finding ingest, so it meets p95 < 2 s at no swept rate on the 8-vCPU load box
+      (`benchmark/fleet/CAPACITY.md`). Try `COPY` or batched inserts with FK checks deferred to commit, then re-run
+      the Postgres sweep.
+- [ ] **Herd residual timeouts (FLEET-EVIDENCE F24)**: 6 of 1,497 (SQLite) and 14 of 1,486 (Postgres) requests went
+      unanswered within 60 s when 500 hosts posted at once, despite the bounded queue. Profile the herd tail.
+- [ ] **Real soak day 7 on 2026-10-25** (after 05:00 UTC): `bash benchmark/fleet/cloud/soak.sh collect`, compare
+      against the predictions in `benchmark/fleet/soak-real.md`, update FLEET-EVIDENCE item 4, then
+      `bash benchmark/fleet/cloud/soak.sh down`. The Windows runners join once PR #93 puts
+      `.github/workflows/soak-windows.yml` on main. v0.10.3 waits for this.
 - [ ] **Parity key refinements**: `word:digits` tokens are normalised lossily, URL and
       IPv6-zone forms are not; values containing `=` cannot be used in the `/fleet` label filter.
 - [ ] **`criticality` host label → exposure weighting** (spec §3.1): only the Mosca labels are wired.
 - [ ] **Per-host crypto-agility on `/fleet`**: the score exists per scan in reports; `fleet_summary`
       returns grouped counts only, so a per-host score needs a cheap aggregate (store it on the scan row).
-- [ ] **Collector load test** (spec §4): 500 concurrent bundles, p95 ingest < 2 s; manual follow-up.
+- [x] **Collector load test** (spec §4): measured as a capacity, not a host count: SQLite λ_max 1 post/s with
+      1,670-finding bundles (`benchmark/fleet/CAPACITY.md`); a 500-host herd is shed with `503`s.
 - [ ] **Stable machine id in containers**: persist a generated id in the state dir when no
       `/etc/machine-id` exists.
 

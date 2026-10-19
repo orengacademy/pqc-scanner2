@@ -1,0 +1,16 @@
+[
+  {
+    "harness": "json",
+    "cpu_seconds": 7204,
+    "execs": 81812235,
+    "crashes": 0,
+    "corpus_files": 40
+  },
+  {
+    "harness": "raw",
+    "cpu_seconds": 7204,
+    "execs": 507885114,
+    "crashes": 0,
+    "corpus_files": 6
+  }
+]

@@ -15,7 +15,7 @@ requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.110",
   "uvicorn[standard]>=0.27",
-  "sqlalchemy>=2.0",
+  "sqlalchemy>=2.0.10",
   "jinja2>=3.1",
   "click>=8.1",
   "pydantic>=2.6",
@@ -38,6 +38,15 @@ dev = [
   "pytest-cov>=4.1",
   "ruff>=0.4",
   "mypy>=1.10",
+  # tests/packaging/test_wheel_builds.py builds the wheel non-editably, as pip install . and git+… installs do.
+  "hatchling>=1.21",
+]
+# Evidence campaign (docs/superpowers/specs/2026-10-17-fleet-evidence-spec.md): fuzzing, load tests, Postgres runs.
+verify = [
+  "hypothesis>=6.100", "locust>=2.29", "psycopg[binary]>=3.1",
+  "mutmut>=3.8", "coverage>=7",
+  # libFuzzer bindings: Linux wheels only (CPython 3.11); the fuzz harnesses skip elsewhere.
+  "atheris>=2.3; sys_platform == 'linux'",
 ]
 # Fleet collector on PostgreSQL (--db postgresql://…); SQLite is the default.
 fleet-pg = ["psycopg[binary]>=3.1"]
@@ -69,17 +78,19 @@ pqcscan = "pqcscan.cli.main:cli"
 path = "src/pqcscan/__init__.py"
 
 [tool.hatch.build.targets.wheel]
+# Everything under src/pqcscan ships, data files included (UI templates and static, renderer templates, semgrep
+# rules). No force-include: re-adding a directory already under the package puts each file in twice and hatchling
+# refuses to build (tests/packaging/test_wheel_builds.py).
 packages = ["src/pqcscan"]
-
-[tool.hatch.build.targets.wheel.force-include]
-"src/pqcscan/ui/templates"        = "pqcscan/ui/templates"
-"src/pqcscan/ui/static"           = "pqcscan/ui/static"
-"src/pqcscan/renderers/templates" = "pqcscan/renderers/templates"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-addopts = "-ra --strict-markers"
+addopts = "-ra --strict-markers -m 'not fuzz'"
+markers = [
+  "fuzz: hypothesis fuzz targets for fleet ingest (needs the `verify` extra; PQCSCAN_FUZZ_EXAMPLES raises the count)",
+  "benchmark: slow measurement runs (load harness, bake-off normalisers); not part of the accuracy gate",
+]
 
 [tool.ruff]
 line-length = 120
@@ -125,3 +136,21 @@ check_untyped_defs = true
 # silences both deterministically.
 module = ["yaml", "openpyxl", "openpyxl.styles", "weasyprint", "oqs"]
 ignore_missing_imports = true
+
+# mutmut 3.8 (`verify` extra). Run through benchmark/fleet/mutation/run.sh. mutmut copies `source_paths` to ./mutants/
+# and runs pytest there with ./mutants/src first on sys.path, so the whole package must be copied (`paths_to_mutate`,
+# the 2.x/3.0 key, would copy only the two files and break `import pqcscan`). `only_mutate` limits the mutants to the
+# two fleet modules. `tests_dir` is deprecated in favour of the test-selection argument. The default pytest addopts
+# (`-m 'not fuzz'`) stay in force: tests/unit has no fuzz-marked tests.
+[tool.mutmut]
+source_paths = ["src"]
+only_mutate = ["src/pqcscan/daemon/fleet.py", "src/pqcscan/store/bundle.py"]
+do_not_mutate = []
+pytest_add_cli_args_test_selection = [
+  "tests/unit/test_daemon_fleet.py", "tests/unit/test_fleet_repo.py", "tests/unit/test_fleet_threat_model_gaps.py",
+  "tests/unit/test_bundle.py", "tests/unit/test_fleet_schema.py", "tests/unit/test_parity_drift.py",
+  "tests/unit/test_daemon_guard.py", "tests/integration/test_daemon_api.py", "tests/integration/test_fleet_spool.py",
+  # test_fleet_reconcile.py does `import reconcile` through a sys.path hack that fails inside ./mutants/, and it
+  # tests benchmark/fleet/reconcile.py, not the mutated modules.
+  "--ignore=tests/unit/test_fleet_reconcile.py", "-p", "no:cacheprovider",
+]

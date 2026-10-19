@@ -1,0 +1,10 @@
+# pqcscan.store.bundle.x__req_str__mutmut_18: survived
+--- src/pqcscan/store/bundle.py
++++ src/pqcscan/store/bundle.py
+@@ -2,5 +2,5 @@
+     """Identity field: must be a str (non-empty when `nonempty`); absent optional fields default to ''."""
+     v = d.get(key) if nonempty else d.get(key, "")
+     if not isinstance(v, str) or (nonempty and not v):
+-        raise BundleInvalid(f"{key} must be a {'non-empty ' if nonempty else ''}string")
++        raise BundleInvalid(f"{key} must be a {'XXnon-empty XX' if nonempty else ''}string")
+     return v

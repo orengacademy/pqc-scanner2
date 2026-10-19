@@ -7,7 +7,7 @@ from pqcscan.core.bands import count_bands, readiness_score
 from pqcscan.core.types import Classification, Finding, Severity
 from pqcscan.store.bundle import HostIdentity, ScanBundle, dump_bundle, load_bundle
 from pqcscan.store.repo import Repo
-from pqcscan.store.schema import ComponentRow, GraphEdge
+from pqcscan.store.schema import ComponentRow, FindingRow, FrameworkView, GraphEdge, Host
 
 WEB01 = HostIdentity(machine_id="m-web01", hostname="web01", os="linux", labels={"env": "prod"})
 WEB02 = HostIdentity(machine_id="m-web02", hostname="web02", os="linux", labels={"env": "dr"})
@@ -352,3 +352,196 @@ def test_ingest_stores_drift_rows_only_when_findings_change(tmp_db_path, tmp_pat
     third = fleet.ingest_bundle(_bundle(src, WEB01, ["RSA-2048", "ECDSA-P256"]), host.id)
     assert third.drift == 0
     assert not [f for f in fleet.list_findings(third.scan_id) if f.probe_id == "fleet.drift"]
+
+
+def _seed_labels(repo: Repo, host_id: int, labels: dict[str, str]) -> None:
+    with Session(repo.engine) as s:
+        s.get(Host, host_id).labels = labels
+        s.commit()
+
+
+def test_merged_host_labels_stop_at_the_cap_and_never_refuse_the_scan(tmp_db_path, tmp_path):
+    from loguru import logger
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    host = fleet.upsert_host(WEB01, token_hash="t")
+    seen: list[str] = []
+    sink = logger.add(lambda m: seen.append(str(m)), level="WARNING")
+    try:
+        fleet.ingest_bundle(_bundle(src, HostIdentity("m-web01", "web01", "linux", {f"a{i}": "v" for i in range(63)}),
+                                    ["RSA-2048"]), host.id)
+        assert len(fleet.get_host(host.id).labels) == 64 and not seen          # env + 63
+        # existing keys update, three new keys are dropped (sorted order), the scan is stored
+        res = fleet.ingest_bundle(_bundle(src, HostIdentity("m-web01", "web01", "linux",
+                                                            {"a0": "changed", "z3": "v", "z1": "v", "z2": "v"}),
+                                          ["RSA-2048"]), host.id)
+        assert not res.duplicate and res.stored_findings == 1
+    finally:
+        logger.remove(sink)
+    labels = fleet.get_host(host.id).labels
+    assert len(labels) == 64 and labels["a0"] == "changed" and not {"z1", "z2", "z3"} & labels.keys()
+    assert len(seen) == 1 and "web01" in seen[0] and "z1, z2, z3" in seen[0]
+    assert len(fleet.host_history(host.id)) == 2
+
+
+def test_host_already_over_the_cap_keeps_labels_and_still_ingests_and_enrolls(tmp_db_path, tmp_path):
+    # v0.10.2 enforced the cap per bundle only, so a collector may hold hosts with more than 64 labels
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    host = fleet.upsert_host(WEB01, token_hash="t")
+    _seed_labels(fleet, host.id, {f"old{i}": "v" for i in range(100)})
+    incoming = HostIdentity("m-web01", "web01", "linux", {"old5": "new", "fresh": "v"})
+    fleet.ingest_bundle(_bundle(src, incoming, ["RSA-2048"]), host.id)
+    fleet.upsert_host(incoming)
+    labels = fleet.get_host(host.id).labels
+    assert len(labels) == 100 and labels["old5"] == "new" and "fresh" not in labels
+    assert len(fleet.host_history(host.id)) == 1
+
+
+def test_ingest_issues_a_bounded_number_of_statements(tmp_db_path, tmp_path):
+    """Views must not cost a statement each: 40 findings with 5 views apiece stay near one statement per finding."""
+    src = Repo(tmp_path / "src.db"); src.init_schema()
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    host = fleet.upsert_host(WEB01)
+    sid = src.create_scan(mode="user", probe_versions={}, tool_versions={})
+    for i in range(40):
+        fid = src.record_finding(sid, Finding(probe_id="fs.cert.x509", algorithm=f"RSA-{i}",
+                                              classification=Classification.SANGAT_TINGGI, severity=Severity.CRIT,
+                                              title=f"t{i}"))
+        for k in range(5):
+            src.record_framework_view(fid, framework=f"fw{k}", clause=f"c{i}", verdict="non-compliant", deadline=None)
+    src.finish_scan(sid, status="done")
+    b = load_bundle(dump_bundle(src, sid, WEB01))
+    n = []
+    event.listen(fleet.engine, "before_cursor_execute", lambda *a: n.append(1))
+    r = fleet.ingest_bundle(b, host.id)
+    assert (r.stored_findings, r.stored_views) == (40, 200)
+    assert len(n) <= 40 + 20
+    with Session(fleet.engine) as s:     # each view is attached to its own finding, in order
+        pairs = s.execute(select(FindingRow.title, func.count(FrameworkView.id)).join(
+            FrameworkView, FrameworkView.finding_id == FindingRow.id).group_by(FindingRow.id)).all()
+    assert len(pairs) == 40 and all(c == 5 for _, c in pairs)
+
+
+# --- bulk ingest path: no RETURNING, batch boundaries, empty and drift-only bundles -------------------------------
+
+def _doc_bundle(host: HostIdentity, n: int, *, views: int = 1, uuid: str | None = None) -> ScanBundle:
+    """A bundle built straight from a document (no source Repo), n findings with `views` views each."""
+    import gzip
+    import json
+    import uuid as uuid_mod
+    doc = {"schema_version": 1, "scan_uuid": uuid or str(uuid_mod.uuid4()),
+           "host": {"machine_id": host.machine_id, "hostname": host.hostname, "os": host.os, "labels": host.labels,
+                    "agent_version": ""},
+           "scan": {"started_at": "2026-10-17T00:00:00+00:00", "finished_at": "2026-10-17T00:01:00+00:00",
+                    "mode": "user", "status": "done", "probe_versions": {}, "tool_versions": {}},
+           "findings": [{"probe_id": "fs.cert.x509", "algorithm": f"RSA-{i}", "classification": "tinggi",
+                         "severity": "high", "title": f"f{i}", "evidence": {"path": f"/p/{i}"}, "remediation": {},
+                         "created_at": "2026-10-17T00:00:30+00:00",
+                         "views": [{"framework": f"fw{k}", "clause": f"c{i}", "verdict": "at-risk", "deadline": None}
+                                   for k in range(views)]} for i in range(n)]}
+    return load_bundle(gzip.compress(json.dumps(doc).encode()))
+
+
+def _no_returning(repo: Repo) -> None:
+    """What SQLite < 3.35 looks like to SQLAlchemy (its dialect clears these three): no RETURNING. Multi-row
+    INSERT ... VALUES pages still apply, they need only SQLite 3.7.11."""
+    d = repo.engine.dialect
+    d.insert_returning = d.update_returning = d.delete_returning = False
+
+
+def test_bulk_ingest_works_without_returning(tmp_db_path):
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    _no_returning(fleet)
+    host = fleet.upsert_host(WEB01)
+    b = _doc_bundle(WEB01, 40, views=3)
+    r = fleet.ingest_bundle(b, host.id)
+    assert (r.stored_findings, r.stored_views, r.duplicate) == (40, 120, False)
+    scan = fleet.get_scan(r.scan_id)
+    assert scan.host_id == host.id and scan.scan_uuid == b.scan_uuid
+    views = {(f.title, v.clause) for f in fleet.list_findings(r.scan_id) for v in fleet.list_framework_views(r.scan_id)
+             if v.finding_id == f.id}
+    assert views == {(f"f{i}", f"c{i}") for i in range(40)}      # every view sits on its own finding
+
+
+def test_bulk_ingest_across_the_batch_boundary(tmp_db_path):
+    """2,500 findings is past SQLAlchemy's 1,000-row insert batch; views must still land on the right finding.
+
+    SQLite sends findings and views as multi-row INSERT ... VALUES pages (sqlite3 would step an executemany row by
+    row); Postgres keeps psycopg 3's pipelined executemany, one VALUES row per parameter set (measured faster under
+    load on the box: benchmark/fleet/results/load-postgres-20261018-r4-pginsert*.json)."""
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    host = fleet.upsert_host(WEB01)
+    sent: list[tuple[int, int]] = []         # (VALUES rows in the statement, parameter sets sent with it)
+
+    @event.listens_for(fleet.engine, "before_cursor_execute")
+    def _note(conn, cursor, statement, parameters, context, executemany):
+        if statement.startswith(("INSERT INTO findings", "INSERT INTO framework_views")):
+            many = executemany and parameters and isinstance(parameters[0], (tuple, list, dict))
+            sent.append((statement.count("), (") + 1, len(parameters) if many else 1))
+    r = fleet.ingest_bundle(_doc_bundle(WEB01, 2500, views=2), host.id)
+    assert (r.stored_findings, r.stored_views) == (2500, 5000)
+    if fleet.engine.dialect.name == "sqlite":
+        assert all(sets == 1 for _, sets in sent) and sum(rows for rows, _ in sent) == 7500 and len(sent) <= 10, sent
+    else:
+        assert all(rows == 1 for rows, _ in sent) and sum(sets for _, sets in sent) == 7500, sent
+    with Session(fleet.engine) as s:
+        pairs = s.execute(select(FindingRow.title, FrameworkView.clause).join(
+            FrameworkView, FrameworkView.finding_id == FindingRow.id).where(FindingRow.scan_id == r.scan_id)).all()
+    assert len(pairs) == 5000 and all(t == "f" + c[1:] for t, c in pairs)
+
+
+def test_bulk_ingest_round_trips_json_dates_and_deadlines(tmp_db_path):
+    """The Core INSERT binds evidence/remediation (JSON), created_at and a view deadline like the ORM did."""
+    from datetime import date, datetime
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    host = fleet.upsert_host(WEB01)
+    b = _doc_bundle(WEB01, 2, views=1)
+    b.findings[0]["remediation"] = {"steps": ["rotate", "re-issue"]}
+    b.findings[0]["views"][0]["deadline"] = "2030-12-31"
+    r = fleet.ingest_bundle(b, host.id)
+    f = {x.title: x for x in fleet.list_findings(r.scan_id)}
+    assert f["f0"].evidence == {"path": "/p/0"} and f["f0"].remediation == {"steps": ["rotate", "re-issue"]}
+    assert f["f0"].created_at == datetime(2026, 10, 17, 0, 0, 30)
+    deadlines = {v.finding_id: v.deadline for v in fleet.list_framework_views(r.scan_id)}
+    assert deadlines == {f["f0"].id: date(2030, 12, 31), f["f1"].id: None}
+
+
+def test_bulk_ingest_refuses_ids_out_of_row_order(tmp_db_path):
+    """ids are matched to rows by position; if the stored rows do not line up the ingest fails and stores nothing."""
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    host = fleet.upsert_host(WEB01)
+
+    @event.listens_for(fleet.engine, "after_cursor_execute")
+    def _swap(conn, cursor, statement, parameters, context, executemany):
+        if statement.startswith("INSERT INTO findings"):     # as if the store handed out ids in another order
+            cursor.execute("UPDATE findings SET title = 'moved' WHERE id = (SELECT min(id) FROM findings)")
+    with pytest.raises(RuntimeError, match="out of row order"):
+        fleet.ingest_bundle(_doc_bundle(WEB01, 3, views=1), host.id)
+    event.remove(fleet.engine, "after_cursor_execute", _swap)
+    assert fleet.list_scans() == []          # one transaction: the scan row and its findings rolled back together
+
+
+def test_empty_bundle_and_drift_only_bundle(tmp_db_path):
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    host = fleet.upsert_host(WEB01)
+    empty = fleet.ingest_bundle(_doc_bundle(WEB01, 0), host.id)
+    assert (empty.stored_findings, empty.stored_views, empty.duplicate, empty.drift) == (0, 0, False, 0)
+    fleet.ingest_bundle(_doc_bundle(WEB01, 3), host.id)
+    gone = fleet.ingest_bundle(_doc_bundle(WEB01, 0), host.id)       # everything removed: only drift rows are stored
+    assert (gone.stored_findings, gone.stored_views, gone.drift) == (0, 0, 3)
+    rows = fleet.list_findings(gone.scan_id)
+    assert len(rows) == 3 and {f.probe_id for f in rows} == {"fleet.drift"}
+    assert {f.evidence["change"] for f in rows} == {"removed"}
+
+
+def test_bulk_ingest_keeps_identity_fleet_namespace_and_retention(tmp_db_path):
+    fleet = Repo(tmp_db_path); fleet.init_schema()
+    host = fleet.upsert_host(WEB01)
+    ids = [fleet.ingest_bundle(_doc_bundle(WEB01, 5, views=2), host.id).scan_id for _ in range(3)]
+    assert all(fleet.get_scan(i).host_id == host.id for i in ids)
+    assert fleet.prune_host(host.id, 2) == 1
+    assert fleet.get_scan(ids[0]) is None and fleet.get_scan(ids[2]) is not None
+    rollup = fleet.materialize_fleet_rollup()
+    rows = fleet.list_findings(rollup)
+    assert len(rows) == 5 and {r.evidence["_fleet"]["machine_id"] for r in rows} == {WEB01.machine_id}

@@ -1,0 +1,37 @@
+{
+  "db": "sqlite",
+  "hosts": 500,
+  "spawn_rate": 50,
+  "duration_s": 120,
+  "interval_s": 60.0,
+  "findings_per_bundle": 300,
+  "arrival": "herd",
+  "requests": 603,
+  "p50_ms": 60000.0,
+  "p95_ms": 60000.0,
+  "p99_ms": 60000.0,
+  "rps": 3.37,
+  "http_429": 0,
+  "http_503": 1,
+  "errors": 482,
+  "enroll_requests": 500,
+  "enroll_p95_ms": 9700.0,
+  "failure_samples": [
+    "enroll: CatchResponseError('enroll 503: {\"detail\":\"store busy, retry later\"}') x4",
+    "ingest: CatchResponseError('ingest 0: ') x478"
+  ],
+  "pass_p95_lt_2s": false,
+  "commit": "9e8ab72f798f3c1546e3c819df0089dc1338fc5c",
+  "tree_dirty": false,
+  "box_load_start": {
+    "loadavg_1m": 12.7,
+    "cpu_pressure_avg60_pct": null
+  },
+  "box_load_end": {
+    "loadavg_1m": 9.7,
+    "cpu_pressure_avg60_pct": null
+  },
+  "command": "python -m benchmark.fleet.run_load --db sqlite --hosts 500 --herd --spawn-rate 50 --duration 120s --findings-per-bundle 300",
+  "locust_command": "/home/farzul/Projects/pqc-scanner2/.venv/bin/python -m locust -f /home/farzul/Projects/pqc-scanner2/benchmark/fleet/locustfile.py --headless -u 500 -r 50 -t 120s --stop-timeout 70 --csv /tmp/fleet-load-uh9yw8dg/run --only-summary --host http://127.0.0.1:33641",
+  "started_at": "2026-10-17T13:23:38.087697+00:00"
+}

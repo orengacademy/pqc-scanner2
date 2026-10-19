@@ -1,0 +1,75 @@
+[
+ {
+  "algorithm": "TLS 1.3",
+  "classification": "sederhana",
+  "evidence": {
+   "host": "127.0.0.1",
+   "note": "TLS 1.3 is required for hybrid ML-KEM key exchange; a TLS-1.2-only server cannot negotiate post-quantum KEX.",
+   "port": 41885,
+   "supported": [
+    "TLS 1.2"
+   ]
+  },
+  "probe_id": "net.tls.versions",
+  "severity": "MED",
+  "title": "127.0.0.1:41885 does not support TLS 1.3 \u2014 no PQC-capable transport"
+ },
+ {
+  "algorithm": "RSA-2048",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "depth": 0,
+   "host": "127.0.0.1",
+   "key_algorithm": "RSA-2048",
+   "port": 41885,
+   "role": "leaf",
+   "signature_hash": "SHA256",
+   "subject": "CN=endpoint-tls12-ecdhe.test"
+  },
+  "probe_id": "net.tls.cert_chain",
+  "severity": "CRIT",
+  "title": "127.0.0.1:41885 served-chain leaf cert: RSA-2048 signed with SHA256"
+ },
+ {
+  "algorithm": "N/A",
+  "classification": "info",
+  "evidence": {
+   "endpoint": "tcp://127.0.0.1:41885",
+   "groups_offered": [
+    "X25519MLKEM768",
+    "SecP256r1MLKEM768",
+    "X25519",
+    "secp256r1"
+   ],
+   "protocol": "TLSv1.3",
+   "raw_head": "CONNECTED(00000003)\n---\nno peer certificate available\n---\nNo client certificate CA names sent\nNegotiated TLS1.3 group: <NULL>\n---\nSSL handshake has read 7 bytes and written 1434 bytes\nVerification: OK\n---\nNew, (NONE), Cipher is (NONE)\nProtocol: TLSv1.3\nThis TLS version forbids renegotiation.\nCompression: NONE\nExpansion: NONE\nNo ALPN negotiated\nEarly data was not sent\nVerify return code: 0 (ok)\n---"
+  },
+  "probe_id": "net.tls.pqc_handshake",
+  "severity": "INFO",
+  "title": "PQC hybrid handshake produced no negotiated group at 127.0.0.1:41885"
+ },
+ {
+  "algorithm": "ECDHE-RSA-AES128-GCM-SHA256",
+  "classification": "tinggi",
+  "evidence": {
+   "client": "inventory (all suites offered)",
+   "endpoint": "127.0.0.1:41885",
+   "version": "TLSv1.2"
+  },
+  "probe_id": "net.tls.https",
+  "severity": "HIGH",
+  "title": "TLSv1.2 negotiated cipher ECDHE-RSA-AES128-GCM-SHA256"
+ },
+ {
+  "algorithm": "RSA-2048",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "endpoint": "127.0.0.1:41885",
+   "not_after": "2123-12-08T00:00:00+00:00",
+   "subject": "CN=endpoint-tls12-ecdhe.test"
+  },
+  "probe_id": "net.tls.https",
+  "severity": "CRIT",
+  "title": "server cert uses RSA-2048"
+ }
+]

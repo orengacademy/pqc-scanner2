@@ -506,8 +506,10 @@ def _is_stale(last_seen: object, now: object) -> bool:
 
 @router.get("/fleet", response_class=HTMLResponse)
 async def fleet_page(request: Request, label: str | None = None) -> HTMLResponse:
-    if label and label.count("=") != 1:
-        raise HTTPException(400, "label filter must be key=value")
+    if label and label.count("=") != 1:     # 400 with the page and an inline error, not a bare JSON body
+        resp = _render(request, "fleet.html", {"rows": [], "label": label, "label_error": True})
+        resp.status_code = 400
+        return resp
     rows = await run_in_threadpool(request.app.state.repo.fleet_summary)
     if label:
         k, _, v = label.partition("=")

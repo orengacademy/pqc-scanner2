@@ -1,0 +1,12 @@
+# pqcscan.daemon.fleet.x__read_capped__mutmut_21: survived
+--- src/pqcscan/daemon/fleet.py
++++ src/pqcscan/daemon/fleet.py
+@@ -10,7 +10,7 @@
+     size = 0
+     async for chunk in request.stream():
+         size += len(chunk)
+-        if size > cap:
++        if size >= cap:
+             raise HTTPException(413, f"body over {cap} bytes")
+         chunks.append(chunk)
+     return b"".join(chunks)

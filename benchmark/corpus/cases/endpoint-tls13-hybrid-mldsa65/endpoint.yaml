@@ -1,0 +1,10 @@
+{
+  "cert": "server.crt",
+  "key": "server.key",
+  "max_version": "TLSv1.3",
+  "min_version": "TLSv1.3",
+  "requires_openssl": [
+    3,
+    5
+  ]
+}

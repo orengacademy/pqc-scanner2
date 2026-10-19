@@ -1,0 +1,88 @@
+[
+ {
+  "algorithm": "TLS 1.0",
+  "classification": "tinggi",
+  "evidence": {
+   "host": "127.0.0.1",
+   "port": 33935,
+   "version": "TLS 1.0",
+   "version_code": "0x0301"
+  },
+  "probe_id": "net.tls.versions",
+  "severity": "HIGH",
+  "title": "127.0.0.1:33935 accepts TLS 1.0 (broken/deprecated TLS version)"
+ },
+ {
+  "algorithm": "TLS 1.3",
+  "classification": "sederhana",
+  "evidence": {
+   "host": "127.0.0.1",
+   "note": "TLS 1.3 is required for hybrid ML-KEM key exchange; a TLS-1.2-only server cannot negotiate post-quantum KEX.",
+   "port": 33935,
+   "supported": [
+    "TLS 1.0"
+   ]
+  },
+  "probe_id": "net.tls.versions",
+  "severity": "MED",
+  "title": "127.0.0.1:33935 does not support TLS 1.3 \u2014 no PQC-capable transport"
+ },
+ {
+  "algorithm": "RSA-2048",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "depth": 0,
+   "host": "127.0.0.1",
+   "key_algorithm": "RSA-2048",
+   "port": 33935,
+   "role": "leaf",
+   "signature_hash": "SHA256",
+   "subject": "CN=endpoint-tls10-only.test"
+  },
+  "probe_id": "net.tls.cert_chain",
+  "severity": "CRIT",
+  "title": "127.0.0.1:33935 served-chain leaf cert: RSA-2048 signed with SHA256"
+ },
+ {
+  "algorithm": "N/A",
+  "classification": "info",
+  "evidence": {
+   "endpoint": "tcp://127.0.0.1:33935",
+   "groups_offered": [
+    "X25519MLKEM768",
+    "SecP256r1MLKEM768",
+    "X25519",
+    "secp256r1"
+   ],
+   "protocol": "TLSv1.3",
+   "raw_head": "CONNECTED(00000003)\n---\nno peer certificate available\n---\nNo client certificate CA names sent\nNegotiated TLS1.3 group: <NULL>\n---\nSSL handshake has read 7 bytes and written 1434 bytes\nVerification: OK\n---\nNew, (NONE), Cipher is (NONE)\nProtocol: TLSv1.3\nThis TLS version forbids renegotiation.\nCompression: NONE\nExpansion: NONE\nNo ALPN negotiated\nEarly data was not sent\nVerify return code: 0 (ok)\n---"
+  },
+  "probe_id": "net.tls.pqc_handshake",
+  "severity": "INFO",
+  "title": "PQC hybrid handshake produced no negotiated group at 127.0.0.1:33935"
+ },
+ {
+  "algorithm": "ECDHE-RSA-AES256-SHA",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "client": "inventory (all suites offered)",
+   "endpoint": "127.0.0.1:33935",
+   "version": "TLSv1.0"
+  },
+  "probe_id": "net.tls.https",
+  "severity": "CRIT",
+  "title": "TLSv1.0 negotiated cipher ECDHE-RSA-AES256-SHA"
+ },
+ {
+  "algorithm": "RSA-2048",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "endpoint": "127.0.0.1:33935",
+   "not_after": "2123-12-08T00:00:00+00:00",
+   "subject": "CN=endpoint-tls10-only.test"
+  },
+  "probe_id": "net.tls.https",
+  "severity": "CRIT",
+  "title": "server cert uses RSA-2048"
+ }
+]

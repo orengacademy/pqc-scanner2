@@ -39,16 +39,9 @@ from pqcscan.probes._tls13_keyschedule import (
     aead_open,
     handshake_traffic_keys,
 )
+from pqcscan.probes._tls_sigalgs import SIG_ALGS
 
 _FIXED_RANDOM = bytes(range(32))
-# Broad TLS 1.3 signature_algorithms so any RSA/ECDSA/EdDSA server replies.
-_SIG_ALGS = [
-    0x0403, 0x0503, 0x0603,          # ecdsa_secp{256,384,521}
-    0x0804, 0x0805, 0x0806,          # rsa_pss_rsae_sha{256,384,512}
-    0x0809, 0x080A, 0x080B,          # rsa_pss_pss_sha{256,384,512}
-    0x0401, 0x0501, 0x0601,          # rsa_pkcs1_sha{256,384,512}
-    0x0807, 0x0808,                  # ed25519, ed448
-]
 
 # CertificateVerify SignatureScheme -> (pretty name, classify-able alg name)
 _SCHEMES: dict[int, tuple[str, str]] = {
@@ -66,6 +59,9 @@ _SCHEMES: dict[int, tuple[str, str]] = {
     0x080B: ("rsa_pss_pss_sha512", "RSA-PSS"),
     0x0807: ("ed25519", "Ed25519"),
     0x0808: ("ed448", "Ed448"),
+    0x0904: ("mldsa44", "ML-DSA-44"),
+    0x0905: ("mldsa65", "ML-DSA-65"),
+    0x0906: ("mldsa87", "ML-DSA-87"),
     0x0201: ("rsa_pkcs1_sha1", "RSA-SHA1"),
     0x0203: ("ecdsa_sha1", "ECDSA-SHA1"),
 }
@@ -93,7 +89,7 @@ def build_client_hello_tls13(
     """Build a TLS record carrying a TLS 1.3 ClientHello offering an X25519
     key_share (`public_key`) plus a broad signature_algorithms list."""
     key_share = _u16(0x001D) + _vec16(public_key)                 # entry: x25519 || key
-    sigalgs = b"".join(_u16(s) for s in _SIG_ALGS)
+    sigalgs = b"".join(_u16(s) for s in SIG_ALGS)
     exts = b"".join([
         _ext(0x002B, b"\x02\x03\x04"),                           # supported_versions: TLS 1.3
         _ext(0x000A, _vec16(_u16(0x001D))),                       # supported_groups: x25519

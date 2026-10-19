@@ -1,0 +1,242 @@
+[
+ {
+  "algorithm": "RSA-4096",
+  "classification": "tinggi",
+  "evidence": {
+   "not_after": "2123-12-08T00:00:00+00:00",
+   "path": "cert-rsa4096-der/server.der",
+   "subject": "CN=cert-rsa4096-der.example"
+  },
+  "probe_id": "fs.cert.x509",
+  "severity": "HIGH",
+  "title": "server.der: RSA-4096"
+ },
+ {
+  "algorithm": "RSA-3072",
+  "classification": "tinggi",
+  "evidence": {
+   "not_after": "2123-12-08T00:00:00+00:00",
+   "path": "cert-rsa3072-pem/server.crt",
+   "subject": "CN=cert-rsa3072-pem.example"
+  },
+  "probe_id": "fs.cert.x509",
+  "severity": "HIGH",
+  "title": "server.crt: RSA-3072"
+ },
+ {
+  "algorithm": "RSA-2048",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "not_after": "2123-12-08T00:00:00+00:00",
+   "path": "cert-rsa2048-pem/server.crt",
+   "subject": "CN=cert-rsa2048-pem.example"
+  },
+  "probe_id": "fs.cert.x509",
+  "severity": "CRIT",
+  "title": "server.crt: RSA-2048"
+ },
+ {
+  "algorithm": "RSA-2048",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "not_after": "2123-12-08T00:00:00+00:00",
+   "path": "cert-rsa2048-der/server.der",
+   "subject": "CN=cert-rsa2048-der.example"
+  },
+  "probe_id": "fs.cert.x509",
+  "severity": "CRIT",
+  "title": "server.der: RSA-2048"
+ },
+ {
+  "algorithm": "RSA-1024",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "not_after": "2123-12-08T00:00:00+00:00",
+   "path": "cert-rsa1024/server.pem",
+   "subject": "CN=weak-rsa1024.example"
+  },
+  "probe_id": "fs.cert.x509",
+  "severity": "CRIT",
+  "title": "server.pem: RSA-1024"
+ },
+ {
+  "algorithm": "MLDSA65PublicKey",
+  "classification": "pqc-ready",
+  "evidence": {
+   "not_after": "2123-12-08T00:00:00+00:00",
+   "path": "cert-mldsa65-der/server.der",
+   "subject": "CN=pqc-mldsa65-der.example"
+  },
+  "probe_id": "fs.cert.x509",
+  "severity": "INFO",
+  "title": "server.der: MLDSA65PublicKey"
+ },
+ {
+  "algorithm": "MLDSA65PublicKey",
+  "classification": "pqc-ready",
+  "evidence": {
+   "not_after": "2026-03-11T00:00:00+00:00",
+   "path": "cert-mldsa65/server.pem",
+   "subject": "CN=pqc-mldsa65.example"
+  },
+  "probe_id": "fs.cert.x509",
+  "severity": "INFO",
+  "title": "server.pem: MLDSA65PublicKey"
+ },
+ {
+  "algorithm": "Ed25519",
+  "classification": "tinggi",
+  "evidence": {
+   "not_after": "2123-12-08T00:00:00+00:00",
+   "path": "cert-ed25519-pem/server.crt",
+   "subject": "CN=cert-ed25519-pem.example"
+  },
+  "probe_id": "fs.cert.x509",
+  "severity": "HIGH",
+  "title": "server.crt: Ed25519"
+ },
+ {
+  "algorithm": "Ed25519",
+  "classification": "tinggi",
+  "evidence": {
+   "not_after": "2123-12-08T00:00:00+00:00",
+   "path": "cert-ed25519-der/server.der",
+   "subject": "CN=cert-ed25519-der.example"
+  },
+  "probe_id": "fs.cert.x509",
+  "severity": "HIGH",
+  "title": "server.der: Ed25519"
+ },
+ {
+  "algorithm": "ECDSA-secp384r1",
+  "classification": "tinggi",
+  "evidence": {
+   "not_after": "2123-12-08T00:00:00+00:00",
+   "path": "cert-ecdsa-p384-der/server.der",
+   "subject": "CN=cert-ecdsa-p384-der.example"
+  },
+  "probe_id": "fs.cert.x509",
+  "severity": "HIGH",
+  "title": "server.der: ECDSA-secp384r1"
+ },
+ {
+  "algorithm": "ECDSA-secp256r1",
+  "classification": "tinggi",
+  "evidence": {
+   "not_after": "2123-12-08T00:00:00+00:00",
+   "path": "cert-ecdsa-p256-pem/server.crt",
+   "subject": "CN=cert-ecdsa-p256-pem.example"
+  },
+  "probe_id": "fs.cert.x509",
+  "severity": "HIGH",
+  "title": "server.crt: ECDSA-secp256r1"
+ },
+ {
+  "algorithm": "ML-DSA-65",
+  "classification": "pqc-ready",
+  "evidence": {
+   "path": "cert-mldsa65/server.pem",
+   "pem_head": "-----BEGIN CERTIFICATE-----\nMIIVQTCCCD6gAwIBAgIUZj5JU8c80r9HrwWqOufWdeTgZYQwCwYJ",
+   "signature_algorithm": "ML-DSA-65",
+   "signature_algorithm_oid": "2.16.840.1.101.3.4.3.18",
+   "subject": "CN=pqc-mldsa65.example"
+  },
+  "probe_id": "fs.cert.pqc_x509",
+  "severity": "INFO",
+  "title": "PQC cert at <root>/cert-mldsa65/server.pem \u2014 ML-DSA-65"
+ },
+ {
+  "algorithm": "ML-DSA-65",
+  "classification": "pqc-ready",
+  "evidence": {
+   "path": "cert-mldsa65-der/server.der",
+   "pem_head": "-----BEGIN CERTIFICATE-----\nMIIVQDCCCD2gAwIBAgIJAND0m/f2zDs4MAsGCWCGSAFlAwQDEjAi",
+   "signature_algorithm": "ML-DSA-65",
+   "signature_algorithm_oid": "2.16.840.1.101.3.4.3.18",
+   "subject": "CN=pqc-mldsa65-der.example"
+  },
+  "probe_id": "fs.cert.pqc_x509",
+  "severity": "INFO",
+  "title": "PQC cert at <root>/cert-mldsa65-der/server.der \u2014 ML-DSA-65"
+ },
+ {
+  "algorithm": "RSA-2048",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "kind": "additional-cert",
+   "path": "p12-truststore-rsa2048/truststore.p12",
+   "subject": "CN=truststore-rsa-ca.example"
+  },
+  "probe_id": "fs.keystore.pkcs12",
+  "severity": "CRIT",
+  "title": "truststore.p12: certificate RSA-2048 (CN=truststore-rsa-ca.example)"
+ },
+ {
+  "algorithm": "MLDSA65PublicKey",
+  "classification": "pqc-ready",
+  "evidence": {
+   "kind": "additional-cert",
+   "path": "p12-truststore-mldsa65/truststore.p12",
+   "subject": "CN=truststore-mldsa.example"
+  },
+  "probe_id": "fs.keystore.pkcs12",
+  "severity": "INFO",
+  "title": "truststore.p12: certificate MLDSA65PublicKey (CN=truststore-mldsa.example)"
+ },
+ {
+  "algorithm": "RSA-2048",
+  "classification": "sangat-tinggi",
+  "evidence": {
+   "kind": "private-key",
+   "path": "p12-rsa2048-changeit/keystore.p12"
+  },
+  "probe_id": "fs.keystore.pkcs12",
+  "severity": "CRIT",
+  "title": "keystore.p12: private key RSA-2048"
+ },
+ {
+  "algorithm": "SHA256",
+  "classification": "info",
+  "evidence": {
+   "kind": "leaf-cert-signature",
+   "path": "p12-rsa2048-changeit/keystore.p12",
+   "subject": "CN=p12-rsa2048.example"
+  },
+  "probe_id": "fs.keystore.pkcs12",
+  "severity": "INFO",
+  "title": "keystore.p12: leaf certificate signature SHA256"
+ },
+ {
+  "algorithm": "Ed25519",
+  "classification": "tinggi",
+  "evidence": {
+   "kind": "private-key",
+   "path": "p12-ed25519-nopass/keystore.p12"
+  },
+  "probe_id": "fs.keystore.pkcs12",
+  "severity": "HIGH",
+  "title": "keystore.p12: private key Ed25519"
+ },
+ {
+  "algorithm": "UNKNOWN",
+  "classification": "info",
+  "evidence": {
+   "kind": "leaf-cert-signature",
+   "path": "p12-ed25519-nopass/keystore.p12",
+   "subject": "CN=p12-ed25519.example"
+  },
+  "probe_id": "fs.keystore.pkcs12",
+  "severity": "INFO",
+  "title": "keystore.p12: leaf certificate signature UNKNOWN"
+ },
+ {
+  "algorithm": "PKCS12-ENCRYPTED",
+  "classification": "sederhana",
+  "evidence": {
+   "path": "p12-ecdsa-p256-test/keystore.pfx"
+  },
+  "probe_id": "fs.keystore.pkcs12",
+  "severity": "MED",
+  "title": "keystore.pfx: encrypted PKCS#12 keystore (undecryptable)"
+ }
+]

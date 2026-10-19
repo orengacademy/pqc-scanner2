@@ -1,0 +1,16 @@
+# Accepted false positives: deliberate, documented FPs (docs/ACCURACY.md, "Limits").
+# Read by benchmark/run_benchmark.py --accept-fp-file and tests/benchmark/test_accuracy.py.
+# They are reported as AFP and left out of precision; a listed case that stops firing
+# fails the run, so remove it here when it is fixed.
+#
+# code.crypto_primitives fails open for C, C++, Ruby and Swift: no lexer is trusted for
+# them (raw strings, regex/%-literals, heredocs could hide real code), so a mention in a
+# comment or prose string fires.
+cp-c-comment-md5
+cp-c-string-md5
+cp-cpp-comment-md5
+cp-cpp-string-md5
+cp-rb-comment-md5
+cp-rb-string-md5
+cp-swift-comment-md5
+cp-swift-string-md5

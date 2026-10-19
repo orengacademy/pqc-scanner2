@@ -145,3 +145,167 @@ def test_all_patterns_compiled_once():
         assert hasattr(pattern, "search")
         assert isinstance(algorithm, str) and algorithm
         assert isinstance(classification, Classification)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("name", "body"), [
+    ("a.py", "x = 1  # hashlib.md5() is legacy\n"),
+    ("a.py", 'msg = """\nnever use md5 here\n"""\n'),
+    ("a.go", "// md5.New() must never be used here\nvar s = `md5 in raw`\n"),
+    ("a.java", 'String s = """\n    MessageDigest.getInstance("MD5")\n""";\n'),
+])
+async def test_comment_and_prose_string_mentions_do_not_fire(tmp_path: Path, name: str, body: str):
+    assert [f.algorithm for f in await _run(tmp_path, name, body)] == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("name", "body"), [
+    ("A.java", 'MessageDigest md = MessageDigest.getInstance("MD5");\n'),   # bare token string = real use
+    ("app.js", "const h = crypto.createHash('md5');\n"),
+    ("a.py", "import hashlib\nd = hashlib.md5(b'x')\n"),
+    ("a.rb", "d = Digest::MD5.hexdigest(data)\n"),
+    ("a.c", "MD5(d, n, out);\n"),
+])
+async def test_real_use_still_fires(tmp_path: Path, name: str, body: str):
+    assert "MD5" in [f.algorithm for f in await _run(tmp_path, name, body)]
+
+
+@pytest.mark.asyncio
+async def test_first_counting_occurrence_is_reported(tmp_path: Path):
+    found = await _run(tmp_path, "a.py", "# md5 is banned\nimport hashlib\nd = hashlib.md5(b'x')\n")
+    assert _by_alg(found, "MD5").evidence["line"] == 3
+
+
+
+@pytest.mark.asyncio
+async def test_stateful_hash_signatures_are_pqc_ready(tmp_path: Path):
+    body = ('sig = oqs.Signature("XMSS-SHA2_10_256")\n'
+            "kp = generate_lms_keypair()\ns = lms_sign(message, kp)\n"
+            "# our LMS (learning management system) export\n")
+    found = {f.algorithm: f.classification for f in await _run(tmp_path, "pqc.py", body)}
+    assert found["XMSS"] is Classification.PQC_READY
+    assert found["LMS"] is Classification.PQC_READY
+    other = tmp_path / "other"
+    other.mkdir()
+    found = {f.algorithm for f in await _run(other, "lms.py", "course = lms.Course()  # LMS integration\n")}
+    assert "LMS" not in found
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("name", "body"), [
+    ("a.rb", "# Digest::MD5 is banned\n"),
+    ("a.c", "/* MD5() is banned */\n"),
+    ("a.cpp", "// MD5() is banned\n"),
+    ("a.swift", "// Insecure.MD5 is banned\n"),
+])
+async def test_untrusted_lexers_fail_open(tmp_path: Path, name: str, body: str):
+    # No comment/string stripping for C/C++, Ruby or Swift: a mention fires.
+    assert "MD5" in [f.algorithm for f in await _run(tmp_path, name, body)]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("name", "body"), [
+    ("app.js", "const s = `${md5(x)}`;\n"),
+    ("app.ts", "const s = `digest: ${createHash('md5').digest('hex')}`;\n"),
+    ("a.py", 'import hashlib\ns = f"{hashlib.md5(b)}"\n'),
+    ("a.py", 's = rf"{hashlib.md5(b)}"\n'),
+    ("A.kt", 'val s = "${MessageDigest.getInstance(alg).digest()} md5"\n'),
+    ("a.php", '<?php\n$s = "hash: {$md5($x)}";\n'),
+    ("A.cs", 'var s = $"hash {MD5.Create().ComputeHash(d)}";\n'),
+])
+async def test_interpolated_literals_count_as_code(tmp_path: Path, name: str, body: str):
+    assert "MD5" in [f.algorithm for f in await _run(tmp_path, name, body)]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("name", "body"), [
+    ("a.rb", "ok = line =~ /md5/ # legacy check\nd = Digest::MD5.hexdigest(x)\n"),
+    ("a.swift", 'let s = #"md5"#; let d = Insecure.MD5.hash(data: x)\n'),
+])
+async def test_crafted_literals_do_not_hide_real_use(tmp_path: Path, name: str, body: str):
+    assert "MD5" in [f.algorithm for f in await _run(tmp_path, name, body)]
+
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("name", "body", "expected"), [
+    ("S.java", 'Signature s = Signature.getInstance("LMS");\n', True),
+    ("K.java", 'KeyPairGenerator g = KeyPairGenerator.getInstance("LMS");\n', True),
+    ("s.py", 'sig = oqs.Signature("LMS")\n', True),
+    ("r.py", 'report.title("LMS")\n', False),     # not a crypto call
+])
+async def test_bare_lms_string_in_a_crypto_call(tmp_path: Path, name: str, body: str, expected: bool):
+    assert ("LMS" in [f.algorithm for f in await _run(tmp_path, name, body)]) is expected
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("name", "body"), [
+    ("app.js", "const r = /\"/; const h = crypto.createHash('md5'); const s = \"y\";\n"),
+    ("app.ts", "const r = /'/; const h = crypto.createHash(\"md5\"); const s = 'y';\n"),
+    ("a.py", "s = f\"{'\"'}\"; h = hashlib.md5(b); t = 'x'\n"),                 # Python 3.12 f-string
+    ("A.cs", 'var a = """a\\"""; var h = MD5.Create(); var s = "x";\n'),       # C# 11 raw string
+    ("A.kt", 'val a = "${"\\""}"; val d = MessageDigest.getInstance(md5); val s = "y"\n'),
+])
+async def test_stray_quote_cannot_swallow_a_real_call(tmp_path: Path, name: str, body: str):
+    # One misread construct opens a "string" at a stray quote; the statement it
+    # swallows holds a primitive in call context plus code punctuation -> code.
+    assert "MD5" in [f.algorithm for f in await _run(tmp_path, name, body)]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("name", "body"), [
+    ("a.php", '<?php\n$note = "md5($password) is forbidden";\n'),
+    ("A.cs", 'class C { string s = "never call MD5.Create() here"; }\n'),
+    ("app.js", 'const note = "crypto.createHash(\'md5\') is forbidden";\n'),
+    ("a.py", 'label = "use hashlib.md5 for the checksum"\n'),
+])
+async def test_prose_quoting_a_call_stays_suppressed(tmp_path: Path, name: str, body: str):
+    assert "MD5" not in [f.algorithm for f in await _run(tmp_path, name, body)]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("name", ["a.h", "a.hpp", "a.cc", "a.cxx"])
+async def test_more_c_cpp_suffixes_are_scanned_unstripped(tmp_path: Path, name: str):
+    assert "MD5" in [f.algorithm for f in await _run(tmp_path, name, "// MD5() is banned\n")]
+
+
+
+@pytest.mark.asyncio
+async def test_large_literal_with_many_tokens_is_linear(tmp_path: Path):
+    import time
+
+    # A 1 MiB single string literal holding 10,000 md5( tokens must cost about the
+    # same as a 1 MiB literal with none: the span verdict is computed once, and a
+    # span over 64 kB counts as code without inspection. (Absolute time is the
+    # probe's own ~40-pattern pass over 1 MiB, ~1.2 s here; before the memo the
+    # token file took ~15 s.)
+    async def scan(name: str, body: str) -> tuple[float, list[Finding]]:
+        d = tmp_path / name
+        d.mkdir()
+        (d / "app.js").write_text('const s = "' + body + '";\n')
+        found: list[Finding] = []
+        t0 = time.perf_counter()
+        await CodeCryptoPrimitives(roots=[d]).run(_ctx([d]), emit=found.append)
+        return time.perf_counter() - t0, found
+
+    t_plain, _ = await scan("plain", ("xxxx " + "x" * 100) * 10_000)
+    t_tokens, found = await scan("tokens", ("md5( " + "x" * 100) * 10_000)
+    assert t_tokens < 3 * t_plain + 1.0, (t_tokens, t_plain)   # quadratic was ~12x
+    assert "MD5" in [f.algorithm for f in found]   # over the inspection cap: fail open
+
+
+@pytest.mark.asyncio
+async def test_span_verdict_is_computed_once(tmp_path: Path, monkeypatch):
+    from pqcscan.probes import code_crypto_primitives as mod
+
+    calls: list[int] = []
+    real = mod._holds_call
+
+    def counting(body: str) -> bool:
+        calls.append(len(body))
+        return real(body)
+
+    monkeypatch.setattr(mod, "_holds_call", counting)
+    # one prose span with punctuation and many tokens, none in call context
+    await _run(tmp_path, "app.js", 'const s = "' + "md5, " * 500 + '";\n')
+    assert len(calls) == 1

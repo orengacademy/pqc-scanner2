@@ -1,0 +1,62 @@
+{
+  "db": "postgres",
+  "hosts": 500,
+  "spawn_rate": 50,
+  "duration_s": 300,
+  "interval_s": 41.666666666666664,
+  "findings_per_bundle": 1670,
+  "arrival": "staggered",
+  "requests": 3305,
+  "p50_ms": 190.0,
+  "p95_ms": 43000.0,
+  "p99_ms": 49000.0,
+  "rps": 9.85,
+  "offered_rps": 12.0,
+  "mean_ms": 3333.1277419788153,
+  "littles_expected_rps": 11.1112,
+  "littles_ratio": 0.887,
+  "measurement_defect": true,
+  "measurement_defect_reason": "achieved 9.85 rps is 0.89 of the Little's law expectation 11.11 rps (500 hosts / (41.6667 s + 3.33 s)); requests were lost or timed out",
+  "hosts_daily_2h_equiv": 86400,
+  "hosts_daily_24h_equiv": 1036800,
+  "schema_version": 2,
+  "requests_csv": "load-postgres-20261018-r12-sweep-2-requests.csv.gz",
+  "history_csv": "load-postgres-20261018-r12-sweep-2-history.csv.gz",
+  "http_429": 0,
+  "http_503": 3050,
+  "errors": 22,
+  "ingest_error_rate": 0.0067,
+  "enroll_error_rate": 0.0,
+  "enroll_503": 0,
+  "stored_hosts": 500,
+  "stored_scans": 235,
+  "seed": 2,
+  "ingest_parallelism": 4,
+  "insert_mode": "executemany",
+  "enroll_requests": 500,
+  "enroll_p95_ms": 350.0,
+  "failure_samples": [
+    "ingest: CatchResponseError('ingest 0: ') x22"
+  ],
+  "pass_p95_lt_2s": false,
+  "commit": "2a258070f6d5a3849c18dacca9cb2284ea39db8c",
+  "src_hash": "30ec155c9173fea1c93ef1ba80027bee981b1a422a90164671e4c8557a1cbc43",
+  "tree_dirty": false,
+  "dirty_files": [],
+  "box": {
+    "cpus": 8,
+    "cpu_model": "DO-Regular",
+    "mem_gb": 16
+  },
+  "box_load_start": {
+    "loadavg_1m": 3.3,
+    "cpu_pressure_avg60_pct": 6.17
+  },
+  "box_load_end": {
+    "loadavg_1m": 3.3,
+    "cpu_pressure_avg60_pct": 6.55
+  },
+  "command": "python -m benchmark.fleet.run_load --db postgres --hosts 500 --rate 12 --duration 300s --seed 2 --tag sweep",
+  "locust_command": "/root/pqc-scanner2/.venv/bin/python -m locust -f /root/pqc-scanner2/benchmark/fleet/locustfile.py --headless -u 500 -r 50 -t 300s --stop-timeout 70 --csv /tmp/fleet-load-bw7h1sf6/run --csv-full-history --only-summary --host http://127.0.0.1:45925",
+  "started_at": "2026-10-18T16:20:21.913141+00:00"
+}

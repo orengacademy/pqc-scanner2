@@ -156,3 +156,11 @@ async def test_run_degrades_to_info_when_no_certs(monkeypatch):
     assert len(found) == 1
     assert found[0].classification is Classification.INFO
     assert "could not be decrypted" in found[0].title
+
+
+def test_client_hello_offers_mldsa_signatures():
+    # An ML-DSA-only server aborts the handshake unless mldsa{44,65,87} are offered.
+    pub = X25519PrivateKey.generate().public_key().public_bytes_raw()
+    ch = build_client_hello_tls13("example.test", pub)
+    for scheme in (b"\x09\x04", b"\x09\x05", b"\x09\x06"):
+        assert scheme in ch

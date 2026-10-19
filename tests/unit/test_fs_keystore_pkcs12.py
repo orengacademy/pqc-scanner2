@@ -159,3 +159,66 @@ async def test_ignores_non_keystore_extensions(tmp_path: Path):
     (tmp_path / "cert.pem").write_bytes(b"-----BEGIN CERTIFICATE-----")
     found = await _run(tmp_path)
     assert found == []
+
+
+@pytest.mark.asyncio
+async def test_truststore_certs_are_inventoried(tmp_path: Path):
+    # A cert-only truststore (no private key) must still surface its CA keys.
+    ca_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    data = pkcs12.serialize_key_and_certificates(
+        name=b"ts", key=None, cert=None, cas=[_make_cert(ca_key, hashes.SHA256())],
+        encryption_algorithm=BestAvailableEncryption(b"changeit"),
+    )
+    (tmp_path / "truststore.p12").write_bytes(data)
+    found = await _run(tmp_path)
+    assert [(f.algorithm, f.evidence["kind"]) for f in found] == [("RSA-2048", "additional-cert")]
+    assert found[0].classification is Classification.SANGAT_TINGGI
+
+
+def _unparseable_ca() -> x509.Certificate:
+    """A cert that loads but whose SPKI names an unknown key type (public_key() raises)."""
+    from cryptography.hazmat.primitives.asymmetric import ed25519
+    from cryptography.hazmat.primitives.serialization import Encoding
+
+    key = ed25519.Ed25519PrivateKey.generate()
+    der = _make_cert(key, None).public_bytes(Encoding.DER)
+    spki = b"\x30\x05\x06\x03\x2b\x65\x70\x03\x21\x00"
+    return x509.load_der_x509_certificate(der.replace(spki, b"\x30\x05\x06\x03\x2b\x65\x7f\x03\x21\x00"))
+
+
+@pytest.mark.asyncio
+async def test_unparseable_ca_does_not_hide_the_rest(tmp_path: Path):
+    weak = rsa.generate_private_key(public_exponent=65537, key_size=1024)
+    good_ca = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    data = pkcs12.serialize_key_and_certificates(
+        name=b"x", key=weak, cert=_make_cert(weak, hashes.SHA256()),
+        cas=[_unparseable_ca(), _make_cert(good_ca, hashes.SHA256())],
+        encryption_algorithm=pkcs12.serialization.NoEncryption(),
+    )
+    (tmp_path / "weak.p12").write_bytes(data)
+    found = await _run(tmp_path)
+    kinds = [(f.evidence.get("kind"), f.algorithm) for f in found]
+    assert ("private-key", "RSA-1024") in kinds
+    assert ("additional-cert-unparseable", "UNKNOWN") in kinds
+    assert ("additional-cert", "RSA-2048") in kinds   # the CA after the bad one is still read
+
+
+@pytest.mark.asyncio
+async def test_one_crashing_file_does_not_stop_the_walk(tmp_path: Path, monkeypatch):
+    key = ec.generate_private_key(ec.SECP256R1())
+    for name in ("a.p12", "b.p12"):
+        _write_p12(tmp_path / name, key, _make_cert(key, hashes.SHA256()), None)
+    real = FsKeystorePkcs12._scan_one
+    calls: list[str] = []
+
+    def flaky(self, path, emit):  # type: ignore[no-untyped-def]
+        calls.append(path.name)
+        if len(calls) == 1:
+            raise RuntimeError("boom")
+        real(self, path, emit)
+
+    monkeypatch.setattr(FsKeystorePkcs12, "_scan_one", flaky)
+    found = await _run(tmp_path)
+    assert len(calls) == 2
+    assert any(f.evidence.get("kind") == "keystore-unparseable" for f in found)
+    assert any(f.evidence.get("kind") == "private-key" for f in found)

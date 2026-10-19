@@ -11,7 +11,8 @@ from cryptography import x509
 from pqcscan.core.alg import classify, normalise
 from pqcscan.core.types import Classification, Finding, Severity
 from pqcscan.probes._keyalg import key_algorithm as _key_algorithm
-from pqcscan.probes._severity import sev_for
+from pqcscan.probes._severity import classify_suite, sev_for
+from pqcscan.probes._tls_probe import inventory_ssl_context
 
 
 @dataclass(frozen=True, slots=True)
@@ -129,10 +130,7 @@ async def run_starttls_probe(
             return
 
         # Upgrade transport to TLS.
-        sslctx = ssl.create_default_context()
-        if not verify:
-            sslctx.check_hostname = False
-            sslctx.verify_mode = ssl.CERT_NONE
+        sslctx = inventory_ssl_context(verify)
         try:
             ssl_transport = await asyncio.wait_for(
                 asyncio.get_event_loop().start_tls(
@@ -167,7 +165,7 @@ async def run_starttls_probe(
 
     if cipher:
         cname, tlsver, _ = cipher
-        cls = classify(cname)
+        cls = classify_suite(cname)
         emit(Finding(
             probe_id=probe_id,
             algorithm=normalise(cname),

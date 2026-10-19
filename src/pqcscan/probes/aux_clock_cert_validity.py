@@ -19,6 +19,6 @@ class AuxClockCertValidity(Probe):
             algorithm="N/A",
             classification=Classification.INFO,
             severity=Severity.INFO,
-            title=f"system UTC clock at scan: {now.isoformat()}",
+            title="system UTC clock at scan",     # the time is in evidence: a per-scan title is a drift row every scan
             evidence={"utc_now": now.isoformat()},
         ))

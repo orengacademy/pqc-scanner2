@@ -1,0 +1,8 @@
+{
+  "cert": "server.crt",
+  "ciphers": "ECDHE-RSA-AES256-GCM-SHA384",
+  "key": "server.key",
+  "max_version": "TLSv1.2",
+  "min_version": "TLSv1.2",
+  "require_client_cert": true
+}

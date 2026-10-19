@@ -20,6 +20,7 @@ import struct
 
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
+from pqcscan.probes._tls_sigalgs import SIG_ALGS
 
 # group code -> (name, is_pqc_hybrid)
 _GROUPS: dict[int, tuple[str, bool]] = {
@@ -62,9 +63,7 @@ def build_client_hello(server_name: str | None = None, *, random: bytes = _FIXED
         _extension(0x002B, b"\x02" + b"\x03\x04"),          # supported_versions: TLS 1.3
         _extension(0x000A, _vec16(groups)),                  # supported_groups
         _extension(0x0033, _vec16(b"")),                     # key_share: empty -> forces HRR
-        _extension(0x000D, _vec16(                           # signature_algorithms
-            _u16(0x0403) + _u16(0x0804) + _u16(0x0401) + _u16(0x0805) + _u16(0x0806)
-        )),
+        _extension(0x000D, _vec16(b"".join(_u16(s) for s in SIG_ALGS))),  # signature_algorithms
     ])
     if server_name:
         host = server_name.encode("idna") if server_name.isascii() else server_name.encode()
@@ -197,22 +196,28 @@ class NetTlsKexGroups(Probe):
             ))
 
     async def _handshake(self, host: str, port: int) -> dict | None:
-        try:
-            reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(host, port), timeout=self.timeout)
-        except (OSError, TimeoutError):
-            return None
-        try:
-            writer.write(build_client_hello(host))
-            await writer.drain()
-            data = await asyncio.wait_for(reader.read(8192), timeout=self.timeout)
-        except (OSError, TimeoutError):
-            return None
-        finally:
-            writer.close()
-            with contextlib.suppress(OSError, TimeoutError):
-                await writer.wait_closed()
-        return parse_server_hello(data)
+        return await select_group(host, port, self.timeout)
+
+
+async def select_group(host: str, port: int, io_timeout: float) -> dict | None:
+    """Raw ClientHello offering classical and hybrid groups; the group the server
+    selects (parse_server_hello dict), or None. Needs no local OpenSSL support
+    for the hybrid groups, so net.tls.pqc_handshake falls back to it."""
+    try:
+        reader, writer = await asyncio.wait_for(asyncio.open_connection(host, port), timeout=io_timeout)
+    except (OSError, TimeoutError):
+        return None
+    try:
+        writer.write(build_client_hello(host))
+        await writer.drain()
+        data = await asyncio.wait_for(reader.read(8192), timeout=io_timeout)
+    except (OSError, TimeoutError):
+        return None
+    finally:
+        writer.close()
+        with contextlib.suppress(OSError, TimeoutError):
+            await writer.wait_closed()
+    return parse_server_hello(data)
 
 
 def _ev(result: dict) -> dict:

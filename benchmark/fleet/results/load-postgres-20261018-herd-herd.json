@@ -1,0 +1,62 @@
+{
+  "db": "postgres",
+  "hosts": 500,
+  "spawn_rate": 50,
+  "duration_s": 180,
+  "interval_s": 60.0,
+  "findings_per_bundle": 1670,
+  "arrival": "herd",
+  "requests": 1486,
+  "p50_ms": 2600.0,
+  "p95_ms": 27000.0,
+  "p99_ms": 32000.0,
+  "rps": 7.26,
+  "offered_rps": 8.3333,
+  "mean_ms": 5285.98915142863,
+  "littles_expected_rps": 7.6586,
+  "littles_ratio": 0.948,
+  "measurement_defect": false,
+  "measurement_defect_reason": "",
+  "hosts_daily_2h_equiv": 60000,
+  "hosts_daily_24h_equiv": 720000,
+  "schema_version": 2,
+  "requests_csv": "load-postgres-20261018-herd-herd-requests.csv.gz",
+  "history_csv": "load-postgres-20261018-herd-herd-history.csv.gz",
+  "http_429": 0,
+  "http_503": 1272,
+  "errors": 14,
+  "ingest_error_rate": 0.0094,
+  "enroll_error_rate": 0.0,
+  "enroll_503": 0,
+  "stored_hosts": 500,
+  "stored_scans": 201,
+  "seed": 1,
+  "ingest_parallelism": 2,
+  "insert_mode": "executemany",
+  "enroll_requests": 500,
+  "enroll_p95_ms": 5900.0,
+  "failure_samples": [
+    "ingest: CatchResponseError('ingest 0: ') x14"
+  ],
+  "pass_p95_lt_2s": false,
+  "commit": "04c2650dde10cac08328343a265f3a3bd782c582",
+  "src_hash": "3aab6c222f9b7b598b030451293023e14810a40fe029e9472ec69ed1d2c90525",
+  "tree_dirty": false,
+  "dirty_files": [],
+  "box": {
+    "cpus": 8,
+    "cpu_model": "DO-Regular",
+    "mem_gb": 16
+  },
+  "box_load_start": {
+    "loadavg_1m": 1.1,
+    "cpu_pressure_avg60_pct": 0.0
+  },
+  "box_load_end": {
+    "loadavg_1m": 2.3,
+    "cpu_pressure_avg60_pct": 2.15
+  },
+  "command": "python -m benchmark.fleet.run_load --db postgres --herd --hosts 500 --duration 180s --seed 1 --tag herd",
+  "locust_command": "/root/pqc-scanner2/.venv/bin/python -m locust -f /root/pqc-scanner2/benchmark/fleet/locustfile.py --headless -u 500 -r 50 -t 180s --stop-timeout 70 --csv /tmp/fleet-load-r0mzyw04/run --csv-full-history --only-summary --host http://127.0.0.1:46377",
+  "started_at": "2026-10-18T19:01:47.830362+00:00"
+}

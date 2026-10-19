@@ -1,0 +1,168 @@
+{
+ "adaptive_fingerprinting": false,
+ "analysis": {
+  "cipher_suite": "",
+  "classical_fallback_available": false,
+  "hybrid_detected": false,
+  "key_exchange": "",
+  "pqc_detected": false,
+  "pqc_extensions": [],
+  "pqc_key_exchange": [],
+  "pqc_public_key_algorithms": [],
+  "pqc_signature_algorithm": null,
+  "pqc_signature_algorithms": [],
+  "pqc_signature_status": "",
+  "pqc_signature_used": null,
+  "security_features": [],
+  "security_level": "",
+  "server_endpoint_fingerprint": null,
+  "signature_negotiation_status": "Unknown",
+  "tls_version": ""
+ },
+ "certificate": null,
+ "certificate_visible": false,
+ "cipher_suite": "Unknown",
+ "client_profile_used": "Fallback",
+ "experimental_quic_only_domain": false,
+ "extension_map": {
+  "alpn_protocols": [],
+  "early_data": false,
+  "key_share": false,
+  "ocsp_stapling": false,
+  "pre_shared_key": false,
+  "psk_key_exchange_modes": false,
+  "session_ticket": false,
+  "signature_algorithms": false,
+  "supported_versions": false
+ },
+ "fallback": {
+  "attempted_profiles": [],
+  "attempts_count": 0,
+  "enabled": false,
+  "fallback_penalty_ms": null,
+  "used": false
+ },
+ "handshake_complete": false,
+ "handshake_duration_ms": null,
+ "is_experimental_server": false,
+ "key_exchange": [],
+ "performance_analysis": {
+  "handshake_timing": {
+   "benchmark": {
+    "acceptable": "400-800ms",
+    "excellent": "< 200ms",
+    "good": "200-400ms",
+    "slow": "800-1500ms",
+    "very_slow": "> 1500ms"
+   },
+   "category": "excellent",
+   "duration_ms": 0,
+   "percentile": 95,
+   "slow_endpoint_alert": false,
+   "slow_endpoint_threshold_ms": 2000
+  },
+  "optimization_opportunities": [],
+  "overhead_analysis": {
+   "baseline_ms": 150,
+   "certificate_overhead_ms": 0,
+   "network_overhead_ms": 0,
+   "overhead_share_percent": 0.0,
+   "overhead_vs_baseline_percent": 0.0,
+   "pqc_overhead_ms": 0
+  }
+ },
+ "pqc_detected": false,
+ "pqc_extensions": {
+  "kem": false,
+  "kem_group": false
+ },
+ "protocol_support": {
+  "detection_method": "standard_tls",
+  "http3": "unknown",
+  "quic": "unknown",
+  "tls": true
+ },
+ "raw_server_hello": [],
+ "recommendations": [
+  {
+   "action": "Review and improve TLS configuration",
+   "category": "Security",
+   "message": "Overall security score is below recommended threshold",
+   "priority": "high"
+  }
+ ],
+ "security_score": {
+  "certificate": 0,
+  "details": {
+   "certificate_key_strength": 0,
+   "certificate_validation": 0,
+   "cipher_suite": 0,
+   "hybrid_security": 0,
+   "key_exchange": 0,
+   "pqc_algorithm": 0,
+   "pqc_implementation": 0,
+   "tls_version": 0
+  },
+  "formula": {
+   "certificate_method": "",
+   "classical_weights": "",
+   "overall_method": "",
+   "pqc_method": "",
+   "pqc_weights": "",
+   "tls_method": ""
+  },
+  "overall": 0,
+  "pqc": 0,
+  "pqc_strength": {
+   "algorithms": [],
+   "nist_level": "",
+   "overall_level": "",
+   "security_bits": 0
+  },
+  "tls": 0,
+  "weights": {
+   "certificate_component": {
+    "key_strength_percentage": 0,
+    "validation_percentage": 0
+   },
+   "overall_classical": {
+    "certificate_percentage": 0,
+    "pqc_percentage": 0,
+    "tls_percentage": 0
+   },
+   "overall_pqc": {
+    "certificate_percentage": 0,
+    "pqc_percentage": 0,
+    "tls_percentage": 0
+   },
+   "pqc_component": {
+    "algorithm_percentage": 0,
+    "hybrid_percentage": 0,
+    "implementation_percentage": 0
+   },
+   "tls_component": {
+    "cipher_percentage": 0,
+    "key_exchange_percentage": 0,
+    "version_percentage": 0
+   }
+  }
+ },
+ "security_warnings": [
+  {
+   "category": "Handshake",
+   "level": "critical",
+   "message": "Scan failed: All handshake attempts failed. Last error: received fatal alert: ProtocolVersion",
+   "recommendation": "Check if the server supports the requested TLS configuration."
+  }
+ ],
+ "server_fingerprint": null,
+ "target": "127.0.0.1",
+ "tls_features": {
+  "alpn": null,
+  "early_data_status": "not_offered",
+  "ocsp_stapling": false,
+  "session_ticket": null
+ },
+ "tls_version": "Unknown",
+ "total_scan_duration_ms": null
+}

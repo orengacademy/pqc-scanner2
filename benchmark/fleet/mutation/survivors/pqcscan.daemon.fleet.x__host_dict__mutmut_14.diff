@@ -1,0 +1,10 @@
+# pqcscan.daemon.fleet.x__host_dict__mutmut_14: survived
+--- src/pqcscan/daemon/fleet.py
++++ src/pqcscan/daemon/fleet.py
+@@ -1,5 +1,5 @@
+ def _host_dict(h: Any) -> dict[str, Any]:
+     return {"host_id": h.id, "machine_id": h.machine_id, "hostname": h.hostname, "os": h.os,
+             "labels": h.labels or {}, "agent_version": h.agent_version,
+-            "first_seen": h.first_seen.isoformat() if h.first_seen else None,
++            "XXfirst_seenXX": h.first_seen.isoformat() if h.first_seen else None,
+             "last_seen": h.last_seen.isoformat() if h.last_seen else None, "revoked": bool(h.revoked)}

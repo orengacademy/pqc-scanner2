@@ -126,6 +126,8 @@ def load_bundle(data: bytes) -> ScanBundle:
         raise BundleInvalid(f"bad gzip: {e}") from e
     if len(raw) > MAX_RAW_BYTES or d.unconsumed_tail:
         raise BundleTooLarge(f"bundle decompresses past {MAX_RAW_BYTES} bytes")
+    if not d.eof:                       # a cut-off stream still inflates; its CRC and length trailer never ran
+        raise BundleInvalid("bad gzip: truncated stream")
     try:
         doc = json.loads(raw)
     except (ValueError, RecursionError) as e:  # deeply nested input can exhaust the recursion limit

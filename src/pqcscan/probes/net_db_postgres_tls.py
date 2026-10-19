@@ -16,7 +16,8 @@ from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed448, ed25519, r
 from pqcscan.core.alg import classify, normalise
 from pqcscan.core.types import Classification, Finding, ProbeFamily, Severity
 from pqcscan.probes._base import Emitter, Probe, ScanContext
-from pqcscan.probes._severity import sev_for
+from pqcscan.probes._severity import classify_suite, sev_for
+from pqcscan.probes._tls_probe import inventory_ssl_context
 
 _SSL_REQUEST = struct.pack("!II", 8, 80877103)  # length=8, code=0x04D2162F
 
@@ -74,10 +75,7 @@ class NetDbPostgresTls(Probe):
                 return
 
             # Server accepted SSL — upgrade.
-            sslctx = ssl.create_default_context()
-            if not self.verify:
-                sslctx.check_hostname = False
-                sslctx.verify_mode = ssl.CERT_NONE
+            sslctx = inventory_ssl_context(self.verify)
             try:
                 ssl_transport = await asyncio.wait_for(
                     asyncio.get_event_loop().start_tls(
@@ -110,7 +108,7 @@ class NetDbPostgresTls(Probe):
 
         if cipher:
             cname, tlsver, _ = cipher
-            cls = classify(cname)
+            cls = classify_suite(cname)
             emit(Finding(
                 probe_id=self.id, algorithm=normalise(cname),
                 classification=cls, severity=sev_for(cls),

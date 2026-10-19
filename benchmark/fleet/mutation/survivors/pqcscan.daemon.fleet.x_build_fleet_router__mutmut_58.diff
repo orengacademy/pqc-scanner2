@@ -1,0 +1,12 @@
+# pqcscan.daemon.fleet.x_build_fleet_router__mutmut_58: survived
+--- src/pqcscan/daemon/fleet.py
++++ src/pqcscan/daemon/fleet.py
+@@ -18,7 +18,7 @@
+         except OperationalError as e:
+             raise HTTPException(503, "store busy, retry later", headers={"Retry-After": "5"}) from e
+         if host is None or host.revoked:
+-            raise HTTPException(401, "unknown or revoked agent token")
++            raise HTTPException(401, None)
+         return host
+ 
+     @router.post("/api/agents/enroll", status_code=201)
