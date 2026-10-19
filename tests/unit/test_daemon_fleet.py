@@ -811,3 +811,16 @@ def test_one_place_ingest_queue_admits_a_bundle(tmp_db_path, fast_registry, tmp_
     monkeypatch.setattr(fleet, "INGEST_QUEUE_MAX", 1)
     c = _client(tmp_db_path, fast_registry)
     assert c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(_enroll(c)["agent_token"])).status_code == 200
+
+
+def test_fleet_api_host_object_is_complete(tmp_db_path, fast_registry, tmp_path):
+    c = _client(tmp_db_path, fast_registry)
+    assert c.post("/api/ingest", content=_bundle(tmp_path), headers=_hdr(_enroll(c)["agent_token"])).status_code == 200
+    row = Repo(tmp_db_path).get_host(1)
+    host = {"host_id": 1, "machine_id": "m-1", "hostname": "web01", "os": "linux", "labels": {"env": "prod"},
+            "agent_version": "x", "first_seen": row.first_seen.isoformat(), "last_seen": row.last_seen.isoformat(),
+            "revoked": False}
+    detail = c.get("/api/fleet/1").json()
+    assert detail["host"] == host
+    assert c.get("/api/fleet").json() == [{**host, "scan_id": 1, "finished_at": detail["scans"][0]["finished_at"],
+                                           "readiness": 0, "crit": 1, "high": 0, "total": 1, "drift": 0}]
