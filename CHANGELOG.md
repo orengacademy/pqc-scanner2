@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Five TCP probes (`net.rdp.negotiation`, `net.smb.dialect`, `net.telnet.plaintext`, `net.kerberos.asreq`,
+  `net.ssh.handshake`) crashed when the peer accepted the connection and then reset it; they caught only a timeout on
+  the read after connect. Seen on GitHub Windows runners, whose RDP listener resets the probe (soak day 0). A reset is
+  now treated like a silent peer, as a refused connection already was.
+
 ### Added
 - Fleet verification campaign. `docs/FLEET-EVIDENCE.md` grades each claim in `docs/FLEET.md` as evidenced, simulated,
   asserted or contradicted, lists the findings, and lists what was not run. Its inputs: a STRIDE threat model with

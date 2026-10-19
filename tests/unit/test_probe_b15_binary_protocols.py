@@ -167,3 +167,50 @@ def test_registry_has_cleartext_protocol_probes():
     from pqcscan.probes._registry import default_registry
     ids = set(default_registry().ids())
     assert {"net.telnet.plaintext", "net.tftp.service"} <= ids
+
+
+class _ResetReader:
+    """Peer resets the connection after accept: every read raises."""
+
+    async def read(self, n: int = -1) -> bytes:
+        raise ConnectionResetError(64, "The specified network name is no longer available")
+
+    readexactly = readuntil = read
+
+
+class _ResetWriter:
+    def __init__(self, fail_on_drain: bool) -> None:
+        self.fail_on_drain = fail_on_drain
+
+    def write(self, data: bytes) -> None:
+        pass
+
+    async def drain(self) -> None:
+        if self.fail_on_drain:
+            raise ConnectionResetError(64, "The specified network name is no longer available")
+
+    def close(self) -> None:
+        pass
+
+    async def wait_closed(self) -> None:
+        pass
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("cls", [
+    NetRdpNegotiation, NetSmbDialect, NetTelnetPlaintext, NetKerberosAsreq, NetSshHandshake,
+])
+@pytest.mark.parametrize("fail_on_drain", [False, True])
+async def test_tcp_probe_peer_reset_after_connect_never_raises(monkeypatch, cls, fail_on_drain):
+    """Seen on GitHub Windows runners (soak day 0, 2026-10-19): the RDP listener
+    accepts, then resets, and the probe crashed with WinError 64. A reset after
+    connect is the same non-finding as a refused connect."""
+    async def fake_open_connection(*a, **kw):
+        return _ResetReader(), _ResetWriter(fail_on_drain)
+
+    monkeypatch.setattr(asyncio, "open_connection", fake_open_connection)
+    p = cls(host="127.0.0.1", port=_DEAD_PORT, timeout_s=1.0)
+    ctx = ScanContext(scan_id=1, mode="user", available_capabilities=set())
+    found: list = []
+    await p.run(ctx, emit=lambda f: found.append(f))
+    assert all(f.classification is Classification.INFO for f in found)

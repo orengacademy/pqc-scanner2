@@ -59,8 +59,8 @@ class NetTelnetPlaintext(Probe):
         try:
             try:
                 data = await asyncio.wait_for(reader.read(64), timeout=self.timeout_s)
-            except TimeoutError:
-                return  # open but silent — not enough signal to classify
+            except (TimeoutError, OSError):
+                return  # open but silent, or reset — not enough signal to classify
         finally:
             writer.close()
             with contextlib.suppress(Exception):

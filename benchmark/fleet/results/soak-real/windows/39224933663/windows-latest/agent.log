@@ -1,0 +1,61 @@
+2026-10-19 08:56:49.766 | ERROR    | pqcscan.runner.runner:_run_one:208 - probe net.rdp.negotiation crashed
+Traceback (most recent call last):
+
+  File "asyncio\windows_events.py", line 494, in finish_recv
+
+OSError: [WinError 64] The specified network name is no longer available
+
+
+During handling of the above exception, another exception occurred:
+
+
+Traceback (most recent call last):
+
+  File "main.py", line 43, in <module>
+
+  File "click\core.py", line 1631, in __call__
+
+  File "click\core.py", line 1552, in main
+
+  File "click\core.py", line 2032, in invoke
+
+  File "click\core.py", line 1415, in invoke
+
+  File "click\core.py", line 910, in invoke
+
+  File "pqcscan\cli\agent.py", line 184, in agent_cmd
+
+  File "pqcscan\cli\agent.py", line 88, in agent_cycle
+
+  File "pqcscan\cli\scan.py", line 91, in run_local_scan
+
+  File "asyncio\runners.py", line 190, in run
+
+  File "asyncio\runners.py", line 118, in run
+
+  File "asyncio\base_events.py", line 641, in run_until_complete
+
+  File "asyncio\windows_events.py", line 321, in run_forever
+
+  File "asyncio\base_events.py", line 608, in run_forever
+
+  File "asyncio\base_events.py", line 1936, in _run_once
+
+  File "asyncio\events.py", line 84, in _run
+
+> File "pqcscan\runner\runner.py", line 202, in _run_one
+
+  File "asyncio\tasks.py", line 489, in wait_for
+
+  File "pqcscan\probes\net_rdp_negotiation.py", line 56, in run
+
+  File "asyncio\streams.py", line 364, in wait_closed
+
+  File "asyncio\proactor_events.py", line 286, in _loop_reading
+
+  File "asyncio\windows_events.py", line 854, in _poll
+
+  File "asyncio\windows_events.py", line 498, in finish_recv
+
+ConnectionResetError: [WinError 64] The specified network name is no longer available
+agent: scan 1 reported
